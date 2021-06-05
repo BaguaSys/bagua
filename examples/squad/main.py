@@ -923,8 +923,12 @@ def main():
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
-        level=logging.INFO if bagua.get_rank() == 0 else logging.WARN,
+        level=logging.WARN,
     )
+
+    if bagua.get_rank() == 0:
+        logging.getLogger().setLevel(logging.INFO)
+
     logger.warning(
         "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
         bagua.get_rank(),

@@ -1,0 +1,5 @@
+bagua
+torch
+tqdm
+transformers
+tensorboardX
