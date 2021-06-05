@@ -166,7 +166,18 @@ def main():
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
     )
-    dataset1 = datasets.MNIST("../data", train=True, download=True, transform=transform)
+
+    if bagua.get_local_rank() == 0:
+        dataset1 = datasets.MNIST(
+            "../data", train=True, download=True, transform=transform
+        )
+        torch.distributed.barrier()
+    else:
+        torch.distributed.barrier()
+        dataset1 = datasets.MNIST(
+            "../data", train=True, download=True, transform=transform
+        )
+
     dataset2 = datasets.MNIST("../data", train=False, transform=transform)
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         dataset1, num_replicas=bagua.get_world_size(), rank=bagua.get_rank()
