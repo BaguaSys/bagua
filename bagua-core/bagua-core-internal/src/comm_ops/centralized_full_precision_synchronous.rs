@@ -57,7 +57,7 @@ impl CommOpTrait for CentralizedFullPrecisionSynchronous {
                     c.allreduce(&mut t.raw);
                     tracing::debug!("internode communication done");
                     if self.average {
-                         t.raw.divide_inplace(stream_ptr, c.nranks as f32);
+                        t.raw.divide_inplace(stream_ptr, c.nranks as f32);
                     }
                 }
             },
