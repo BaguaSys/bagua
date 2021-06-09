@@ -1,0 +1,12 @@
+on: push
+
+name: Cargo check
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: ikzk/bagua-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: rustup default stable
+      - run: cargo check
