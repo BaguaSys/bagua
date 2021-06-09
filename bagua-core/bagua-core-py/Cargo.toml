@@ -1,0 +1,33 @@
+[package]
+name = "bagua-core-py"
+version = "0.1.0"
+authors = ["Xiangru Lian <admin@mail.xrlian.com>"]
+edition = "2018"
+publish = ["private"]
+
+[lib]
+name = "bagua_core_py"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+bagua-core-internal = { path = "../bagua-core-internal" }
+ndarray = "0.14"
+tracing = "0.1"
+tracing-subscriber = "0.2"
+anyhow = "1.0"
+color-eyre = "0.5"
+numpy = "0.13"
+parking_lot = { version = "0.11", features = ["deadlock_detection"] }
+openssl-sys = { version = "*", features = ["vendored"] }
+
+[dependencies.pyo3]
+version = "0.13"
+features = ["extension-module"]
+
+[build-dependencies]
+shadow-rs = "0.5"
+cpp_build = "0.5"
+cc = "1.0"
+cmd_lib = "1.0"
+which = "4.1"
