@@ -1,2 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools-rust", "colorama", "tqdm"]
+requires = ["setuptools", "wheel", "setuptools-rust", "colorama", "tqdm", "setuptools_scm[toml]>=6.0"]
+
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
