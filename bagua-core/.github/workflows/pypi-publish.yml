@@ -1,0 +1,22 @@
+on: push
+
+name: pypi publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    container: ikzk/bagua-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: env BAGUA_NO_INSTALL_DEPS=1 python -m build -s
+      - name: Publish a Python distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish package
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
