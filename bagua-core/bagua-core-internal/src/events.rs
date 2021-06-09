@@ -1,9 +1,9 @@
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct BaguaEventChannel {
-    inner: Arc<(Mutex<bool>, parking_lot::Condvar)>
+    inner: Arc<(Mutex<bool>, parking_lot::Condvar)>,
 }
 
 impl BaguaEventChannel {
@@ -26,7 +26,7 @@ impl BaguaEventChannel {
 impl Default for BaguaEventChannel {
     fn default() -> Self {
         Self {
-            inner: Arc::new((Mutex::new(false), parking_lot::Condvar::new()))
+            inner: Arc::new((Mutex::new(false), parking_lot::Condvar::new())),
         }
     }
 }
