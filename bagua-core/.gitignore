@@ -1,0 +1,7 @@
+.idea/
+target/
+/data/
+scratchpad.org
+build.sh
+push.sh
+__pycache__/
