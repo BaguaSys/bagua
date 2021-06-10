@@ -3,3 +3,5 @@ requires = ["setuptools", "wheel", "setuptools-rust", "colorama", "tqdm", "setup
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
+write_to = "bagua-core-py/version.py"
+write_to_template = "__version__ = \"{version}\""

@@ -58,7 +58,9 @@ if __name__ == "__main__":
 
     setup(
         name="bagua-core",
-        use_scm_version={"local_scheme": "no-local-version"},
+        use_scm_version={"local_scheme": "no-local-version", 
+                         'write_to': 'bagua-core-py/version.py',
+                         'write_to_template': '__version__ = "{version}"'},
         setup_requires=["setuptools_scm"],
         url="https://github.com/BaguaSys/bagua-core",
         python_requires=">=3.6",
