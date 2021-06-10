@@ -94,7 +94,7 @@ Should be one of {}.""".format(
             )
         )
     if prefix is None:
-        prefix = os.path.expanduser("~/.bagua/cuda_lib")
+        prefix = os.path.expanduser("~/.bagua_core/cuda_lib")
     destination = calculate_destination(prefix, cuda, library, record[library])
 
     if os.path.exists(destination):

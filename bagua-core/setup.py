@@ -39,7 +39,7 @@ def install_dependency_library():
         "--cuda",
         nvcc_version,
         "--prefix",
-        os.path.join(cwd, "bagua"),
+        os.path.join(cwd, "python/bagua_core"),
     ]
     install_library.main(args)
 
@@ -63,9 +63,12 @@ if __name__ == "__main__":
         url="https://github.com/BaguaSys/bagua-core",
         python_requires=">=3.6",
         description="Core communication lib for Bagua.",
+        package_dir={"": "python/"},
+        packages=find_packages("python/"),
+        package_data={"": [".data/lib/libnccl.so"]},
         rust_extensions=[
             RustExtension(
-                "bagua_core_py",
+                "bagua_core.bagua_core",
                 path="bagua-core-py/Cargo.toml",
                 binding=Binding.PyO3,
                 native=True,
@@ -73,6 +76,6 @@ if __name__ == "__main__":
         ],
         author="Kuaishou AI Platform & DS3 Lab",
         author_email="admin@mail.xrlian.com",
-        package_data={"": [".data/lib/libnccl.so"]},
         install_requires=[],
+        zip_safe=False,
     )

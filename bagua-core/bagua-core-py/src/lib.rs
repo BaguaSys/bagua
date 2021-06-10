@@ -308,7 +308,7 @@ impl BaguaBucketPy {
 }
 
 #[pymodule]
-fn bagua_core_py(_py: Python, m: &PyModule) -> PyResult<()> {
+fn bagua_core(_py: Python, m: &PyModule) -> PyResult<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_env("LOG_LEVEL"))
         .init();
