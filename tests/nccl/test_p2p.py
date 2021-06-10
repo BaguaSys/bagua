@@ -15,7 +15,7 @@ from bagua.torch_api.utils import cupy2torch
 
 
 def run(args):
-    """ Distributed Synchronous SGD Example """
+    """Distributed Synchronous SGD Example"""
     device = torch.device(
         "cuda:{}".format(args.gpu_id)
         if torch.cuda.is_available() and not args.no_cuda
