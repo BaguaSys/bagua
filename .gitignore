@@ -20,3 +20,4 @@ dbg.h
 /public/**/*.html
 /public/index.js
 /bagua/.data/
+/_build/
