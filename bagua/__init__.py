@@ -1,7 +1,7 @@
 """
 
-[Bagua](https://gitlab.com/kwai/gossipy) is a communication library
-developed by [Kwai](http://www.kwai.com/) for deep learning.
+_Bagua: https://gitlab.com/kwai/gossipy is a communication library
+developed by Kuaishou Technology and DS3 Lab for deep learning.
 
 See [tutorials](https://baguasys.github.io/tutorials/) for Bagua's rationale and benchmark.
 """
