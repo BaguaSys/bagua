@@ -33,12 +33,12 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
-    "sphinx.ext.napoleon"
+    "sphinx.ext.napoleon",
 ]
 
 
 napoleon_numpy_docstring = True
-autodoc_typehints = 'description'
+autodoc_typehints = "description"
 autoapi_type = "python"
 autoapi_dirs = ["./bagua"]
 
