@@ -29,6 +29,7 @@ from torchelastic import metrics
 from torchelastic.agent.server.api import WorkerSpec, WorkerState
 from torchelastic.agent.server.local_elastic_agent import LocalElasticAgent
 from torchelastic.distributed.argparse_util import check_env, env
+import torch
 
 
 log = get_logger()
