@@ -3,9 +3,10 @@
 Bagua_ is a communication library
 developed by Kuaishou Technology and DS3 Lab for deep learning.
 
-See [tutorials](https://baguasys.github.io/tutorials/) for Bagua's rationale and benchmark.
+See tutorials_ for Bagua's rationale and benchmark.
 
 .. _Bagua: https://github.com/BaguaSys/bagua
+.. _tutorials: https://baguasys.github.io/tutorials/
 """
 
 __docformat__ = "numpy"
