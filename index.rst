@@ -3,18 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Bagua API Documentation's documentation!
+Welcome to Bagua API Documentation!
 ===================================================
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+* `Tutorials <https://baguasys.github.io/tutorials/>`_
+* `API Reference <https://bagua.readthedocs.io/en/latest/autoapi/index.html>`_
