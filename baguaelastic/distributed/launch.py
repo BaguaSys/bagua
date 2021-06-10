@@ -208,13 +208,13 @@ def determine_local_world_size(nproc_per_node: str):
             num_proc = os.cpu_count()
             device_type = "cpu"
         elif nproc_per_node == "gpu":
-            if not bagua.cuda.is_available():
+            if not torch.cuda.is_available():
                 raise ValueError("Cuda is not available.")
             device_type = "gpu"
-            num_proc = bagua.cuda.device_count()
+            num_proc = torch.cuda.device_count()
         elif nproc_per_node == "auto":
-            if bagua.cuda.is_available():
-                num_proc = bagua.cuda.device_count()
+            if torch.cuda.is_available():
+                num_proc = torch.cuda.device_count()
                 device_type = "gpu"
             else:
                 num_proc = os.cpu_count()
