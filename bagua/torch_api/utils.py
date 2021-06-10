@@ -7,11 +7,6 @@ import numpy as np
 LOGGER = logging.getLogger(__name__)
 
 try:
-    import cupy
-except ImportError:
-    LOGGER.warning("Warning:  cupy was not installed.")
-
-try:
     import apex
 
     flatten, unflatten = (
