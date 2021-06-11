@@ -61,7 +61,7 @@ class LoadBalancingDistributedSampler(Sampler):
         >>> sampler = bagua.torch_api.contrib.LoadBalancingDistributedSampler(
         >>>    dataset,
         >>>    complexity_fn=complexity_fn) if is_distributed else None
-        >>> loader = DataLoader(dataset, shuffle=(sampler is None),
+        >>> loader = torch.utils.data.DataLoader(dataset, shuffle=(sampler is None),
         ...                     sampler=sampler)
         >>> for epoch in range(start_epoch, n_epochs):
         ...     if is_distributed:
