@@ -4,7 +4,17 @@ from bagua.torch_api.utils import collocate_params, flatten_module_params
 
 
 class FusedOptimizer(torch.optim.Optimizer):
-    def __init__(self, optimizer, do_flatten: bool = False):
+    """Convert any optimizer into a backward efficiency fused optimizer
+
+    Args:
+        optimizer (torch.optim.Optimizer): Any PyTorch optimizer
+        do_flatten (bool): Whether to flatten the parameters
+
+    Returns:
+        Fused optimizer.
+    """
+
+    def __init__(self, optimizer: torch.optim.Optimizer, do_flatten: bool = False):
         self.optimizer = copy.copy(optimizer)
         super(FusedOptimizer, self).__init__(optimizer.param_groups, optimizer.defaults)
 

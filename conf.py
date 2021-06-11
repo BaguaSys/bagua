@@ -41,6 +41,19 @@ napoleon_numpy_docstring = True
 autodoc_typehints = "description"
 autoapi_type = "python"
 autoapi_dirs = ["./bagua"]
+autoapi_ignore = [
+    "*/bagua/autotune/*",
+    "*/bagua/distributed/*",
+    "*/bagua/script/*",
+    "*/bagua/service/*",
+    "*/bagua/torch_api/algorithms/*.py",
+    "*/bagua/torch_api/tools/*.py",
+    "*/bagua/torch_api/communication.py",
+    "*/bagua/torch_api/compression.py",
+    "*/bagua/torch_api/distributed_define.py",
+    "*/bagua/torch_api/exceptions.py",
+    "*/bagua/torch_api/utils.py",
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

@@ -10,6 +10,11 @@ jobs:
         id: action_black
         with:
           black_args: "."
+      - name: Annotate diff changes using reviewdog
+        if: steps.action_black.outputs.is_formatted == 'true'
+        uses: reviewdog/action-suggester@v1
+        with:
+          tool_name: blackfmt
       - name: Create Pull Request
         if: steps.action_black.outputs.is_formatted == 'true'
         uses: peter-evans/create-pull-request@v3

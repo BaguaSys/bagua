@@ -7,4 +7,4 @@ Welcome to Bagua API Documentation!
 ===================================================
 
 * `Tutorials <https://baguasys.github.io/tutorials/>`_
-* `API Reference <https://bagua.readthedocs.io/en/latest/autoapi/index.html>`_
+* :doc:`API Reference </autoapi/index>`
