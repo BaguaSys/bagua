@@ -114,7 +114,7 @@ def record_autotune_log(
             }
         )
         cols = OrderedDict(cols)
-        logging.info("cols={}".format(cols))
+        logging.debug("cols={}".format(cols))
         csv_writer.writerow(cols)
 
 
@@ -187,7 +187,7 @@ class AutotuneService:
         recommended_autotune_hp = self.bayesian_optimizer.ask()
         recommended_bucket_size = 2 ** recommended_autotune_hp["bucket_size_2p"]
 
-        logging.info(
+        logging.debug(
             "autotune_hp={}, train_iter={}, score={}".format(
                 autotune_hp, train_iter, score
             )
@@ -202,7 +202,7 @@ class AutotuneService:
             recommended_bucket_size,
             self.param_group_info,
         )
-        logging.info(
+        logging.debug(
             "bucket_size={}, recommended_bucket_size={}, recommended_buckets={}, is_hierarchical_reduce={}".format(
                 2 ** bucket_size_2p,
                 recommended_bucket_size,
@@ -261,7 +261,7 @@ class AutotuneService:
                 self.recommended_hyperparameters = default_hyperparameters
                 self.last_time_the_hyperparameters_was_granted = time.time()
 
-                logging.info(
+                logging.debug(
                     "tensor_list={}, buckets={}".format(
                         tensor_list, default_hyperparameters.buckets
                     )
@@ -292,7 +292,7 @@ class AutotuneService:
                 if train_iter <= rank0_train_iter.collect()[-1].samples[-1].value:
                     return json.dumps({})
 
-                logging.info(
+                logging.debug(
                     "rank={}, train_iter={}, denoised_iter_per_seconds={}, hyperparameters={}".format(
                         rank,
                         train_iter,
@@ -354,7 +354,7 @@ class AutotuneService:
                         self.hyperparameters_and_score_list
                     )
 
-                    logging.info(
+                    logging.debug(
                         "recommended_train_iter={}, hyperparameters={}, denoised_iter_per_seconds={}".format(
                             recommended_train_iter,
                             hyperparameters,
@@ -379,7 +379,7 @@ class AutotuneService:
                 ):
                     return
 
-                logging.info(
+                logging.debug(
                     "rank={}, train_iter={}, sampling_counter={}, max_samples={}".format(
                         rank, train_iter, self.sampling_counter, self.max_samples
                     )
@@ -413,7 +413,7 @@ class AutotuneService:
                         key=lambda score_hp: score_hp[0],
                         reverse=True,
                     )
-                    logging.info(
+                    logging.debug(
                         "sorted_score_hp={}".format(
                             [(s, p.dict()) for s, p in sorted_score_hp]
                         )
@@ -570,7 +570,7 @@ class AutotuneClient:
             check_board = rsp.json()["check_board"]
             if all([train_iter == my_train_iter for train_iter in check_board]):
                 break
-            logging.info("check_board={}".format(check_board))
+            logging.debug("check_board={}".format(check_board))
             time.sleep(1)
 
     def ask_hyperparameters(
