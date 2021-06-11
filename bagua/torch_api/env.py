@@ -64,9 +64,3 @@ def get_autotune_level():
     return int(os.environ.get("BAGUA_AUTOTUNE", 0))
 
 
-def _horovod_0_21_1_compat_mode():
-    return int(os.environ.get("BAGUA_HOROVOD_0_21_1_COMPAT_MODE", 0)) == 1
-
-
-def _horovod_0_21_3_compat_mode():
-    return int(os.environ.get("BAGUA_HOROVOD_0_21_3_COMPAT_MODE", 0)) == 1

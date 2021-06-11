@@ -52,7 +52,6 @@ autoapi_ignore = [
     "*/bagua/torch_api/compression.py",
     "*/bagua/torch_api/distributed_define.py",
     "*/bagua/torch_api/exceptions.py",
-    "*/bagua/torch_api/horovod_pack.py",
     "*/bagua/torch_api/utils.py",
 ]
 

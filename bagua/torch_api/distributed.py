@@ -19,8 +19,6 @@ from .env import (
     get_world_size,
     get_local_size,
     get_autotune_level,
-    _horovod_0_21_1_compat_mode,
-    _horovod_0_21_3_compat_mode,
 )
 from .utils import (
     to_bagua_datatype,
@@ -568,15 +566,6 @@ class ModelSwitchWrapper(torch.nn.Module):
 
         # sync params at the start of each training stage
         if self.stage == 0:
-            if _horovod_0_21_1_compat_mode():
-                from .horovod_pack import initialize_optimizer_state_0_21_1
-
-                initialize_optimizer_state_0_21_1(self.optimizers[0])
-            elif _horovod_0_21_3_compat_mode():
-                from .horovod_pack import initialize_optimizer_state_0_21_3
-
-                initialize_optimizer_state_0_21_3(self.optimizers[0])
-
             broadcast_parameters(self.bagua_module)
         else:
             allreduce_parameters(self.bagua_module)
