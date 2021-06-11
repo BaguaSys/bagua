@@ -1,11 +1,9 @@
 import logging
-from typing import Optional
 import torch
 import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
 import bagua_core as B
 
-import bagua.torch_api
 from .env import (
     get_world_size,
     get_rank,

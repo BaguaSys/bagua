@@ -2,6 +2,7 @@
 """
 The Bagua communication library PyTorch interface.
 """
+from .communication import init_process_group
 from .distributed import bagua_init
 from .env import (
     get_rank,
@@ -9,6 +10,5 @@ from .env import (
     get_local_rank,
     get_local_size,
 )
-from .communication import init_process_group
 from .fuse_optimizer import FusedOptimizer
 from ..bagua_define import DistributedAlgorithm

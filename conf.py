@@ -48,7 +48,6 @@ autoapi_ignore = [
     "*/bagua/service/*",
     "*/bagua/torch_api/algorithms/*.py",
     "*/bagua/torch_api/tools/*.py",
-    "*/bagua/torch_api/communication.py",
     "*/bagua/torch_api/compression.py",
     "*/bagua/torch_api/distributed_define.py",
     "*/bagua/torch_api/exceptions.py",
