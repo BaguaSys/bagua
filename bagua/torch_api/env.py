@@ -53,28 +53,28 @@ def get_local_size():
 
 
 def get_autotune_server_addr():
-  """
-  Gets autotune server addr.
+    """
+    Gets autotune server addr.
 
-  Returns:
-     The ip address of autotune server.
-  """
+    Returns:
+       The ip address of autotune server.
+    """
     return os.environ.get("AUTO_TUNE_SERVER_ADDR")
 
 
 def is_report_metrics_switch_on():
-  """
-  Wheter bagua report switch is on or not.
-  """
+    """
+    Wheter bagua report switch is on or not.
+    """
     return int(os.environ.get("BAGUA_REPORT_METRICS", 0)) == 1
 
 
 def get_autotune_level():
-  """
-  Get the atuotune level.
+    """
+    Get the atuotune level.
 
-  Returns:
-      The autotune level.
+    Returns:
+        The autotune level.
 
-  """
+    """
     return int(os.environ.get("BAGUA_AUTOTUNE", 0))
