@@ -62,5 +62,3 @@ def is_report_metrics_switch_on():
 
 def get_autotune_level():
     return int(os.environ.get("BAGUA_AUTOTUNE", 0))
-
-
