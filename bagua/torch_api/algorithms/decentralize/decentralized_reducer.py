@@ -1,5 +1,5 @@
 import torch
-from bagua.torch_api.distributed import DistributedModule
+from ..distributed_module import DistributedModule
 from bagua.torch_api.compression import Compressor
 
 
