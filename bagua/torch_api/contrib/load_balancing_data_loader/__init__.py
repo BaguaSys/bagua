@@ -138,7 +138,7 @@ class LoadBalancingDistributedSampler(Sampler):
             )
 
         logging.info("set random level to {}".format(random_level))
-        self.random_number = math.ceil((max_complexity - min_complexity) * random_level)
+        self.random_number = int((max_complexity - min_complexity) * random_level + 1)
 
     def shuffle_chunks(self):
         def chunks_wrap_padding(lst, n):
@@ -245,8 +245,8 @@ class LoadBalancingDistributedBatchSampler(Sampler):
         >>> from bagua.torch_api.contrib import LoadBalancingDistributedSampler, LoadBalancingDistributedBatchSampler
         >>> sampler = LoadBalancingDistributedSampler(dataset, complexity_fn=complexity_fn)
         >>> batch_sampler = LoadBalancingDistributedBatchSampler(sampler, batch_fn=batch_fn)
-        >>> loader = DataLoader(dataset, batch_sampler=batch_sampler)
-        ...
+        >>> loader = torch.utils.data.DataLoader(dataset, batch_sampler=batch_sampler)
+        >>>
         >>> for epoch in range(start_epoch, n_epochs):
         ...     batch_sampler.set_epoch(epoch)
         ...     train(loader)
