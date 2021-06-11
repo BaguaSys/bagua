@@ -25,6 +25,7 @@ from .distributed_define import BucketType
 from bagua.torch_api.env import get_world_size, get_rank, get_local_size
 from .utils import to_bagua_datatype, flatten_module_params, check_contiguous
 from bagua.torch_api.communication import _get_global_state
+from bagua.torch_api.algorithms import DistributedModule
 import bagua_core as B
 
 
