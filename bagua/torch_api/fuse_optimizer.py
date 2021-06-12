@@ -4,14 +4,35 @@ from bagua.torch_api.utils import collocate_params, flatten_module_params
 
 
 class FusedOptimizer(torch.optim.Optimizer):
-    """Convert any optimizer into a backward efficiency fused optimizer
+    """Convert any optimizer into a backward efficiency fused optimizer.
+
+    This fused optimizer fuses multiple kernel launches that do module parameter updates
+    into one or a few kernel launches, by flattening parameter tensors into one or more
+    contiguous ones.
+
+    It can be used in conjunction with `bagua_init`. In such a case, `Bagua` will do the
+    fusions automatically, otherwise, pass `True` to `do_flatten` to perform these fusions
+    explicitly.
 
     Args:
         optimizer (torch.optim.Optimizer): Any PyTorch optimizer
-        do_flatten (bool): Whether to flatten the parameters
+        do_flatten (bool): Whether to flatten the parameters. Default: `False`.
 
     Returns:
         Fused optimizer.
+
+
+    Example::
+
+        To use in conjunction with `bagua_init`:
+        >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
+        >>> optimizer = FusedOptimizer(optimizer)
+        >>> model, optimizer = bagua.bagua_init(model, optimizer, ...)
+
+        To use alone or with `torch.nn.parallel.DistributedDataParallel`, set `do_flatten` to be `True`:
+        >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
+        >>> optimizer = FusedOptimizer(optimizer, do_flatten=True)
+
     """
 
     def __init__(self, optimizer: torch.optim.Optimizer, do_flatten: bool = False):
