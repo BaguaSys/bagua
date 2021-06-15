@@ -1,0 +1,18 @@
+on:
+  pull_request:
+
+name: Bagua Bench
+
+jobs:
+  benchmark:
+    # We don't accept running on non-bagua repos because of security concerns
+    # Only run the job when the body contains magic word "RUN_BAGUABENCH"
+    if: ${{ github.repository_owner == 'BaguaSys' && contains(github.event.pull_request.body, 'RUN_BAGUABENCH') }}
+    runs-on: [self-hosted]
+    container: ikzk/bagua-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          nvidia-smi -a
+          pip install .
+          bash .github/scripts/benchmark.sh
