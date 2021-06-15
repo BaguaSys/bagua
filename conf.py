@@ -109,3 +109,21 @@ html_show_sphinx = False
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 html_show_copyright = True
+
+
+_ignore_methods = [
+    "bagua.torch_api.contrib.data.LoadBalancingDistributedSampler.shuffle_chunks",
+    "bagua.torch_api.contrib.data.LoadBalancingDistributedBatchSampler.generate_batches",
+    "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedSampler.shuffle_chunks",
+    "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedBatchSampler.generate_batches",
+]
+
+
+def skip_methods(app, what, name, obj, skip, options):
+    if what == "method" and name in _ignore_methods:
+        skip = True
+    return skip
+
+
+def setup(sphinx):
+    sphinx.connect("autoapi-skip-member", skip_methods)
