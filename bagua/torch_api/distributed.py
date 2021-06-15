@@ -103,7 +103,7 @@ class Reducer(object):
         chunking (bool): For scatter-gather communication pattern, set `chunking` to `True`.
         fusion (bool): To reset parameter data pointer so that they can use faster code paths, set `fusion` to `True`.
         decentralize_reduce (bool): Weather execute the decentralize communication.
-        buckets: Parameter buckets.
+        buckets (List[List[TensorDeclaration]]): Parameter buckets.
 
     
     """
@@ -454,7 +454,7 @@ class OverlappingWrapper(torch.nn.Module):
 
         Arguments:
             hierarchical_reduce (bool): Enable hierarchical reduce.
-            buckets: Parameter buckets.
+            buckets (List[List[TensorDeclaration]]): Parameter buckets.
         """
         for h in self.hook_list:
             h.remove()
