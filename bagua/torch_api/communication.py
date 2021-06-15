@@ -4,6 +4,7 @@ import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
 import bagua_core as B
 
+import bagua.torch_api
 from .env import (
     get_world_size,
     get_rank,
@@ -32,25 +33,26 @@ def is_initialized():
     return _global_state is not None
 
 
-def init_process_group():
-    """Initializes the default distributed process group, and this will also
-    initialize the distributed package.
-
-    Raises:
-        RepeatedInitializationError: [description]
-    """
-
+def init_process_group(init_method: str = "dist://", device_id=None):
     if is_initialized():
         raise RepeatedInitializationError()
 
-    # init default group first
-    if not dist.is_initialized():
-        torch.distributed.init_process_group(backend="nccl", init_method="env://")
+    metas = init_method.split("://")
+    if metas[0] not in ["dist", "file"]:
+        raise ValueError("Illegal init method: {}".format(init_method))
 
-    store = c10d._get_default_store()
+    # create store
+    if metas[0] == "file":
+        store = dist.FileStore(metas[1], get_world_size())  # type: ignore
+    else:
+        # init default group first
+        if not dist.is_initialized():
+            torch.distributed.init_process_group(backend="nccl", init_method="env://")
+
+        store = c10d._get_default_store()
 
     global _global_state
-    _global_state = BaguaGlobalState(store)
+    _global_state = BaguaGlobalState(store, device_id=device_id)
 
 
 class BaguaGlobalState(object):
