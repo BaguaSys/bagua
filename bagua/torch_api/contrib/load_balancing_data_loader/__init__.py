@@ -54,15 +54,18 @@ class LoadBalancingDistributedSampler(Sampler):
     Example::
         Define your `complexity_fn`, which accepts a dataset sample as its input and produces an interger
         as the sample's computational complexity.
+
         >>> dataset = torch.utils.data.TensorDataset(torch.randn(n, 2), torch.randperm(n))
         >>> complexity_fn = lambda x: x[1]
 
         Below is the usage of `LoadBalancingDistributedSampler` and `DataLoader`:
+
         >>> sampler = bagua.torch_api.contrib.LoadBalancingDistributedSampler(
-        >>>    dataset,
-        >>>    complexity_fn=complexity_fn) if is_distributed else None
-        >>> loader = torch.utils.data.DataLoader(dataset, shuffle=(sampler is None),
-        ...                     sampler=sampler)
+        ...     dataset,
+        ...     complexity_fn=complexity_fn) if is_distributed else None
+        >>> loader = torch.utils.data.DataLoader(dataset,
+        ...     shuffle=(sampler is None),
+        ...     sampler=sampler)
         >>> for epoch in range(start_epoch, n_epochs):
         ...     if is_distributed:
         ...         sampler.set_epoch(epoch)
@@ -235,18 +238,16 @@ class LoadBalancingDistributedBatchSampler(Sampler):
         the least number of batches among replicas, otherwises, the number of batches on each
         replica will be padded to the same.
 
-    `batch_fn` has the following signature:
-     ```python
-         def batch_fn(indices: List[int]) -> List[List[int]]
-     ```
+    `batch_fn` will have the signature of
+     ``def batch_fn(indices: List[int]) -> List[List[int]]``.
 
     Example::
 
-        >>> from bagua.torch_api.contrib import LoadBalancingDistributedSampler, LoadBalancingDistributedBatchSampler
+        >>> from bagua.torch_api.contrib import LoadBalancingDistributedSampler, \
+        ...     LoadBalancingDistributedBatchSampler
         >>> sampler = LoadBalancingDistributedSampler(dataset, complexity_fn=complexity_fn)
         >>> batch_sampler = LoadBalancingDistributedBatchSampler(sampler, batch_fn=batch_fn)
         >>> loader = torch.utils.data.DataLoader(dataset, batch_sampler=batch_sampler)
-        >>>
         >>> for epoch in range(start_epoch, n_epochs):
         ...     batch_sampler.set_epoch(epoch)
         ...     train(loader)

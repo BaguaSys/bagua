@@ -15,7 +15,7 @@ class FusedOptimizer(torch.optim.Optimizer):
     explicitly.
 
     Args:
-        optimizer (torch.optim.Optimizer): Any PyTorch optimizer
+        optimizer (torch.optim.Optimizer): Any PyTorch optimizer.
         do_flatten (bool): Whether to flatten the parameters. Default: `False`.
 
     Returns:
@@ -25,11 +25,13 @@ class FusedOptimizer(torch.optim.Optimizer):
     Example::
 
         To use in conjunction with `bagua_init`:
+
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
         >>> optimizer = FusedOptimizer(optimizer)
         >>> model, optimizer = bagua.bagua_init(model, optimizer, ...)
 
         To use alone or with `torch.nn.parallel.DistributedDataParallel`, set `do_flatten` to be `True`:
+
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
         >>> optimizer = FusedOptimizer(optimizer, do_flatten=True)
 
