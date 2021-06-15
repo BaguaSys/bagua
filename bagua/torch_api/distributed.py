@@ -810,7 +810,6 @@ def bagua_init(
         * `module`(_torch.nn.Module_) - Network definition to be run in multi-gpu/distributed mode.
         * `distributed_algorithm`(_DistributedAlgorithm_) - Distributed algorithm used to average
            gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
-        * `delay_reduce`(_bool_) - Overlap communication with computation. Default: `True`.
         * `delay_reduce`(_bool_): Delay all communication to the end of the backward pass. This disables
            overlapping communication with computation. Default value is `False`.
         * `hierarchical_reduce`(_bool_): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default
