@@ -123,6 +123,7 @@ _ignore_functions = [
     "bagua.torch_api.env.get_autotune_level",
 ]
 
+
 def skip_methods(app, what, name, obj, skip, options):
     if what == "method" and name in _ignore_methods:
         skip = True
