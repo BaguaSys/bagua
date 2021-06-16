@@ -124,10 +124,12 @@ _ignore_functions = [
 ]
 
 def skip_methods(app, what, name, obj, skip, options):
-    if what in "method" and name in _ignore_methods:
+    if what == "method" and name in _ignore_methods:
         skip = True
-    if what in "function" and name in _ignore_functions:
+        return skip
+    if what == "function" and name in _ignore_functions:
         skip = True
+        return skip
     return skip
 
 
