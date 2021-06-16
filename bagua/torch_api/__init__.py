@@ -11,3 +11,4 @@ from .env import (
 )
 from .fuse_optimizer import FusedOptimizer
 from ..bagua_define import DistributedAlgorithm
+import bagua.torch_api.contrib
