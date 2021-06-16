@@ -1,17 +1,23 @@
 from bagua.torch_api.communication import _get_global_state, broadcast
+from typing import List
 
 
 class Algorithm:
     def __init__(self, ):
         pass
 
-    def register_buckets(self, module, optimizer):
+    def need_reset(self) -> bool:
+        "return True when we need to call init_buckets, init_hooks again. for example when we collect more info and want to rearrange the buckets"
+        # TODO: previous buckets and hooks need to be cleared before reinit
         pass
 
-    def register_hooks(self, module, optimizer):
+    def init_buckets(self, module, optimizer) -> List:
         pass
 
-    def setup_operations(self, bucket, inter_node_communicator, intra_node_communicator, global_communicator):
+    def init_hooks(self, module, optimizer) -> List:
+        pass
+
+    def init_operations(self, bucket, inter_node_communicator, intra_node_communicator, global_communicator):
         pass
 
 
@@ -47,8 +53,11 @@ class DistributedWrapper():
         DistributedWrapper._broadcast_parameters(self.module)
         # TODO: broadcast optimizer parameters
 
-        self.buckets = self.algorithm.register_buckets(self.module, self.optimizer)
-        self.algorithm.register_hooks(self.module, self.optimizer)
+        self.init_algorithm()
+
+    def init_algorithm(self):
+        self.buckets = self.algorithm.init_buckets(self.module, self.optimizer)
+        self.hooks = self.algorithm.init_hooks(self.module, self.optimizer)
         for bucket in self.buckets:
-            self.algorithm.setup_operations(bucket, self.inter_node_communicator, self.intra_node_communicator,
-                                            self.global_communicator)
+            self.algorithm.init_operations(bucket, self.inter_node_communicator, self.intra_node_communicator,
+                                           self.global_communicator)
