@@ -19,7 +19,7 @@ class DistributedModule(torch.nn.Module):
         else:
             self.parameters_to_ignore = []
 
-    def unwarp(self):
+    def unwrap(self):
         return self.module
 
     def forward(self, *inputs, **kwargs):

@@ -29,7 +29,6 @@ from .exceptions import UnsupportedAlgorithmException
 from .algorithms.decentralize import DecentralizedReducer
 from .algorithms.allreduce import Allreducer, ScatterGatherAllreducer
 from .compression import Compressor
-import traceback
 from bagua.torch_api.algorithms import DistributedModule
 from bagua.bagua_define import (
     TensorDtype,
