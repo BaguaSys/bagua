@@ -36,9 +36,8 @@ class DistributedWrapper():
 
     def _broadcast_parameters(module):
         module_states = DistributedWrapper._get_module_params_and_buffers(module)
-        authoritative_rank = 0
         for state in module_states:
-            broadcast(state, root=authoritative_rank)
+            broadcast(state, root=0)
 
     def __init__(self, module, optimizer, algorithm):
         self.module = module
