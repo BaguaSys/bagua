@@ -117,11 +117,20 @@ _ignore_methods = [
     "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedSampler.shuffle_chunks",
     "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedBatchSampler.generate_batches",
 ]
+_ignore_functions = [
+    "bagua.torch_api.env.get_autotune_server_addr",
+    "bagua.torch_api.env.is_report_metrics_switch_on",
+    "bagua.torch_api.env.get_autotune_level",
+]
 
 
 def skip_methods(app, what, name, obj, skip, options):
     if what == "method" and name in _ignore_methods:
         skip = True
+        return skip
+    if what == "function" and name in _ignore_functions:
+        skip = True
+        return skip
     return skip
 
 
