@@ -116,6 +116,9 @@ _ignore_methods = [
     "bagua.torch_api.contrib.data.LoadBalancingDistributedBatchSampler.generate_batches",
     "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedSampler.shuffle_chunks",
     "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedBatchSampler.generate_batches",
+    "bagua.torch_api.env.get_autotune_server_addr",
+    "bagua.torch_api.env.is_report_metrics_switch_on",
+    "bagua.torch_api.env.get_autotune_level",
 ]
 
 
