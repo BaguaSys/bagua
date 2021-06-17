@@ -54,7 +54,7 @@ pub enum BaguaCoreError {
 #[derive(Debug)]
 pub struct BaguaScheduledCommOp {
     pub bucket: Arc<BaguaBucket>,
-    pub op: Arc<dyn CommOpTrait + Send + Sync>,
+    pub ops: Vec<Arc<dyn CommOpTrait + Send + Sync>>,
     pub event_channel: BaguaEventChannel,
 }
 
@@ -125,14 +125,17 @@ pub struct BaguaCommBackend {
 impl BaguaCommBackend {
     pub fn schedule_comm(&self, bucket: Arc<BaguaBucket>) -> Result<(), BaguaCoreError> {
         let event_channel = BaguaEventChannel::default();
-        self.channels.schedule_channel_sender.send(BaguaScheduledCommOp {
-            op: {
-                let guard = bucket.inner.lock();
-                guard.comm_op.clone().expect("bucket must have communication operator set before scheduled for communication")
-            },
-            bucket,
-            event_channel: event_channel.clone(),
-        }).map_err(|e| BaguaCoreError::InternalChannelError(format!("{:?}", e)))?;
+        self.channels
+            .schedule_channel_sender
+            .send(BaguaScheduledCommOp {
+                ops: {
+                    let guard = bucket.inner.lock();
+                    guard.comm_ops.clone()
+                },
+                bucket,
+                event_channel: event_channel.clone(),
+            })
+            .map_err(|e| BaguaCoreError::InternalChannelError(format!("{:?}", e)))?;
         Ok(self
             .channels
             .not_waited_events_sender
@@ -187,9 +190,12 @@ impl BaguaCommBackend {
                         "worker received scheduled communication operation {:?}",
                         comm_op
                     );
-                    comm_op
-                        .op
-                        .execute_background_communication(comm_op.bucket.clone(), &channels_clone);
+                    for op in &comm_op.ops {
+                        op.execute_background_communication(
+                            comm_op.bucket.clone(),
+                            &channels_clone,
+                        );
+                    }
                     tracing::debug!("comm op executed: {:?}", comm_op);
                     comm_op.event_channel.finish();
                     tracing::debug!("comm op marked finished: {:?}", comm_op);
@@ -292,9 +298,9 @@ impl BaguaCommBackend {
             match comm_op {
                 Ok(comm_op) => {
                     tracing::debug!("received post step communication operation {:?}", comm_op);
-                    comm_op
-                        .op
-                        .execute_background_communication(comm_op.bucket.clone(), &self.channels);
+                    for op in &comm_op.ops {
+                        op.execute_background_communication(comm_op.bucket.clone(), &self.channels);
+                    }
                     tracing::debug!("comm op executed: {:?}", comm_op);
                     comm_op.event_channel.finish();
                     tracing::debug!("comm op marked finished: {:?}", comm_op);

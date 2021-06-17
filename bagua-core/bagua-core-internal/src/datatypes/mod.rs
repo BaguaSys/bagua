@@ -3,6 +3,7 @@ use crate::comm_ops::centralized_low_precision_synchronous::CentralizedLowPrecis
 use crate::comm_ops::decentralized_full_precision_synchronous::{
     DecentralizedFullPrecisionSynchronous, PeerSelectionMode,
 };
+use crate::comm_ops::python_ffi_op::PythonFFIOp;
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaSingleCommunicator};
 use crate::resource_pool::{CudaMemory, CUDA_DEVICE_MEMORY_POOL};
@@ -586,7 +587,7 @@ pub struct BaguaBucketInner {
     pub tensors: Vec<BaguaTensor>,
     pub dtype: BaguaTensorDtype,
     pub inplace: bool,
-    pub comm_op: Option<Arc<dyn CommOpTrait + Sync + Send>>,
+    pub comm_ops: Vec<Arc<dyn CommOpTrait + Sync + Send>>,
     pub align_bytes: usize,
 }
 
@@ -734,12 +735,14 @@ impl<'b> Drop for BaguaCommunicationTensor<'b> {
 #[derive(Debug, Clone)]
 pub struct BaguaBucket {
     pub id: u64,
+    pub name: String,
     pub inner: Arc<Mutex<BaguaBucketInner>>,
 }
 
 impl BaguaBucket {
     pub fn new(
         tensors: &[&BaguaTensor],
+        name: &str,
         inplace: bool,
         align_bytes: usize,
     ) -> Result<Self, BaguaCoreError> {
@@ -812,10 +815,11 @@ impl BaguaBucket {
         let id = lazy_id::Id::lazy().get();
         Ok(Self {
             id,
+            name: name.to_owned(),
             inner: Arc::new(Mutex::new(BaguaBucketInner {
                 inplace,
                 tensors: tensors.iter().map(|x| (**x).clone()).collect(),
-                comm_op: None,
+                comm_ops: vec![],
                 dtype: tensors.first().unwrap().inner.read().raw.dtype.clone(),
                 align_bytes,
             })),
@@ -826,7 +830,7 @@ impl BaguaBucket {
         self.inner.lock().tensors.clone()
     }
 
-    pub fn set_decentralized_synchronous_op(
+    pub fn append_decentralized_synchronous_op(
         &mut self,
         communicator_internode: Option<&BaguaSingleCommunicator>,
         communicator_intranode: Option<&BaguaSingleCommunicator>,
@@ -857,12 +861,17 @@ impl BaguaBucket {
                 }
             },
         };
-        self.inner.lock().comm_op = Some(comm_op);
+        self.inner.lock().comm_ops.push(comm_op);
+    }
+
+    pub fn append_python_op(&mut self, op: pyo3::Py<pyo3::PyAny>) {
+        let comm_op: Arc<dyn CommOpTrait + Send + Sync> = Arc::new(PythonFFIOp { py_callable: op });
+        self.inner.lock().comm_ops.push(comm_op);
     }
 
     /// this function will use communicator_internode to communicate.
     /// if hierarchical = True, it will do hierarchical communicator, this requires intranode communicator on each node and inter node communicator on leader GPU. leader GPU will be the GPU whose communicator_intranode rank is 0
-    pub fn set_centralized_synchronous_op(
+    pub fn append_centralized_synchronous_op(
         &mut self,
         communicator_internode: Option<&BaguaSingleCommunicator>,
         communicator_intranode: Option<&BaguaSingleCommunicator>,
@@ -893,7 +902,7 @@ impl BaguaBucket {
                 }
             },
         };
-        self.inner.lock().comm_op = Some(comm_op);
+        self.inner.lock().comm_ops.push(comm_op);
     }
 
     pub fn ready_for_comm(&self) -> bool {

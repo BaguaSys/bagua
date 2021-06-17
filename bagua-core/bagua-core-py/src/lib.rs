@@ -6,6 +6,8 @@ use bagua_core_internal::BaguaCommBackend;
 use numpy::{IntoPyArray, PyArray1};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use pyo3::PyNativeType;
+use std::sync::Arc;
 
 #[pyclass(dict)]
 pub struct BaguaSingleCommunicatorPy {
@@ -197,9 +199,8 @@ impl BaguaCommBackendPy {
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
-    pub fn wait_pending_comm_ops(&self) -> PyResult<usize> {
-        self.inner
-            .wait_pending_comm_ops()
+    pub fn wait_pending_comm_ops(&self, py: Python) -> PyResult<usize> {
+        py.allow_threads(|| self.inner.wait_pending_comm_ops())
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
@@ -215,9 +216,8 @@ impl BaguaCommBackendPy {
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
-    pub fn wait_pending_post_backward_comm_ops(&self) -> PyResult<usize> {
-        self.inner
-            .wait_pending_post_backward_comm_ops()
+    pub fn wait_pending_post_backward_comm_ops(&self, py: Python) -> PyResult<usize> {
+        py.allow_threads(|| self.inner.wait_pending_post_backward_comm_ops())
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 }
@@ -232,6 +232,7 @@ impl BaguaBucketPy {
     #[new]
     #[args(align_bytes = "0")]
     pub fn new(
+        name: &str,
         tensors: Vec<PyRef<BaguaTensorPy>>,
         inplace: bool,
         align_bytes: usize,
@@ -241,7 +242,7 @@ impl BaguaBucketPy {
             tensors_inner.push(&t.inner)
         }
         Ok(Self {
-            inner: BaguaBucket::new(tensors_inner.as_slice(), inplace, align_bytes)
+            inner: BaguaBucket::new(tensors_inner.as_slice(), name, inplace, align_bytes)
                 .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))?,
         })
     }
@@ -254,8 +255,37 @@ impl BaguaBucketPy {
             .collect()
     }
 
+    pub fn append_python_op(&mut self, op: &PyAny) -> PyResult<()> {
+        assert!(op.is_callable(), "python op should be a callable");
+        self.inner.append_python_op(op.into_py(op.py()));
+        Ok(())
+    }
+
+    /// this function will use communicator_internode to communicate.
+    /// if hierarchical = True, it will do hierarchical communicator, this requires intranode communicator on each node and inter node communicator on leader GPU. leader GPU will be the GPU whose communicator_intranode rank is 0
+    #[args(average = "true", hierarchical = "false", scattergather = "false")]
+    pub fn append_centralized_synchronous_op(
+        &mut self,
+        communicator_internode: Option<&BaguaSingleCommunicatorPy>,
+        communicator_intranode: Option<&BaguaSingleCommunicatorPy>,
+        hierarchical: bool,
+        average: bool,
+        scattergather: bool,
+        compression: Option<String>,
+    ) -> PyResult<()> {
+        self.inner.append_centralized_synchronous_op(
+            communicator_internode.map(|x| &x.inner),
+            communicator_intranode.map(|x| &x.inner),
+            hierarchical,
+            average,
+            scattergather,
+            compression,
+        );
+        Ok(())
+    }
+
     #[args(hierarchical = "false", communication_interval = "1")]
-    pub fn set_decentralized_synchronous_op(
+    pub fn append_decentralized_synchronous_op(
         &mut self,
         communicator_internode: Option<&BaguaSingleCommunicatorPy>,
         communicator_intranode: Option<&BaguaSingleCommunicatorPy>,
@@ -264,7 +294,7 @@ impl BaguaBucketPy {
         communication_interval: usize,
         compression: Option<String>,
     ) -> PyResult<()> {
-        self.inner.set_decentralized_synchronous_op(
+        self.inner.append_decentralized_synchronous_op(
             communicator_internode.map(|x| &x.inner),
             communicator_intranode.map(|x| &x.inner),
             hierarchical,
@@ -275,26 +305,13 @@ impl BaguaBucketPy {
         Ok(())
     }
 
-    /// this function will use communicator_internode to communicate.
-    /// if hierarchical = True, it will do hierarchical communicator, this requires intranode communicator on each node and inter node communicator on leader GPU. leader GPU will be the GPU whose communicator_intranode rank is 0
-    #[args(average = "true", hierarchical = "false", scattergather = "false")]
-    pub fn set_centralized_synchronous_op(
-        &mut self,
-        communicator_internode: Option<&BaguaSingleCommunicatorPy>,
-        communicator_intranode: Option<&BaguaSingleCommunicatorPy>,
-        hierarchical: bool,
-        average: bool,
-        scattergather: bool,
-        compression: Option<String>,
-    ) -> PyResult<()> {
-        self.inner.set_centralized_synchronous_op(
-            communicator_internode.map(|x| &x.inner),
-            communicator_intranode.map(|x| &x.inner),
-            hierarchical,
-            average,
-            scattergather,
-            compression,
-        );
+    pub fn print_ops(&self) -> PyResult<()> {
+        println!("{:?}", self.inner.inner.lock().comm_ops);
+        Ok(())
+    }
+
+    pub fn clear_ops(&mut self) -> PyResult<()> {
+        self.inner.inner.lock().comm_ops.clear();
         Ok(())
     }
 

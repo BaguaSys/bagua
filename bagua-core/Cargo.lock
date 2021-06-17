@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "bagua-core-c"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "bagua-core-internal",
@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "bagua-core-internal"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "base64",
  "cc",
@@ -110,6 +110,7 @@ dependencies = [
  "once_cell",
  "oneshot",
  "parking_lot",
+ "pyo3",
  "scheduled-thread-pool",
  "serde",
  "serde_json",
@@ -124,7 +125,7 @@ dependencies = [
 
 [[package]]
 name = "bagua-core-py"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "bagua-core-internal",

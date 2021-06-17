@@ -7,3 +7,6 @@ push.sh
 __pycache__/
 *.egg-info/
 /dist/
+/.eggs/
+/build/
+.data/
