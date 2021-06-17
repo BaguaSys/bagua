@@ -2,10 +2,8 @@ import os
 from distutils.errors import (
     DistutilsPlatformError,
 )
-from bagua_install_library import install_library
 from setuptools import setup, find_packages
 from setuptools_rust import Binding, RustExtension
-import colorama
 import sys
 
 
@@ -25,6 +23,7 @@ def check_torch_version():
 
 
 def install_dependency_library():
+    from bagua_install_library import install_library
     nvcc_version = (
         os.popen(
             "nvcc --version | grep release | sed 's/.*release //' |  sed 's/,.*//'"
@@ -45,6 +44,7 @@ def install_dependency_library():
 
 
 if __name__ == "__main__":
+    import colorama
     colorama.init(autoreset=True)
     cwd = os.path.dirname(os.path.abspath(__file__))
 
