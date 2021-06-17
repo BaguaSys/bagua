@@ -480,8 +480,8 @@ class AutotuneService:
 
 
 class AutotuneClient:
-    def __init__(self, autotune_service_addr):
-        self.autotune_service_addr = autotune_service_addr
+    def __init__(self, service_addr: str, service_port: int):
+        self.autotune_service_addr = "{}:{}".format(service_addr, service_port)
         self.session = requests.Session()
 
     def report_metrics(

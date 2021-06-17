@@ -10,7 +10,8 @@ from .env import (
     get_rank,
     get_local_rank,
     get_local_size,
-    get_autotune_server_addr,
+    get_master_addr,
+    get_bagua_service_port,
 )
 from ..service.autotune_service import AutotuneClient
 from .exceptions import RepeatedInitializationError
@@ -63,7 +64,7 @@ class BaguaGlobalState(object):
         self.stream = torch.cuda.Stream(priority=-1)
         self.store = store
         self.hyperparameters = BaguaHyperparameter()
-        self.hyperparameters_service_client = AutotuneClient(get_autotune_server_addr())
+        self.hyperparameters_service_client = AutotuneClient(get_master_addr(), get_bagua_service_port())
         self.internode_communicator = init_bagua_inter_communicator(
             stream=self.stream, leader_rank=0, store=self.store, device_id=device_id
         )
