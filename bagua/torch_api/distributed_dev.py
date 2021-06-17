@@ -19,7 +19,13 @@ class Algorithm:
     def init_hooks(self, module, optimizer) -> List:
         pass
 
-    def init_operations(self, bucket, inter_node_communicator, intra_node_communicator, global_communicator):
+    def init_operations(
+        self,
+        bucket,
+        inter_node_communicator,
+        intra_node_communicator,
+        global_communicator,
+    ):
         pass
 
 
