@@ -29,7 +29,7 @@ from .exceptions import UnsupportedAlgorithmException
 from .algorithms.decentralize import DecentralizedReducer
 from .algorithms.allreduce import Allreducer, ScatterGatherAllreducer
 from .compression import Compressor
-from bagua.service.autotune_service import BaguaHyperparameter
+from bagua.torch_api.algorithms import DistributedModule
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
@@ -37,32 +37,6 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
 )
 import bagua_core as B
-
-
-class DistributedModule(torch.nn.Module):
-    """
-    A base class for distributed module.
-    """
-
-    def __init__(
-        self,
-        module: torch.nn.Module,
-    ):
-        super(DistributedModule, self).__init__()
-        self.module = module
-        if hasattr(module, "_bagua_params_and_buffers_to_ignore"):
-            self.parameters_to_ignore = [
-                ("module." + k) for k in module._bagua_params_and_buffers_to_ignore  # type: ignore
-            ]
-        else:
-            self.parameters_to_ignore = []
-
-    def unwarp(self):
-        return self.module
-
-    def forward(self, *inputs, **kwargs):
-        result = self.module(*inputs, **kwargs)
-        return result
 
 
 class Reducer(object):
