@@ -26,7 +26,8 @@ if __name__ == "__main__":
 
     setup(
         name="bagua",
-        version="0.1.0",
+        use_scm_version={"local_scheme": "no-local-version"},
+        setup_requires=["setuptools_scm"],
         url="https://github.com/BaguaSys/bagua",
         python_requires=">=3.6",
         description="Bagua is a flexible and performant distributed training algorithm development framework.",

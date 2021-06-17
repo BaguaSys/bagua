@@ -13,3 +13,4 @@ __docformat__ = "numpy"
 
 import bagua_core
 from . import torch_api, autotune, script, bagua_define
+from .version import __version__
