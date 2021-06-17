@@ -494,7 +494,11 @@ class OverlappingWrapper(torch.nn.Module):
 
 
 class ModelSwitchWrapper(torch.nn.Module):
-    r"""
+    r"""`ModelSwitchWrapper` is designed to switch distributed algorithms during training process. It mainly
+    has two functions.
+    The first is transform the original module to a distributed module.
+    Second, this class can change the distributed mode to another one in the training process.
+    
     Args:
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers of the module 
             at **the first iteration** of the forward function. Default: `True`.
@@ -768,12 +772,12 @@ def _get_module_params_and_buffers(module, broadcast_buffers=True):
         parameters_to_ignore = []
 
     module_states = []
-    #Get the module parameters and buffers.
+    # Get the module parameters and buffers.
     if broadcast_buffers==True:
         for name, param in module.state_dict().items():
             if name not in parameters_to_ignore:
                 module_states.append(param)
-    #Only get the module parameters.
+    # Only get the module parameters.
     elif broadcast_buffers==False:
         for name, param in module.named_parameters():
             if name not in parameters_to_ignore:
