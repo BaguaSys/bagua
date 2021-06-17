@@ -34,7 +34,7 @@ if __name__ == "__main__":
         author="Kuaishou AI Platform & DS3 Lab",
         author_email="admin@mail.xrlian.com",
         install_requires=[
-            "bagua-core<0.2",
+            "bagua-core>=0.2,<0.3",
             "deprecation",
             "pytest-benchmark",
             "scikit-optimize",
