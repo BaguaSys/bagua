@@ -98,7 +98,8 @@ class Reducer(object):
 
     Args:
         module (DistributedModule): Module to be parallelized.
-        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizers contain one or more PyTorch optimizers.
+        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
+            It can contain one or more PyTorch optimizers.
         bucket_type (BucketType): Type of elements in a communication bucket, could be either module parameters, weights or gradients.
         hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node allreduce, followed 
                                 by an inter-node reduce defined by different `module`, and an intra-node broadcast at the end. 
@@ -397,7 +398,8 @@ class OverlappingWrapper(torch.nn.Module):
 
     Arguments:
         module (torch.nn.Module): A distributed module to be overlapped.
-        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) can be single or mutiple.
+        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
+            It can contain one or more PyTorch optimizers.
         delay_reduce (bool): Delay all communication to the end of the backward pass. This disables overlapping 
             communication with computation. Default value is `False`.
         bucket_type (BucketType): Type of elements in a communication bucket, could be 
@@ -580,11 +582,15 @@ class OverlappingWrapper(torch.nn.Module):
 
 class ModelSwitchWrapper(torch.nn.Module):
     r"""
-    Transform the original module into a distributed module.
+    `ModelSwitchWrapper` is designed to switch distributed algorithms during training process. It mainly
+    has two functions.
+    The first is transform the original module to a distributed module.
+    Second, this class can change the distributed mode to another one in the training process.
     
     Args:
         module (torch.nn.Module): Network definition to be run in multi-gpu/distributed mode.
         optimizer (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
+            It can contain one or more PyTorch optimizers.
         delay_reduce (bool): Overlap communication with computation. Default: `True`.
         hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default 
             value is `False`, otherwise, default value is `True`.
@@ -610,7 +616,12 @@ class ModelSwitchWrapper(torch.nn.Module):
         ...    message_size = message_size,
         ...    **kwargs,
         ...    ).switch_to(DistributedAlgorithm.GradientAllReduce)
-
+        >>> train A epochs
+        >>> model.switch_to(DistributedAlgorithm.Decentralize)
+        >>> train B epochs
+        >>> model.switch_to(DistributedAlgorithm. GradientAllReduce)
+        >>> continue training
+        >>> ...
     """
     def __init__(
         self,
@@ -943,6 +954,7 @@ def bagua_init(
     Arguments:
         module (torch.nn.Module): Network definition to be run in multi-gpu/distributed mode.
         optimizer (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
+            It can contain one or more PyTorch optimizers.
         distributed_algorithm (DistributedAlgorithm): Distributed algorithm used to average 
             gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
         delay_reduce (bool): Delay all communication to the end of the backward pass. This disables 
