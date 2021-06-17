@@ -3,7 +3,9 @@ from typing import List
 
 
 class Algorithm:
-    def __init__(self, ):
+    def __init__(
+        self,
+    ):
         pass
 
     def need_reset(self) -> bool:
