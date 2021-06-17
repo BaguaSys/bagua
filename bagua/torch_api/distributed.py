@@ -42,7 +42,7 @@ import bagua_core as B
 
 
 class DistributedModule(torch.nn.Module):
-    """
+    r"""
     A base class for distributed module.
     """
 
@@ -59,15 +59,15 @@ class DistributedModule(torch.nn.Module):
         else:
             self.parameters_to_ignore = []
 
-    def unwarp(self):
-        """
-        Return the unwarmped module.
+    def unwrap(self):
+        r"""
+        Return the unwraped module.
         """
 
         return self.module
 
     def forward(self, *inputs, **kwargs):
-        """
+        r"""
         Execute the forward process and return the output.
         """
 
@@ -76,33 +76,37 @@ class DistributedModule(torch.nn.Module):
 
 
 class Reducer(object):
-    """ In order to improve communication efficiency, the distributed algorithm divides the parameter \
-        into different blocks, called buckets, and the parameter gradient communicates between different devices in the form of buckets. \
-        This module is the bucket manager，providing bucket operation methods.
-        The process mainly consists following two situations:
+    r"""In order to improve communication efficiency, the distributed algorithm divides the parameter into different blocks, 
+    called buckets, and the parameter gradient communicates between different devices in the form of buckets. 
+    This module is the bucket manager，providing bucket operation methods.
+    
+    The process mainly consists following two situations:
         
         1. bucket_initialized is False:
-          (1) add_param
-          (2) initialize_buckets -> register_models
-          (3) mark_bucket_ready
-          (4) mark_on_complete
+            1.1 add_param
+
+            1.2 initialize_buckets -> register_models
+          
+            1.3 mark_bucket_ready
+          
+            1.4 mark_on_complete
 
         2. bucket_initialized is True:
-          (1) mark_tensor_ready
-          (2) mark_on_complete 
+            2.1 mark_tensor_ready
+
+            2.2 mark_on_complete 
 
     Args:
-        module (torch.nn.Module): Module to be parallelized.
-        optimizers (list of optimizer(s)): Optimizer(s) can be single or mutiple. Its mainly used to divided the \
-                                        parameter into different bucets according to the optimizer(s) group.
-        bucket_type (BucketType): Type of elements in a communication bucket, could be \
-                    either module parameters, weights or gradients.
-        hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node allreduce, followed \
-                                by an inter-node reduce defined by different `module`, and an intra-node broadcast at the end.
+        module (DistributedModule): Module to be parallelized.
+        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) can be single or mutiple. Its mainly used to 
+                                        divided the parameter into different buckets according to the optimizer(s) group.
+        bucket_type (BucketType): Type of elements in a communication bucket, could be either module parameters, weights or gradients.
+        hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node allreduce, followed 
+                                by an inter-node reduce defined by different `module`, and an intra-node broadcast at the end. 
         align_bytes (bool): Number to bytes to be aligned for each communication bucket.
         chunking (bool): For scatter-gather communication pattern, set `chunking` to `True`.
         fusion (bool): To reset parameter data pointer so that they can use faster code paths, set `fusion` to `True`.
-        decentralize_reduce (bool): Weather execute the decentralize communication.
+        decentralize_reduce (bool): Whether execute the decentralize communication. Default: `False`.
         buckets (List[List[TensorDeclaration]]): Parameter buckets.
 
     
@@ -111,7 +115,7 @@ class Reducer(object):
     def __init__(
         self,
         module: DistributedModule,
-        optimizers: List[torch.optim.Optimizer],
+        optimizers: Union[torch.optim.Optimizer, List[torch.optim.Optimizer]],
         bucket_type: BucketType,
         hierarchical_reduce: bool,
         align_bytes: int,
@@ -217,7 +221,7 @@ class Reducer(object):
         self.bagua_tensor: Dict[str, B.BaguaTensorPy] = {}
 
     def fill_slot(self, param):
-        """
+        r"""
         Get the value of parameters.
         """
         if self.bucket_type == BucketType.Gradient:
@@ -228,7 +232,8 @@ class Reducer(object):
             return param
 
     def initialize_buckets(self) -> List[List[torch.Tensor]]:
-        """Initialize parameter buckets.
+        r"""
+        Initialize parameter buckets.
 
         .. note:: Initialize_buckets MUST execute after the first round of backward for grad ready.
 
@@ -293,7 +298,7 @@ class Reducer(object):
         return self.param_buckets
 
     def register_bagua_buckets(self):
-        """
+        r"""
         Register bagua buckets.
         """
         def new_bagua_tensor(param):
@@ -333,7 +338,7 @@ class Reducer(object):
         self.bagua_backend.register_ordered_buckets(bagua_buckets)
 
     def add_param(self, param):
-        """
+        r"""
         Add parameter into tensor_list.
         """
         if id(param) not in self.param_i:
@@ -349,14 +354,14 @@ class Reducer(object):
         )
 
     def mark_bucket_ready(self, bucket, bucket_idx):
-        """
+        r"""
         Mark all tensors in the bucket ready.
         """
         for param in bucket:
             self.mark_tensor_ready(param)
 
     def mark_tensor_ready(self, param):
-        """
+        r"""
         Mark the tensor ready when got its gradient.
         """
         param_name = self.param_name[id(param)]
@@ -376,7 +381,7 @@ class Reducer(object):
         )
 
     def mark_on_complete(self):
-        """
+        r"""
         Mark all buckets have finished thier reduce process.
         """
         self.bagua_backend.wait_pending_comm_ops()
@@ -388,19 +393,19 @@ class Reducer(object):
 
 
 class OverlappingWrapper(torch.nn.Module):
-    """
+    r"""
     This class defines the process of communication-computation overlap.
 
     Arguments:
         module (torch.nn.Module): A distributed module to be overlapped.
-        delay_reduce (bool): Delay all communication to the end of the \
-            backward pass. This disables overlapping communication with computation.
-        bucket_type (BucketType): Type of elements in a communication bucket, could be \
+        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) can be single or mutiple.
+        delay_reduce (bool): Delay all communication to the end of the backward pass. This disables overlapping 
+            communication with computation. Default value is `False`.
+        bucket_type (BucketType): Type of elements in a communication bucket, could be 
             either module parameters, weights or gradients.
-        message_size (int):  Minimum bytes in a communication bucket.
-        hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node \
-            allreduce, followed by an inter-node reduce defined by different `module`, and an intra-node \
-            broadcast at the end.
+        hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node 
+            allreduce, followed by an inter-node reduce defined by different `module`, and an intra-node 
+            broadcast at the end. 
         decentralize_reduce (bool): For decentralize training, set `decentralize_reduce` to `True`.
         align_bytes (int): Number to bytes to be aligned for each communication bucket.
         chunking (bool): For scatter-gather communication pattern, set `chunking` to `True`.
@@ -414,7 +419,7 @@ class OverlappingWrapper(torch.nn.Module):
     def __init__(
         self,
         module: DistributedModule,
-        optimizers: List[torch.optim.Optimizer],
+        optimizers: Union[torch.optim.Optimizer, List[torch.optim.Optimizer]],
         delay_reduce: bool = False,
         bucket_type=BucketType.Gradient,
         hierarchical_reduce: bool = False,
@@ -449,7 +454,7 @@ class OverlappingWrapper(torch.nn.Module):
         hierarchical_reduce: Optional[bool] = None,
         buckets: Optional[List[List[TensorDeclaration]]] = None,
     ):
-        """
+        r"""
         Reset the parameter reducer.
 
         Arguments:
@@ -477,7 +482,7 @@ class OverlappingWrapper(torch.nn.Module):
         self.create_hooks()
 
     def create_hooks(self):
-        """
+        r"""
         Defines a number of hooks used to reduce communication buckets in backward process.
         """
 
@@ -565,7 +570,7 @@ class OverlappingWrapper(torch.nn.Module):
                 self.grad_accs.append(grad_acc)
 
     def forward(self, *inputs, **kwargs):
-        """
+        r"""
         Overwrite the forward process for a distributed module with communication-computation overlap.
         """
         result = self.module(*inputs, **kwargs)
@@ -575,17 +580,37 @@ class OverlappingWrapper(torch.nn.Module):
 
 
 class ModelSwitchWrapper(torch.nn.Module):
-    """
+    r"""
     Transform the original module into a distributed module.
     
     Args:
         module (torch.nn.Module): Network definition to be run in multi-gpu/distributed mode.
-        optimizer (list of optimizer(s)): Optimizer(s) for the module.
+        optimizer (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
         delay_reduce (bool): Overlap communication with computation. Default: `True`.
-        hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default \
+        hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default 
             value is `False`, otherwise, default value is `True`.
         message_size (int): Minimum bytes in a communication bucket. Default: `10_000_000`.
-        intra_comm_root_rank (int): Root rank of intra communication.
+        intra_comm_root_rank (int): Root rank of intra communication. Default: `0`
+    
+    Returns:
+        Distributed module.
+
+    Examples::
+
+        >>> model = torch.nn.Sequential(
+        ...    torch.nn.Linear(D_in, H),
+        ...    torch.nn.ReLU(),
+        ...    torch.nn.Linear(H, D_out),
+        ...    )
+        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        >>> model = ModelSwitchWrapper(
+        ...    model = model,
+        ...    optimizer = optimizer,
+        ...    delay_reduce = delay_reduce,
+        ...    hierarchical_reduce = hierarchical_reduce,
+        ...    message_size = message_size,
+        ...    **kwargs,
+        ...    ).switch_to(DistributedAlgorithm.GradientAllReduce)
 
     """
     def __init__(
@@ -626,10 +651,11 @@ class ModelSwitchWrapper(torch.nn.Module):
         self,
         distributed_algorithm: Union[DistributedAlgorithm, str],
     ):
-        """Switch the initial module to distributed module.
+        r"""
+        Switch the initial module to distributed module.
         
         Arguments:
-            distributed_algorithm (DistributedAlgorithm): Distributed algorithm used to average \
+            distributed_algorithm (DistributedAlgorithm): Distributed algorithm used to average 
                 gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
         
         Returns:
@@ -738,13 +764,13 @@ class ModelSwitchWrapper(torch.nn.Module):
         return self
 
     def state_dict(self, **kwargs):
-        """
+        r"""
         Fetch the module's state_dict. 
         """
         return self.module.state_dict(**kwargs)
 
     def report_metrics(self, score_record_list):
-        """
+        r"""
         Logging the metrics of auto_tune algorithm.
         """
         if len(score_record_list) == 0:
@@ -773,7 +799,7 @@ class ModelSwitchWrapper(torch.nn.Module):
         )
 
     def ask_and_update_hyperparameters(self) -> bool:
-        """
+        r"""
         Execute the environment search process by auto_tune and update the hyper-parameters.
         """
         rsp = self.autotune_client.ask_hyperparameters(
@@ -821,8 +847,8 @@ class ModelSwitchWrapper(torch.nn.Module):
         return update_hyperparameters(recommended_hyperparameters)
 
     def forward(self, *inputs, **kwargs):
-        """
-        Overwritte the forward processs and return the output.
+        r"""
+        Overwrite the forward processs and return the output.
         """
         assert self.bagua_module is not None
         result = self.bagua_module(*inputs, **kwargs)
@@ -854,7 +880,8 @@ class ModelSwitchWrapper(torch.nn.Module):
 
 
 def _get_module_params_and_buffers(module):
-    """Get the module parameters and buffers.
+    r"""
+    Get the module parameters and buffers.
     
     Returns:
         module's parameters and buffers.
@@ -873,7 +900,7 @@ def _get_module_params_and_buffers(module):
 
 
 def broadcast_parameters(module):
-    """
+    r"""
     Broadcast the parameters and buffers for synchronization in the beginning.
     """
     from .communication import _get_global_state
@@ -886,7 +913,7 @@ def broadcast_parameters(module):
 
 
 def allreduce_parameters(module):
-    """
+    r"""
     Allreduce the parameters and buffers for synchronization at each time of switch distributed algorithm.
     """
     from .communication import _get_global_state
@@ -907,21 +934,21 @@ def bagua_init(
     hierarchical_reduce: Union[bool, None] = None,
     message_size: int = 10_000_000,
     **kwargs,
-):
-    """
-    `bagua_init` is a module wrapper that enables easy multiprocess distributed data parallel \
-    training using different distributed algorithms. \
-    Parameters are broadcast across participating processes on initialization, and gradients or \
+    ):
+    r"""`bagua_init` is a module wrapper that enables easy multiprocess distributed data parallel 
+    training using different distributed algorithms. 
+    
+    Parameters are broadcast across participating processes on initialization, and gradients or 
     weights are allreduced and averaged over processes during `backward()`.
 
     Arguments:
         module (torch.nn.Module): Network definition to be run in multi-gpu/distributed mode.
-        optimizer (torch.optim): Optimizer(s) for the module.
-        distributed_algorithm (DistributedAlgorithm): Distributed algorithm used to average \
+        optimizer (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
+        distributed_algorithm (DistributedAlgorithm): Distributed algorithm used to average 
             gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
-        delay_reduce (bool): Delay all communication to the end of the backward pass. This disables \
+        delay_reduce (bool): Delay all communication to the end of the backward pass. This disables 
             overlapping communication with computation. Default value is `False`.
-        hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default \
+        hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default 
             value is `False`, otherwise, default value is `True`.
         message_size (int): Minimum bytes in a communication bucket. Default: `10_000_000`.
 
@@ -930,13 +957,13 @@ def bagua_init(
 
     Examples::
 
-        model = torch.nn.Sequential(
-            torch.nn.Linear(D_in, H),
-            torch.nn.ReLU(),
-            torch.nn.Linear(H, D_out),
-        )
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-        model, optimizer = bagua_init(model, optimizer)
+        >>> model = torch.nn.Sequential(
+        ...    torch.nn.Linear(D_in, H),
+        ...    torch.nn.ReLU(),
+        ...    torch.nn.Linear(H, D_out),
+        ...    )
+        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        >>> model, optimizer = bagua_init(model, optimizer)
     """
 
     assert is_initialized(), "Must call bagua.init_process_group() first!"
