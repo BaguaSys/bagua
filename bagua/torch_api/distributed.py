@@ -76,9 +76,9 @@ class DistributedModule(torch.nn.Module):
 
 
 class Reducer(object):
-    r"""In order to improve communication efficiency, the distributed algorithm divides the parameter into different blocks, 
-    called buckets, and the parameter gradient communicates between different devices in the form of buckets. 
-    This module is the bucket manager，providing bucket operation methods.
+    r"""In order to improve communication efficiency, the distributed algorithm chunks parameters into many buckets.
+    A bucket is the minimum unit of communication between devices in bagua. 
+    This module is the bucket manager, providing bucket operation methods.
     
     The process mainly consists following two situations:
         
@@ -98,8 +98,7 @@ class Reducer(object):
 
     Args:
         module (DistributedModule): Module to be parallelized.
-        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) can be single or mutiple. Its mainly used to 
-                                        divided the parameter into different buckets according to the optimizer(s) group.
+        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizers contain one or more PyTorch optimizers.
         bucket_type (BucketType): Type of elements in a communication bucket, could be either module parameters, weights or gradients.
         hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node allreduce, followed 
                                 by an inter-node reduce defined by different `module`, and an intra-node broadcast at the end. 
@@ -235,7 +234,7 @@ class Reducer(object):
         r"""
         Initialize parameter buckets.
 
-        .. note:: Initialize_buckets MUST execute after the first round of backward for grad ready.
+        .. note:: Initialize_buckets MUST execute after the first round of backward.
 
         Returns:
             parameter buckets.
