@@ -494,14 +494,16 @@ class OverlappingWrapper(torch.nn.Module):
 
 
 class ModelSwitchWrapper(torch.nn.Module):
-    r"""`ModelSwitchWrapper` is designed to switch distributed algorithms during training process. It mainly
-    has two functions.
+    r"""`ModelSwitchWrapper` is designed to switch distributed algorithms during 
+    training process. It mainly has two functions.
     The first is transform the original module to a distributed module.
-    Second, this class can change the distributed mode to another one in the training process.
+    Second, this class can change the distributed mode to another one in the
+    training process.
     
     Args:
-        broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers of the module 
-            at **the first iteration** of the forward function. Default: `True`.
+        broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers 
+            of the module at **the first iteration** of the forward function. 
+            Default: `True`.
     
     Examples::
 
@@ -773,12 +775,12 @@ def _get_module_params_and_buffers(module, broadcast_buffers=True):
 
     module_states = []
     # Get the module parameters and buffers.
-    if broadcast_buffers==True:
+    if broadcast_buffers == True:
         for name, param in module.state_dict().items():
             if name not in parameters_to_ignore:
                 module_states.append(param)
     # Only get the module parameters.
-    elif broadcast_buffers==False:
+    elif broadcast_buffers == False:
         for name, param in module.named_parameters():
             if name not in parameters_to_ignore:
                 module_states.append(param)
@@ -789,7 +791,7 @@ def _get_module_params_and_buffers(module, broadcast_buffers=True):
 def broadcast_parameters(module, broadcast_buffers=True):
     r"""
     Broadcast the parameters (and buffers) for synchronization in the beginning.
-    if `broadcast_buffers` is `False`, the buffers won't be synchronized (broadcasted) in the beginning.
+    If `broadcast_buffers` is `False`, the buffers won't be synchronized (broadcasted) in the beginning.
     """
     from .communication import _get_global_state
 
@@ -821,26 +823,30 @@ def bagua_init(
     message_size: int = 10_000_000,
     **kwargs,
 ):
-    """
+    r"""
     `bagua_init` is a module wrapper that enables easy multiprocess distributed data parallel
     training using different distributed algorithms.
 
     Parameters are broadcast across participating processes on initialization, and gradients or
     weights are allreduced and averaged over processes during `backward()`.
 
+    
     Arguments:
-        * `module`(_torch.nn.Module_) - Network definition to be run in multi-gpu/distributed mode.
-        * `distributed_algorithm`(_DistributedAlgorithm_) - Distributed algorithm used to average
-           gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
+        module (torch.nn.Module): Network definition to be run in multi-gpu/distributed mode.
+        optimizer (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
+            It can contain one or more PyTorch optimizers.
+        distributed_algorithm (DistributedAlgorithm): Distributed algorithm used to average 
+            gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers of the module 
             at **the first iteration** of the forward function. Default: `True`.
-        * `delay_reduce`(_bool_): Delay all communication to the end of the backward pass. This disables
-           overlapping communication with computation. Default value is `False`.
-        * `hierarchical_reduce`(_bool_): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default
-           value is `False`, otherwise, default value is `True`.
-        * `message_size`(_int_) - Minimum bytes in a communication bucket. Default: `10_000_000`.
+        delay_reduce (bool): Delay all communication to the end of the backward pass. This disables 
+            overlapping communication with computation. Default value is `False`.
+        hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default 
+            value is `False`, otherwise, default value is `True`.
+        message_size (int): Minimum bytes in a communication bucket. Default: `10_000_000`.
+        
 
-    Yields:
+    Returns:
         Distributed module.
 
     Examples::
