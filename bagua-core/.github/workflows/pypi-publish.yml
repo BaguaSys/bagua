@@ -23,3 +23,9 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Archive package artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: bagua-pypi-package
+          path: |
+            dist/*
