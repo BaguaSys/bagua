@@ -48,14 +48,12 @@ def get_local_size():
     return int(os.environ.get("LOCAL_SIZE", 1))
 
 
-def get_autotune_server_addr():
-    """
-    Get autotune server addr.
+def get_master_addr():
+    return os.environ.get("MASTER_ADDR", "127.0.0.1")
 
-    Returns:
-       The ip address of autotune server.
-    """
-    return os.environ.get("AUTO_TUNE_SERVER_ADDR")
+
+def get_bagua_service_port():
+    return int(os.environ.get("BAGUA_SERVICE_PORT", -1))
 
 
 def is_report_metrics_switch_on():
