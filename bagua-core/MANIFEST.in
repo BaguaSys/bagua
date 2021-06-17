@@ -11,5 +11,4 @@ recursive-include bagua-core-py/src *
 include bagua-core-c/Cargo.toml
 include bagua-core-c/build.rs
 recursive-include bagua-core-c/src *
-recursive-include bagua_install_library *
 recursive-include python *
