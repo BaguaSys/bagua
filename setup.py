@@ -3,7 +3,6 @@ from distutils.errors import (
     DistutilsPlatformError,
 )
 from setuptools import setup, find_packages
-import colorama
 import sys
 
 
@@ -23,7 +22,6 @@ def check_torch_version():
 
 
 if __name__ == "__main__":
-    colorama.init(autoreset=True)
     cwd = os.path.dirname(os.path.abspath(__file__))
 
     setup(
