@@ -105,12 +105,13 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
         );
 
         if step % comm_interval == 0 {
+            // TODO: move this to .then() python API instead of hard code this in op
             let post_backward_comm_op = BaguaScheduledCommOp {
                 bucket: bucket.clone(),
-                op: Arc::new(DecentralizedFullPrecisionSynchronousPostStep {
+                ops: vec![Arc::new(DecentralizedFullPrecisionSynchronousPostStep {
                     communicator: self.communicator.clone(),
                     result_weight: peer_tensor,
-                }),
+                })],
                 event_channel: Default::default(),
             };
 
