@@ -66,5 +66,9 @@ class DistributedWrapper:
         self.buckets = self.algorithm.init_buckets(self.module, self.optimizer)
         self.hooks = self.algorithm.init_hooks(self.module, self.optimizer)
         for bucket in self.buckets:
-            self.algorithm.init_operations(bucket, self.inter_node_communicator, self.intra_node_communicator,
-                                           self.global_communicator)
+            self.algorithm.init_operations(
+                bucket,
+                self.inter_node_communicator,
+                self.intra_node_communicator,
+                self.global_communicator,
+            )
