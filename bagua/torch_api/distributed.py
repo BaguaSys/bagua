@@ -251,7 +251,10 @@ class Reducer(object):
             bagua_tensors = [new_bagua_tensor(p) for p in bucket_params]
             # Note: align_bytes does not work when inplace=True
             bagua_bucket = B.BaguaBucketPy(
-                "bucket_" + str(index), bagua_tensors, inplace=self.fusion, align_bytes=self.align_bytes
+                "bucket_" + str(index),
+                bagua_tensors,
+                inplace=self.fusion,
+                align_bytes=self.align_bytes,
             )
 
             kwargs = {"param_name": self.param_name}
