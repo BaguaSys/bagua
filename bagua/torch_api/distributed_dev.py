@@ -23,7 +23,7 @@ class Algorithm:
         pass
 
 
-class DistributedWrapper():
+class DistributedWrapper:
     def _get_module_params_and_buffers(module):
         # TODO: document this
         if hasattr(module, "_ddp_params_and_buffers_to_ignore"):
