@@ -830,21 +830,10 @@ def bagua_init(
     Parameters are broadcast across participating processes on initialization, and gradients or
     weights are allreduced and averaged over processes during `backward()`.
 
-    
     Arguments:
-        module (torch.nn.Module): Network definition to be run in multi-gpu/distributed mode.
-        optimizer (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
-            It can contain one or more PyTorch optimizers.
-        distributed_algorithm (DistributedAlgorithm): Distributed algorithm used to average 
-            gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
+        
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers of the module 
             at **the first iteration** of the forward function. Default: `True`.
-        delay_reduce (bool): Delay all communication to the end of the backward pass. This disables 
-            overlapping communication with computation. Default value is `False`.
-        hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default 
-            value is `False`, otherwise, default value is `True`.
-        message_size (int): Minimum bytes in a communication bucket. Default: `10_000_000`.
-        
 
     Returns:
         Distributed module.
