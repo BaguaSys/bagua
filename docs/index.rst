@@ -7,7 +7,7 @@
 ..    :maxdepth: 4
 ..    :caption: API Documents:
 
-* `Tutorials <https://baguasys.github.io/tutorials/>`_
+This is Bagua API documentation. See `tutorials <https://baguasys.github.io/tutorials/>`_ if you need step by step instructions on how to use Bagua.
 
 
 .. toctree::
