@@ -18,6 +18,6 @@ pip install bagua
 ## Build API documentation locally
 
 ```
-pip install -r doc-requirements.txt
+pip install -r docs/doc-requirements.txt
 make html
 ```
