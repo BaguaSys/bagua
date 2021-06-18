@@ -53,6 +53,7 @@ autoapi_ignore = [
     "*/bagua/torch_api/exceptions.py",
     "*/bagua/torch_api/utils.py",
 ]
+root_doc = 'doctree'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
