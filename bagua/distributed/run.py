@@ -360,6 +360,21 @@ def get_args_parser() -> ArgumentParser:
         help="Port on the master node (rank 0) to used for bagua hyperparameter control during "
         "distributed training.",
     )
+    parser.add_argument(
+        "--default_bucket_size",
+        default=10 * 1024 ** 2,
+        type=int,
+        help="The `default_bucket_size` variable controls the default size of the bucket used by "
+        "Bagua when communicating between pairs of GPUs. Adjusting the bucket size can improve "
+        "communication performance. The recommendation is to use powers of 2.",
+    )
+    parser.add_argument(
+        "--autotune_level",
+        default=0,
+        type=int,
+        help="Bagua automatic hyperparameters search level. The higher the level, the larger the "
+        "hyperparameter search space, and the longer time it takes.",
+    )
 
     #
     # Positional arguments.
@@ -541,7 +556,15 @@ def run_script_path(training_script: str, *training_script_args: str):
     runpy.run_path(sys.argv[0], run_name="__main__")
 
 
+def set_bagua_env(args, current_env):
+    current_env["BAGUA_SERVICE_PORT"] = str(args.bagua_service_port)
+    current_env["BAGUA_DEFAULT_BUCKET_SIZE"] = str(args.default_bucket_size)
+    current_env["BAGUA_AUTOTUNE"] = str(args.autotune_level)
+
+
 def run(args):
+    set_bagua_env(args, os.environ)
+
     if args.standalone:
         args.rdzv_backend = "c10d"
         args.rdzv_endpoint = "localhost:29400"
