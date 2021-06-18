@@ -1,2 +1,2 @@
 sphinx-autoapi
-furo
+faculty-sphinx-theme
