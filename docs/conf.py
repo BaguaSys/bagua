@@ -41,7 +41,7 @@ napoleon_numpy_docstring = True
 autodoc_typehints = "description"
 autoapi_type = "python"
 autoapi_dirs = ["../bagua"]
-autoapi_root = '.'
+autoapi_root = 'autoapi'
 autoapi_template_dir = '_autoapi_templates'
 autoapi_ignore = [
     "*/bagua/autotune/*",
@@ -56,6 +56,8 @@ autoapi_ignore = [
     "*/bagua/torch_api/utils.py",
     "*/bagua/version.py",
 ]
+
+master_doc = "autoapi/index"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
