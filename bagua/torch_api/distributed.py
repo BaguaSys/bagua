@@ -1006,7 +1006,7 @@ def bagua_init(
             buffers of the module at **the first iteration** of the forward
             function. Default: `True`.
         delay_reduce (bool): Delay all communication to the end of the
-            backward pass. This disables overlapping communication with 
+            backward pass. This disables overlapping communication with
             computation. Default value is `False`.
         hierarchical_reduce (bool): Enable hierarchical reduce. For
             `GradientAllReduce` algorithm, default value is `False`,
