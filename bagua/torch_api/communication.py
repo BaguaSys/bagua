@@ -58,6 +58,7 @@ def init_process_group(init_method: str = "dist://", device_id=None):
 
         if get_rank() == 0:
             from logging.config import dictConfig
+
             global _autotune_server
 
             autotune_service = AutotuneService(
@@ -89,7 +90,9 @@ class BaguaGlobalState(object):
         self.stream = torch.cuda.Stream(priority=-1)
         self.store = store
         self.hyperparameters = BaguaHyperparameter()
-        self.hyperparameters_service_client = AutotuneClient(get_master_addr(), get_bagua_service_port())
+        self.hyperparameters_service_client = AutotuneClient(
+            get_master_addr(), get_bagua_service_port()
+        )
         self.internode_communicator = init_bagua_inter_communicator(
             stream=self.stream, leader_rank=0, store=self.store, device_id=device_id
         )
