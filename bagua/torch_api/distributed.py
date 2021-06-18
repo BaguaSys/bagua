@@ -500,8 +500,9 @@ class ModelSwitchWrapper(torch.nn.Module):
     r"""
     
     Args:
-        broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers of the module 
-            at **the first iteration** of the forward function. Default: `True`.
+        broadcast_buffers (bool): Flag that enables syncing (broadcasting)
+            buffers of the module at **the first iteration** of the forward 
+            function. Default: `True`.
     
     Examples::
         >>> model = torch.nn.Sequential(
@@ -509,7 +510,11 @@ class ModelSwitchWrapper(torch.nn.Module):
         ...    torch.nn.ReLU(),
         ...    torch.nn.Linear(H, D_out),
         ...    )
-        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+        >>> optimizer = torch.optim.SGD(
+        ...    model.parameters(),
+        ...    lr=0.01,
+        ...    momentum=0.9
+        ...    )
         >>> model = ModelSwitchWrapper(
         ...    model = model,
         ...    optimizer = optimizer,
@@ -568,7 +573,7 @@ class ModelSwitchWrapper(torch.nn.Module):
 
         # sync params at the start of each training stage
         if self.stage == 0:
-            broadcast_parameters(self.bagua_module, broadcast_buffers = self.broadcast_buffers)
+            broadcast_parameters(self.bagua_module, self.broadcast_buffers)
         else:
             allreduce_parameters(self.bagua_module)
 
@@ -787,12 +792,15 @@ def _get_module_params_and_buffers(module, broadcast_buffers=True):
 
 def broadcast_parameters(module, broadcast_buffers=True):
     r"""
-    Broadcast the parameters (and buffers) for synchronization in the beginning.
-    if `broadcast_buffers` is `False`, the buffers won't be synchronized (broadcasted) in the beginning.
+    Broadcast the parameters (and buffers) for synchronization in the 
+    beginning. If `broadcast_buffers` is `False`, the buffers won't be
+    synchronized (broadcasted) in the beginning.
     """
     from .communication import _get_global_state
 
-    module_states = _get_module_params_and_buffers(module, broadcast_buffers=broadcast_buffers)
+    module_states = _get_module_params_and_buffers(
+        module, broadcast_buffers=broadcast_buffers
+    )
 
     authoritative_rank = 0
     for state in module_states:
@@ -814,7 +822,7 @@ def bagua_init(
     distributed_algorithm: Union[
         DistributedAlgorithm, str
     ] = DistributedAlgorithm.GradientAllReduce,
-    broadcast_buffers: bool = True:
+    broadcast_buffers: bool = True,
     delay_reduce: bool = False,
     hierarchical_reduce: Union[bool, None] = None,
     message_size: int = 10_000_000,
@@ -831,8 +839,9 @@ def bagua_init(
         * `module`(_torch.nn.Module_) - Network definition to be run in multi-gpu/distributed mode.
         * `distributed_algorithm`(_DistributedAlgorithm_) - Distributed algorithm used to average
            gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
-        broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers of the module 
-            at **the first iteration** of the forward function. Default: `True`.
+        broadcast_buffers (bool): Flag that enables syncing (broadcasting)
+            buffers of the module at **the first iteration** of the forward 
+            function. Default: `True`.
         * `delay_reduce`(_bool_): Delay all communication to the end of the backward pass. This disables
            overlapping communication with computation. Default value is `False`.
         * `hierarchical_reduce`(_bool_): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default
