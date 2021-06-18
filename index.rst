@@ -6,5 +6,9 @@
 Welcome to Bagua API Documentation!
 ===================================================
 
+.. toctree::
+   :maxdepth: 3
+   :caption: Contents:
+
 * `Tutorials <https://baguasys.github.io/tutorials/>`_
 * :doc:`API Reference </autoapi/index>`
