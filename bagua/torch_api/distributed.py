@@ -78,7 +78,7 @@ class Reducer(object):
     algorithm chunks parameters into many buckets. A bucket is the
     minimum unit of communication between devices in bagua.
     This module is the bucket manager, providing bucket operation methods.
-    
+
     The process mainly consists following two situations:
         
         1. bucket_initialized is False:
@@ -87,7 +87,7 @@ class Reducer(object):
             1.2 initialize_buckets -> register_models
           
             1.3 mark_bucket_ready
-          
+
             1.4 mark_on_complete
 
         2. bucket_initialized is True:
