@@ -13,11 +13,11 @@ Bagua
 This is Bagua API documentation. See `tutorials <https://baguasys.github.io/tutorials/>`_ if you need step by step instructions on how to use Bagua.
 
 
+.. rst-class:: compact
 .. toctree::
    :titlesonly:
    :caption: API Documents
 
-   .. rst-class:: compact
    {% for page in pages %}
    {% if page.top_level_object and page.display %}
    {{ page.include_path }}
