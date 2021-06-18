@@ -419,7 +419,7 @@ class OverlappingWrapper(torch.nn.Module):
         hierarchical_reduce (bool): Enable hierarchical reduce, which will
             perform an intra-node allreduce, followed by an inter-node reduce
             defined by different `module`, and an intra-node broadcast
-            at the end. 
+            at the end.
         decentralize_reduce (bool): For decentralize training, set
             `decentralize_reduce` to `True`.
         align_bytes (int): Number to bytes to be aligned for each
