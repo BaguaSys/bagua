@@ -77,7 +77,6 @@ def init_process_group(init_method: str = "dist://", device_id=None):
             _autotune_server.daemon = True
             _autotune_server.start()
 
-
     global _global_state
     _global_state = BaguaGlobalState(store, device_id=device_id)
 
