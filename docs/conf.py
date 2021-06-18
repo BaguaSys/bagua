@@ -41,6 +41,7 @@ napoleon_numpy_docstring = True
 autodoc_typehints = "description"
 autoapi_type = "python"
 autoapi_dirs = ["../bagua"]
+autoapi_root = '.'
 autoapi_ignore = [
     "*/bagua/autotune/*",
     "*/bagua/distributed/*",
