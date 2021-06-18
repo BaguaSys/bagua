@@ -792,7 +792,9 @@ def broadcast_parameters(module, broadcast_buffers=True):
     """
     from .communication import _get_global_state
 
-    module_states = _get_module_params_and_buffers(module, broadcast_buffers=broadcast_buffers)
+    module_states = _get_module_params_and_buffers(
+        module, broadcast_buffers=broadcast_buffers
+    )
 
     authoritative_rank = 0
     for state in module_states:
