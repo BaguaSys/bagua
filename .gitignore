@@ -15,7 +15,6 @@ __pycache__/
 **/**/*.json
 **/**/*.tar
 bagua.egg-info/
-docs/bagua
 dbg.h
 /public/**/*.html
 /public/index.js
