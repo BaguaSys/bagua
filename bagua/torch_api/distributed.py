@@ -80,12 +80,12 @@ class Reducer(object):
     This module is the bucket manager, providing bucket operation methods.
 
     The process mainly consists following two situations:
-        
+
         1. bucket_initialized is False:
             1.1 add_param
 
             1.2 initialize_buckets -> register_models
-          
+
             1.3 mark_bucket_ready
 
             1.4 mark_on_complete
