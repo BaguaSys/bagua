@@ -604,7 +604,7 @@ class ModelSwitchWrapper(torch.nn.Module):
     `ModelSwitchWrapper` is designed to switch distributed algorithms during
     training process. It mainly has two functions.
     The first is transform the original module to a distributed module.
-    Second, this class can change the distributed mode to another one 
+    Second, this class can change the distributed mode to another one
     in the training process.
     Args:
         module (torch.nn.Module): Network definition to be run
