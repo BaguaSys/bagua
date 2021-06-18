@@ -699,12 +699,12 @@ class ModelSwitchWrapper(torch.nn.Module):
     ):
         r"""
         Switch the initial module to distributed module.
-        
+
         Arguments:
             distributed_algorithm (DistributedAlgorithm): Distributed
                 algorithm used to average gradients or weights across
                 all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
-        
+
         Returns:
             Return the distributed module to cover the initial one.
         """
