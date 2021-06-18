@@ -29,7 +29,7 @@ class ScatterGatherAllreducer(DistributedModule):
         hierarchical_reduce=False,
         **kwargs
     ):
-        bagua_bucket.set_centralized_synchronous_op(
+        bagua_bucket.append_centralized_synchronous_op(
             inter_communicator,
             intra_communicator,
             hierarchical=hierarchical_reduce,

@@ -12,4 +12,5 @@ See tutorials_ for Bagua's rationale and benchmark.
 __docformat__ = "numpy"
 
 import bagua_core
-from . import torch_api, autotune, script
+from . import torch_api, autotune, script, bagua_define
+from .version import __version__
