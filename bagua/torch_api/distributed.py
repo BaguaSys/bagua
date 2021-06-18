@@ -93,7 +93,7 @@ class Reducer(object):
         2. bucket_initialized is True:
             2.1 mark_tensor_ready
 
-            2.2 mark_on_complete 
+            2.2 mark_on_complete
 
     Args:
         module (DistributedModule): Module to be parallelized.
