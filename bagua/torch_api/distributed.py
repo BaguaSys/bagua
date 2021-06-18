@@ -988,7 +988,7 @@ def bagua_init(
 ):
     r"""`bagua_init` is a module wrapper that enables easy multiprocess
     distributed data parallel training using different distributed algorithms.
-    
+
     Parameters are broadcast across participating processes on initialization,
     and gradients or weights are allreduced and averaged over processes
     during `backward()`.
