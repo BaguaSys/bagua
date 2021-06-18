@@ -3,9 +3,6 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Bagua API Documentation!
-===================================================
-
 .. .. toctree::
 ..    :maxdepth: 4
 ..    :caption: API Documents:
@@ -15,6 +12,7 @@ Welcome to Bagua API Documentation!
 
 .. toctree::
    :titlesonly:
+   :caption: API Documents
 
    {% for page in pages %}
    {% if page.top_level_object and page.display %}
