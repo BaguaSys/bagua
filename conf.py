@@ -52,6 +52,7 @@ autoapi_ignore = [
     "*/bagua/torch_api/distributed_define.py",
     "*/bagua/torch_api/exceptions.py",
     "*/bagua/torch_api/utils.py",
+    "*/bagua/version.py",
 ]
 root_doc = 'doctree'
 
