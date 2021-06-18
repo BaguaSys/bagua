@@ -331,6 +331,14 @@ fn bagua_core(_py: Python, m: &PyModule) -> PyResult<()> {
         .init();
     color_eyre::install().unwrap();
 
+    // panic the whole process when thread panics
+    let orig_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        // invoke the default handler and exit the process
+        orig_hook(panic_info);
+        std::process::exit(1);
+    }));
+
     m.add_class::<BaguaCommBackendPy>()?;
     m.add_class::<BaguaTensorPy>()?;
     m.add_class::<BaguaBucketPy>()?;
