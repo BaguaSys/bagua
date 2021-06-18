@@ -57,8 +57,6 @@ def init_process_group(init_method: str = "dist://", device_id=None):
         store = c10d._get_default_store()
 
         if get_rank() == 0:
-            from logging.config import dictConfig
-
             global _autotune_server
 
             autotune_service = AutotuneService(

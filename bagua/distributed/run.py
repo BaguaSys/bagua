@@ -6,6 +6,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+# flake8: noqa
+
 """
 This module provides similar functionality as ``torch.distributed.launch`` with the following
 additional functionalities:
