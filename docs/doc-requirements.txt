@@ -1,0 +1,2 @@
+sphinx-autoapi
+git+https://github.com/BaguaSys/bagua-sphinx-theme.git

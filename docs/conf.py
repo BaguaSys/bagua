@@ -40,7 +40,9 @@ extensions = [
 napoleon_numpy_docstring = True
 autodoc_typehints = "description"
 autoapi_type = "python"
-autoapi_dirs = ["./bagua"]
+autoapi_dirs = ["../bagua"]
+autoapi_root = "autoapi"
+autoapi_template_dir = "_autoapi_templates"
 autoapi_ignore = [
     "*/bagua/autotune/*",
     "*/bagua/distributed/*",
@@ -52,7 +54,16 @@ autoapi_ignore = [
     "*/bagua/torch_api/distributed_define.py",
     "*/bagua/torch_api/exceptions.py",
     "*/bagua/torch_api/utils.py",
+    "*/bagua/version.py",
 ]
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "imported-members",
+]
+
+master_doc = "autoapi/index"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -82,7 +93,7 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = "bagua-sphinx-theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
