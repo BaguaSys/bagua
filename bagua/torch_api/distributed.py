@@ -527,6 +527,7 @@ class ModelSwitchWrapper(torch.nn.Module):
         ...    **kwargs,
         ...    ).switch_to(DistributedAlgorithm.GradientAllReduce)
     """
+
     def __init__(
         self,
         module: torch.nn.Module,
