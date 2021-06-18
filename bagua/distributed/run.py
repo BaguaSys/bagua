@@ -482,8 +482,6 @@ def config_from_args(args) -> Tuple[LaunchConfig, Union[Callable, str], List[str
         # This env variable will be passed down to the subprocesses
         os.environ["OMP_NUM_THREADS"] = str(omp_num_threads)
 
-    os.environ["BAGUA_SERVICE_PORT"] = args.bagua_service_port
-
     rdzv_configs = _parse_rendezvous_config(args.rdzv_conf)
 
     if args.rdzv_backend == "static":
