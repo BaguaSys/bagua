@@ -497,13 +497,13 @@ class OverlappingWrapper(torch.nn.Module):
 
 
 class ModelSwitchWrapper(torch.nn.Module):
-    r"""
+    r"""`ModelSwitchWrapper` is designed to switch distributed algorithms
+    during training process. It mainly has two functions.
     
     Args:
         broadcast_buffers (bool): Flag that enables syncing (broadcasting)
-            buffers of the module at **the first iteration** of the forward 
-            function. Default: `True`.
-    
+            buffers of the module at **the first iteration** of the forward
+            function. Default: `True`.    
     Examples::
         >>> model = torch.nn.Sequential(
         ...    torch.nn.Linear(D_in, H),
@@ -525,6 +525,7 @@ class ModelSwitchWrapper(torch.nn.Module):
         ...    **kwargs,
         ...    ).switch_to(DistributedAlgorithm.GradientAllReduce)
     """
+    
     def __init__(
         self,
         module: torch.nn.Module,
@@ -765,7 +766,6 @@ class ModelSwitchWrapper(torch.nn.Module):
 def _get_module_params_and_buffers(module, broadcast_buffers=True):
     r"""
     Get the module parameters (and buffers).
-    
     Returns:
         module's parameters (and buffers).
     """
@@ -781,7 +781,6 @@ def _get_module_params_and_buffers(module, broadcast_buffers=True):
         for name, param in module.state_dict().items():
             if name not in parameters_to_ignore:
                 module_states.append(param)
-    
     # Only get the module parameters.
     elif broadcast_buffers is False:
         for name, param in module.named_parameters():
@@ -792,7 +791,7 @@ def _get_module_params_and_buffers(module, broadcast_buffers=True):
 
 def broadcast_parameters(module, broadcast_buffers=True):
     r"""
-    Broadcast the parameters (and buffers) for synchronization in the 
+    Broadcast the parameters (and buffers) for synchronization in the
     beginning. If `broadcast_buffers` is `False`, the buffers won't be
     synchronized (broadcasted) in the beginning.
     """
@@ -840,7 +839,7 @@ def bagua_init(
         * `distributed_algorithm`(_DistributedAlgorithm_) - Distributed algorithm used to average
            gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
         broadcast_buffers (bool): Flag that enables syncing (broadcasting)
-            buffers of the module at **the first iteration** of the forward 
+            buffers of the module at **the first iteration** of the forward
             function. Default: `True`.
         * `delay_reduce`(_bool_): Delay all communication to the end of the backward pass. This disables
            overlapping communication with computation. Default value is `False`.
