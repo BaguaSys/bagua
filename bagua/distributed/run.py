@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab
+
 # Copyright (c) Facebook, Inc. and its affiliates.
 # All rights reserved.
 #

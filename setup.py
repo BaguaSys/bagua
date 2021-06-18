@@ -44,9 +44,6 @@ if __name__ == "__main__":
             "prometheus_client",
             "parallel-ssh",
             "pydantic",
-            "setuptools_rust",
-            "tqdm",
-            "colorama",
             "requests",
         ],
         entry_points={
