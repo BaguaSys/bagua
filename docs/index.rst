@@ -19,9 +19,3 @@ This is Bagua API documentation. See `tutorials <https://baguasys.github.io/tuto
    {{ page.include_path }}
    {% endif %}
    {% endfor %}
-
-
-Indices and tables
-==================
-
-* :ref:`modindex`
