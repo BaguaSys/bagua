@@ -606,7 +606,6 @@ class ModelSwitchWrapper(torch.nn.Module):
     The first is transform the original module to a distributed module.
     Second, this class can change the distributed mode to another one 
     in the training process.
-    
     Args:
         module (torch.nn.Module): Network definition to be run
             in multi-gpu/distributed mode.
