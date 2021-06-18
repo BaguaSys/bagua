@@ -10,29 +10,19 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Environment**
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+ - Your operating system and version:
+ - Your python version:
+ - How did you install python (e.g. apt or pyenv)? Did you use a virtualenv?:
+ - Have you tried using latest bagua master (`python3 -m pip install git+https://github.com/BaguaSys/bagua.git -f https://repo.arrayfire.com/python/wheels/3.8.0/
+`)?:
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Reproducing**
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+Please provide a [minimal working example](https://stackoverflow.com/help/mcve). This means the runnable code.
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+Please also write what exact commands are required to reproduce your results.
 
 **Additional context**
 Add any other context about the problem here.
