@@ -51,8 +51,9 @@ class DistributedModule(torch.nn.Module):
         super(DistributedModule, self).__init__()
         self.module = module
         if hasattr(module, "_bagua_params_and_buffers_to_ignore"):
+            ignore_tensor = module._bagua_params_and_buffers_to_ignore
             self.parameters_to_ignore = [
-                ("module." + k) for k in module._bagua_params_and_buffers_to_ignore
+                ("module." + k) for k in ignore_tensor
             ]
         else:
             self.parameters_to_ignore = []
