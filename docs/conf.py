@@ -56,6 +56,12 @@ autoapi_ignore = [
     "*/bagua/torch_api/utils.py",
     "*/bagua/version.py",
 ]
+autoapi_options = [
+    'members',
+    'show-inheritance',
+    'special-members',
+    'imported-members',
+]
 
 master_doc = "autoapi/index"
 
