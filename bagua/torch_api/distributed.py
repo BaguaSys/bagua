@@ -497,10 +497,42 @@ class OverlappingWrapper(torch.nn.Module):
 
 
 class ModelSwitchWrapper(torch.nn.Module):
+    r"""`ModelSwitchWrapper` is designed to switch distributed algorithms
+    during training process. It mainly has two functions.
+    The first is transform the original module to a distributed module
+    Second, this class can change the distributed mode to another one
+    in the training process.
+    Args:
+        broadcast_buffers (bool): Flag that enables syncing (broadcasting)
+            buffers of the module at **the first iteration** of the forward
+            function. Default: `True`.
+    Examples::
+        >>> model = torch.nn.Sequential(
+        ...    torch.nn.Linear(D_in, H),
+        ...    torch.nn.ReLU(),
+        ...    torch.nn.Linear(H, D_out),
+        ...    )
+        >>> optimizer = torch.optim.SGD(
+        ...    model.parameters(),
+        ...    lr=0.01,
+        ...    momentum=0.9
+        ...    )
+        >>> model = ModelSwitchWrapper(
+        ...    model = model,
+        ...    optimizer = optimizer,
+        ...    broadcast_buffers = broadcast_buffers,
+        ...    delay_reduce = delay_reduce,
+        ...    hierarchical_reduce = hierarchical_reduce,
+        ...    message_size = message_size,
+        ...    **kwargs,
+        ...    ).switch_to(DistributedAlgorithm.GradientAllReduce)
+    """
+
     def __init__(
         self,
         module: torch.nn.Module,
         optimizer: Union[torch.optim.Optimizer, List[torch.optim.Optimizer]],
+        broadcast_buffers: bool = True,
         delay_reduce: bool = False,
         hierarchical_reduce: Union[bool, None] = None,
         message_size: int = 10_000_000,
@@ -516,6 +548,7 @@ class ModelSwitchWrapper(torch.nn.Module):
             optimizers = optimizer
 
         self.optimizers = optimizers
+        self.broadcast_buffers = broadcast_buffers
         self.delay_reduce = delay_reduce
         self.hierarchical_reduce = hierarchical_reduce
         self.message_size = message_size
@@ -543,7 +576,7 @@ class ModelSwitchWrapper(torch.nn.Module):
 
         # sync params at the start of each training stage
         if self.stage == 0:
-            broadcast_parameters(self.bagua_module)
+            broadcast_parameters(self.bagua_module, self.broadcast_buffers)
         else:
             allreduce_parameters(self.bagua_module)
 
@@ -732,24 +765,43 @@ class ModelSwitchWrapper(torch.nn.Module):
         return result
 
 
-def _get_module_params_and_buffers(module):
+def _get_module_params_and_buffers(module, broadcast_buffers=True):
+    r"""
+    Get the module parameters (and buffers).
+    Returns:
+        module's parameters (and buffers).
+    """
+
     if hasattr(module, "_ddp_params_and_buffers_to_ignore"):
         parameters_to_ignore = module._ddp_params_and_buffers_to_ignore
     else:
         parameters_to_ignore = []
 
     module_states = []
-    for name, param in module.state_dict().items():
-        if name not in parameters_to_ignore:
-            module_states.append(param)
-
+    # Get the module parameters and buffers.
+    if broadcast_buffers is True:
+        for name, param in module.state_dict().items():
+            if name not in parameters_to_ignore:
+                module_states.append(param)
+    # Only get the module parameters.
+    elif broadcast_buffers is False:
+        for name, param in module.named_parameters():
+            if name not in parameters_to_ignore:
+                module_states.append(param)
     return module_states
 
 
-def broadcast_parameters(module):
+def broadcast_parameters(module, broadcast_buffers=True):
+    r"""
+    Broadcast the parameters (and buffers) for synchronization in the
+    beginning. If `broadcast_buffers` is `False`, the buffers won't be
+    synchronized (broadcasted) in the beginning.
+    """
     from .communication import _get_global_state
 
-    module_states = _get_module_params_and_buffers(module)
+    module_states = _get_module_params_and_buffers(
+        module, broadcast_buffers=broadcast_buffers
+    )
 
     authoritative_rank = 0
     for state in module_states:
@@ -771,12 +823,13 @@ def bagua_init(
     distributed_algorithm: Union[
         DistributedAlgorithm, str
     ] = DistributedAlgorithm.GradientAllReduce,
+    broadcast_buffers: bool = True,
     delay_reduce: bool = False,
     hierarchical_reduce: Union[bool, None] = None,
     message_size: int = 10_000_000,
     **kwargs,
 ):
-    """
+    r"""
     `bagua_init` is a module wrapper that enables easy multiprocess distributed data parallel
     training using different distributed algorithms.
 
@@ -787,24 +840,35 @@ def bagua_init(
         * `module`(_torch.nn.Module_) - Network definition to be run in multi-gpu/distributed mode.
         * `distributed_algorithm`(_DistributedAlgorithm_) - Distributed algorithm used to average
            gradients or weights across all workers. Default: `DistributedAlgorithm.GradientAllReduce`.
+        broadcast_buffers (bool): Flag that enables syncing (broadcasting)
+            buffers of the module at **the first iteration** of the forward
+            function. Default: `True`.
         * `delay_reduce`(_bool_): Delay all communication to the end of the backward pass. This disables
            overlapping communication with computation. Default value is `False`.
         * `hierarchical_reduce`(_bool_): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default
            value is `False`, otherwise, default value is `True`.
         * `message_size`(_int_) - Minimum bytes in a communication bucket. Default: `10_000_000`.
 
-    Yields:
+    Returns:
         Distributed module.
 
     Examples::
 
-        model = torch.nn.Sequential(
-            torch.nn.Linear(D_in, H),
-            torch.nn.ReLU(),
-            torch.nn.Linear(H, D_out),
-        )
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-        model, optimizer = bagua_init(model, optimizer)
+        >>> model = torch.nn.Sequential(
+        ...    torch.nn.Linear(D_in, H),
+        ...    torch.nn.ReLU(),
+        ...    torch.nn.Linear(H, D_out),
+        ...    )
+        >>> optimizer = torch.optim.SGD(
+        ...    model.parameters(),
+        ...    lr=0.01,
+        ...    momentum=0.9
+        ...    )
+        >>> model, optimizer = bagua_init(
+        ...    model,
+        ...    optimizer,
+        ...    broadcast_buffers=True
+        ...    )
     """
 
     assert is_initialized(), "Must call bagua.init_process_group() first!"
@@ -813,6 +877,7 @@ def bagua_init(
     module = ModelSwitchWrapper(
         module=module,
         optimizer=optimizer,
+        broadcast_buffers=broadcast_buffers,
         delay_reduce=delay_reduce,
         hierarchical_reduce=hierarchical_reduce,
         message_size=message_size,
