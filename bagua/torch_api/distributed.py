@@ -810,15 +810,6 @@ def bagua_init(
         Default: `True`.
     Returns:
         Distributed module.
-    Examples::
-    
-        >>> model = torch.nn.Sequential(
-        ...    torch.nn.Linear(D_in, H),
-        ...    torch.nn.ReLU(),
-        ...    torch.nn.Linear(H, D_out),
-        ...    )
-        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-        >>> model, optimizer = bagua_init(model, optimizer, broadcast_buffers=True)
     """
 
     assert is_initialized(), "Must call bagua.init_process_group() first!"
