@@ -19,7 +19,6 @@ This is Bagua API documentation. See `tutorials <https://baguasys.github.io/tuto
 
    {% for page in pages %}
    {% if page.top_level_object and page.display %}
-   .. rst-class:: compact
    {{ page.include_path }}
    {% endif %}
    {% endfor %}

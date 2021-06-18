@@ -1,2 +1,3 @@
 sphinx-autoapi
+pydata-sphinx-theme
 sphinx-rtd-theme
