@@ -629,7 +629,7 @@ class ModelSwitchWrapper(torch.nn.Module):
         Distributed module.
 
     Examples::
-    
+
         >>> model = torch.nn.Sequential(
         ...    torch.nn.Linear(D_in, H),
         ...    torch.nn.ReLU(),
