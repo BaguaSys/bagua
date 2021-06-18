@@ -29,7 +29,7 @@ from .exceptions import UnsupportedAlgorithmException
 from .algorithms.decentralize import DecentralizedReducer
 from .algorithms.allreduce import Allreducer, ScatterGatherAllreducer
 from .compression import Compressor
-#from bagua.torch_api.algorithms import DistributedModule
+# from bagua.torch_api.algorithms import DistributedModule
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
@@ -37,6 +37,7 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
 )
 import bagua_core as B
+
 
 class DistributedModule(torch.nn.Module):
     r"""
@@ -51,7 +52,7 @@ class DistributedModule(torch.nn.Module):
         self.module = module
         if hasattr(module, "_bagua_params_and_buffers_to_ignore"):
             self.parameters_to_ignore = [
-            ("module." + k) for k in module._bagua_params_and_buffers_to_ignore
+                ("module." + k) for k in module._bagua_params_and_buffers_to_ignore
             ]
         else:
             self.parameters_to_ignore = []
@@ -114,7 +115,7 @@ class Reducer(object):
         decentralize_reduce (bool): Whether execute the decentralize
             communication. Default: `False`.
         buckets (List[List[TensorDeclaration]]): Parameter buckets.
-    
+
     """
 
     def __init__(
@@ -803,7 +804,7 @@ class ModelSwitchWrapper(torch.nn.Module):
 
     def state_dict(self, **kwargs):
         r"""
-        Fetch the module's state_dict. 
+        Fetch the module's state_dict.
         """
         return self.module.state_dict(**kwargs)
 
@@ -838,7 +839,8 @@ class ModelSwitchWrapper(torch.nn.Module):
 
     def ask_and_update_hyperparameters(self) -> bool:
         r"""
-        Execute the environment search process by auto_tune and update the hyper-parameters.
+        Execute the environment search process by auto_tune
+        and update the hyper-parameters.
         """
         rsp = self.autotune_client.ask_hyperparameters(
             rank=get_rank(), train_iter=self.step_counter
@@ -942,7 +944,6 @@ def _get_module_params_and_buffers(module, broadcast_buffers=True):
     return module_states
 
 
-  
 def broadcast_parameters(module, broadcast_buffers=True):
     r"""
     Broadcast the parameters (and buffers) for synchronization in the
@@ -985,7 +986,7 @@ def bagua_init(
     message_size: int = 10_000_000,
     **kwargs,
 
-    ):
+):
     r"""`bagua_init` is a module wrapper that enables easy multiprocess
     distributed data parallel training using different distributed algorithms.
     
