@@ -74,8 +74,9 @@ class DistributedModule(torch.nn.Module):
         return result
 
 class Reducer(object):
-    r"""In order to improve communication efficiency, the distributed algorithm chunks parameters into many buckets.
-    A bucket is the minimum unit of communication between devices in bagua.
+    r"""In order to improve communication efficiency, the distributed
+    algorithm chunks parameters into many buckets. A bucket is the
+    minimum unit of communication between devices in bagua. 
     This module is the bucket manager, providing bucket operation methods.
     
     The process mainly consists following two situations:
@@ -96,15 +97,23 @@ class Reducer(object):
 
     Args:
         module (DistributedModule): Module to be parallelized.
-        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
-            It can contain one or more PyTorch optimizers.
-        bucket_type (BucketType): Type of elements in a communication bucket, could be either module parameters, weights or gradients.
-        hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node allreduce, followed 
-                                by an inter-node reduce defined by different `module`, and an intra-node broadcast at the end. 
-        align_bytes (bool): Number to bytes to be aligned for each communication bucket.
-        chunking (bool): For scatter-gather communication pattern, set `chunking` to `True`.
-        fusion (bool): To reset parameter data pointer so that they can use faster code paths, set `fusion` to `True`.
-        decentralize_reduce (bool): Whether execute the decentralize communication. Default: `False`.
+        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer):
+            Optimizer(s) for the module. It can contain one or more
+            PyTorch optimizers.
+        bucket_type (BucketType): Type of elements in a communication bucket,
+        could be either module parameters, weights or gradients.
+        hierarchical_reduce (bool): Enable hierarchical reduce, which will
+            perform an intra-node allreduce, followed by an inter-node reduce
+            defined by different `module`, and an intra-node broadcast
+            at the end. 
+        align_bytes (bool): Number to bytes to be aligned for each
+            communication bucket.
+        chunking (bool): For scatter-gather communication pattern,
+            set `chunking` to `True`.
+        fusion (bool): To reset parameter data pointer so that they can use
+            faster code paths, set `fusion` to `True`.
+        decentralize_reduce (bool): Whether execute the decentralize
+            communication. Default: `False`.
         buckets (List[List[TensorDeclaration]]): Parameter buckets.
     
     """
