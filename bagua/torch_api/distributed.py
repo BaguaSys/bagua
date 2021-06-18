@@ -500,23 +500,6 @@ class ModelSwitchWrapper(torch.nn.Module):
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers 
         of the module at **the first iteration** of the forward function.
         Default: `True`.
-    Examples::
-    
-        >>> model = torch.nn.Sequential(
-        ...    torch.nn.Linear(D_in, H),
-        ...    torch.nn.ReLU(),
-        ...    torch.nn.Linear(H, D_out),
-        ...    )
-        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-        >>> model = ModelSwitchWrapper(
-        ...    model = model,
-        ...    optimizer = optimizer,
-        ...    broadcast_buffers = broadcast_buffers,
-        ...    delay_reduce = delay_reduce,
-        ...    hierarchical_reduce = hierarchical_reduce,
-        ...    message_size = message_size,
-        ...    **kwargs,
-        ...    ).switch_to(DistributedAlgorithm.GradientAllReduce)
     """
     
     def __init__(
