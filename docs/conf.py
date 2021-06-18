@@ -58,8 +58,8 @@ autoapi_ignore = [
 ]
 autoapi_options = [
     'members',
+    'undoc-members',
     'show-inheritance',
-    'special-members',
     'imported-members',
 ]
 
