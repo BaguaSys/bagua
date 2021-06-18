@@ -7,6 +7,9 @@
 ..    :maxdepth: 4
 ..    :caption: API Documents:
 
+Bagua
+======
+
 This is Bagua API documentation. See `tutorials <https://baguasys.github.io/tutorials/>`_ if you need step by step instructions on how to use Bagua.
 
 
