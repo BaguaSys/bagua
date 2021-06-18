@@ -1,16 +1,20 @@
 import logging
+import multiprocessing
 import torch
 import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
 import bagua_core as B
-
-import bagua.torch_api
+from flask import Flask
+from bagua.service import AutotuneService
 from .env import (
     get_world_size,
     get_rank,
     get_local_rank,
     get_local_size,
-    get_autotune_server_addr,
+    get_master_addr,
+    get_bagua_service_port,
+    get_default_bucket_size,
+    get_bagua_service_port,
 )
 from ..service.autotune_service import AutotuneClient
 from .exceptions import RepeatedInitializationError
@@ -18,6 +22,7 @@ from .utils import flatten, unflatten, to_bagua_datatype
 from ..bagua_define import BaguaHyperparameter
 
 _global_state = None
+_autotune_server = None
 
 
 def _get_global_state():
@@ -51,6 +56,26 @@ def init_process_group(init_method: str = "dist://", device_id=None):
 
         store = c10d._get_default_store()
 
+        if get_rank() == 0:
+            global _autotune_server
+
+            autotune_service = AutotuneService(
+                world_size=get_world_size(),
+                default_bucket_size=get_default_bucket_size(),
+            )
+            app = Flask(__name__)
+            app = autotune_service.setup_app(app)
+            _autotune_server = multiprocessing.Process(
+                target=app.run,
+                kwargs={
+                    "host": "0.0.0.0",
+                    "port": get_bagua_service_port(),
+                    "debug": False,
+                },
+            )
+            _autotune_server.daemon = True
+            _autotune_server.start()
+
     global _global_state
     _global_state = BaguaGlobalState(store, device_id=device_id)
 
@@ -63,7 +88,9 @@ class BaguaGlobalState(object):
         self.stream = torch.cuda.Stream(priority=-1)
         self.store = store
         self.hyperparameters = BaguaHyperparameter()
-        self.hyperparameters_service_client = AutotuneClient(get_autotune_server_addr())
+        self.hyperparameters_service_client = AutotuneClient(
+            get_master_addr(), get_bagua_service_port()
+        )
         self.internode_communicator = init_bagua_inter_communicator(
             stream=self.stream, leader_rank=0, store=self.store, device_id=device_id
         )

@@ -44,6 +44,7 @@ if __name__ == "__main__":
             "prometheus_client",
             "parallel-ssh",
             "pydantic",
+            "requests",
         ],
         entry_points={
             "console_scripts": [
