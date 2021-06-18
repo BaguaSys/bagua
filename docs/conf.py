@@ -41,8 +41,8 @@ napoleon_numpy_docstring = True
 autodoc_typehints = "description"
 autoapi_type = "python"
 autoapi_dirs = ["../bagua"]
-autoapi_root = 'autoapi'
-autoapi_template_dir = '_autoapi_templates'
+autoapi_root = "autoapi"
+autoapi_template_dir = "_autoapi_templates"
 autoapi_ignore = [
     "*/bagua/autotune/*",
     "*/bagua/distributed/*",
@@ -57,10 +57,10 @@ autoapi_ignore = [
     "*/bagua/version.py",
 ]
 autoapi_options = [
-    'members',
-    'undoc-members',
-    'show-inheritance',
-    'imported-members',
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "imported-members",
 ]
 
 master_doc = "autoapi/index"
@@ -93,7 +93,7 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'furo'
+html_theme = "furo"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
