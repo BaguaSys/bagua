@@ -29,7 +29,7 @@ from .exceptions import UnsupportedAlgorithmException
 from .algorithms.decentralize import DecentralizedReducer
 from .algorithms.allreduce import Allreducer, ScatterGatherAllreducer
 from .compression import Compressor
-from bagua.torch_api.algorithms import DistributedModule
+#from bagua.torch_api.algorithms import DistributedModule
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
@@ -37,8 +37,6 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
 )
 import bagua_core as B
-
-
 
 class DistributedModule(torch.nn.Module):
     r"""
@@ -53,7 +51,7 @@ class DistributedModule(torch.nn.Module):
         self.module = module
         if hasattr(module, "_bagua_params_and_buffers_to_ignore"):
             self.parameters_to_ignore = [
-                ("module." + k) for k in module._bagua_params_and_buffers_to_ignore  # type: ignore
+            ("module." + k) for k in module._bagua_params_and_buffers_to_ignore
             ]
         else:
             self.parameters_to_ignore = []
@@ -73,10 +71,11 @@ class DistributedModule(torch.nn.Module):
         result = self.module(*inputs, **kwargs)
         return result
 
+
 class Reducer(object):
     r"""In order to improve communication efficiency, the distributed
     algorithm chunks parameters into many buckets. A bucket is the
-    minimum unit of communication between devices in bagua. 
+    minimum unit of communication between devices in bagua.
     This module is the bucket manager, providing bucket operation methods.
     
     The process mainly consists following two situations:
@@ -105,7 +104,7 @@ class Reducer(object):
         hierarchical_reduce (bool): Enable hierarchical reduce, which will
             perform an intra-node allreduce, followed by an inter-node reduce
             defined by different `module`, and an intra-node broadcast
-            at the end. 
+            at the end.
         align_bytes (bool): Number to bytes to be aligned for each
             communication bucket.
         chunking (bool): For scatter-gather communication pattern,
@@ -241,7 +240,8 @@ class Reducer(object):
         r"""
         Initialize parameter buckets.
 
-        .. note:: Initialize_buckets MUST execute after the first round of backward.
+        .. note:: Initialize_buckets MUST execute after the first round
+            of backward.
 
         Returns:
             parameter buckets.
@@ -407,19 +407,26 @@ class OverlappingWrapper(torch.nn.Module):
 
     Arguments:
         module (torch.nn.Module): A distributed module to be overlapped.
-        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer): Optimizer(s) for the module.
-            It can contain one or more PyTorch optimizers.
-        delay_reduce (bool): Delay all communication to the end of the backward pass. This disables overlapping 
-            communication with computation. Default value is `False`.
-        bucket_type (BucketType): Type of elements in a communication bucket, could be 
-            either module parameters, weights or gradients.
-        hierarchical_reduce (bool): Enable hierarchical reduce, which will perform an intra-node 
-            allreduce, followed by an inter-node reduce defined by different `module`, and an intra-node 
-            broadcast at the end. 
-        decentralize_reduce (bool): For decentralize training, set `decentralize_reduce` to `True`.
-        align_bytes (int): Number to bytes to be aligned for each communication bucket.
-        chunking (bool): For scatter-gather communication pattern, set `chunking` to `True`.
-        fusion (bool): To reset parameter data pointer so that they can use faster code paths, set `fusion` to `True`.
+        optimizers (torch.optim.Optimizer or list of torch.optim.Optimizer):
+            Optimizer(s) for the module. It can contain one or more
+            PyTorch optimizers.
+        delay_reduce (bool): Delay all communication to the end of the
+            backward pass. This disables overlapping communication with
+            computation. Default value is `False`.
+        bucket_type (BucketType): Type of elements in a communication bucket,
+            could be either module parameters, weights or gradients.
+        hierarchical_reduce (bool): Enable hierarchical reduce, which will
+            perform an intra-node allreduce, followed by an inter-node reduce
+            defined by different `module`, and an intra-node broadcast
+            at the end. 
+        decentralize_reduce (bool): For decentralize training, set
+            `decentralize_reduce` to `True`.
+        align_bytes (int): Number to bytes to be aligned for each
+            communication bucket.
+        chunking (bool): For scatter-gather communication pattern,
+            set `chunking` to `True`.
+        fusion (bool): To reset parameter data pointer so that they can use
+            faster code paths, set `fusion` to `True`.
 
     .. note::
         This implementation benefits a lot from `apex.parallel.DistributedDataParallel`.
@@ -607,7 +614,7 @@ class ModelSwitchWrapper(torch.nn.Module):
         hierarchical_reduce (bool): Enable hierarchical reduce. For `GradientAllReduce` algorithm, default 
             value is `False`, otherwise, default value is `True`.
         message_size (int): Minimum bytes in a communication bucket. Default: `10_000_000`.
-        intra_comm_root_rank (int): Root rank of intra communication. Default: `0`
+        intra_comm_root_rank (int): Root rank of intra communication. Default: `0`.
     
     Returns:
         Distributed module.
