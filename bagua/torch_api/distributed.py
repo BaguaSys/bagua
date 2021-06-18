@@ -822,7 +822,6 @@ def bagua_init(
     `bagua_init` is a module wrapper that enables easy multiprocess distributed 
     data parallel training using different distributed algorithms.
     Arguments:
-        
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers
         of the module at **the first iteration** of the forward function. 
         Default: `True`.
