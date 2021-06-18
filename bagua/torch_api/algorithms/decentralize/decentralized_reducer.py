@@ -1,5 +1,5 @@
 import torch
-from bagua.torch_api.distributed import DistributedModule
+from ..distributed_module import DistributedModule
 from bagua.torch_api.compression import Compressor
 
 
@@ -34,7 +34,7 @@ class DecentralizedReducer(DistributedModule):
         hierarchical_reduce=False,
         **kwargs
     ):
-        bagua_bucket.set_decentralized_synchronous_op(
+        bagua_bucket.append_decentralized_synchronous_op(
             inter_communicator,
             intra_communicator,
             hierarchical=hierarchical_reduce,

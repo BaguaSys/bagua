@@ -1,5 +1,5 @@
 import torch
-from bagua.torch_api.distributed import DistributedModule
+from ..distributed_module import DistributedModule
 from bagua.torch_api.distributed_define import ReduceOp
 
 
@@ -22,7 +22,7 @@ class Allreducer(DistributedModule):
         hierarchical_reduce=False,
         **kwargs
     ):
-        bagua_bucket.set_centralized_synchronous_op(
+        bagua_bucket.append_centralized_synchronous_op(
             inter_communicator,
             intra_communicator,
             hierarchical=hierarchical_reduce,

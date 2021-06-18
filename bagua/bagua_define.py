@@ -5,18 +5,6 @@ from typing_extensions import TypedDict
 from pydantic import BaseModel
 
 
-class TensorDtype(str, enum.Enum):
-    F32 = "f32"
-    F16 = "f16"
-    U8 = "u8"
-
-
-class TensorDeclaration(TypedDict):
-    name: str
-    num_elements: int
-    dtype: TensorDtype
-
-
 class DistributedAlgorithm(enum.Enum):
     """
     An enum-like class of available distributed algorithms: allreduce, sg-allreduce, quantize and
@@ -33,8 +21,6 @@ class DistributedAlgorithm(enum.Enum):
     ScatterGatherAllReduce = "sg-allreduce"
     Decentralize = "decentralize"
     QuantizeAllReduce = "quantize"
-    # OneBitAdam = "1bit-adam"
-    # AsyncAllReduce = "async"
 
     @staticmethod
     def from_str(val: str):
@@ -45,6 +31,18 @@ class DistributedAlgorithm(enum.Enum):
 
         reverse_dict = {e.value: e for e in DistributedAlgorithm}
         return reverse_dict[val]
+
+
+class TensorDtype(str, enum.Enum):
+    F32 = "f32"
+    F16 = "f16"
+    U8 = "u8"
+
+
+class TensorDeclaration(TypedDict):
+    name: str
+    num_elements: int
+    dtype: TensorDtype
 
 
 class BaguaHyperparameter(BaseModel):
