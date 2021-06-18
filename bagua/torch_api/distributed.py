@@ -501,7 +501,6 @@ class ModelSwitchWrapper(torch.nn.Module):
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers 
         of the module at **the first iteration** of the forward function.
         Default: `True`.
-    
     Examples::
     
         >>> model = torch.nn.Sequential(
@@ -790,7 +789,6 @@ def broadcast_parameters(module, broadcast_buffers=True):
     Broadcast the parameters (and buffers) for synchronization in the beginning.
     If `broadcast_buffers` is `False`, the buffers won't be synchronized (broadcasted) in the beginning.
     """
-    from .communication import _get_global_state
 
     module_states = _get_module_params_and_buffers(
         module, broadcast_buffers=broadcast_buffers
@@ -802,7 +800,6 @@ def broadcast_parameters(module, broadcast_buffers=True):
 
 
 def allreduce_parameters(module):
-    from .communication import _get_global_state
 
     module_states = _get_module_params_and_buffers(module)
 
@@ -834,7 +831,6 @@ def bagua_init(
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers
         of the module at **the first iteration** of the forward function. 
         Default: `True`.
-    
     Returns:
         Distributed module.
     
