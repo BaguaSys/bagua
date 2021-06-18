@@ -498,12 +498,11 @@ class OverlappingWrapper(torch.nn.Module):
 
 class ModelSwitchWrapper(torch.nn.Module):
     r"""`ModelSwitchWrapper` is designed to switch distributed algorithms
-    during training process. It mainly has two functions.
-    
+    during training process. It mainly has two functions.    
     Args:
         broadcast_buffers (bool): Flag that enables syncing (broadcasting)
             buffers of the module at **the first iteration** of the forward
-            function. Default: `True`.    
+            function. Default: `True`.
     Examples::
         >>> model = torch.nn.Sequential(
         ...    torch.nn.Linear(D_in, H),
@@ -525,7 +524,6 @@ class ModelSwitchWrapper(torch.nn.Module):
         ...    **kwargs,
         ...    ).switch_to(DistributedAlgorithm.GradientAllReduce)
     """
-    
     def __init__(
         self,
         module: torch.nn.Module,
