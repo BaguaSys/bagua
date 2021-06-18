@@ -3,7 +3,7 @@
 
 {% endif %}
 .. :mod:`{{ obj.name }}`
-:mod:`{{ obj.name }}`
+{{ obj.name }}
 ======={{ "=" * obj.name|length }}
 
 .. py:module:: {{ obj.name }}
