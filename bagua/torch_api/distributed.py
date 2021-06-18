@@ -496,7 +496,6 @@ class OverlappingWrapper(torch.nn.Module):
 class ModelSwitchWrapper(torch.nn.Module):
     r"""`ModelSwitchWrapper` is designed to switch distributed algorithms during 
     training process. It mainly has two functions.
-    
     Args:
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers 
         of the module at **the first iteration** of the forward function.
@@ -760,7 +759,6 @@ class ModelSwitchWrapper(torch.nn.Module):
 def _get_module_params_and_buffers(module, broadcast_buffers=True):
     r"""
     Get the module parameters (and buffers).
-    
     Returns:
         module's parameters (and buffers).
     """
@@ -823,11 +821,6 @@ def bagua_init(
     r"""
     `bagua_init` is a module wrapper that enables easy multiprocess distributed 
     data parallel training using different distributed algorithms.
-    
-    Parameters are broadcast across participating processes on initialization, 
-    and gradients or weights are allreduced and averaged over processes 
-    during `backward()`.
-    
     Arguments:
         
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers
@@ -835,7 +828,6 @@ def bagua_init(
         Default: `True`.
     Returns:
         Distributed module.
-    
     Examples::
     
         >>> model = torch.nn.Sequential(
