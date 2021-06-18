@@ -8,7 +8,15 @@ Welcome to Bagua API Documentation!
 
 .. toctree::
    :maxdepth: 4
-   :caption: Contents:
+   :caption: API Documents:
 
 * `Tutorials <https://baguasys.github.io/tutorials/>`_
 .. * :doc:`API Reference </autoapi/index>`
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
