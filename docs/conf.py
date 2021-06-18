@@ -99,6 +99,7 @@ html_theme = "faculty-sphinx-theme"
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
+    "faculty_navbar": False,
     "show_powered_by": False,
     "github_user": "BaguaSys",
     "github_repo": "bagua",
