@@ -624,7 +624,7 @@ class ModelSwitchWrapper(torch.nn.Module):
             Default: `10_000_000`.
         intra_comm_root_rank (int): Root rank of intra communication.
             Default: `0`.
-    
+
     Returns:
         Distributed module.
 
