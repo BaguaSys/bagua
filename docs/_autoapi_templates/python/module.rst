@@ -2,6 +2,7 @@
 :orphan:
 
 {% endif %}
+.. :mod:`{{ obj.name }}`
 :mod:`{{ obj.name }}`
 ======={{ "=" * obj.name|length }}
 
