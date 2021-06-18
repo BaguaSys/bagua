@@ -14,3 +14,6 @@ issueConfigs:
   - "Describe alternatives you"
 # The issue is judged to be legal if it includes all keywords from any of these two configs.
 # Or it will be closed by the app.
+exception:
+  - "NOBLES5E"
+label: "closed by bot"
