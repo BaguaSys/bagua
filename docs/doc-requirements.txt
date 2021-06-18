@@ -1,3 +1,2 @@
 sphinx-autoapi
 furo
-sphinx-rtd-theme
