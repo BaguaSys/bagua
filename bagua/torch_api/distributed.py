@@ -499,8 +499,8 @@ class ModelSwitchWrapper(torch.nn.Module):
     
     Args:
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers 
-            of the module at **the first iteration** of the forward function. 
-            Default: `True`.
+        of the module at **the first iteration** of the forward function. 
+        Default: `True`.
     
     Examples::
 
@@ -823,20 +823,20 @@ def bagua_init(
     r"""
     `bagua_init` is a module wrapper that enables easy multiprocess distributed data parallel
     training using different distributed algorithms.
-
+    
     Parameters are broadcast across participating processes on initialization, and gradients or
     weights are allreduced and averaged over processes during `backward()`.
-
+    
     Arguments:
         
         broadcast_buffers (bool): Flag that enables syncing (broadcasting) buffers of the module 
             at **the first iteration** of the forward function. Default: `True`.
-
+    
     Returns:
         Distributed module.
-
+    
     Examples::
-
+    
         >>> model = torch.nn.Sequential(
         ...    torch.nn.Linear(D_in, H),
         ...    torch.nn.ReLU(),
