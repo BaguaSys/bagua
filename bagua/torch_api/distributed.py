@@ -737,6 +737,7 @@ class ModelSwitchWrapper(torch.nn.Module):
 def _get_module_params_and_buffers(module, broadcast_buffers=True):
     r"""
     Get the module parameters (and buffers).
+    
     Returns:
         module's parameters (and buffers).
     """
@@ -765,9 +766,7 @@ def broadcast_parameters(module, broadcast_buffers=True):
     Broadcast the parameters (and buffers) for synchronization in the beginning.
     """
 
-    module_states = _get_module_params_and_buffers(
-        module, broadcast_buffers=broadcast_buffers
-    )
+    module_states = _get_module_params_and_buffers(module, broadcast_buffers)
 
     authoritative_rank = 0
     for state in module_states:
