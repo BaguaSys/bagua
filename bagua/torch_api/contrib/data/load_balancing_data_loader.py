@@ -5,7 +5,6 @@ from torch.utils.data.sampler import Sampler
 from torch.utils.data.dataset import Dataset
 from typing import TypeVar, Optional, Iterator, Callable
 from collections import OrderedDict
-import logging
 
 
 class LoadBalancingDistributedSampler(Sampler):
@@ -141,7 +140,7 @@ class LoadBalancingDistributedSampler(Sampler):
                 )
             )
 
-        logging.info("set random level to {}".format(random_level))
+        print("set random level to {}".format(random_level))
         self.random_number = int((max_complexity - min_complexity) * random_level + 1)
 
     def shuffle_chunks(self):
@@ -280,7 +279,7 @@ class LoadBalancingDistributedBatchSampler(Sampler):
         self.rank = self.sampler.rank
 
         self.generate_batches()
-        logging.info("Loadbalance distributed batch sampler is initialized")
+        print("Loadbalance distributed batch sampler is initialized")
 
     def generate_batches(self):
         index_chunks, chunk_indices = self.sampler.shuffle_chunks()
@@ -297,7 +296,7 @@ class LoadBalancingDistributedBatchSampler(Sampler):
         )
 
         if self.total_batch < len(batches[self.rank]):
-            logging.info(
+            print(
                 f"{len(batches[self.rank]) - self.total_batch} batches dropped for rank {self.rank}"
             )
 
