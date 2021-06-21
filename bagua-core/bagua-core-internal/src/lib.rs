@@ -1,4 +1,5 @@
 #![allow(clippy::needless_return)]
+#![recursion_limit = "256"] // workaround recursion limit reached while expanding $crate::__cpp_internal!
 #[macro_use]
 extern crate shadow_rs;
 
@@ -25,6 +26,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 cpp! {{
+#include <Al.hpp>
 #include <nccl.h>
 #include <stdio.h>
 #include <iostream>
