@@ -131,11 +131,24 @@ _ignore_functions = [
     "bagua.torch_api.env.get_autotune_server_addr",
     "bagua.torch_api.env.is_report_metrics_switch_on",
     "bagua.torch_api.env.get_autotune_level",
+    "bagua.torch_api.communication._get_global_state",
+    "bagua.torch_api.communication.is_initialized",
+    "bagua.torch_api.communication.get_bagua_hyperparameters",
+    "bagua.torch_api.communication.get_hyperparameters_service_client",
+    "bagua.torch_api.communication.gen_nccl_unique_id",
+    "bagua.torch_api.communication.init_bagua_inter_communicator",
+    "bagua.torch_api.communication.init_bagua_intra_communicator",
+    "bagua.torch_api.communication.init_bagua_communicator",
+    "bagua.torch_api.communication.broadcast_coalesced",
+    "bagua.torch_api.communication.broadcast",
+    "bagua.torch_api.communication.allreduce_coalesced",
+    "bagua.torch_api.communication.allreduce",
 ]
 _ignore_classes = [
     "bagua.bagua_define.TensorDtype",
     "bagua.bagua_define.TensorDeclaration",
     "bagua.bagua_define.BaguaHyperparameter",
+    "bagua.torch_api.communication.BaguaGlobalState",
 ]
 
 

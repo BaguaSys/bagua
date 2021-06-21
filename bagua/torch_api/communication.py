@@ -38,46 +38,59 @@ def is_initialized():
     return _global_state is not None
 
 
-def init_process_group(init_method: str = "dist://", device_id=None):
+def init_process_group():
+    """Initializes the default distributed process group, and this will also
+    initialize the distributed package, should be executed before all the APIs
+    of bagua.
+
+    Raises:
+        RepeatedInitializationError: If you run this function repeatedly
+
+    Examples::
+        >>> import bagua.torch_api as bagua
+        >>> bagua.init_process_group()
+        >>> model = torch.nn.Sequential(
+        ...    torch.nn.Linear(D_in, H),
+        ...    torch.nn.ReLU(),
+        ...    torch.nn.Linear(H, D_out),
+        ...    )
+        >>> optimizer = torch.optim.SGD(
+        ...    model.parameters(),
+        ...    lr=0.01,
+        ...    momentum=0.9
+        ...    )
+        >>> model, optimizer = bagua_init(model, optimizer)
+    """
     if is_initialized():
         raise RepeatedInitializationError()
 
-    metas = init_method.split("://")
-    if metas[0] not in ["dist", "file"]:
-        raise ValueError("Illegal init method: {}".format(init_method))
+    if not dist.is_initialized():
+        torch.distributed.init_process_group(backend="nccl", init_method="env://")
 
-    # create store
-    if metas[0] == "file":
-        store = dist.FileStore(metas[1], get_world_size())  # type: ignore
-    else:
-        # init default group first
-        if not dist.is_initialized():
-            torch.distributed.init_process_group(backend="nccl", init_method="env://")
+    store = c10d._get_default_store()
 
-        store = c10d._get_default_store()
+    if get_rank() == 0:
+        global _autotune_server
 
-        if get_rank() == 0:
-            global _autotune_server
-
-            autotune_service = AutotuneService(
-                world_size=get_world_size(),
-                default_bucket_size=get_default_bucket_size(),
-            )
-            app = Flask(__name__)
-            app = autotune_service.setup_app(app)
-            _autotune_server = multiprocessing.Process(
-                target=app.run,
-                kwargs={
-                    "host": "0.0.0.0",
-                    "port": get_bagua_service_port(),
-                    "debug": False,
-                },
-            )
-            _autotune_server.daemon = True
-            _autotune_server.start()
+        autotune_service = AutotuneService(
+            world_size=get_world_size(),
+            default_bucket_size=get_default_bucket_size(),
+        )
+        app = Flask(__name__)
+        app = autotune_service.setup_app(app)
+        _autotune_server = multiprocessing.Process(
+            target=app.run,
+            kwargs={
+                "host": "0.0.0.0",
+                "port": get_bagua_service_port(),
+                "debug": False,
+            },
+        )
+        _autotune_server.daemon = True
+        _autotune_server.start()
 
     global _global_state
-    _global_state = BaguaGlobalState(store, device_id=device_id)
+    _global_state = BaguaGlobalState(store)
 
 
 class BaguaGlobalState(object):
