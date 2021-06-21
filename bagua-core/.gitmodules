@@ -1,0 +1,4 @@
+[submodule "bagua-core-internal/third_party/Aluminum"]
+	path = bagua-core-internal/third_party/Aluminum
+	url = https://github.com/BaguaSys/Aluminum.git
+	branch = bagua

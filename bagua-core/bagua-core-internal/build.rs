@@ -16,7 +16,7 @@ fn main() {
         .opt_level(3)
         .include("cpp/include")
         .include("third_party/cub-1.8.0")
-        .include("../../bagua/.data/include")
+        .include("../python/bagua_core/.data/include")
         .flag("-std=c++14")
         .flag("-cudart=shared");
     for sm in supported_sms {
@@ -28,10 +28,30 @@ fn main() {
         .file("kernels/bagua_kernels.cu")
         .compile("libbagua_kernels.a");
 
+    let third_party_path = std::env::current_dir().unwrap();
+    let bagua_data_path = std::env::current_dir().unwrap();
+    let third_party_path = third_party_path.join("third_party");
+    let bagua_data_path = bagua_data_path.join("../python/bagua_core/.data");
+    let _al_builder = cmake::Config::new("third_party/Aluminum")
+        .define("ALUMINUM_ENABLE_NCCL", "YES")
+        .define("CUB_INCLUDE_PATH", third_party_path.join("cub-1.8.0"))
+        .define("NCCL_LIBRARY", bagua_data_path.join("lib/libnccl.so"))
+        .define("NCCL_INCLUDE_PATH", bagua_data_path.join("include"))
+        .define("BUILD_SHARED_LIBS", "off")
+        .out_dir(bagua_data_path.as_path().to_str().unwrap())
+        .always_configure(true)
+        .build();
+
     let mut cpp_builder = cpp_build::Config::new();
     cpp_builder.include(format!("{}/include", cuda_home));
     cpp_builder.include("cpp/include");
-    cpp_builder.include("../../bagua/.data/include");
+    let mpi_include_dirs = cmd_lib::run_fun!(bash -c "mpicxx --showme:incdirs").unwrap();
+    let mpi_include_dirs: Vec<&str> = mpi_include_dirs.split(' ').collect();
+    for mpi_include_dir in mpi_include_dirs.iter() {
+        cpp_builder.include(mpi_include_dir);
+    }
+    cpp_builder.include(third_party_path.join("cub-1.8.0"));
+    cpp_builder.include(bagua_data_path.join("include"));
     cpp_builder.build("src/lib.rs");
 
     println!(
@@ -39,7 +59,12 @@ fn main() {
         format!("{}/lib64", cuda_home)
     );
 
-    println!("cargo:rustc-link-search=../bagua/.data/lib");
+    println!(
+        "cargo:rustc-link-search={}",
+        bagua_data_path.join("lib").as_path().to_str().unwrap()
+    );
+    println!("cargo:rustc-link-lib=static=Al");
+    println!("cargo:rustc-link-lib=mpi");
     println!("cargo:rustc-link-lib=nccl");
     println!("cargo:rustc-link-lib=cudart");
     println!("cargo:rustc-link-lib=nvrtc");

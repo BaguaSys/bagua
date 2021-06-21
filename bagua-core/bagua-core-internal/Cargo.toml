@@ -32,6 +32,7 @@ version = "0.13.2"
 
 [build-dependencies]
 shadow-rs = "0.5"
+cmake = "0.1"
 cpp_build = "0.5"
 cc = "1.0"
 cmd_lib = "1.0"
