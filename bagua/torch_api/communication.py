@@ -65,7 +65,9 @@ def init_process_group():
         raise RepeatedInitializationError()
 
     if not dist.is_initialized():
-        torch.distributed.init_process_group(backend="nccl", init_method="env://")
+        torch.distributed.init_process_group(
+            backend="nccl", init_method="env://"
+        )  # fmt: off
 
     store = c10d._get_default_store()
 
