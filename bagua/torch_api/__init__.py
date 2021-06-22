@@ -19,7 +19,6 @@ from .communication import (  # noqa: F401
     get_bagua_hyperparameters,
     get_hyperparameters_service_client,
 )
-
 from .fuse_optimizer import FusedOptimizer
 from ..bagua_define import DistributedAlgorithm
 import bagua.torch_api.contrib
