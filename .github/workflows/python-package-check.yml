@@ -15,6 +15,7 @@ jobs:
     container: ikzk/bagua-ci:latest
     steps:
     - uses: actions/checkout@v2
+    - run: rustup default stable
     - name: Install with pip
       run: |
         python -m pip install .
