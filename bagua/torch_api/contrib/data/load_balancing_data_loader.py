@@ -293,7 +293,7 @@ class LoadBalancingDistributedBatchSampler(Sampler):
             else min([len(b) for b in batches])
         )
 
-        # here {len(batches[self.rank]) - self.total_batch} batches dropped for 
+        # here {len(batches[self.rank]) - self.total_batch} batches dropped for
         # rank {self.rank}
         if self.total_batch < len(batches[self.rank]):
             pass
