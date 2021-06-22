@@ -11,6 +11,3 @@ jobs:
       - uses: jpetrucciani/mypy-check@master
         with:
           path: 'bagua'
-      - uses: jpetrucciani/mypy-check@master
-        with:
-          path: 'baguaelastic/distributed'

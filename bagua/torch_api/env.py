@@ -48,14 +48,30 @@ def get_local_size():
     return int(os.environ.get("LOCAL_SIZE", 1))
 
 
-def get_autotune_server_addr():
-    """
-    Get autotune server addr.
+def get_default_bucket_size() -> int:
+    """Get default communication bucket byte size.
 
     Returns:
-       The ip address of autotune server.
+        int: default bucket size
     """
-    return os.environ.get("AUTO_TUNE_SERVER_ADDR")
+    return int(os.environ.get("BAGUA_DEFAULT_BUCKET_SIZE", 10 * 1024 ** 2))
+
+
+def get_autotune_level() -> int:
+    """Get the atuotune level.
+
+    Returns:
+        int: The autotune level.
+    """
+    return int(os.environ.get("BAGUA_AUTOTUNE", 0))
+
+
+def get_master_addr():
+    return os.environ.get("MASTER_ADDR", "127.0.0.1")
+
+
+def get_bagua_service_port():
+    return int(os.environ.get("BAGUA_SERVICE_PORT", -1))
 
 
 def is_report_metrics_switch_on():
@@ -63,13 +79,3 @@ def is_report_metrics_switch_on():
     Whether bagua report switch is on or not.
     """
     return int(os.environ.get("BAGUA_REPORT_METRICS", 0)) == 1
-
-
-def get_autotune_level():
-    """
-    Get the atuotune level.
-
-    Returns:
-        The autotune level.
-    """
-    return int(os.environ.get("BAGUA_AUTOTUNE", 0))
