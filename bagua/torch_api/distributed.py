@@ -77,7 +77,7 @@ class Reducer(object):
     minimum unit of communication between devices in bagua.
     This module is the bucket manager, providing bucket operation methods.
 
-    The process mainly consists following two situations:
+    The process mainly consists the following two cases:
 
         1. bucket_initialized is False:
             1.1 add_param
@@ -106,7 +106,7 @@ class Reducer(object):
             at the end.
         align_bytes (bool): Number to bytes to be aligned for each
             communication bucket.
-        chunking (bool): For scatter-gather communication pattern,
+        chunking (bool): For alltoall communication pattern,
             set `chunking` to `True`.
         fusion (bool): To reset parameter data pointer so that they can use
             faster code paths, set `fusion` to `True`.
@@ -423,7 +423,7 @@ class OverlappingWrapper(torch.nn.Module):
             `decentralize_reduce` to `True`.
         align_bytes (int): Number to bytes to be aligned for each
             communication bucket.
-        chunking (bool): For scatter-gather communication pattern,
+        chunking (bool): For alltoall communication pattern,
             set `chunking` to `True`.
         fusion (bool): To reset parameter data pointer so that they can use
             faster code paths, set `fusion` to `True`.
@@ -962,7 +962,7 @@ def broadcast_parameters(module, broadcast_buffers=True):
 def allreduce_parameters(module):
     r"""
     Allreduce the parameters and buffers for synchronization
-    at each time of switch distributed algorithm.
+    at each time of switching distributed algorithms.
     """
     from .communication import _get_global_state
 
@@ -986,10 +986,6 @@ def bagua_init(
 ):
     r"""`bagua_init` is a module wrapper that enables easy multiprocess
     distributed data parallel training using different distributed algorithms.
-
-    Parameters are broadcast across participating processes on initialization,
-    and gradients or weights are allreduced and averaged over processes
-    during `backward()`.
 
     Arguments:
         module (torch.nn.Module): Network definition to be run
