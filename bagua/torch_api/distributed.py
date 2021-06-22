@@ -99,7 +99,7 @@ class Reducer(object):
             Optimizer(s) for the module. It can contain one or more
             PyTorch optimizers.
         bucket_type (BucketType): Type of elements in a communication bucket,
-        could be either module parameters, weights or gradients.
+            could be either module parameters, weights or gradients.
         hierarchical_reduce (bool): Enable hierarchical reduce, which will
             perform an intra-node allreduce, followed by an inter-node reduce
             defined by different `module`, and an intra-node broadcast
