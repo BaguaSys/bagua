@@ -10,14 +10,14 @@ from .env import (
     get_local_size,
 )
 from .communication import (  # noqa: F401
-    is_initialized,  # noqa: F401
-    init_process_group,  # noqa: F401
-    broadcast_coalesced,  # noqa: F401
-    broadcast,  # noqa: F401
-    allreduce_coalesced,  # noqa: F401
-    allreduce,  # noqa: F401
-    get_bagua_hyperparameters,  # noqa: F401
-    get_hyperparameters_service_client,  # noqa: F401
+    is_initialized,
+    init_process_group,
+    broadcast_coalesced,
+    broadcast,
+    allreduce_coalesced,
+    allreduce,
+    get_bagua_hyperparameters,
+    get_hyperparameters_service_client,
 )
 
 from .fuse_optimizer import FusedOptimizer
