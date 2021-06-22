@@ -10,14 +10,9 @@ from .env import (
     get_local_size,
 )
 from .communication import (  # noqa: F401
-    is_initialized,
     init_process_group,
-    broadcast_coalesced,
     broadcast,
-    allreduce_coalesced,
     allreduce,
-    get_bagua_hyperparameters,
-    get_hyperparameters_service_client,
 )
 from .fuse_optimizer import FusedOptimizer
 from ..bagua_define import DistributedAlgorithm
