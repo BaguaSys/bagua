@@ -8,8 +8,8 @@ jobs:
     container: ikzk/bagua-ci:latest
     steps:
       - uses: actions/checkout@v2
-      - name: Checkout submodules
-        uses: textbook/git-checkout-submodule-action@master
+        with:
+          submodules: recursive
       - run: rustup default stable
       - run: pip install .
       - run: cargo check
