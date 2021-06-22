@@ -306,6 +306,7 @@ class Reducer(object):
         r"""
         Register bagua buckets.
         """
+        
         def new_bagua_tensor(param):
             p = self.fill_slot(param)
             bagua_tensor = B.BaguaTensorPy(
