@@ -1,5 +1,6 @@
 Bagua
 ======
+[![PyPI version](https://badge.fury.io/py/bagua.svg)](https://badge.fury.io/py/bagua) [![GitHub license](https://img.shields.io/github/license/BaguaSys/bagua)](https://github.com/BaguaSys/bagua/blob/master/LICENSE)
 
 ## Installation
 
