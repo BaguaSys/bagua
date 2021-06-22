@@ -1,6 +1,6 @@
 on: push
 
-name: Cargo check
+name: check package install
 
 jobs:
   check:
@@ -12,4 +12,3 @@ jobs:
           submodules: recursive
       - run: rustup default stable
       - run: pip install .
-      - run: cargo check
