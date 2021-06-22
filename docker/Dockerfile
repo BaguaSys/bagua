@@ -1,6 +1,6 @@
 FROM pytorch/pytorch:1.9.0-cuda11.1-cudnn8-devel
 
-RUN apt-get update && apt-get install -y curl software-properties-common wget hwloc
+RUN apt-get update && apt-get install -y curl software-properties-common wget
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
 RUN add-apt-repository ppa:git-core/ppa && apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main'
 RUN apt-get update && apt-get install -y git cmake
@@ -14,6 +14,7 @@ ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:/usr/local/lib64:/usr/local/li
 ENV LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:/usr/local/lib64:/usr/local/lib"
 ENV PKG_CONFIG_PATH="/usr/local/cuda/pkgconfig/"
 ENV CUDA_LIBRARY_PATH="/usr/local/cuda/lib64/"
+
 
 # OpenMPI version 4.0.3
 RUN apt-get update -y && \
@@ -30,9 +31,14 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://www.open-mpi.org/software/ompi/v4.0/downloads/openmpi-4.0.3.tar.bz2 && \
     mkdir -p /var/tmp && tar -x -f /var/tmp/openmpi-4.0.3.tar.bz2 -C /var/tmp -j && \
-    cd /var/tmp/openmpi-4.0.3 &&   ./configure --prefix=/usr/local/openmpi --disable-getpwuid --disable-oshmem --enable-fortran --enable-mca-no-build=btl-uct --enable-orterun-prefix-by-default --with-cuda --without-verbs && \
+    cd /var/tmp/openmpi-4.0.3 &&   ./configure --disable-getpwuid --disable-oshmem --enable-fortran --enable-mca-no-build=btl-uct --enable-orterun-prefix-by-default --with-cuda --without-verbs && \
     make -j$(nproc) && \
     make -j$(nproc) install && \
-    echo "/usr/local/openmpi/lib" >> /etc/ld.so.conf.d/hpccm.conf && ldconfig && \
     rm -rf /var/tmp/openmpi-4.0.3 /var/tmp/openmpi-4.0.3.tar.bz2
-ENV PATH=/usr/local/openmpi/bin:$PATH
+
+# hwloc
+RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/hwloc/v2.5/hwloc-2.5.0.tar.bz2 && \
+    mkdir -p /var/tmp && tar -x -f /var/tmp/hwloc-2.5.0.tar.bz2 -C /var/tmp -j && \
+    cd /var/tmp/hwloc-2.5.0 &&   ./configure && \
+    make -j$(nproc) && \
+    make -j$(nproc) install
