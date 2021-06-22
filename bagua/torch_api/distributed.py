@@ -29,7 +29,6 @@ from .exceptions import UnsupportedAlgorithmException
 from .algorithms.decentralize import DecentralizedReducer
 from .algorithms.allreduce import Allreducer, ScatterGatherAllreducer
 from .compression import Compressor
-# from bagua.torch_api.algorithms import DistributedModule
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
@@ -52,9 +51,7 @@ class DistributedModule(torch.nn.Module):
         self.module = module
         if hasattr(module, "_bagua_params_and_buffers_to_ignore"):
             ignore_tensor = module._bagua_params_and_buffers_to_ignore
-            self.parameters_to_ignore = [
-                ("module." + k) for k in ignore_tensor
-            ]
+            self.parameters_to_ignore = [("module." + k) for k in ignore_tensor]
         else:
             self.parameters_to_ignore = []
 
@@ -985,7 +982,6 @@ def bagua_init(
     hierarchical_reduce: Union[bool, None] = None,
     message_size: int = 10_000_000,
     **kwargs,
-
 ):
     r"""`bagua_init` is a module wrapper that enables easy multiprocess
     distributed data parallel training using different distributed algorithms.
