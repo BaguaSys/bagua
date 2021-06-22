@@ -9,4 +9,5 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: rustup default stable
+      - run: pip install .
       - run: cargo check
