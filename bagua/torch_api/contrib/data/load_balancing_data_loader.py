@@ -140,7 +140,6 @@ class LoadBalancingDistributedSampler(Sampler):
                 )
             )
 
-        print("set random level to {}".format(random_level))
         self.random_number = int((max_complexity - min_complexity) * random_level + 1)
 
     def shuffle_chunks(self):
@@ -279,7 +278,6 @@ class LoadBalancingDistributedBatchSampler(Sampler):
         self.rank = self.sampler.rank
 
         self.generate_batches()
-        print("Loadbalance distributed batch sampler is initialized")
 
     def generate_batches(self):
         index_chunks, chunk_indices = self.sampler.shuffle_chunks()
@@ -295,10 +293,8 @@ class LoadBalancingDistributedBatchSampler(Sampler):
             else min([len(b) for b in batches])
         )
 
-        if self.total_batch < len(batches[self.rank]):
-            print(
-                f"{len(batches[self.rank]) - self.total_batch} batches dropped for rank {self.rank}"
-            )
+        if self.total_batch < len(batches[self.rank]): # here "{len(batches[self.rank]) - self.total_batch} batches dropped for rank {self.rank}"
+            pass
 
         self.padded_batches = [
             batch + batch[: self.total_batch - len(batch)] for batch in batches
