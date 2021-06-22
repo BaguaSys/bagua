@@ -292,8 +292,9 @@ class LoadBalancingDistributedBatchSampler(Sampler):
             if not self.drop_last
             else min([len(b) for b in batches])
         )
-
-        if self.total_batch < len(batches[self.rank]): # here "{len(batches[self.rank]) - self.total_batch} batches dropped for rank {self.rank}"
+        
+        # here "{len(batches[self.rank]) - self.total_batch} batches dropped for rank {self.rank}"
+        if self.total_batch < len(batches[self.rank]):
             pass
 
         self.padded_batches = [
