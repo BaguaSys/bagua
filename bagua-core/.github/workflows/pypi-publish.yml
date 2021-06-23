@@ -10,6 +10,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          submodules: recursive
       - run: env BAGUA_NO_INSTALL_DEPS=1 python -m build -s
       - name: Publish a Python distribution to PyPI
         if: github.ref == 'refs/heads/master' && !startsWith(github.ref, 'refs/tags')
