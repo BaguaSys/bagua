@@ -12,4 +12,4 @@ include bagua-core-c/Cargo.toml
 include bagua-core-c/build.rs
 recursive-include bagua-core-c/src *
 recursive-include python *
-global-exclude .git/
+exclude bagua-core-internal/third_party/Aluminum/.git
