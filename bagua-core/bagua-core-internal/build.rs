@@ -1,5 +1,6 @@
 fn main() {
-    let nvcc_path = which::which("nvcc").expect("cannot find nvcc");
+    let nvcc_path = which::which("nvcc")
+        .expect("Cannot find nvcc, please install CUDA Toolkit and make sure nvcc is in your PATH first. See https://developer.nvidia.com/cuda-downloads");
     let cuda_home = nvcc_path
         .parent()
         .expect("cannot find nvcc parent directory")
