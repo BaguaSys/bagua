@@ -40,16 +40,19 @@ if [ $OS_NAME == "Ubuntu" ]; then
   apt-get update && apt-get install -y cmake python3-pip
 
   # install some utils
-  python3 -m pip install setuptools-rust colorama tqdm
+  python3 -m pip install setuptools-rust colorama tqdm -i https://pypi.org/simple
 
   # install rust
   curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+  export PATH="$HOME/.cargo/bin:$PATH"
 
   # install zlib, ssl, openmpi
   apt-get install -y zlib1g-dev libssl-dev openmpi-bin openmpi-doc libopenmpi-dev
 
   # install bagua
-  python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
+  #python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
+  python3 -m pip install bagua-core==0.2.2.dev15 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
+  python3 -m pip install bagua==0.4.1.dev26 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
 elif [ $OS_NAME == "CentOS Linux" ]; then
   yum install -y cmake3
 fi
