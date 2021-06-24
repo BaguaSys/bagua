@@ -38,46 +38,61 @@ def is_initialized():
     return _global_state is not None
 
 
-def init_process_group(init_method: str = "dist://", device_id=None):
+def init_process_group():
+    """Initializes the PyTorch builtin distributed process group, and this will
+    also initialize the distributed package, should be executed before all the
+    APIs of bagua.
+
+    Raises:
+        RepeatedInitializationError: If you run this function repeatedly
+
+    Examples::
+        >>> import bagua.torch_api as bagua
+        >>> bagua.init_process_group()
+        >>> model = torch.nn.Sequential(
+        ...    torch.nn.Linear(D_in, H),
+        ...    torch.nn.ReLU(),
+        ...    torch.nn.Linear(H, D_out),
+        ...    )
+        >>> optimizer = torch.optim.SGD(
+        ...    model.parameters(),
+        ...    lr=0.01,
+        ...    momentum=0.9
+        ...    )
+        >>> model, optimizer = bagua_init(model, optimizer)
+    """
     if is_initialized():
         raise RepeatedInitializationError()
 
-    metas = init_method.split("://")
-    if metas[0] not in ["dist", "file"]:
-        raise ValueError("Illegal init method: {}".format(init_method))
+    if not dist.is_initialized():
+        torch.distributed.init_process_group(
+            backend="nccl", init_method="env://"
+        )  # fmt: off
 
-    # create store
-    if metas[0] == "file":
-        store = dist.FileStore(metas[1], get_world_size())  # type: ignore
-    else:
-        # init default group first
-        if not dist.is_initialized():
-            torch.distributed.init_process_group(backend="nccl", init_method="env://")
+    store = c10d._get_default_store()
 
-        store = c10d._get_default_store()
+    if get_rank() == 0:
+        global _autotune_server
 
-        if get_rank() == 0:
-            global _autotune_server
-
-            autotune_service = AutotuneService(
-                world_size=get_world_size(),
-                default_bucket_size=get_default_bucket_size(),
-            )
-            app = Flask(__name__)
-            app = autotune_service.setup_app(app)
-            _autotune_server = multiprocessing.Process(
-                target=app.run,
-                kwargs={
-                    "host": "0.0.0.0",
-                    "port": get_bagua_service_port(),
-                    "debug": False,
-                },
-            )
-            _autotune_server.daemon = True
-            _autotune_server.start()
+        autotune_service = AutotuneService(
+            world_size=get_world_size(),
+            default_bucket_size=get_default_bucket_size(),
+        )
+        app = Flask(__name__)
+        app = autotune_service.setup_app(app)
+        _autotune_server = multiprocessing.Process(
+            target=app.run,
+            kwargs={
+                "host": "0.0.0.0",
+                "port": get_bagua_service_port(),
+                "debug": False,
+            },
+        )
+        _autotune_server.daemon = True
+        _autotune_server.start()
 
     global _global_state
-    _global_state = BaguaGlobalState(store, device_id=device_id)
+    _global_state = BaguaGlobalState(store)
 
 
 class BaguaGlobalState(object):
@@ -234,18 +249,20 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
 
 
 def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
-    """
-    Broadcasts the tensor to the whole communicator.
+    r"""Broadcasts the tensor to the whole communicator.
 
-    `tensor` must have the same number of elements in all processes participating in the collective.
+    `tensor` must have the same number of elements in all processes
+    participating in the collective.
 
-    Arguments:
-    * `tensor`(_torch.Tensor_) - Data to be sent if `root` is the rank of current process, and tensor to be used to save received data otherwise.
-    * `root`(_int_) - Source rank.
-    * `comm`(_B.BaguaSingleCommunicatorPy_) - The bagua communicator to work on. If None, the global bagua communicator will be used.
-
-    Note: To broadcast a list of tensors, use `broadcast_coalesced` instead.
-    """
+    Args:
+        tensor (torch.Tensor): Data to be sent if `root` is the rank of
+            current process, and tensor to be used to save received data
+            otherwise.
+        root (int, optional): Source rank. Defaults to 0.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
+            to work on. If None, the global bagua communicator will be used.
+            Defaults to None.
+    """  # noqa: W293
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
@@ -306,20 +323,46 @@ def allreduce_coalesced(
 
 def allreduce(
     tensor,
-    comm: B.BaguaSingleCommunicatorPy = None,
     average: bool = True,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """
-    Reduces the tensor data across all machines in such a way that all get the final result.
-    After the call tensor is going to be bitwise identical in all processes.
+    """Reduces the tensor data across all machines in such a way that all get
+    the final result. After the call tensor is going to be bitwise identical
+    in all processes.
 
-    Arguments:
-    * `tensor`(_torch.Tensor_) - Input and output of the collective. The function operates in-place.
-    * `comm`(_B.BaguaSingleCommunicatorPy_) - The bagua communicator to work on. If None, the global bagua communicator will be used.
-    * `average`(_bool_) - Average the reduced tensor or not.
+    Args:
+        tensor (torch.Tensor): Input and output of the collective. The
+            function operates in-place.
+        average (bool, optional): Average the reduced tensor or
+            not, Defaults to True.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
 
-    Note: To allreduce a list of tensors, use `allreduce_coalesced` instead.
-    """
+    Examples:
+        >>> from bagua.torch_api import allreduce
+        >>> # All tensors below are of torch.int64 type.
+        >>> # We have 2 process groups, 2 ranks.
+        >>> tensor = torch.arange(2, dtype=torch.int64) + 1 + 2 * rank
+        >>> tensor
+        tensor([1, 2]) # Rank 0
+        tensor([3, 4]) # Rank 1
+        >>> allreduce(tensor)
+        >>> tensor
+        tensor([4, 6]) # Rank 0
+        tensor([4, 6]) # Rank 1
+
+        >>> # All tensors below are of torch.cfloat type.
+        >>> # We have 2 process groups, 2 ranks.
+        >>> tensor = torch.tensor([1+1j, 2+2j], dtype=torch.cfloat) + 2 * rank * (1+1j)
+        >>> tensor
+        tensor([1.+1.j, 2.+2.j]) # Rank 0
+        tensor([3.+3.j, 4.+4.j]) # Rank 1
+        >>> allreduce(tensor)
+        >>> tensor
+        tensor([4.+4.j, 6.+6.j]) # Rank 0
+        tensor([4.+4.j, 6.+6.j]) # Rank 1
+    """  # noqa: E501
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
