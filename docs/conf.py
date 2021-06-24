@@ -129,6 +129,8 @@ _ignore_methods = [
 ]
 _ignore_functions = [
     "bagua.torch_api.env.get_autotune_server_addr",
+    "bagua.torch_api.env.get_master_addr",
+    "bagua.torch_api.env.get_bagua_service_port",
     "bagua.torch_api.env.is_report_metrics_switch_on",
     "bagua.torch_api.env.get_autotune_level",
 ]
@@ -137,7 +139,6 @@ _ignore_classes = [
     "bagua.bagua_define.TensorDeclaration",
     "bagua.bagua_define.BaguaHyperparameter",
 ]
-
 
 def skip_methods(app, what, name, obj, skip, options):
     if what == "method" and name in _ignore_methods:
