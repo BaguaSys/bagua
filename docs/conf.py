@@ -140,6 +140,7 @@ _ignore_classes = [
     "bagua.bagua_define.BaguaHyperparameter",
 ]
 
+
 def skip_methods(app, what, name, obj, skip, options):
     if what == "method" and name in _ignore_methods:
         skip = True
