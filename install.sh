@@ -41,7 +41,7 @@ if [ $OS_NAME == "Ubuntu" ]; then
   apt-get update && apt remove --purge cmake && hash -r && apt-get install -y cmake python3-pip
 
   # install some utils
-  python -m pip install --upgrade pip -i https://pypi.org/simple
+  python3 -m pip install --upgrade pip -i https://pypi.org/simple
   python3 -m pip install setuptools-rust colorama tqdm -i https://pypi.org/simple
 
   # install zlib, ssl, openmpi
