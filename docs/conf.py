@@ -140,9 +140,7 @@ _ignore_functions = [
     "bagua.torch_api.communication.init_bagua_intra_communicator",
     "bagua.torch_api.communication.init_bagua_communicator",
     "bagua.torch_api.communication.broadcast_coalesced",
-    "bagua.torch_api.communication.broadcast",
     "bagua.torch_api.communication.allreduce_coalesced",
-    "bagua.torch_api.communication.allreduce",
 ]
 _ignore_classes = [
     "bagua.bagua_define.TensorDtype",

@@ -39,9 +39,9 @@ def is_initialized():
 
 
 def init_process_group():
-    """Initializes the default distributed process group, and this will also
-    initialize the distributed package, should be executed before all the APIs
-    of bagua.
+    """Initializes the PyTorch builtin distributed process group, and this will
+    also initialize the distributed package, should be executed before all the
+    APIs of bagua.
 
     Raises:
         RepeatedInitializationError: If you run this function repeatedly
@@ -249,20 +249,23 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
 
 
 def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
+    r"""Broadcasts the tensor to the whole communicator.
+    
+    `tensor` must have the same number of elements in all processes
+    participating in the collective.
+
+    Args:
+        tensor (torch.Tensor): Data to be sent if `root` is the rank of
+            current process, and tensor to be used to save received data
+            otherwise.
+        root (int, optional): Source rank. Defaults to 0.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
+            to work on. If None, the global bagua communicator will be used.
+            Defaults to None.
     """
-    Broadcasts the tensor to the whole communicator.
 
-    `tensor` must have the same number of elements in all processes participating in the collective.
-
-    Arguments:
-    * `tensor`(_torch.Tensor_) - Data to be sent if `root` is the rank of current process, and tensor to be used to save received data otherwise.
-    * `root`(_int_) - Source rank.
-    * `comm`(_B.BaguaSingleCommunicatorPy_) - The bagua communicator to work on. If None, the global bagua communicator will be used.
-
-    Note: To broadcast a list of tensors, use `broadcast_coalesced` instead.
-    """
-
-    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+    assert tensor.device != torch.device("cpu"), \
+        "input tensor must be CUDA and dense"
 
     if comm is None:
         comm = _get_global_state().get_global_communicator()
@@ -321,22 +324,49 @@ def allreduce_coalesced(
 
 def allreduce(
     tensor,
-    comm: B.BaguaSingleCommunicatorPy = None,
     average: bool = True,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """
-    Reduces the tensor data across all machines in such a way that all get the final result.
-    After the call tensor is going to be bitwise identical in all processes.
+    """Reduces the tensor data across all machines in such a way that all get
+    the final result. After the call tensor is going to be bitwise identical
+    in all processes.
 
-    Arguments:
-    * `tensor`(_torch.Tensor_) - Input and output of the collective. The function operates in-place.
-    * `comm`(_B.BaguaSingleCommunicatorPy_) - The bagua communicator to work on. If None, the global bagua communicator will be used.
-    * `average`(_bool_) - Average the reduced tensor or not.
+    Args:
+        tensor (torch.Tensor): Input and output of the collective. The
+            function operates in-place.
+        average (bool, optional): Average the reduced tensor or
+            not, Defaults to True.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
 
-    Note: To allreduce a list of tensors, use `allreduce_coalesced` instead.
-    """
+    Examples:
+        >>> from bagua.torch_api import allreduce
+        >>> # All tensors below are of torch.int64 type.
+        >>> # We have 2 process groups, 2 ranks.
+        >>> tensor = torch.arange(2, dtype=torch.int64) + 1 + 2 * rank
+        >>> tensor
+        tensor([1, 2]) # Rank 0
+        tensor([3, 4]) # Rank 1
+        >>> allreduce(tensor)
+        >>> tensor
+        tensor([4, 6]) # Rank 0
+        tensor([4, 6]) # Rank 1
 
-    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+        >>> # All tensors below are of torch.cfloat type.
+        >>> # We have 2 process groups, 2 ranks.
+        >>> tensor = torch.tensor([1+1j, 2+2j], dtype=torch.cfloat) + 2 * rank * (1+1j)
+        >>> tensor
+        tensor([1.+1.j, 2.+2.j]) # Rank 0
+        tensor([3.+3.j, 4.+4.j]) # Rank 1
+        >>> allreduce(tensor)
+        >>> tensor
+        tensor([4.+4.j, 6.+6.j]) # Rank 0
+        tensor([4.+4.j, 6.+6.j]) # Rank 1
+    """ # noqa: E501
+
+    assert tensor.device != torch.device("cpu"), \
+        "input tensor must be CUDA and dense"
 
     if comm is None:
         comm = _get_global_state().get_global_communicator()
