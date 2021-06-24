@@ -2,7 +2,11 @@
 """
 The Bagua communication library PyTorch interface.
 """
-from .communication import init_process_group
+from .communication import (
+    init_process_group,
+    allreduce,
+    broadcast,
+)
 from .distributed import bagua_init
 from .env import (
     get_rank,
