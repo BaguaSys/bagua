@@ -12,6 +12,9 @@ issueConfigs:
   - "Is your feature request related to a problem"
   - "Describe the solution you"
   - "Describe alternatives you"
+- content:
+# Example 3: manual exemption
+  - "INTERNAL:EXEMPT_ISSUE_CHECKER"
 # The issue is judged to be legal if it includes all keywords from any of these two configs.
 # Or it will be closed by the app.
 exception:
