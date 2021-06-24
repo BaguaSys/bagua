@@ -250,7 +250,7 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
 
 def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Broadcasts the tensor to the whole communicator.
-    
+
     `tensor` must have the same number of elements in all processes
     participating in the collective.
 
@@ -262,7 +262,7 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
         comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
             to work on. If None, the global bagua communicator will be used.
             Defaults to None.
-    """
+    """  # noqa: W293
 
     assert tensor.device != torch.device("cpu"), \
         "input tensor must be CUDA and dense"
@@ -363,7 +363,7 @@ def allreduce(
         >>> tensor
         tensor([4.+4.j, 6.+6.j]) # Rank 0
         tensor([4.+4.j, 6.+6.j]) # Rank 1
-    """ # noqa: E501
+    """  # noqa: E501
 
     assert tensor.device != torch.device("cpu"), \
         "input tensor must be CUDA and dense"
