@@ -264,8 +264,7 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
             Defaults to None.
     """  # noqa: W293
 
-    assert tensor.device != torch.device("cpu"), \
-        "input tensor must be CUDA and dense"
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
     if comm is None:
         comm = _get_global_state().get_global_communicator()
@@ -365,8 +364,7 @@ def allreduce(
         tensor([4.+4.j, 6.+6.j]) # Rank 1
     """  # noqa: E501
 
-    assert tensor.device != torch.device("cpu"), \
-        "input tensor must be CUDA and dense"
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
     if comm is None:
         comm = _get_global_state().get_global_communicator()
