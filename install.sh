@@ -26,6 +26,7 @@ check_os_version() {
 
 check_os_version
 
+
 if [ $OS_NAME == "Ubuntu" ]; then
   # install cmake & python3-pip
   apt-get update && apt-get install -y curl software-properties-common wget
@@ -37,17 +38,17 @@ if [ $OS_NAME == "Ubuntu" ]; then
   elif [ $VERSION_ID == "20.04" ]; then
     apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
   fi
-  apt-get update && apt-get install -y cmake python3-pip
+  apt-get update && apt remove --purge cmake && hash -r && apt-get install -y cmake python3-pip
 
   # install some utils
   python3 -m pip install setuptools-rust colorama tqdm -i https://pypi.org/simple
 
-  # install rust
-  curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
-  export PATH="$HOME/.cargo/bin:$PATH"
-
   # install zlib, ssl, openmpi
   apt-get install -y zlib1g-dev libssl-dev openmpi-bin openmpi-doc libopenmpi-dev
+
+  # install rust
+  curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+  export PATH="$HOME/.cargo/bin:/usr/bin:/usr/local/bin:$PATH"
 
   # install bagua
   #python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
