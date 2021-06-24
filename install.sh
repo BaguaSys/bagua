@@ -48,7 +48,7 @@ if [ $OS_NAME == "Ubuntu" ]; then
 
   # install rust
   curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
-  export PATH="$HOME/.cargo/bin:/usr/bin:/usr/local/bin:$PATH"
+  export PATH="$HOME/.cargo/bin:$PATH"
 
   # install bagua
   #python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
