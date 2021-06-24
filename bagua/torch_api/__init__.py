@@ -3,11 +3,11 @@
 The Bagua communication library PyTorch interface.
 """
 
-from .communication import (
+from .communication import (  # noqa: F401
     init_process_group,
     allreduce,
     broadcast,
-)  # noqa: F401
+)
 from .distributed import bagua_init
 from .env import (
     get_rank,
