@@ -15,6 +15,5 @@ from .env import (
     get_local_rank,
     get_local_size,
 )
-from .fuse_optimizer import FusedOptimizer
 from ..bagua_define import DistributedAlgorithm
 import bagua.torch_api.contrib
