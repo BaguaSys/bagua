@@ -69,10 +69,6 @@ def pssh_bagua_launch(
     if args.no_python:
         bypass_args.append("--no_python")
 
-    print(pretreat_cmd)
-    print(bypass_args)
-    print(script_cmd)
-
     master_addr = host_list[0]
     host_args = []
     for i, _ in enumerate(host_list):
