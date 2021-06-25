@@ -63,7 +63,9 @@ def pssh_bagua_launch(
     if args.master_port:
         bypass_args.append("--master_port={}".format(args.master_port))
     if args.bagua_service_port:
-        bypass_args.append("--bagua_service_port={}".format(args.bagua_service_port))  # noqa: E501
+        bypass_args.append(
+            "--bagua_service_port={}".format(args.bagua_service_port)
+        )
     if args.no_python:
         bypass_args.append("--no_python")
 
@@ -85,9 +87,7 @@ def pssh_bagua_launch(
                         '--master_addr="{}"'.format(master_addr),
                     ]
                     + bypass_args
-                    + [
-                        script_cmd
-                    ]
+                    + [script_cmd]
                 ),
             }
         )

@@ -5,7 +5,6 @@ import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
 import bagua_core as B
 from flask import Flask
-import click
 from bagua.service import AutotuneService
 from .env import (
     get_world_size,
