@@ -85,7 +85,9 @@ def pssh_bagua_launch(
                         '--master_addr="{}"'.format(master_addr),
                     ]
                     + bypass_args
-                    + script_cmd
+                    + [
+                        script_cmd
+                    ]
                 ),
             }
         )
