@@ -2,7 +2,7 @@
 set -eu
 
 exit_and_error() {
-  echo "Auto installation is supported only on Ubuntu(16.04,18.04,20.04) or CentOs(7,8), abort."
+  echo "Auto installation is supported only on Ubuntu (16.04, 18.04, 20.04), abort."
   exit
 }
 
@@ -12,10 +12,6 @@ check_os_version() {
   echo "Current OS is "${OS_NAME}", Version is "${VERSION_ID}
   if [ $OS_NAME == "Ubuntu" ]; then
     if [[ $VERSION_ID != @("16.04"|"18.04"|"20.04") ]]; then
-      exit_and_error
-    fi
-  elif [ $OS_NAME == "CentOS Linux" ]; then
-    if [[ $VERSION_ID != @("7"|"8") ]]; then
       exit_and_error
     fi
   else
@@ -55,6 +51,4 @@ if [ $OS_NAME == "Ubuntu" ]; then
   #python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
   python3 -m pip install bagua-core==0.2.2.dev15 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
   python3 -m pip install bagua==0.4.1.dev26 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
-elif [ $OS_NAME == "CentOS Linux" ]; then
-  yum install -y cmake3
 fi
