@@ -6,6 +6,8 @@ from torch.utils.data.dataset import Dataset
 from typing import TypeVar, Optional, Iterator, Callable
 from collections import OrderedDict
 
+__all__ = ["LoadBalancingDistributedSampler", "LoadBalancingDistributedBatchSampler"]
+
 
 class LoadBalancingDistributedSampler(Sampler):
     r"""Sampler that restricts data loading to a subset of the dataset.
