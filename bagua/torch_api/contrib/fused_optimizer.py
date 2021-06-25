@@ -59,7 +59,16 @@ class FusedOptimizer(torch.optim.Optimizer):
             flatten_module_params(f16_params, align_bytes=1)
 
     def step(self, closure=None):
-        __doc__ = torch.optim.Optimizer.__doc__
+        r"""Performs a single optimization step (parameter update).
+
+        Args:
+            closure (callable): A closure that reevaluates the model and
+                returns the loss. Optional for most optimizers.
+
+        .. note::
+            Unless otherwise specified, this function should not modify the
+            ``.grad`` field of the parameters.
+        """
         for group in self.optimizer.param_groups:
             params = group["params"]
             grouped_params = group_params_by_storage(params)
