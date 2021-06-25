@@ -5,7 +5,7 @@ name: mypy check
 jobs:
   check:
     runs-on: ubuntu-latest
-    container: ikzk/bagua-ci:latest
+    container: baguasys/bagua:latest
     steps:
       - uses: actions/checkout@v2
       - uses: jpetrucciani/mypy-check@master
