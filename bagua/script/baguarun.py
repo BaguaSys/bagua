@@ -34,13 +34,13 @@ from pssh.exceptions import Timeout
 
 
 def pssh_bagua_launch(
-    host_list,
-    nproc_per_node,
-    ssh_port,
+    args,
     script_cmd: str,
-    master_port=None,
     env: dict = {},
 ):
+    host_list = args.host_list
+    nproc_per_node = args.nproc_per_node
+    ssh_port = args.ssh_port
     assert len(host_list) != 0, "Invalid host_list={}".format(host_list)
 
     if "PATH" not in env:
@@ -59,6 +59,16 @@ def pssh_bagua_launch(
             )
         )
 
+    bypass_args = []
+    if args.master_port:
+        bypass_args.append("--master_port={}".format(args.master_port))
+    if args.bagua_service_port:
+        bypass_args.append(
+            "--bagua_service_port={}".format(args.bagua_service_port)
+        )  # noqa: E501
+    if args.no_python:
+        bypass_args.append("--no_python")
+
     master_addr = host_list[0]
     host_args = []
     for i, _ in enumerate(host_list):
@@ -71,9 +81,9 @@ def pssh_bagua_launch(
                         "--nproc_per_node={}".format(nproc_per_node),
                         "--nnodes={} --node_rank={}".format(len(host_list), i),
                         '--master_addr="{}"'.format(master_addr),
-                        "--master_port={}".format(master_port) if master_port else "",
-                        script_cmd,
                     ]
+                    + bypass_args
+                    + [script_cmd]
                 ),
             }
         )
@@ -96,6 +106,16 @@ def parse_args():
     parser.add_argument("--ssh_port", type=int, default=None)
     parser.add_argument("--master_port", type=int, default=None)
     parser.add_argument("--nproc_per_node", type=int, required=True)
+    parser.add_argument(
+        "--no_python",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
+        "--bagua_service_port",
+        default=None,
+        type=int,
+    )
     parser.add_argument(
         "-x",
         type=str,
@@ -144,16 +164,13 @@ def parse_args():
 def main():
     args = parse_args()
     pssh_bagua_launch(
-        args.host_list,
-        args.nproc_per_node,
-        args.ssh_port,
+        args,
         script_cmd=" ".join(
             [
                 args.training_script,
             ]
             + args.training_script_args
         ),
-        master_port=args.master_port,
         env=args.set_env,
     )
 
