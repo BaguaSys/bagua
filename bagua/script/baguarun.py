@@ -162,16 +162,13 @@ def parse_args():
 def main():
     args = parse_args()
     pssh_bagua_launch(
-        args.host_list,
-        args.nproc_per_node,
-        args.ssh_port,
+        args,
         script_cmd=" ".join(
             [
                 args.training_script,
             ]
             + args.training_script_args
         ),
-        master_port=args.master_port,
         env=args.set_env,
     )
 
