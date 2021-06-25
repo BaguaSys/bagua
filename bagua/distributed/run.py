@@ -366,7 +366,7 @@ def get_args_parser() -> ArgumentParser:
     )
     parser.add_argument(
         "--default_bucket_size",
-        default=40 * 1024 ** 2,
+        default=10 * 1024 ** 2,
         type=int,
         help="The `default_bucket_size` variable controls the default size of the bucket used by "
         "Bagua when communicating between pairs of GPUs. Adjusting the bucket size can improve "

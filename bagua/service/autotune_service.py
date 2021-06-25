@@ -247,7 +247,7 @@ class AutotuneService:
                 default_hyperparameters = BaguaHyperparameter(
                     buckets=split_bucket_by_bucket_size(
                         tensor_list,
-                        session["bucket_size"],
+                        self.default_bucket_size,
                         self.param_group_info,
                     ),
                 )

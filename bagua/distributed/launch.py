@@ -122,7 +122,7 @@ def parse_args():
     parser.add_argument("--autotune_sampling_confidence_time", type=float, default=5.0)
     parser.add_argument("--autotune_warmup_time", type=float, default=30.0)
     parser.add_argument(
-        "--default_bucket_size", type=int, default=40 * 1024 ** 2
+        "--default_bucket_size", type=int, default=10 * 1024 ** 2
     )  # noqa: E501
 
     parser.add_argument("--host_list", type=str)
