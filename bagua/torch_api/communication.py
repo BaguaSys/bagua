@@ -5,6 +5,7 @@ import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
 import bagua_core as B
 from flask import Flask
+import click
 from bagua.service import AutotuneService
 from .env import (
     get_world_size,
@@ -36,6 +37,32 @@ def is_initialized():
     """
     global _global_state
     return _global_state is not None
+
+
+def start_autotune_server():
+    """Start autotune server in background.
+    """
+    global _autotune_server
+
+    autotune_service = AutotuneService(
+        world_size=get_world_size(),
+        default_bucket_size=get_default_bucket_size(),
+    )
+    app = Flask(__name__)
+    app = autotune_service.setup_app(app)
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
+
+    _autotune_server = multiprocessing.Process(
+        target=app.run,
+        kwargs={
+            "host": "0.0.0.0",
+            "port": get_bagua_service_port(),
+            "debug": False,
+        },
+    )
+    _autotune_server.daemon = True
+    _autotune_server.start()
 
 
 def init_process_group():
@@ -72,26 +99,7 @@ def init_process_group():
     store = c10d._get_default_store()
 
     if get_rank() == 0:
-        global _autotune_server
-
-        autotune_service = AutotuneService(
-            world_size=get_world_size(),
-            default_bucket_size=get_default_bucket_size(),
-        )
-        app = Flask(__name__)
-        app = autotune_service.setup_app(app)
-        log = logging.getLogger('werkzeug')
-        log.setLevel(logging.ERROR)
-        _autotune_server = multiprocessing.Process(
-            target=app.run,
-            kwargs={
-                "host": "0.0.0.0",
-                "port": get_bagua_service_port(),
-                "debug": False,
-            },
-        )
-        _autotune_server.daemon = True
-        _autotune_server.start()
+        start_autotune_server()
 
     global _global_state
     _global_state = BaguaGlobalState(store)
