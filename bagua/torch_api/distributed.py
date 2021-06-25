@@ -277,7 +277,7 @@ class Reducer(object):
             self.buckets = hp.buckets
             get_bagua_hyperparameters().buckets = self.buckets
 
-        logging.info("Initialized bucktes={}".format(self.buckets))
+        logging.debug("Initialized bucktes={}".format(self.buckets))
         self.param_buckets = []
         for bucket in self.buckets:
             self.param_buckets.append([self.param_dict[td["name"]] for td in bucket])

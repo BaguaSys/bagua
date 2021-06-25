@@ -80,6 +80,8 @@ def init_process_group():
         )
         app = Flask(__name__)
         app = autotune_service.setup_app(app)
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
         _autotune_server = multiprocessing.Process(
             target=app.run,
             kwargs={
