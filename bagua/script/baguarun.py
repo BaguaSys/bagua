@@ -65,7 +65,7 @@ def pssh_bagua_launch(
     if args.bagua_service_port:
         bypass_args.append(
             "--bagua_service_port={}".format(args.bagua_service_port)
-        )
+        )  # noqa: E501
     if args.no_python:
         bypass_args.append("--no_python")
 
