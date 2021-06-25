@@ -6,15 +6,15 @@ __all__ = ["FusedOptimizer"]
 
 
 class FusedOptimizer(torch.optim.Optimizer):
-    """Convert any optimizer into a backward efficiency fused optimizer.
+    """Convert any optimizer into a fused optimizer.
 
-    This fused optimizer fuses multiple kernel launches that do module parameter updates
-    into one or a few kernel launches, by flattening parameter tensors into one or more
-    contiguous ones.
+    This fused optimizer fuses multiple module parameter update kernel launches
+    into one or a few, by flattening parameter tensors into one or more
+    contiguous buckets.
 
-    It can be used in conjunction with :func:`bagua.torch_api.bagua_init`. In such a case,
-    `Bagua` will do the fusions automatically, otherwise, pass ``True`` to `do_flatten`
-    to perform these fusions explicitly.
+    It can be used in conjunction with :func:`bagua.torch_api.bagua_init`. In this case,
+    `Bagua` will do the fusions automatically, otherwise, you need to explicitly
+    pass ``do_flatten=True``.
 
     Args:
         optimizer (torch.optim.Optimizer): Any PyTorch optimizer.
