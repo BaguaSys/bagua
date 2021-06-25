@@ -59,6 +59,7 @@ class FusedOptimizer(torch.optim.Optimizer):
             flatten_module_params(f16_params, align_bytes=1)
 
     def step(self, closure=None):
+        __doc__ = torch.optim.Optimizer.__doc__
         for group in self.optimizer.param_groups:
             params = group["params"]
             grouped_params = group_params_by_storage(params)
