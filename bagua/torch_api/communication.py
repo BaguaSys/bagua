@@ -40,8 +40,7 @@ def is_initialized():
 
 
 def start_autotune_server():
-    """Start autotune server in background.
-    """
+    """Start autotune server in background."""
     global _autotune_server
 
     autotune_service = AutotuneService(
@@ -50,7 +49,7 @@ def start_autotune_server():
     )
     app = Flask(__name__)
     app = autotune_service.setup_app(app)
-    log = logging.getLogger('werkzeug')
+    log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
     _autotune_server = multiprocessing.Process(
