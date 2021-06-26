@@ -10,7 +10,13 @@ class BaguaBucket:
         self.tensors = tensors
         self.backend_tensor = None
 
-    
+
+    def flatten_(self):
+        # TODO: finish me @shaoduo
+        """
+        flatten inner tensors in place
+        """
 
     def is_flatten(self) -> bool:
+        # TODO: finish me @shaoduo
         ...

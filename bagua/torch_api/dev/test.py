@@ -4,6 +4,8 @@ You can compare the performance with the horovod script directly.
 """
 
 import argparse
+from bagua.torch_api.dev.algorithms import Algorithm, DevelopAlgoritm
+from bagua.torch_api.dev.distributed_dev import DistributedWrapper
 import timeit
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
@@ -94,8 +96,8 @@ if args.cuda:
 
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 
-model, optimizer = bagua.dev.DistributedWapper(
-    model, optimizer, distributed_algorithm=Decentralize(...)
+wrapper_model = DistributedWrapper(
+    model, optimizer, algorithm=DevelopAlgoritm()
 )
 
 # Set up fixed fake data
@@ -107,7 +109,7 @@ if args.cuda:
 
 def benchmark_step():
     optimizer.zero_grad()
-    output = model(data)
+    output = wrapper_model.module(data)
     loss = F.cross_entropy(output, target)
 
     if args.amp:

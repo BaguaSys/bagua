@@ -16,11 +16,13 @@ class BaguaTensor(torch.Tensor):
             dtype=to_bagua_datatype(original_tensor.dtype),
             device_id=original_tensor.grad.device.index,
         )
+
     def mark_communication_ready(self, bagua_backend, cuda_event):
         bagua_backend.mark_communication_ready(
             self.bagua_tensor,
             cuda_event,
         )
+
     def set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
             self.inner.set_(storage, storage_offset, self.inner.shape)
