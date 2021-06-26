@@ -15,3 +15,7 @@ class BaguaTensor(torch.Tensor):
 
     def is_registered(self) -> bool:
         return not (self.bagua_backend is None)
+
+
+    def mark_communication_ready(self):
+        ...
