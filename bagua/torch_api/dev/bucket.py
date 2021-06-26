@@ -2,6 +2,7 @@
 
 from bagua.torch_api.dev.tensor import BaguaTensor
 from typing import List
+import torch
 
 
 class BaguaBucket:
@@ -9,8 +10,7 @@ class BaguaBucket:
         self.tensors = tensors
         self.backend_tensor = None
 
-    def flatten_(self):
-        ...
+    
 
     def is_flatten(self) -> bool:
         ...
