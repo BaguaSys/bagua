@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from bagua.torch_api.communication import _get_global_state
 import torch
 import bagua_core as B
 from bagua.torch_api.utils import to_bagua_datatype
@@ -6,7 +7,14 @@ import gorilla
 
 @gorilla.patches(torch.Tensor)
 class BaguaTensor(object):
-    def to_bagua_tensor(self, name: str):
+    def to_bagua_tensor(self, name: str) -> BaguaTensor:
+        """
+        Convert a PyTorch tensor to Bagua tensor and return it.
+        A Bagua tensor is required to use Bagua's communication algorithms.
+
+        Args:
+            name (str): the unique name of the tensor
+        """
         self.bagua_tensor_name = name
         self.backend_tensor = B.BaguaTensorPy(
             ptr=self.data_ptr(),
@@ -15,9 +23,15 @@ class BaguaTensor(object):
             dtype=to_bagua_datatype(self.dtype),
             device_id=self.device.index,
         )
+        self._bagua_backend = _get_global_state().get_backend()
+        self._bagua_ready_event = torch.cuda.Event()
         return self
 
-    def bagua_ensure_grad(self):
+    def bagua_ensure_grad(self) -> torch.Tensor:
+        """
+        Return the gradient of current parameter. Create a zero gradient tensor
+        if not exist.
+        """
         if hasattr(self, "grad") and self.grad is not None:
             return self.grad
         elif isinstance(self, torch.nn.Parameter):
@@ -28,40 +42,24 @@ class BaguaTensor(object):
         else:
             raise NotImplemented
 
+    def bagua_mark_communication_ready_on_current_stream(self):
+        """
+        Mark a Bagua tensor ready for scheduled operations execution.
+        """
+        torch.cuda.current_stream().record_event(self._bagua_ready_event)
+        self._bagua_backend.mark_communication_ready(
+            self.backend_tensor,
+            self._bagua_ready_event,
+        )
+
     def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):
+        """
+        Sets the underlying storage using an existing torch.Storage.
+
+        Args:
+            storage (Storage): the storage to use
+            storage_offset (int, optional): the offset in the storage
+        """
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
         self.backend_tensor.reset_ptr(self.data_ptr())
-
-
-if __name__ == "__main__":
-    import math
-
-    x = torch.linspace(-math.pi, math.pi, 2000)
-    y = torch.sin(x)
-
-    p = torch.tensor([1, 2, 3])
-    xx = x.unsqueeze(-1).pow(p)
-
-    model = torch.nn.Sequential(torch.nn.Linear(3, 1), torch.nn.Flatten(0, 1))
-
-    loss_fn = torch.nn.MSELoss(reduction="sum")
-
-    for param in model.parameters():
-        print(param.shape)
-        tensor2 = torch.zeros_like(param.data)
-        print(tensor2.shape)
-        with torch.no_grad():
-            param.set_(tensor2.storage(), 0, param.shape)
-            print(param.shape)
-        # param.data = BaguaTensor(param.data)
-
-    learning_rate = 1e-6
-    for t in range(2000):
-        y_pred = model(xx)
-        loss = loss_fn(y_pred, y)
-        if t % 100 == 99:
-            print(t, loss.item())
-        model.zero_grad()
-        loss.backward()
-        continue

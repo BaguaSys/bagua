@@ -23,7 +23,6 @@ class Algorithm:
         # TODO: @ganshaoduo consider optimizer groups
         for name, param in reversed(list(bagua_module.named_parameters())):
             tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
-            tensor.ready_event = torch.cuda.Event()
             tensor_groups[0].append(tensor)
         return tensor_groups
 
@@ -40,8 +39,7 @@ class Algorithm:
         """
         def hook(name):
             bagua_grad = bagua_module._bagua_tensor_map[name]
-            torch.cuda.current_stream().record_event(bagua_grad.ready_event)
-            bagua_module._bagua_backend.mark_communication_ready(bagua_grad.backend_tensor, bagua_grad.ready_event.cuda_event)
+            bagua_grad.bagua_mark_communication_ready_on_current_stream()
         return hook
 
     def init_post_backward_hook(self, bagua_module):
