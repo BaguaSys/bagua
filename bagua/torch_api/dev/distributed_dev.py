@@ -2,14 +2,11 @@ from bagua.torch_api.utils import to_bagua_datatype, average_by_removing_extreme
 from bagua.torch_api.env import get_autotune_level, get_rank
 from bagua.bagua_define import TensorDeclaration
 from bagua.torch_api.communication import _get_global_state, broadcast, get_hyperparameters_service_client, get_bagua_hyperparameters
-from typing import List, OrderedDict
-from types import ModuleType
 import gorilla
 import time
 import logging
 import torch
 import torch.nn
-import copy
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
 class DistributedWrapper:
