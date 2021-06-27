@@ -34,14 +34,10 @@ class BaguaTensor(object):
             cuda_event,
         )
 
-    # def _set(self):
-    #     pass
-
     def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
-        if self.backend_tensor is not None:
-            self.backend_tensor.reset_ptr(self.data_ptr())
+        self.backend_tensor.reset_ptr(self.data_ptr())
 
 
 if __name__ == "__main__":
