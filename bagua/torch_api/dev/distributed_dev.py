@@ -23,7 +23,7 @@ class DistributedWrapper:
 
     # # TODO: remove parameter group from autotune service
 
-# def _bagua_get_parameter_group_info(self):
+    # def _bagua_get_parameter_group_info(self):
     #     """
     #     Given a optimizer, return a dict containing Param => param_group_id
     #     """
@@ -43,8 +43,27 @@ class DistributedWrapper:
 
     def with_bagua(self, optimizers, algorithm):
         # TODO: do we need to check whether optimizers and model parameters are the same?
+        self.step_counter = 0
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
+
+        self.bucket_initialized = False
+        self.param_list = []
+        self.param_i = {}
+        index = 0
+        for name, param in self.named_parameters():
+            if param.requires_grad and name not in self.parameters_to_ignore:
+                self.param_list.append(param)
+                self.param_i[name] = index
+                index += 1
+            else:
+                logging.debug(f"skip param: {name}")
+        self.tensor_events = [
+            torch.cuda.Event(enable_timing=False, blocking=False)
+        ] * len(self.param_list)
+
+        self.current_stream = torch.cuda.current_stream()
+        self.bagua_backend = _get_global_state().get_backend()
 
         # get communicators
         self._bagua_inter_node_communicator = _get_global_state().get_internode_communicator()
@@ -58,6 +77,7 @@ class DistributedWrapper:
         self._bagua_autotune_client = get_hyperparameters_service_client()
 
         self._bagua_init_algorithm()
+        self.create_hooks()
         return self
 
     def _bagua_autotune_register_tensors(self):
@@ -71,14 +91,14 @@ class DistributedWrapper:
             )
             for tensor_group in self._bagua_tensor_groups for tensor in tensor_group
         ]
-        tensor_map = dict([(tensor.bagua_tensor_name, tensor)
+        self.tensor_map = dict([(tensor.bagua_tensor_name, tensor)
                            for tensor_group in self._bagua_tensor_groups for tensor in tensor_group])
         bagua_tensor_group_info = dict(
             [(tensor.bagua_tensor_name, i) for i, tensor_group in enumerate(self._bagua_tensor_groups) for tensor in tensor_group]
         )
 
         recommended_buckets = map(
-            lambda x: list(map(lambda y: tensor_map[y['name']], x)),
+            lambda x: list(map(lambda y: self.tensor_map[y['name']], x)),
             self._bagua_autotune_client.register_models(
                 autotune_tensor_list,
                 bagua_tensor_group_info
@@ -98,3 +118,97 @@ class DistributedWrapper:
                 self._bagua_intra_node_communicator,
                 self._bagua_global_communicator,
             )
+
+    def create_hooks(self):
+        r"""
+        Defines a number of hooks used to reduce communication buckets
+        in backward process.
+        """
+        self.grad_accs = []
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                param_tmp = param.expand_as(param)
+                grad_acc = param_tmp.grad_fn.next_functions[0][0]
+
+                def make_hook(param, name):
+
+                    def reduce_fallback(skip_reduce=False):
+                        if skip_reduce:
+                            logging.debug("skip reduce")
+                            return
+                        for i, bucket in enumerate(self._bagua_buckets):
+                            for param in bucket:
+                                self.mark_tensor_ready(param.bagua_tensor_name)
+
+                        self.reducer.mark_on_complete()
+
+                    def register_post_backward_func(callback_func):
+                        """
+                        Queue callback_func to the execution engine
+                        """
+
+                        def traceback_callback_func():
+                            try:
+                                callback_func()
+                            except:
+                                print(traceback.format_exc())
+                                logging.error(traceback.format_exc())
+                                raise
+
+                        if not self.callback_queued:
+                            Variable._execution_engine.queue_callback(
+                                traceback_callback_func
+                            )
+                            self.callback_queued = True
+
+                    def _hook(*unused):
+                        if (
+                            self.compute_communication_overlap
+                        ):  # overlap reduce and backward
+                            self.mark_tensor_ready(name)
+                            register_post_backward_func(self.mark_on_complete)
+                        else:
+                            register_post_backward_func(reduce_fallback)
+
+                    return _hook
+
+                h = grad_acc.register_hook(make_hook(param, name))
+
+                self.hook_list.append(h)
+                self.grad_accs.append(grad_acc)
+
+    def forward(self, *inputs, **kwargs):
+        r"""
+        Overwrite the forward process for a distributed module with
+        communication-computation overlap.
+        """
+        result = self.module(*inputs, **kwargs)
+        self.callback_queued = False
+        return result
+
+
+    def mark_tensor_ready(self, name):
+        r"""
+        Mark the tensor ready when got its gradient.
+        """
+        # param_name = self.param_name[id(param)]
+        # if param_name not in self.bagua_tensor:  # no bagua_tensor no mark ready
+        #     return
+
+        # if not self.fusion:
+        #     # reset bagua tensor pointer
+        #     p = self.fill_slot(param)
+        #     self.bagua_tensor[param_name].reset_ptr(p.data_ptr())
+
+        ready_event = self.tensor_events[self.param_i[name]]
+        self.current_stream.record_event(ready_event)
+        self.bagua_backend.mark_communication_ready(
+            self.tensor_map[name].backend_tensor, ready_event.cuda_event
+        )
+
+    def mark_on_complete(self):
+        r"""
+        Mark all buckets have finished thier reduce process.
+        """
+        self.bagua_backend.wait_pending_comm_ops()
+        self.step_counter += 1
