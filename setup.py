@@ -45,6 +45,7 @@ if __name__ == "__main__":
             "parallel-ssh",
             "pydantic",
             "requests",
+            "gorilla",
         ],
         entry_points={
             "console_scripts": [
