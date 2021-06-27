@@ -80,7 +80,7 @@ class Algorithm:
             bagua_grad.bagua_mark_communication_ready_on_current_stream()
         return hook
 
-    def init_post_backward_hook(self, bagua_module):
+    def init_post_backward_hook(self, bagua_module: BaguaModule):
         """Given a `BaguaModule`, return a hook function that will be executed when the
         backward pass is done.
 
@@ -97,12 +97,17 @@ class Algorithm:
 
     def init_operations(
             self,
-            bucket,
-            inter_node_communicator,
-            intra_node_communicator,
-            global_communicator,
+            bagua_module: BaguaModule,
+            bucket: BaguaBucket,
     ):
-        pass
+        """Given a `BaguaModule`, and a Bagua bucket, register operations to be
+        executed on the bucket.
+
+        Args:
+            bagua_module (BaguaModule): A PyTorch module initialized by
+                `with_bagua(...)` method.
+            bucket (BaguaBucket): A single bucket to register operations.
+        """
 
 
 class DevelopAlgorithm(Algorithm):
