@@ -6,6 +6,16 @@ You can compare the performance with the horovod script directly.
 import argparse
 from bagua.torch_api.dev.algorithms import Algorithm, DevelopAlgoritm
 from bagua.torch_api.dev.distributed_dev import DistributedWrapper
+import bagua.torch_api.dev.tensor
+
+# FIXME: move to appropriate places
+import gorilla
+patches = gorilla.find_patches([
+ bagua.torch_api.dev.tensor
+])
+for patch in patches:
+    gorilla.apply(patch)
+
 import timeit
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
@@ -97,7 +107,7 @@ if args.cuda:
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 
 wrapper_model = DistributedWrapper(
-    model, optimizer, algorithm=DevelopAlgoritm()
+    model, optimizer, algorithm=DevelopAlgoritm(hierarchical_reduce=True)
 )
 
 # Set up fixed fake data
