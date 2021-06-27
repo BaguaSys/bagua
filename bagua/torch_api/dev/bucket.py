@@ -36,7 +36,7 @@ class BaguaBucket:
 
     def _flatten_(self):
         """
-        flatten inner tensors in place
+        Flatten inner tensors in place.
         """
         if len(self.tensors) == 0:
             return
