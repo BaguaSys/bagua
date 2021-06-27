@@ -115,28 +115,14 @@ class DevelopAlgorithm(Algorithm):
         self.reduce_op = reduce_op
         self.hierarchical_reduce = hierarchical_reduce
 
-#     def init_tensors(self, bagua_module) -> List[BaguaTensor]:
-#         tensors = []
-#         for name, param in bagua_module.named_parameters(): # FIXME: we should keep track of communication ready order on hyperparamter server and bucket with that
-#             tensors.append(param.to_bagua_tensor(name))
-#         return tensors
-
-#     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
-#         buckets = []
-#         for tensor in tensors:
-#             buckets.append(BaguaBucket([tensor]))
-#         return buckets
-
     def init_operations(
             self,
+            bagua_module,
             bucket,
-            inter_node_communicator,
-            intra_node_communicator,
-            global_communicator,
     ):
         bucket.backend_bucket.append_centralized_synchronous_op(
-            inter_node_communicator,
-            intra_node_communicator,
+            bagua_module.bagua_inter_node_communicator,
+            bagua_module.bagua_intra_node_communicator,
             hierarchical=self.hierarchical_reduce,
             average=(self.reduce_op == ReduceOp.Average),
         )

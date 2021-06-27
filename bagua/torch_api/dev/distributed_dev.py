@@ -159,9 +159,9 @@ class BaguaModule:
         self.bagua_backend = _get_global_state().get_backend()
 
         # get communicators
-        self._bagua_inter_node_communicator = _get_global_state().get_internode_communicator()
-        self._bagua_intra_node_communicator = _get_global_state().get_intranode_communicator()
-        self._bagua_global_communicator = _get_global_state().get_global_communicator()
+        self.bagua_inter_node_communicator = _get_global_state().get_internode_communicator()
+        self.bagua_intra_node_communicator = _get_global_state().get_intranode_communicator()
+        self.bagua_global_communicator = _get_global_state().get_global_communicator()
 
         self._bagua_broadcast_parameters()
 
@@ -257,9 +257,7 @@ class BaguaModule:
 
         for bucket in self._bagua_buckets:
             self.bagua_algorithm.init_operations(
+                self,
                 bucket,
-                self._bagua_inter_node_communicator,
-                self._bagua_intra_node_communicator,
-                self._bagua_global_communicator,
             )
         self._bagua_backend.register_ordered_buckets([bucket.backend_bucket for bucket in self._bagua_buckets])
