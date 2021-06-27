@@ -13,7 +13,7 @@ class BaguaTensor(object):
 
     def to_bagua_tensor(self, name: str):
         """
-        Convert a PyTorch tensor to Bagua tensor and return it.
+        Convert a PyTorch tensor or parameter to Bagua tensor and return it.
         A Bagua tensor is required to use Bagua's communication algorithms.
 
         Args:
