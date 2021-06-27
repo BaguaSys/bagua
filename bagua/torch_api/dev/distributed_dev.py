@@ -72,7 +72,7 @@ class DistributedWrapper:
         rsp = self._bagua_autotune_client.register_models(
             autotune_tensor_list, self._bagua_get_parameter_group_info()
         )
-        print(rsp)
+        print(rsp.text)
 
     def _bagua_init_algorithm(self):
         self._bagua_tensors = self._bagua_algorithm.init_tensors(self)
