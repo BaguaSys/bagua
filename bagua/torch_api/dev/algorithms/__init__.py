@@ -42,8 +42,7 @@ class Algorithm:
         # the algorithm need to implement a tensors to buckets function
         bagua_buckets = []
         for bucket in tensors:
-            bagua_bucket = BaguaBucket(bucket)
-            bagua_bucket.flatten_()
+            bagua_bucket = BaguaBucket(bucket, flatten=True)
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
@@ -76,16 +75,16 @@ class DevelopAlgorithm(Algorithm):
 #         for tensor in tensors:
 #             buckets.append(BaguaBucket([tensor]))
 #         return buckets
-    def init_operations(
-            self,
-            bucket,
-            inter_node_communicator,
-            intra_node_communicator,
-            global_communicator,
-    ):
-        bucket.append_centralized_synchronous_op(
-            inter_node_communicator,
-            intra_node_communicator,
-            hierarchical=self.hierarchical_reduce,
-            average=(self.reduce_op == ReduceOp.Average),
-        )
+    # def init_operations(
+    #         self,
+    #         bucket,
+    #         inter_node_communicator,
+    #         intra_node_communicator,
+    #         global_communicator,
+    # ):
+    #     bucket.append_centralized_synchronous_op(
+    #         inter_node_communicator,
+    #         intra_node_communicator,
+    #         hierarchical=self.hierarchical_reduce,
+    #         average=(self.reduce_op == ReduceOp.Average),
+    #     )

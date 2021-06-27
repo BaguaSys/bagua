@@ -11,8 +11,8 @@ class BaguaBucket:
         self.tensors = tensors
         self.backend_tensor = None
         self.is_flattened = False
-
-
+        if flatten:
+            flatten_()
 
     def flatten_(self):
         """
