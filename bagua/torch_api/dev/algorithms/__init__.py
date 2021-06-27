@@ -64,8 +64,11 @@ class Algorithm:
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
-    def init_backward_hook(self, bagua_module):
-        """Return a function that takes the name of a parameter, and will be run when
+    def init_backward_hook(self, bagua_module: BaguaModule):
+        """
+        Given a `BaguaModule`,
+
+        Return a function that takes the name of a parameter, and will be run when
         after the parameter's backward pass is done.
         """
         def hook(name):
