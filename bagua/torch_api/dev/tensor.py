@@ -6,7 +6,8 @@ import gorilla
 
 @gorilla.patches(torch.Tensor)
 class BaguaTensor(object):
-    def to_bagua_tensor(self):
+    def to_bagua_tensor(self, name: str):
+        self.bagua_tensor_name = name
         ## here only register the param.grad
         self.bagua_tensor = B.BaguaTensorPy(
             ptr=self.data_ptr(),
