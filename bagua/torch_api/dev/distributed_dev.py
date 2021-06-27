@@ -24,7 +24,7 @@ class DistributedWrapper:
         for state in module_states:
             broadcast(state, root=0)
 
-    def bagua_init(self, optimizer, algorithm):
+    def with_bagua(self, optimizer, algorithm):
         self._bagua_optimizer = optimizer
         self._bagua_algorithm = algorithm
 

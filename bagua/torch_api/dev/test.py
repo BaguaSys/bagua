@@ -108,7 +108,7 @@ if args.cuda:
 
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 
-model.bagua_init(optimizer, algorithm=DevelopAlgoritm(hierarchical_reduce=True))
+model.with_bagua(optimizer, algorithm=DevelopAlgoritm(hierarchical_reduce=True))
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
