@@ -106,7 +106,7 @@ if args.cuda:
     # Move model to GPU.
     model.cuda()
 
-optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
+optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
 
 model.with_bagua([optimizer], algorithm=DevelopAlgorithm(hierarchical_reduce=True))
 
@@ -156,6 +156,7 @@ for x in range(args.num_iters):
     img_sec = args.batch_size * args.num_batches_per_iter / time
     log("Iter #%d: %.1f img/sec %s" % (x, img_sec * bagua.get_world_size(), device))
     img_secs.append(img_sec)
+    model._bagua_broadcast_parameters()
 
 # Results
 img_sec_mean = np.mean(img_secs)

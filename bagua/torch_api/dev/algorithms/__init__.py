@@ -26,11 +26,16 @@ class Algorithm:
         optimizers = bagua_module.bagua_optimizers
         tensor_groups = [[]]
         # TODO: consider optimizer groups
+<<<<<<< HEAD
         for name, param in reversed(bagua_module.named_parameters()):
             with torch.no_grad():
                 t = torch.zeros_like(param.data)
                 param.grad = t
             tensor = param.grad.to_bagua_tensor(name)
+=======
+        for name, param in bagua_module.named_parameters():
+            tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
+>>>>>>> cdeff316ee4814b56ff60554487ad1e00848b716
             tensor_groups[0].append(tensor)
         return tensor_groups
 
@@ -46,7 +51,7 @@ class Algorithm:
         return bagua_buckets
 
     def init_hooks(self, bagua_module) -> List:
-        pass
+        return []
 
     def init_operations(
             self,
