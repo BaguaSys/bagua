@@ -7,10 +7,12 @@ import torch
 
 
 class BaguaBucket:
-    def __init__(self, tensors: List[BaguaTensor]) -> None:
+    def __init__(self, tensors: List[BaguaTensor], flatten: bool) -> None:
         self.tensors = tensors
         self.backend_tensor = None
         self.is_flattened = False
+
+
 
     def flatten_(self):
         """
