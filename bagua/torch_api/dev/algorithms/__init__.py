@@ -108,21 +108,3 @@ class Algorithm:
                 `with_bagua(...)` method.
             bucket (BaguaBucket): A single bucket to register operations.
         """
-
-
-class DevelopAlgorithm(Algorithm):
-    def __init__(self, hierarchical_reduce: bool, reduce_op: str = "avg"):
-        self.reduce_op = reduce_op
-        self.hierarchical_reduce = hierarchical_reduce
-
-    def init_operations(
-            self,
-            bagua_module,
-            bucket,
-    ):
-        bucket.backend_bucket.append_centralized_synchronous_op(
-            bagua_module.bagua_inter_node_communicator,
-            bagua_module.bagua_intra_node_communicator,
-            hierarchical=self.hierarchical_reduce,
-            average=(self.reduce_op == ReduceOp.Average),
-        )
