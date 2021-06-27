@@ -43,7 +43,7 @@ class Algorithm:
         return bagua_buckets
 
     def init_hooks(self, bagua_module) -> List:
-        pass
+        return []
 
     def init_operations(
             self,
