@@ -4,15 +4,23 @@ from bagua.torch_api.dev.tensor import BaguaTensor
 from typing import List
 from bagua.torch_api.utils import check_contiguous
 import torch
+import bagua_core as B
 
 
 class BaguaBucket:
-    def __init__(self, tensors: List[BaguaTensor], flatten: bool) -> None:
+    def __init__(self, tensors: List[BaguaTensor], flatten: bool, bucket_index) -> None:
         self.tensors = tensors
         self.backend_tensor = None
         self.is_flattened = False
         if flatten:
             self.flatten_()
+
+        self.backend_bucket = B.BaguaBucketPy(
+            "bucket_" + str(bucket_index),
+            [tensor.bagua_tensor for tensor in tensors],
+            inplace=True,
+            align_bytes=1,
+        )
 
     def flatten_(self):
         """

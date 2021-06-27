@@ -8,7 +8,7 @@ import gorilla
 class BaguaTensor(object):
     def to_bagua_tensor(self, name: str):
         self.bagua_tensor_name = name
-        self.bagua_tensor = B.BaguaTensorPy(
+        self.backend_tensor = B.BaguaTensorPy(
             ptr=self.data_ptr(),
             num_elem=self.numel(),
             num_elem_allocated=self.__dict__.get("allocated_size", self.numel()),
@@ -26,7 +26,7 @@ class BaguaTensor(object):
 
     def mark_communication_ready(self, bagua_backend, cuda_event):
         bagua_backend.mark_communication_ready(
-            self.bagua_tensor,
+            self.backend_tensor,
             cuda_event,
         )
 
@@ -36,8 +36,8 @@ class BaguaTensor(object):
     def set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
-        if self.bagua_tensor is not None:
-            self.bagua_tensor.reset_ptr(self.data_ptr())
+        if self.backend_tensor is not None:
+            self.backend_tensor.reset_ptr(self.data_ptr())
 
 
 if __name__ == "__main__":
