@@ -38,12 +38,6 @@ class DistributedWrapper:
                     if isinstance(inner_state, torch.Tensor): # TODO: consider the case where this is a scalar
                         broadcast(inner_state, root=0)
 
-    @gorilla.settings(allow_hit=True)
-    def forward(self, *inputs, **kwargs):
-        print("haha")
-        result = gorilla.get_original_attribute(torch.nn.Module, 'forward')(*inputs, **kwargs)
-        return result
-
     def _bagua_autotune_step(self):
         CYCLE_STEP = 100
         start_time = time.time()
