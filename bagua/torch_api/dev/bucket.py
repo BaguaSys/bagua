@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-from bagua.torch_api.dev.tensor import BaguaTensor
 from typing import List
-from bagua.torch_api.utils import check_contiguous
-import torch
+
 import bagua_core as B
+import torch
+from bagua.torch_api.dev.tensor import BaguaTensor
+from bagua.torch_api.utils import check_contiguous
 
 
 class BaguaBucket:
