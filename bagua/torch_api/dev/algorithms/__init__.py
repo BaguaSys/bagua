@@ -24,7 +24,7 @@ class Algorithm:
         every GPU should return in the same order
         """
         tensors = []
-        for name, param in module.named_parameters():
+        for name, param in bagua_module.named_parameters():
             with torch.no_grad():
                 t = torch.zeros_like(param.data)
                 param.grad = t
