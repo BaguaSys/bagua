@@ -5,7 +5,8 @@ from bagua.torch_api.dev.algorithms import Algorithm
 class GradientAllReduceAlgorithm(Algorithm):
     def __init__(self, hierarchical_reduce: bool=False, average: bool = True):
         """
-        Create an instance of `GradientAllReduce <https://baguasys.github.io/tutorials/algorithms/gradient-allreduce.html>`_
+        Create an instance of the
+        `GradientAllReduce <https://baguasys.github.io/tutorials/algorithms/gradient-allreduce.html>`_
         algorithm.
 
         Args:
