@@ -13,11 +13,6 @@ class Algorithm:
     ):
         pass
 
-    def need_reset(self) -> bool:
-        "return True when we need to call init_buckets, init_hooks again. for example when we collect more info and want to rearrange the buckets"
-        # TODO: previous buckets and hooks need to be cleared before reinit
-        pass
-
     def init_tensors(self, bagua_module) -> List[List[BaguaTensor]]:
         """
         return an ordered dictionary of tensors to communicate
