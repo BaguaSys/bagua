@@ -30,6 +30,7 @@ class BaguaTensor(object):
     def set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
+        # TODO: also change bagua_tensor ptr
 
 
 if __name__ == "__main__":
