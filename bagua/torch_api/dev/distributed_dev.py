@@ -26,8 +26,11 @@ class DistributedWrapper:
         for state in module_states:
             broadcast(state, root=0)
         for optimizer in self.bagua_optimizers:
-            for state in optimizer.state_dict().values():
-                broadcast(state, root=0)
+            optimizer_state_dict = optimizer.state_dict()['state']
+            for state in optimizer_state_dict.values():
+                for inner_state in state.values():
+                    if isinstance(inner_state, torch.Tensor): # TODO: consider the case where this is a scalar
+                        broadcast(inner_state, root=0)
 
     def with_bagua(self, optimizers, algorithm):
         # TODO: do we need to check whether optimizers and model parameters are the same?
