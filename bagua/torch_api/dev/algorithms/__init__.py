@@ -28,10 +28,6 @@ class Algorithm:
         return tensor_groups
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
-        # TODO: real bucketing logic
-        # TODO: use only specifies tensors, in first iteration, they are all separate buckets,
-        # in the following iterations, the autotune server determines how to bucket them
-        # the algorithm need to implement a tensors to buckets function
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
             bagua_bucket = BaguaBucket(bucket, flatten=True, bucket_index=idx)
