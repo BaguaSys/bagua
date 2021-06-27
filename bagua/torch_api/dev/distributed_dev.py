@@ -85,6 +85,7 @@ class DistributedWrapper:
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
         self._bagua_framework_hooks = [] # hooks for bagua framework logic, not cleared when changing algorithms
+        self._bagua_backend = _get_global_state().get_backend()
 
         def autotune_hook(self, input):
             if self.training:
@@ -181,4 +182,4 @@ class DistributedWrapper:
                 self._bagua_intra_node_communicator,
                 self._bagua_global_communicator,
             )
-        # TODO: @shaoduogan add bucket registration
+        self._bagua_backend.register_ordered_buckets([bucket.backend_tensor for bucket in self._bagua_buckets])
