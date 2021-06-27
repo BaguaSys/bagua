@@ -15,6 +15,7 @@ class BaguaTensor(object):
             dtype=to_bagua_datatype(self.dtype),
             device_id=self.device.index,
         )
+        return self
 
         return self
 

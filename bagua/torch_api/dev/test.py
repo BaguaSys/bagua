@@ -7,11 +7,13 @@ import argparse
 from bagua.torch_api.dev.algorithms import Algorithm, DevelopAlgoritm
 from bagua.torch_api.dev.distributed_dev import DistributedWrapper
 import bagua.torch_api.dev.tensor
+import bagua.torch_api.dev.distributed_dev
 
 # FIXME: move to appropriate places
 import gorilla
 patches = gorilla.find_patches([
- bagua.torch_api.dev.tensor
+    bagua.torch_api.dev.tensor,
+    bagua.torch_api.dev.distributed_dev,
 ])
 for patch in patches:
     gorilla.apply(patch)
@@ -106,9 +108,7 @@ if args.cuda:
 
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 
-wrapper_model = DistributedWrapper(
-    model, optimizer, algorithm=DevelopAlgoritm(hierarchical_reduce=True)
-)
+model.with_bagua(optimizer, algorithm=DevelopAlgoritm(hierarchical_reduce=True))
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
@@ -119,7 +119,7 @@ if args.cuda:
 
 def benchmark_step():
     optimizer.zero_grad()
-    output = wrapper_model.module(data)
+    output = model(data)
     loss = F.cross_entropy(output, target)
 
     if args.amp:
