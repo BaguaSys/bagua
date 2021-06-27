@@ -43,7 +43,8 @@ class Algorithm:
         # return buckets
         buckets = []
         for bucket_dict in tensors:
-            bucket = BaguaBucket([bucket_dict])
+            tensor_list = [tensor for tensor in bucket_dict.values]
+            bucket = BaguaBucket(tensor_list)
             bucket.flatten_()
             buckets.append(bucket)
         return buckets
