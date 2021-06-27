@@ -28,7 +28,7 @@ class BaguaTensor(object):
 
     def set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
-            self.set_(storage, storage_offset, self.inner.shape)
+            self.set_(storage, storage_offset, self.shape)
 
 
 if __name__ == "__main__":
