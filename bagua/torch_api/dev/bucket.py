@@ -24,7 +24,7 @@ class BaguaBucket:
         self.backend_tensor = None
         self.flatten = flatten
         if flatten:
-            self.flatten_()
+            self._flatten_()
         self.name = name
 
         self.backend_bucket = B.BaguaBucketPy(
@@ -34,7 +34,7 @@ class BaguaBucket:
             align_bytes=1,
         )
 
-    def flatten_(self):
+    def _flatten_(self):
         """
         flatten inner tensors in place
         """
@@ -59,4 +59,7 @@ class BaguaBucket:
         assert check_contiguous(self.tensors)
 
     def check_flatten(self) -> bool:
+        """
+        Returns True if the bucket's tensors are contiguous in memory.
+        """
         return check_contiguous(self.tensors)
