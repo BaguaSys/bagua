@@ -10,8 +10,7 @@ import torch.nn
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name )
 class DistributedWrapper:
     def _bagua_get_module_params_and_buffers(self):
-        # TODO: document this
-        if hasattr(self, "_ddp_params_and_buffers_to_ignore"):
+        if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
             parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
         else:
             parameters_to_ignore = []
@@ -22,6 +21,9 @@ class DistributedWrapper:
         return module_states
 
     def _bagua_broadcast_parameters(self):
+        """
+        Broadcast model and optimizer states.
+        """
         module_states = self._bagua_get_module_params_and_buffers()
         for state in module_states:
             broadcast(state, root=0)
@@ -51,6 +53,9 @@ class DistributedWrapper:
         return self
 
     def _bagua_autotune_register_tensors(self):
+        """
+        Register tensors on autotune server, and return first bucketing suggestions
+        """
         autotune_tensor_list = [
             TensorDeclaration(
                 {
