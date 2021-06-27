@@ -17,7 +17,7 @@ class BaguaBucket:
 
         self.backend_bucket = B.BaguaBucketPy(
             "bucket_" + str(bucket_index),
-            [tensor.bagua_tensor for tensor in tensors],
+            [tensor.backend_tensor for tensor in tensors],
             inplace=True,
             align_bytes=1,
         )
