@@ -32,7 +32,7 @@ class Algorithm:
 
         .. note::
             The tensor groups are useful when used with other optimizations such
-            as FusedOptimizer, where the groups are the optimizers' parameter
+            as `FusedOptimizer`, where the groups are the optimizers' parameter
             groups. Bagua will try to fuse the tensors in a way that both
             communication and fused optimization operations benefit as much as
             possible from the memory layout.
