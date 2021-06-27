@@ -21,18 +21,20 @@ class DistributedWrapper:
                 module_states.append(param)
         return module_states
 
-    def _bagua_get_parameter_group_info(self):
-        """
-        Given a optimizer, return a dict containing Param => param_group_id
-        """
-        param_group_info = {}
-        param_groups = [
-            group for optimizer in self._bagua_optimizers for group in optimizer.param_groups
-           ]
-        for i, group in enumerate(param_groups):
-            for param in group["params"]:
-                param_group_info[param.bagua_tensor_name] = i
-        return param_group_info
+    # # TODO: remove parameter group from autotune service
+
+# def _bagua_get_parameter_group_info(self):
+    #     """
+    #     Given a optimizer, return a dict containing Param => param_group_id
+    #     """
+    #     param_group_info = {}
+    #     param_groups = [
+    #         group for optimizer in self.bagua_optimizers for group in optimizer.param_groups
+    #        ]
+    #     for i, group in enumerate(param_groups):
+    #         for param in group["params"]:
+    #             param_group_info[param.bagua_tensor_name] = i
+    #     return param_group_info
 
     def _bagua_broadcast_parameters(self):
         module_states = self._bagua_get_module_params_and_buffers()
@@ -41,8 +43,8 @@ class DistributedWrapper:
 
     def with_bagua(self, optimizers, algorithm):
         # TODO: do we need to check whether optimizers and model parameters are the same?
-        self._bagua_optimizers = optimizers
-        self._bagua_algorithm = algorithm
+        self.bagua_optimizers = optimizers
+        self.bagua_algorithm = algorithm
 
         # get communicators
         self._bagua_inter_node_communicator = _get_global_state().get_internode_communicator()
@@ -67,26 +69,29 @@ class DistributedWrapper:
                     "dtype": to_bagua_datatype(tensor.dtype),
                 }
             )
-            for tensor in self._bagua_tensors
+            for tensor_group in self._bagua_tensor_groups for tensor in tensor_group
         ]
+        bagua_tensor_group_info = dict(
+            [(tensor.bagua_tensor_name, i) for i, tensor_group in enumerate(self._bagua_tensor_groups) for tensor in tensor_group]
+        )
         rsp = self._bagua_autotune_client.register_models(
-            autotune_tensor_list, self._bagua_get_parameter_group_info()
+            autotune_tensor_list, bagua_tensor_group_info
         )
         import pprint
         pprint.pprint(rsp.json())
 
     def _bagua_init_algorithm(self):
-        self._bagua_tensors = self._bagua_algorithm.init_tensors(self)
+        self._bagua_tensor_groups = self.bagua_algorithm.init_tensors(self)
         # FIXME
         self._bagua_autotune_register_tensors()
 
-        raw_buckets = []
-        for tensor in self._bagua_tensors:
-            raw_buckets.append([tensor])
-        self._bagua_buckets = self._bagua_algorithm.tensors_to_buckets(raw_buckets)
-        self._bagua_hooks = self._bagua_algorithm.init_hooks(self)
+        raw_buckets = [
+            [tensor] for tensor_group in  self._bagua_tensor_groups for tensor in tensor_group
+        ]
+        self._bagua_buckets = self.bagua_algorithm.tensors_to_buckets(raw_buckets)
+        self._bagua_hooks = self.bagua_algorithm.init_hooks(self)
         for bucket in self._bagua_buckets:
-            self._bagua_algorithm.init_operations(
+            self.bagua_algorithm.init_operations(
                 bucket,
                 self._bagua_inter_node_communicator,
                 self._bagua_intra_node_communicator,

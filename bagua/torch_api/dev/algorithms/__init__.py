@@ -18,19 +18,22 @@ class Algorithm:
         # TODO: previous buckets and hooks need to be cleared before reinit
         pass
 
-    def init_tensors(self, bagua_module) -> List[BaguaTensor]:
+    def init_tensors(self, bagua_module) -> List[List[BaguaTensor]]:
         """
         return an ordered dictionary of tensors to communicate
         every GPU should return in the same order
         """
-        tensors = []
+        optimizers = bagua_module.bagua_optimizers
+        tensor_groups = [[]]
+        # TODO: consider optimizer groups
         for name, param in bagua_module.named_parameters():
+            # TODO: remove
             with torch.no_grad():
                 t = torch.zeros_like(param.data)
                 param.grad = t
             tensor = param.grad.to_bagua_tensor(name)
-            tensors.append(tensor)
-        return tensors
+            tensor_groups[0].append(tensor)
+        return tensor_groups
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
         # TODO: real bucketing logic
@@ -62,7 +65,6 @@ class DevelopAlgoritm(Algorithm):
         self.reduce_op = reduce_op
         self.hierarchical_reduce = hierarchical_reduce
 
-# <<<<<<< HEAD
 #     def init_tensors(self, bagua_module) -> List[BaguaTensor]:
 #         tensors = []
 #         for name, param in bagua_module.named_parameters(): # FIXME: we should keep track of communication ready order on hyperparamter server and bucket with that
@@ -74,7 +76,6 @@ class DevelopAlgoritm(Algorithm):
 #         for tensor in tensors:
 #             buckets.append(BaguaBucket([tensor]))
 #         return buckets
-# =======
     def init_operations(
             self,
             bucket,

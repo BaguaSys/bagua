@@ -18,6 +18,13 @@ class BaguaTensor(object):
         )
         return self
 
+    # @property
+    # def grad(self):
+    #     if self.:
+    #         with torch.no_grad():
+    #             t = torch.zeros_like(param.data)
+    #             param.grad = t
+
     def mark_communication_ready(self, bagua_backend, cuda_event):
         bagua_backend.mark_communication_ready(
             self.bagua_tensor,
