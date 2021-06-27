@@ -77,6 +77,36 @@ class DistributedWrapper:
 
 
     def with_bagua(self, optimizers, algorithm):
+        r"""`with_bagua` enables easy distributed data parallel training on a
+        `torch.nn.Module`.
+
+        Arguments:
+            optimizers (List[torch.optim.Optimizer]): Optimizer(s) used by the
+                module. It can contain one or more PyTorch optimizers.
+            algorithm (bagua.torch_api.Algorithm): Distributed algorithm
+                used to do the actual communication and update.
+
+        Returns:
+            The original module, with Bagua related environments initialized.
+
+        Examples::
+
+            >>> model = torch.nn.Sequential(
+            ...      torch.nn.Linear(D_in, H),
+            ...      torch.nn.ReLU(),
+            ...      torch.nn.Linear(H, D_out),
+            ...    )
+            >>> optimizer = torch.optim.SGD(
+            ...      model.parameters(),
+            ...      lr=0.01,
+            ...      momentum=0.9
+            ...    )
+            >>> model = model.with_bagua(
+            ...      [optimizer],
+            ...      GradientAllReduce(...)
+            ...    )
+        """
+
         # TODO: do we need to check whether optimizers and model parameters are the same?
         self.step_counter = 0
         self.bagua_optimizers = optimizers
