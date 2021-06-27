@@ -104,12 +104,9 @@ class DistributedWrapper:
         self.param_i = {}
         index = 0
         for name, param in self.named_parameters():
-            if param in self._bagua_get_module_params_and_buffers():
-                self.param_list.append(param)
-                self.param_i[name] = index
-                index += 1
-            else:
-                logging.debug(f"skip param: {name}")
+            self.param_list.append(param)
+            self.param_i[name] = index
+            index += 1
         self.tensor_events = [
             torch.cuda.Event(enable_timing=False, blocking=False)
         ] * len(self.param_list)
