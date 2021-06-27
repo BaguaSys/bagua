@@ -24,6 +24,9 @@ class Algorithm:
         """
         tensors = OrderedDict()
         for name, param in module.named_parameters():
+            with torch.no_grad():
+                t = torch.zeros_like(param.data)
+                param.grad = t
             tensor = param.grad.to_bagua_tensor()
             tensors[name] = tensor
         return tensors
