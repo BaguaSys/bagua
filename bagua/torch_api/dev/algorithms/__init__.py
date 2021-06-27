@@ -20,7 +20,7 @@ class Algorithm:
         """
         optimizers = bagua_module.bagua_optimizers
         tensor_groups = [[]]
-        # TODO: consider optimizer groups
+        # TODO: @ganshaoduo consider optimizer groups
         for name, param in reversed(list(bagua_module.named_parameters())):
             tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
             tensor.ready_event = torch.cuda.Event()
@@ -79,6 +79,7 @@ class DevelopAlgorithm(Algorithm):
 #         for tensor in tensors:
 #             buckets.append(BaguaBucket([tensor]))
 #         return buckets
+
     def init_operations(
             self,
             bucket,
