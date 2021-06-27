@@ -22,7 +22,11 @@ class Algorithm:
         return an ordered dictionary of tensors to communicate
         every GPU should return in the same order
         """
-        pass
+        tensors = OrderedDict()
+        for name, param in module.named_parameters():
+            tensor = param.grad.to_bagua_tensor()
+            tensors[name] = tensor
+        return tensors
 
     def tensors_to_buckets(self, tensors: List[OrderedDict]) -> List[BaguaBucket]:
         # TODO: real bucketing logic
@@ -34,6 +38,12 @@ class Algorithm:
         #     bucket = BaguaBucket([tensor])
         #     buckets.append(bucket)
         # return buckets
+        buckets = []
+        for bucket_dict in tensors:
+            bucket = BaguaBucket([bucket_dict])
+            bucket.flatten_()
+            buckets.append(bucket)
+        return buckets
 
     def init_hooks(self, module, optimizer) -> List:
         # register_backward_hook(
@@ -80,15 +90,15 @@ class DevelopAlgoritm(Algorithm):
         self.reduce_op = reduce_op
         self.hierarchical_reduce = hierarchical_reduce
 
-    def init_tensors(self, module, optimizer) -> OrderedDict:
-        tensors = OrderedDict()
-        for name, param in module.named_parameters():
-            tensor = param.to_bagua_tensor()
-            tensors[name] = tensor
-        return tensors
+    # def init_tensors(self, module, optimizer) -> OrderedDict:
+    #     tensors = OrderedDict()
+    #     for name, param in module.named_parameters():
+    #         tensor = param.to_bagua_tensor()
+    #         tensors[name] = tensor
+    #     return tensors
 
-    def tensors_to_buckets(self, tensors: List[OrderedDict]) -> List[BaguaBucket]:
-        buckets = []
-        for tensor in tensors:
-            buckets.append(BaguaBucket([tensor]))
-        return buckets
+    # def tensors_to_buckets(self, tensors: List[OrderedDict]) -> List[BaguaBucket]:
+    #     buckets = []
+    #     for tensor in tensors:
+    #         buckets.append(BaguaBucket([tensor]))
+    #     return buckets
