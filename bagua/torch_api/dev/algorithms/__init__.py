@@ -60,7 +60,7 @@ class Algorithm:
         pass
 
 
-class DevelopAlgoritm(Algorithm):
+class DevelopAlgorithm(Algorithm):
     def __init__(self, hierarchical_reduce: bool, reduce_op: str = "avg"):
         self.reduce_op = reduce_op
         self.hierarchical_reduce = hierarchical_reduce
