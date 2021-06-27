@@ -82,7 +82,7 @@ class DevelopAlgoritm(Algorithm):
     def init_tensors(self, bagua_module) -> List[BaguaTensor]:
         tensors = []
         for name, param in bagua_module.named_parameters(): # FIXME: we should keep track of communication ready order on hyperparamter server and bucket with that
-            tensor = param.to_bagua_tensor(name)
+            tensors.append(param.to_bagua_tensor(name))
         return tensors
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
