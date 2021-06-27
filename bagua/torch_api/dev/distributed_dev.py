@@ -71,23 +71,24 @@ class DistributedWrapper:
             )
             for tensor_group in self._bagua_tensor_groups for tensor in tensor_group
         ]
+        tensor_map = dict([(tensor.bagua_tensor_name, tensor)
+                           for tensor_group in self._bagua_tensor_groups for tensor in tensor_group])
         bagua_tensor_group_info = dict(
             [(tensor.bagua_tensor_name, i) for i, tensor_group in enumerate(self._bagua_tensor_groups) for tensor in tensor_group]
         )
-        rsp = self._bagua_autotune_client.register_models(
-            autotune_tensor_list, bagua_tensor_group_info
-        )
-        import pprint
-        pprint.pprint(rsp.json())
+
+        recommended_buckets = map(
+            lambda x: list(map(lambda y: tensor_map[y['name']], x)),
+            self._bagua_autotune_client.register_models(
+                autotune_tensor_list,
+                bagua_tensor_group_info
+            ).json()['recommended_hyperparameters']['buckets'])
+        return list(recommended_buckets)
+
 
     def _bagua_init_algorithm(self):
         self._bagua_tensor_groups = self.bagua_algorithm.init_tensors(self)
-        # FIXME
-        self._bagua_autotune_register_tensors()
-
-        raw_buckets = [
-            [tensor] for tensor_group in  self._bagua_tensor_groups for tensor in tensor_group
-        ]
+        raw_buckets = self._bagua_autotune_register_tensors()
         self._bagua_buckets = self.bagua_algorithm.tensors_to_buckets(raw_buckets)
         self._bagua_hooks = self.bagua_algorithm.init_hooks(self)
         for bucket in self._bagua_buckets:
