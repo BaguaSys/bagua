@@ -27,10 +27,7 @@ class Algorithm:
         tensor_groups = [[]]
         # TODO: consider optimizer groups
         for name, param in bagua_module.named_parameters():
-            with torch.no_grad():
-                t = torch.zeros_like(param.data)
-                param.grad = t
-            tensor = param.grad.to_bagua_tensor(name)
+            tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
             tensor_groups[0].append(tensor)
         return tensor_groups
 

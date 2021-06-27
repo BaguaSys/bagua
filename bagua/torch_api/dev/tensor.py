@@ -17,14 +17,18 @@ class BaguaTensor(object):
         )
         return self
 
-    # @property
-    # def grad(self):
-    #     if self.grad is None:
-    #         with torch.no_grad():
-    #             t = torch.zeros_like(self.data)
-    #             self.grad = t
+    def bagua_ensure_grad(self):
+        if hasattr(self, "grad") and self.grad is not None:
+            return self.grad
+        elif isinstance(self, torch.nn.Parameter):
+            with torch.no_grad():
+                t = torch.zeros_like(self.data)
+                self.grad = t
+            return self.grad
+        else:
+            raise NotImplemented
 
-    def mark_communication_ready(self, bagua_backend, cuda_event):
+    def bagua_mark_communication_ready(self, bagua_backend, cuda_event):
         bagua_backend.mark_communication_ready(
             self.backend_tensor,
             cuda_event,
@@ -33,7 +37,7 @@ class BaguaTensor(object):
     # def _set(self):
     #     pass
 
-    def set_storage(self, storage: torch.Storage, storage_offset: int = 0):
+    def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
         if self.backend_tensor is not None:
