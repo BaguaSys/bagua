@@ -7,6 +7,10 @@ import gorilla
 
 @gorilla.patches(torch.Tensor)
 class BaguaTensor(object):
+    """
+    This class patch torch.Tensor with additional methods.
+    """
+
     def to_bagua_tensor(self, name: str) -> BaguaTensor:
         """
         Convert a PyTorch tensor to Bagua tensor and return it.
