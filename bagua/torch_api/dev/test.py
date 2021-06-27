@@ -155,7 +155,7 @@ for x in range(args.num_iters):
     img_sec = args.batch_size * args.num_batches_per_iter / time
     log("Iter #%d: %.1f img/sec %s" % (x, img_sec * bagua.get_world_size(), device))
     img_secs.append(img_sec)
-    model._bagua_broadcast_parameters()
+    # model._bagua_broadcast_parameters()
 
 # Results
 img_sec_mean = np.mean(img_secs)
