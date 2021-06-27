@@ -65,11 +65,15 @@ class Algorithm:
         return bagua_buckets
 
     def init_backward_hook(self, bagua_module: BaguaModule):
-        """
-        Given a `BaguaModule`,
+        """Given a `BaguaModule`, return a hook function that will be executed on every
+        parameter's gradient computation completion.
 
-        Return a function that takes the name of a parameter, and will be run when
-        after the parameter's backward pass is done.
+        Args:
+            bagua_module (BaguaModule): A PyTorch module initialized by
+                `with_bagua(...)` method.
+
+        Returns:
+            A function that takes the name of a parameter.
         """
         def hook(name):
             bagua_grad = bagua_module._bagua_tensor_map[name]
@@ -77,9 +81,15 @@ class Algorithm:
         return hook
 
     def init_post_backward_hook(self, bagua_module):
-        """Return a function that will be run when the whole model's backward pass is
-        done.
+        """Given a `BaguaModule`, return a hook function that will be executed when the
+        backward pass is done.
 
+        Args:
+            bagua_module (BaguaModule): A PyTorch module initialized by
+                `with_bagua(...)` method.
+
+        Returns:
+            A function that takes no argument.
         """
         def hook():
             bagua_module._bagua_backend.wait_pending_comm_ops()
