@@ -2,7 +2,7 @@
 set -eu
 
 exit_and_error() {
-  echo "Auto installation is supported only on Ubuntu (16.04, 18.04, 20.04), abort."
+  echo "Auto installation is supported only on Ubuntu(16.04,18.04,20.04) or CentOs(7,8), abort."
   exit
 }
 
@@ -12,6 +12,10 @@ check_os_version() {
   echo "Current OS is "${OS_NAME}", Version is "${VERSION_ID}
   if [ $OS_NAME == "Ubuntu" ]; then
     if [[ $VERSION_ID != @("16.04"|"18.04"|"20.04") ]]; then
+      exit_and_error
+    fi
+  elif [ $OS_NAME == "CentOS Linux" ]; then
+    if [[ $VERSION_ID != @("7"|"8") ]]; then
       exit_and_error
     fi
   else
@@ -38,17 +42,35 @@ if [ $OS_NAME == "Ubuntu" ]; then
 
   # install some utils
   python3 -m pip install --upgrade pip -i https://pypi.org/simple
-  python3 -m pip install setuptools-rust colorama tqdm -i https://pypi.org/simple
+  python3 -m pip install setuptools-rust colorama tqdm wheel -i https://pypi.org/simple
 
   # install zlib, ssl, openmpi
   apt-get install -y zlib1g-dev libssl-dev openmpi-bin openmpi-doc libopenmpi-dev
+elif [ $OS_NAME == "CentOS Linux" ]; then
+  if [ $VERSION_ID == "7" ]; then
+    yum install centos-release-scl-rh -y && yum install devtoolset-8-toolchain -y
+    scl enable devtoolset-8 bash
+    yum install http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-1.noarch.rpm -y
+    yum remove cmake3 -y && yum install cmake3 -y
+    yum install -y openmpi3-devel hwloc-devel
+    ln -sf /usr/bin/cmake3 /usr/bin/cmake
+  elif [ $VERSION_ID == "8" ]; then
+    yum remove cmake -y && yum install cmake -y
+    yum install -y openmpi-devel && dnf --enablerepo=powertools install hwloc-devel libarchive-devel -y
+  fi
 
-  # install rust
-  curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
-  export PATH="$HOME/.cargo/bin:$PATH"
+  yum install -y git python3-devel zlib-devel openssl-devel
+  source /etc/profile.d/modules.sh && module load mpi
 
-  # install bagua
-  #python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
-  python3 -m pip install bagua-core==0.2.2.dev15 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
-  python3 -m pip install bagua==0.4.1.dev26 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
+  # install some utils
+  python3 -m pip install setuptools-rust colorama tqdm wheel -i https://pypi.org/simple
 fi
+
+# install rust
+curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# install bagua
+#python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
+python3 -m pip install bagua-core==0.2.2.dev15 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
+python3 -m pip install bagua==0.4.1.dev26 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
