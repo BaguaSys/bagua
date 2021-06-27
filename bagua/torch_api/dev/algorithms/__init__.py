@@ -28,6 +28,7 @@ class Algorithm:
         # TODO: consider optimizer groups
         for name, param in reversed(list(bagua_module.named_parameters())):
             tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
+            tensor.ready_event = torch.cuda.Event()
             tensor_groups[0].append(tensor)
         return tensor_groups
 
@@ -42,8 +43,24 @@ class Algorithm:
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
-    def init_hooks(self, bagua_module) -> List:
-        return []
+    def init_backward_hook(self, bagua_module):
+        """Return a function that takes the name of a parameter, and will be run when
+        after the parameter's backward pass is done.
+        """
+        def hook(name):
+            bagua_grad = bagua_module._bagua_tensor_map[name]
+            torch.cuda.current_stream().record_event(bagua_grad.ready_event)
+            bagua_module._bagua_backend.mark_communication_ready(bagua_grad.backend_tensor, bagua_grad.ready_event.cuda_event)
+        return hook
+
+    def init_post_backward_hook(self, bagua_module):
+        """Return a function that will be run when the whole model's backward pass is
+        done.
+
+        """
+        def hook():
+            bagua_module._bagua_backend.wait_pending_comm_ops()
+        return hook
 
     def init_operations(
             self,

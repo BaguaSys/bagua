@@ -90,15 +90,23 @@ class DistributedWrapper:
 
         def autotune_hook(self, input):
             if self.training:
-                self._bagua_train_step_counter += 1
                 if get_autotune_level() >= 1 and not self._bagua_autotune_completed:
                     self._bagua_autotune_step()
 
-        self._bagua_framework_hooks.append(self.register_forward_pre_hook(
-            autotune_hook
-        ))
+        def clear_post_backward_callback_queued_hook(self, input):
+            self._is_post_backward_callback_queued = True
 
-        # TODO: add wait backend ops hook
+        def num_iteration_step_hook(self, input):
+            if self.training:
+                self._bagua_train_step_counter += 1
+
+
+        self._bagua_framework_hooks.extend(
+            [
+                self.register_forward_pre_hook(autotune_hook),
+                self.register_forward_pre_hook(clear_post_backward_callback_queued_hook),
+                self.register_forward_pre_hook(num_iteration_step_hook),
+             ])
 
         self.bucket_initialized = False
         self.param_list = []
@@ -126,7 +134,6 @@ class DistributedWrapper:
         self._bagua_autotune_client = get_hyperparameters_service_client()
 
         self._bagua_init_algorithm()
-        self.create_hooks()
         return self
 
     def _bagua_autotune_register_tensors(self):
@@ -191,7 +198,28 @@ class DistributedWrapper:
         # reset
         raw_buckets = self._bagua_autotune_get_buckets()
         self._bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
-        self._bagua_algorithm_hooks.extend(self.bagua_algorithm.init_hooks(self))
+
+        for name, param in self.named_parameters():
+            def real_hook(*unused):
+                self.bagua_algorithm.init_backward_hook(self)(name)
+                register_post_backward_func(reduce_fallback)
+
+                def real_post_backward_hook(*unused):
+                    self.bagua_algorithm.init_post_backward_hook(self)
+
+                if not self._is_post_backward_callback_queued:
+                    torch.autograd.Variable._execution_engine.queue_callback(
+                        real_post_backward_hook
+                    )
+                    self._is_post_backward_callback_queued = True
+
+            if param.requires_grad:
+                param_tmp = param.expand_as(param)
+                grad_acc = param_tmp.grad_fn.next_functions[0][0]
+                self._bagua_algorithm_hooks.append(grad_acc.register_hook(
+                    real_hook
+                ))
+
         for bucket in self._bagua_buckets:
             self.bagua_algorithm.init_operations(
                 bucket,
@@ -199,98 +227,4 @@ class DistributedWrapper:
                 self._bagua_intra_node_communicator,
                 self._bagua_global_communicator,
             )
-        self._bagua_backend.register_ordered_buckets([bucket.backend_tensor for bucket in self._bagua_buckets])
-
-    # def create_hooks(self):
-    #     r"""
-    #     Defines a number of hooks used to reduce communication buckets
-    #     in backward process.
-    #     """
-    #     self.grad_accs = []
-    #     for name, param in self.named_parameters():
-    #         if param.requires_grad:
-    #             param_tmp = param.expand_as(param)
-    #             grad_acc = param_tmp.grad_fn.next_functions[0][0]
-
-    #             def make_hook(param, name):
-
-    #                 def reduce_fallback(skip_reduce=False):
-    #                     if skip_reduce:
-    #                         logging.debug("skip reduce")
-    #                         return
-    #                     for i, bucket in enumerate(self._bagua_buckets):
-    #                         for param in bucket:
-    #                             self.mark_tensor_ready(param.bagua_tensor_name)
-
-    #                     self.reducer.mark_on_complete()
-
-    #                 def register_post_backward_func(callback_func):
-    #                     """
-    #                     Queue callback_func to the execution engine
-    #                     """
-
-    #                     def traceback_callback_func():
-    #                         try:
-    #                             callback_func()
-    #                         except:
-    #                             print(traceback.format_exc())
-    #                             logging.error(traceback.format_exc())
-    #                             raise
-
-    #                     if not self.callback_queued:
-    #                         Variable._execution_engine.queue_callback(
-    #                             traceback_callback_func
-    #                         )
-    #                         self.callback_queued = True
-
-    #                 def _hook(*unused):
-    #                     if (
-    #                         self.compute_communication_overlap
-    #                     ):  # overlap reduce and backward
-    #                         self.mark_tensor_ready(name)
-    #                         register_post_backward_func(self.mark_on_complete)
-    #                     else:
-    #                         register_post_backward_func(reduce_fallback)
-
-    #                 return _hook
-
-    #             h = grad_acc.register_hook(make_hook(param, name))
-
-    #             self.hook_list.append(h)
-    #             self.grad_accs.append(grad_acc)
-
-    # def forward(self, *inputs, **kwargs):
-    #     r"""
-    #     Overwrite the forward process for a distributed module with
-    #     communication-computation overlap.
-    #     """
-    #     result = self.module(*inputs, **kwargs)
-    #     self.callback_queued = False
-    #     return result
-
-
-    # def mark_tensor_ready(self, name):
-    #     r"""
-    #     Mark the tensor ready when got its gradient.
-    #     """
-    #     # param_name = self.param_name[id(param)]
-    #     # if param_name not in self.bagua_tensor:  # no bagua_tensor no mark ready
-    #     #     return
-
-    #     # if not self.fusion:
-    #     #     # reset bagua tensor pointer
-    #     #     p = self.fill_slot(param)
-    #     #     self.bagua_tensor[param_name].reset_ptr(p.data_ptr())
-
-    #     ready_event = self.tensor_events[self.param_i[name]]
-    #     self.current_stream.record_event(ready_event)
-    #     self.bagua_backend.mark_communication_ready(
-    #         self._bagua_tensor_map[name].backend_tensor, ready_event.cuda_event
-    #     )
-
-    # def mark_on_complete(self):
-    #     r"""
-    #     Mark all buckets have finished thier reduce process.
-    #     """
-    #     self.bagua_backend.wait_pending_comm_ops()
-    #     self.step_counter += 1
+        self._bagua_backend.register_ordered_buckets([bucket.backend_bucket for bucket in self._bagua_buckets])
