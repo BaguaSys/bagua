@@ -17,9 +17,6 @@ class BaguaTensor(object):
         )
         return self
 
-        return self
-
-
     def mark_communication_ready(self, bagua_backend, cuda_event):
         bagua_backend.mark_communication_ready(
             self.bagua_tensor,
