@@ -26,10 +26,9 @@ class Algorithm:
         optimizers = bagua_module.bagua_optimizers
         tensor_groups = [[]]
         # TODO: consider optimizer groups
-        named_param_list = bagua_module.named_parameters()
-        for name, param in reversed(named_param_list):
+        for name, param in bagua_module.named_parameters():
             tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
-            tensor_groups[0].append(tensor)
+            tensor_groups[0].insert(0, tensor)
         return tensor_groups
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
