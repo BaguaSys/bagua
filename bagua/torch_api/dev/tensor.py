@@ -23,6 +23,9 @@ class BaguaTensor(object):
             cuda_event,
         )
 
+    # def _set(self):
+    #     pass
+
     def set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
             self.set_(storage, storage_offset, self.inner.shape)

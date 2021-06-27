@@ -1,5 +1,5 @@
 from bagua.torch_api.communication import _get_global_state, broadcast
-from typing import List
+from typing import List, OrderedDict
 
 
 class DistributedWrapper:
@@ -36,7 +36,12 @@ class DistributedWrapper:
         self.init_algorithm()
 
     def init_algorithm(self):
-        self.buckets = self.algorithm.init_buckets(self.module, self.optimizer)
+        self.tensors = self.algorithm.init_tensors(self.module, self.optimizer)
+        # FIXME
+        raw_buckets = []
+        for tensor_name, tensor in self.tensors.items():
+            raw_buckets.append(OrderedDict([(tensor_name, tensor)]))
+        self.buckets = self.algorithm.tensors_to_buckets(raw_buckets)
         self.hooks = self.algorithm.init_hooks(self.module, self.optimizer)
         for bucket in self.buckets:
             self.algorithm.init_operations(
