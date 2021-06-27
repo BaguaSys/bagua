@@ -41,7 +41,7 @@ class Algorithm:
         # the algorithm need to implement a tensors to buckets function
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(bucket, flatten=True, idx)
+            bagua_bucket = BaguaBucket(bucket, flatten=True, bucket_index=idx)
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 

@@ -8,7 +8,7 @@ import bagua_core as B
 
 
 class BaguaBucket:
-    def __init__(self, tensors: List[BaguaTensor], flatten: bool, bucket_index) -> None:
+    def __init__(self, tensors: List[BaguaTensor], flatten: bool, bucket_index: int) -> None:
         self.tensors = tensors
         self.backend_tensor = None
         self.is_flattened = False
