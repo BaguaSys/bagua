@@ -21,25 +21,13 @@ class DistributedWrapper:
                 module_states.append(param)
         return module_states
 
-    # # TODO: remove parameter group from autotune service
-
-# def _bagua_get_parameter_group_info(self):
-    #     """
-    #     Given a optimizer, return a dict containing Param => param_group_id
-    #     """
-    #     param_group_info = {}
-    #     param_groups = [
-    #         group for optimizer in self.bagua_optimizers for group in optimizer.param_groups
-    #        ]
-    #     for i, group in enumerate(param_groups):
-    #         for param in group["params"]:
-    #             param_group_info[param.bagua_tensor_name] = i
-    #     return param_group_info
-
     def _bagua_broadcast_parameters(self):
         module_states = self._bagua_get_module_params_and_buffers()
         for state in module_states:
             broadcast(state, root=0)
+        for optimizer in self.bagua_optimizers:
+            for state in optimizer.state_dict().values():
+                broadcast(state, root=0)
 
     def with_bagua(self, optimizers, algorithm):
         # TODO: do we need to check whether optimizers and model parameters are the same?
@@ -52,7 +40,6 @@ class DistributedWrapper:
         self._bagua_global_communicator = _get_global_state().get_global_communicator()
 
         self._bagua_broadcast_parameters()
-        # TODO: broadcast optimizer parameters
 
         # autotune service
         self._bagua_autotune_client = get_hyperparameters_service_client()
