@@ -60,6 +60,8 @@ class DistributedWrapper:
                           .format(iter_per_seconds, denoised_iter_per_seconds, std))
 
             # report metrics
+            # TODO: @shjwudp add support for reporting tensor completion order so that the autotune service does not
+            # rely on tensor registration order
             self._bagua_autotune_client.report_metrics(
                 rank=get_rank(),
                 unix_timestamp=time.time(),
