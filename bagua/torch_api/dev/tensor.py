@@ -18,6 +18,9 @@ class BaguaTensor(object):
 
         Args:
             name (str): the unique name of the tensor
+
+        Returns:
+            The original tensor with Bagua tensor attributes initialized.
         """
         self.bagua_tensor_name = name
         self.backend_tensor = B.BaguaTensorPy(
