@@ -17,12 +17,12 @@ class BaguaTensor(object):
         )
         return self
 
-    @property
-    def grad(self):
-        if self.grad is None:
-            with torch.no_grad():
-                t = torch.zeros_like(self.data)
-                self.grad = t
+    # @property
+    # def grad(self):
+    #     if self.grad is None:
+    #         with torch.no_grad():
+    #             t = torch.zeros_like(self.data)
+    #             self.grad = t
 
     def mark_communication_ready(self, bagua_backend, cuda_event):
         bagua_backend.mark_communication_ready(
