@@ -22,14 +22,14 @@ class Algorithm:
         tensor_groups = [[]]
         # TODO: @ganshaoduo consider optimizer groups
         for name, param in reversed(list(bagua_module.named_parameters())):
-            tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
+            tensor = param.bagua_ensure_grad().to_bagua_tensor(name) # TODO: check duplicated names
             tensor_groups[0].append(tensor)
         return tensor_groups
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(bucket, flatten=True, bucket_index=idx)
+            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx)) # TODO: check duplicated names
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 

@@ -11,7 +11,7 @@ class BaguaTensor(object):
     This class patch torch.Tensor with additional methods.
     """
 
-    def to_bagua_tensor(self, name: str) -> BaguaTensor:
+    def to_bagua_tensor(self, name: str):
         """
         Convert a PyTorch tensor to Bagua tensor and return it.
         A Bagua tensor is required to use Bagua's communication algorithms.

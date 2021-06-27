@@ -9,15 +9,19 @@ from bagua.torch_api.utils import check_contiguous
 
 
 class BaguaBucket:
-    def __init__(self, tensors: List[BaguaTensor], flatten: bool, bucket_index: int) -> None:
+    def __init__(self, tensors: List[BaguaTensor], flatten: bool, name: str) -> None:
+        """
+        Create a Bagua bucket with a list of Bagua tensors.
+        """
         self.tensors = tensors
         self.backend_tensor = None
         self.flatten = flatten
         if flatten:
             self.flatten_()
+        self.name = name
 
         self.backend_bucket = B.BaguaBucketPy(
-            "bucket_" + str(bucket_index),
+            name,
             [tensor.backend_tensor for tensor in tensors],
             inplace=True,
             align_bytes=1,
