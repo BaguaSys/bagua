@@ -18,7 +18,6 @@ class BaguaTensor(object):
         )
         return self
 
-
     def mark_communication_ready(self, bagua_backend, cuda_event):
         bagua_backend.mark_communication_ready(
             self.bagua_tensor,
@@ -30,7 +29,7 @@ class BaguaTensor(object):
 
     def set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         with torch.no_grad():
-            self.set_(storage, storage_offset, self.inner.shape)
+            self.set_(storage, storage_offset, self.shape)
 
 
 if __name__ == "__main__":
