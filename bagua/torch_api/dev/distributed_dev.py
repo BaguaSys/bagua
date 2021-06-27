@@ -84,6 +84,7 @@ class DistributedWrapper:
         self._bagua_autotune_score_record_list = []
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
+        self._bagua_framework_hooks = [] # hooks for bagua framework logic, not cleared when changing algorithms
 
         def autotune_hook(self, input):
             if self.training:
@@ -91,9 +92,11 @@ class DistributedWrapper:
                 if get_autotune_level() >= 1 and not self._bagua_autotune_completed:
                     self._bagua_autotune_step()
 
-        self._bagua_autotune_hook = self.register_forward_pre_hook(
+        self._bagua_framework_hooks.append(self.register_forward_pre_hook(
             autotune_hook
-        )
+        ))
+
+        # TODO: add wait backend ops hook
 
         # get communicators
         self._bagua_inter_node_communicator = _get_global_state().get_internode_communicator()
@@ -149,7 +152,7 @@ class DistributedWrapper:
 
 
     def _bagua_init_algorithm(self):
-        self._bagua_hooks = []
+        self._bagua_algorithm_hooks = []
         self._bagua_buckets = []
         self._bagua_tensor_groups = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
@@ -162,15 +165,15 @@ class DistributedWrapper:
 
     def _bagua_reset_algorithm(self):
         # cleanup
-        for hook in self._bagua_hooks:
+        for hook in self._bagua_algorithm_hooks:
             hook.remove()
-        self._bagua_hooks.clear()
+        self._bagua_algorithm_hooks.clear()
         self._bagua_buckets.clear()
 
         # reset
         raw_buckets = self._bagua_autotune_get_buckets()
         self._bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
-        self._bagua_hooks.extend(self.bagua_algorithm.init_hooks(self))
+        self._bagua_algorithm_hooks.extend(self.bagua_algorithm.init_hooks(self))
         for bucket in self._bagua_buckets:
             self.bagua_algorithm.init_operations(
                 bucket,
