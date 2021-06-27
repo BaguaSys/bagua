@@ -26,7 +26,7 @@ class Algorithm:
         optimizers = bagua_module.bagua_optimizers
         tensor_groups = [[]]
         # TODO: consider optimizer groups
-        for name, param in bagua_module.named_parameters():
+        for name, param in reversed(list(bagua_module.named_parameters())):
             tensor = param.bagua_ensure_grad().to_bagua_tensor(name)
             tensor_groups[0].append(tensor)
         return tensor_groups
