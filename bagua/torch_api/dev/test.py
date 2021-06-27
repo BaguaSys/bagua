@@ -5,7 +5,6 @@ You can compare the performance with the horovod script directly.
 
 import argparse
 from bagua.torch_api.dev.algorithms import Algorithm, DevelopAlgorithm
-from bagua.torch_api.dev.distributed_dev import DistributedWrapper
 import bagua.torch_api.dev.tensor
 import bagua.torch_api.dev.distributed_dev
 

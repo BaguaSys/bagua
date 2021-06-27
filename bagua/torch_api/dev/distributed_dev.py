@@ -9,7 +9,7 @@ import torch
 import torch.nn
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
-class DistributedWrapper:
+class BaguaModule:
     def _bagua_get_module_params_and_buffers(self):
         if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
             parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
