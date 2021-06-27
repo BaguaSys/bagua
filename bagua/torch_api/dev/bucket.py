@@ -9,9 +9,16 @@ from bagua.torch_api.utils import check_contiguous
 
 
 class BaguaBucket:
-    def __init__(self, tensors: List[BaguaTensor], flatten: bool, name: str) -> None:
+    def __init__(self, tensors: List[BaguaTensor], name: str, flatten: bool) -> None:
         """
         Create a Bagua bucket with a list of Bagua tensors.
+
+        Args:
+            tensors (List[BaguaTensor]): A list of Bagua tensors to be put in the
+                bucket.
+            name (str): The unique name of the bucket.
+            flatten (bool): If True, flatten the input tensors so that they are
+                contiguous in memory.
         """
         self.tensors = tensors
         self.backend_tensor = None
