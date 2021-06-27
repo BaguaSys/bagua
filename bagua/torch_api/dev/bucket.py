@@ -11,7 +11,7 @@ class BaguaBucket:
     def __init__(self, tensors: List[BaguaTensor], flatten: bool, bucket_index: int) -> None:
         self.tensors = tensors
         self.backend_tensor = None
-        self.is_flattened = False
+        self.flatten = flatten
         if flatten:
             self.flatten_()
 
@@ -44,9 +44,7 @@ class BaguaBucket:
             tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.numel()
         # check
-        assert check_contiguous([tensor for tensor in self.tensors])
-        self.is_flattened = True
+        assert check_contiguous(self.tensors)
 
-    def is_flatten(self) -> bool:
-        return self.is_flattened
-
+    def check_flatten(self) -> bool:
+        return check_contiguous(self.tensors)
