@@ -56,6 +56,7 @@ class DistributedWrapper:
         self._bagua_autotune_client = get_hyperparameters_service_client()
 
         self._bagua_init_algorithm()
+        return self
 
     def _bagua_autotune_register_tensors(self):
         autotune_tensor_list = [

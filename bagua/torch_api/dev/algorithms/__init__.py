@@ -22,13 +22,13 @@ class Algorithm:
         return an ordered dictionary of tensors to communicate
         every GPU should return in the same order
         """
-        tensors = OrderedDict()
+        tensors = []
         for name, param in module.named_parameters():
             with torch.no_grad():
                 t = torch.zeros_like(param.data)
                 param.grad = t
-            tensor = param.grad.to_bagua_tensor()
-            tensors[name] = tensor
+            tensor = param.grad.to_bagua_tensor(name)
+            tensors.append(tensor)
         return tensors
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
@@ -43,7 +43,6 @@ class Algorithm:
         # return buckets
         buckets = []
         for bucket_dict in tensors:
-            tensor_list = [tensor for tensor in bucket_dict.values()]
             bucket = BaguaBucket(tensor_list)
             bucket.flatten_()
             buckets.append(bucket)
