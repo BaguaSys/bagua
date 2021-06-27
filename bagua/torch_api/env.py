@@ -45,7 +45,7 @@ def get_local_size():
     Returns:
         The local size of the node.
     """
-    return int(os.environ.get("LOCAL_SIZE", 1))
+    return int(os.environ.get("LOCAL_WORLD_SIZE", 1))
 
 
 def get_default_bucket_size() -> int:
