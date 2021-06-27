@@ -32,6 +32,7 @@ class BaguaBucket:
             # copy data
             flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
             tensor.set_storage(flatten_storage, offset)
+            tensor.bagua_tensor.reset_ptr(tensor.data_ptr())
             offset += tensor.numel()
         # check
         assert check_contiguous([tensor for tensor in self.tensors])
