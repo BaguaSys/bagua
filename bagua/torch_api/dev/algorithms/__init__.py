@@ -21,7 +21,7 @@ class Algorithm:
         operations.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
+            bagua_module: A PyTorch module initialized by
                 `with_bagua(...)` method.
 
         Returns:
@@ -55,7 +55,7 @@ class Algorithm:
         The default implementation follows the suggestion to do the bucketing.
 
         Args:
-            tensors (List[List[BaguaTensor]]): Bagua tensors grouped in different
+            tensors: Bagua tensors grouped in different
                 lists, representing Bagua's suggestion on how to bucketing the
                 tensors.
 
@@ -73,7 +73,7 @@ class Algorithm:
         parameter's gradient computation completion.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
+            bagua_module: A PyTorch module initialized by
                 `with_bagua(...)` method.
 
         Returns:
@@ -90,7 +90,7 @@ class Algorithm:
         backward pass is done.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
+            bagua_module: A PyTorch module initialized by
                 `with_bagua(...)` method.
 
         Returns:
@@ -105,7 +105,7 @@ class Algorithm:
         `optimizer.step()` is done.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
+            bagua_module: A PyTorch module initialized by
                 `with_bagua(...)` method.
 
         Returns:
@@ -124,7 +124,7 @@ class Algorithm:
         executed on the bucket.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
+            bagua_module: A PyTorch module initialized by
                 `with_bagua(...)` method.
-            bucket (BaguaBucket): A single bucket to register operations.
+            bucket: A single bucket to register operations.
         """
