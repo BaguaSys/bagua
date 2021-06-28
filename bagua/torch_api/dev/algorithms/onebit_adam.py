@@ -16,7 +16,7 @@ class OnebitAdamAlgorithm(Algorithm):
         for optimizer in optimizers:
             for param_group in optimizer.params_in_group:
                 for param in param_group:
-                    tensor_groups.insert[0, param.bagua_ensure_grad().to_bagua_tensor(self.param_i[id(param)])]
+                    tensor_groups.append(param.bagua_ensure_grad().to_bagua_tensor(self.param_i[id(param)]))
 
         return [tensor_groups]
 
