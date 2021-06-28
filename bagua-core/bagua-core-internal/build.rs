@@ -55,14 +55,22 @@ fn main() {
     cpp_builder.include(bagua_data_path.join("include"));
     cpp_builder.build("src/lib.rs");
 
+    let mpi_lib_dirs = cmd_lib::run_fun!(bash -c "mpicxx --showme:libdirs").unwrap();
+    let mpi_lib_dirs: Vec<&str> = mpi_lib_dirs.split(' ').collect();
+    for mpi_lib_dir in mpi_lib_dirs.iter() {
+        println!("cargo:rustc-link-search={}", mpi_lib_dir);
+    }
     println!(
         "cargo:rustc-link-search=native={}",
         format!("{}/lib64", cuda_home)
     );
-
     println!(
         "cargo:rustc-link-search={}",
         bagua_data_path.join("lib").as_path().to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-link-search={}",
+        bagua_data_path.join("lib64").as_path().to_str().unwrap()
     );
     println!("cargo:rustc-link-lib=static=Al");
     println!("cargo:rustc-link-lib=mpi");
