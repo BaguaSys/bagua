@@ -23,10 +23,10 @@ class BaguaTensor(object):
             The original tensor with Bagua tensor attributes initialized.
         """
         self.bagua_tensor_name = name
-        self.backend_tensor = B.BaguaTensorPy(
+        self._bagua_backend_tensor = B.BaguaTensorPy(
             ptr=self.data_ptr(),
             num_elem=self.numel(),
-            num_elem_allocated=self.__dict__.get("allocated_size", self.numel()),
+            num_elem_allocated=self.numel(), # TODO: deprecate num_elem_allocated
             dtype=to_bagua_datatype(self.dtype),
             device_id=self.device.index,
         )
@@ -56,7 +56,7 @@ class BaguaTensor(object):
         """
         torch.cuda.current_stream().record_event(self._bagua_ready_event)
         self._bagua_backend.mark_communication_ready(
-            self.backend_tensor,
+            self._bagua_backend_tensor,
             self._bagua_ready_event.cuda_event,
         )
 
@@ -70,4 +70,16 @@ class BaguaTensor(object):
         """
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
-        self.backend_tensor.reset_ptr(self.data_ptr())
+        self._bagua_backend_tensor.reset_ptr(self.data_ptr())
+
+    def check_consistence(self) -> bool:
+        """
+        Check the consistency between the bagua tensor and the underlying CUDA
+        backend tensor.
+
+        Returns:
+            True if consistent. Return False if not, and this generally indicates
+            incorrectness in the training workload.
+        """
+        return self._bagua_backend_tensor.ptr() == self.data_ptr() \
+            and self._bagua_backend_tensor.num_elem() == self.numel()
