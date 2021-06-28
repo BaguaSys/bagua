@@ -59,7 +59,6 @@ def start_autotune_server():
             "debug": False,
         },
     )
-    print(get_bagua_service_port())
     _autotune_server.daemon = True
     _autotune_server.start()
 
