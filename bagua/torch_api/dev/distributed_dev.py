@@ -203,17 +203,18 @@ class BaguaModule:
                 self.register_forward_pre_hook(safety_check_hook),
              ])
 
-        self.param_i = {}
-        parameters = self._bagua_build_params()
-        for name, param in parameters:
-            self.param_i[id(param)] = name
+        # TODO: remove this
+        # self.param_i = {}
+        # parameters = self._bagua_build_params()
+        # for name, param in parameters:
+        #     self.param_i[id(param)] = name
 
-        self.tensor_events = [
-            torch.cuda.Event(enable_timing=False, blocking=False)
-        ] * len(self.param_i)
+        # self.tensor_events = [
+        #     torch.cuda.Event(enable_timing=False, blocking=False)
+        # ] * len(self.param_i)
 
-        self.current_stream = torch.cuda.current_stream()
-        self.bagua_backend = _get_global_state().get_backend()
+        # self.current_stream = torch.cuda.current_stream()
+        # self.bagua_backend = _get_global_state().get_backend()
 
         # get communicators
         self.bagua_inter_node_communicator = _get_global_state().get_internode_communicator()
