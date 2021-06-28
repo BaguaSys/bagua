@@ -17,12 +17,12 @@ class BaguaModule:
 
     def _bagua_get_module_params_and_buffers(self):
         if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
-            parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
+            self.parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
         else:
-            parameters_to_ignore = []
+            self.parameters_to_ignore = []
         module_states = []
         for name, param in self.state_dict().items():
-            if name not in parameters_to_ignore:
+            if name not in self.parameters_to_ignore:
                 module_states.append(param)
         return module_states
 
