@@ -32,6 +32,7 @@ class BaguaTensor(object):
         )
         self._bagua_backend = _get_global_state().get_backend()
         self._bagua_ready_event = torch.cuda.Event()
+        self._bagua_bucket = None
         return self
 
     def bagua_ensure_grad(self) -> torch.Tensor:
