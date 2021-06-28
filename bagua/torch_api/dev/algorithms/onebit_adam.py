@@ -89,7 +89,7 @@ class OnebitAdamOptimizer(Optimizer):
                     state_steps.append(state['step'])
 
             self.params_in_group.append(params_with_grad)
-            self.exp_avgs_in_group(exp_avgs)
+            self.exp_avgs_in_group.append(exp_avgs)
 
     def __setstate__(self, state):
         super(OnebitAdam, self).__setstate__(state)
