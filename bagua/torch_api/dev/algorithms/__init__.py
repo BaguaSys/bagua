@@ -43,8 +43,9 @@ class Algorithm:
         optimizers = bagua_module.bagua_optimizers
         parameters, _ = bagua_module._bagua_build_params()
         tensor_groups = [[
-           param.bagua_ensure_grad().to_bagua_tensor(name) for inner_parameters in parameters for name, param in inner_parameters
-
+           param.bagua_ensure_grad().to_bagua_tensor(name)
+            for inner_parameters in parameters
+            for name, param in inner_parameters
         ]]
         # # TODO: @ganshaoduo consider optimizer groups
         # for name, param in reversed(list(bagua_module.named_parameters())):
@@ -84,6 +85,7 @@ class Algorithm:
         """
         def hook(name):
             bagua_grad = bagua_module._bagua_tensor_map[name]
+            print("mark", name, "ready")
             bagua_grad.bagua_mark_communication_ready()
         return hook
 

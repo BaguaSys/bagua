@@ -284,23 +284,25 @@ class BaguaModule:
         self._bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
 
         for name, param in self.named_parameters():
-            def real_hook(*unused):
-                self.bagua_algorithm.init_backward_hook(self)(name)
+            def real_hook_factory(name):
+                def real_hook(*unused):
+                    self.bagua_algorithm.init_backward_hook(self)(name)
 
-                def real_post_backward_hook(*unused):
-                    self.bagua_algorithm.init_post_backward_hook(self)
+                    def real_post_backward_hook(*unused):
+                        self.bagua_algorithm.init_post_backward_hook(self)
 
-                if not self._is_post_backward_callback_queued:
-                    torch.autograd.Variable._execution_engine.queue_callback(
-                        real_post_backward_hook
-                    )
-                    self._is_post_backward_callback_queued = True
+                    if not self._is_post_backward_callback_queued:
+                        torch.autograd.Variable._execution_engine.queue_callback(
+                            real_post_backward_hook
+                        )
+                        self._is_post_backward_callback_queued = True
+                return real_hook
 
             if param.requires_grad:
                 param_tmp = param.expand_as(param)
                 grad_acc = param_tmp.grad_fn.next_functions[0][0]
                 hook = grad_acc.register_hook(
-                    real_hook
+                    real_hook_factory(name)
                 )
                 hook.grad_acc = grad_acc
                 self._bagua_algorithm_hooks.append(hook)
