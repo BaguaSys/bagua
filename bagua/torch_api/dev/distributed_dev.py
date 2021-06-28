@@ -170,7 +170,7 @@ class BaguaModule:
                     self._bagua_autotune_step()
 
         def clear_post_backward_callback_queued_hook(self, input):
-            self._is_post_backward_callback_queued = True
+            self._is_post_backward_callback_queued = False
 
         def num_iteration_step_hook(self, input):
             if self.training:
@@ -281,7 +281,7 @@ class BaguaModule:
                     self.bagua_algorithm.init_backward_hook(self)(name)
 
                     def real_post_backward_hook(*unused):
-                        self.bagua_algorithm.init_post_backward_hook(self)
+                        self.bagua_algorithm.init_post_backward_hook(self)()
 
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(
