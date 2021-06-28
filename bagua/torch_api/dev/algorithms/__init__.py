@@ -41,11 +41,10 @@ class Algorithm:
         """
 
         optimizers = bagua_module.bagua_optimizers
-        parameters, _ = bagua_module._bagua_build_params()
+        parameters = bagua_module._bagua_build_params()
         tensor_groups = [[
            param.bagua_ensure_grad().to_bagua_tensor(name)
-            for inner_parameters in parameters.__reversed__()
-            for name, param in inner_parameters.__reversed__()
+            for name, param in parameters.__reversed__()
         ]]
         # # TODO: @ganshaoduo consider optimizer groups
         # for name, param in reversed(list(bagua_module.named_parameters())):

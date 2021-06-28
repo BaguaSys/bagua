@@ -19,7 +19,6 @@ class BaguaModule:
         # This function is modified from torch DDP implementation
         # Build tuple of (module, parameter) for all parameters that require grads.
         modules_and_parameters = [
-            [
                 (module, parameter)
                 for module_name, module in self.named_modules()
                 for parameter in [
@@ -32,22 +31,17 @@ class BaguaModule:
                     if param.requires_grad
                         and f"{module_name}.{param_name}" not in self.parameters_to_ignore
                    ]
-               ]
            ]
 
         # Deduplicate any parameters that might be shared across child modules.
         memo = set()
-        modules_and_parameters = [
-            # "p not in memo" is the deduplication check.
-            # "not memo.add(p)" is always True, and it's only there to cause "add(p)" if needed.
-            [(m, p) for m, p in replica_mps if p not in memo and not memo.add(p)]
-            for replica_mps in modules_and_parameters
-           ]
+        # "p not in memo" is the deduplication check.
+        # "not memo.add(p)" is always True, and it's only there to cause "add(p)" if needed.
+        modules_and_parameters = [(m, p) for m, p in modules_and_parameters if p not in memo and not memo.add(p)]
 
         # Build list of parameters.
         parameters = [
-            list(parameter for _, parameter in replica)
-            for replica in modules_and_parameters
+            parameter for _, parameter in modules_and_parameters
            ]
 
         # Checks if a module will produce a sparse gradient.
@@ -61,23 +55,21 @@ class BaguaModule:
         # Build list of booleans indicating whether or not to expect sparse
         # gradients for the corresponding parameters.
         expect_sparse_gradient = [
-            list(produces_sparse_gradient(module) for module, _ in replica)
-            for replica in modules_and_parameters
+            produces_sparse_gradient(module) for module, _ in modules_and_parameters
            ]
 
-        if any([x for y in expect_sparse_gradient for x in y]):
+        if any(expect_sparse_gradient):
             raise NotImplementedError("sparse gradient not supported yet")
 
-        return parameters, expect_sparse_gradient
+        return parameters
 
     def _bagua_broadcast_parameters(self):
         """
         Broadcast model and optimizer states.
         """
-        module_states, _ = self._bagua_build_params()
-        for states in module_states:
-            for name, state in states:
-                broadcast(state, root=0)
+        module_states = self._bagua_build_params()
+        for name, state in module_states:
+            broadcast(state, root=0)
         for optimizer in self.bagua_optimizers:
             optimizer_state_dict = optimizer.state_dict()['state']
             for state in optimizer_state_dict.values():
