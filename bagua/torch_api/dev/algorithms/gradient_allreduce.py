@@ -22,6 +22,10 @@ class GradientAllReduceAlgorithm(Algorithm):
             bagua_module,
             bucket,
     ):
+        print(
+            bagua_module.bagua_inter_node_communicator,
+            bagua_module.bagua_intra_node_communicator,
+        )
         bucket.backend_bucket.append_centralized_synchronous_op(
             bagua_module.bagua_inter_node_communicator,
             bagua_module.bagua_intra_node_communicator,
