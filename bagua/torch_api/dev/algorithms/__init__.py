@@ -85,7 +85,6 @@ class Algorithm:
         """
         def hook(name):
             bagua_grad = bagua_module._bagua_tensor_map[name]
-            print("mark", name, "ready")
             bagua_grad.bagua_mark_communication_ready()
         return hook
 
