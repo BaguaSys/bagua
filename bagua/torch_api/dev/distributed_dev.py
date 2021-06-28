@@ -1,3 +1,4 @@
+from bagua.torch_api.dev.algorithms import Algorithm
 from bagua.torch_api.utils import to_bagua_datatype, average_by_removing_extreme_values
 from bagua.torch_api.env import get_autotune_level, get_rank
 from bagua.bagua_define import TensorDeclaration
@@ -95,8 +96,8 @@ class BaguaModule:
             denoised_iter_per_seconds, std, _ = average_by_removing_extreme_values(
                 self._bagua_autotune_score_record_list
                )
-            logging.debug("iter_per_seconds={}, denoised_iter_per_seconds={}, std={}"
-                          .format(iter_per_seconds, denoised_iter_per_seconds, std))
+            logging.debug("iter_per_seconds=%s, denoised_iter_per_seconds=%s, std=%s",
+                          iter_per_seconds, denoised_iter_per_seconds, std)
 
             # report metrics
             # TODO: @shjwudp add support for reporting tensor completion order so that the autotune service does not
@@ -115,21 +116,27 @@ class BaguaModule:
             self._bagua_autotune_score_record_list.clear()
             self._bagua_autotune_last_report_time = time.time()
 
-        logging.info("autotune overhead={}".format(time.time() - start_time))
+        logging.info("autotune overhead=%s", time.time() - start_time)
 
 
-    def with_bagua(self, optimizers, algorithm):
+    def with_bagua(self, optimizers: List[torch.optim.Optimizer], algorithm: Algorithm):
         r"""`with_bagua` enables easy distributed data parallel training on a
         `torch.nn.Module`.
 
         Arguments:
-            optimizers (List[torch.optim.Optimizer]): Optimizer(s) used by the
+            optimizers: Optimizer(s) used by the
                 module. It can contain one or more PyTorch optimizers.
-            algorithm (bagua.torch_api.Algorithm): Distributed algorithm
-                used to do the actual communication and update.
+            algorithm: Distributed algorithm used to do the actual communication
+                and update.
 
         Returns:
             The original module, with Bagua related environments initialized.
+
+        .. note::
+            If we want to ignore some layers for communication, we can first check
+            these layer's corresponding keys in the module's ``state_dict`` (they are
+            in ``"{module_name}.{param_name}"`` format), then assign the list of
+            keys to ``your_module._bagua_params_and_buffers_to_ignore``.
 
         Examples::
 
@@ -145,18 +152,18 @@ class BaguaModule:
             ...    )
             >>> model = model.with_bagua(
             ...      [optimizer],
-            ...      GradientAllReduce(...)
+            ...      GradientAllReduce()
             ...    )
         """
 
         # TODO: do we need to check whether optimizers and model parameters are the same?
-        self.step_counter = 0
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
-        if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
-            self.parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
-        else:
-            self.parameters_to_ignore = []
+        self.parameters_to_ignore = []
+        if hasattr(self, "_bagua_params_and_buffers_to_ignore"):
+            self.parameters_to_ignore.extend(self._bagua_params_and_buffers_to_ignore)
+        if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # for compatibility with PyTorch DDP
+            self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
         self._bagua_train_step_counter = 0
         self._bagua_autotune_score_record_list = []
         self._bagua_autotune_last_report_time = time.time()
@@ -176,12 +183,23 @@ class BaguaModule:
             if self.training:
                 self._bagua_train_step_counter += 1
 
+        def safety_check_hook(self, input):
+            SAFETY_CHECK_INTERVAL = 1000
+            if self._bagua_train_step_counter % SAFETY_CHECK_INTERVAL == 0:
+                for bucket in self._bagua_buckets:
+                    assert bucket.check_consistence(), \
+                    f"""{bucket} found memory inconsistent during training, this could
+                    be caused by your coding modifying some module's memory layout
+                    after Bagua initialized. Please move such operations before
+                    Bagua initialization.
+                    """
 
         self._bagua_framework_hooks.extend(
             [
                 self.register_forward_pre_hook(autotune_hook),
                 self.register_forward_pre_hook(clear_post_backward_callback_queued_hook),
                 self.register_forward_pre_hook(num_iteration_step_hook),
+                self.register_forward_pre_hook(safety_check_hook),
              ])
 
         self.param_i = {}

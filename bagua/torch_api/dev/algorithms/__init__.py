@@ -21,8 +21,8 @@ class Algorithm:
         operations.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
-                `with_bagua(...)` method.
+            bagua_module: A PyTorch module initialized by
+                ``with_bagua(...)`` method.
 
         Returns:
             A list of list of Bagua tensors. The inner list represents a group
@@ -55,7 +55,7 @@ class Algorithm:
         The default implementation follows the suggestion to do the bucketing.
 
         Args:
-            tensors (List[List[BaguaTensor]]): Bagua tensors grouped in different
+            tensors: Bagua tensors grouped in different
                 lists, representing Bagua's suggestion on how to bucketing the
                 tensors.
 
@@ -73,8 +73,8 @@ class Algorithm:
         parameter's gradient computation completion.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
-                `with_bagua(...)` method.
+            bagua_module: A PyTorch module initialized by
+                ``with_bagua(...)`` method.
 
         Returns:
             A function that takes the name of a parameter.
@@ -92,8 +92,8 @@ class Algorithm:
         backward pass is done.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
-                `with_bagua(...)` method.
+            bagua_module: A PyTorch module initialized by
+                ``with_bagua(...)`` method.
 
         Returns:
             A function that takes no argument.
@@ -104,11 +104,11 @@ class Algorithm:
 
     def init_post_step_hook(self, bagua_module: BaguaModule):
         """Given a `BaguaModule`, return a hook function that will be executed when the
-        `optimizer.step()` is done.
+        ``optimizer.step()`` is done.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
-                `with_bagua(...)` method.
+            bagua_module: A PyTorch module initialized by
+                ``with_bagua(...)`` method.
 
         Returns:
             A function that takes the optimizer that is called step().
@@ -126,7 +126,7 @@ class Algorithm:
         executed on the bucket.
 
         Args:
-            bagua_module (BaguaModule): A PyTorch module initialized by
-                `with_bagua(...)` method.
-            bucket (BaguaBucket): A single bucket to register operations.
+            bagua_module: A PyTorch module initialized by
+                ``with_bagua(...)`` method.
+            bucket: A single bucket to register operations.
         """

@@ -4,11 +4,11 @@ from bagua.torch_api.dev.bucket import BaguaBucket
 from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.algorithms import Algorithm
 
-class AsyncAllReduceAlgorithm(Algorithm):
+class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(self, sync_interval_ms: int):
         """
         Create an instance of the
-        `AsyncAllReduce <https://baguasys.github.io/tutorials/algorithms/async-allreduce.html>`_
+        `AsyncModelAverage <https://baguasys.github.io/tutorials/algorithms/async-model-average.html>`_
         algorithm.
 
         Args:
