@@ -49,14 +49,14 @@ class BaguaTensor(object):
         else:
             raise NotImplemented
 
-    def bagua_mark_communication_ready_on_current_stream(self):
+    def bagua_mark_communication_ready(self):
         """
         Mark a Bagua tensor ready for scheduled operations execution.
         """
         torch.cuda.current_stream().record_event(self._bagua_ready_event)
         self._bagua_backend.mark_communication_ready(
             self.backend_tensor,
-            self._bagua_ready_event,
+            self._bagua_ready_event.cuda_event,
         )
 
     def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):

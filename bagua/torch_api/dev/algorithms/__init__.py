@@ -77,7 +77,7 @@ class Algorithm:
         """
         def hook(name):
             bagua_grad = bagua_module._bagua_tensor_map[name]
-            bagua_grad.bagua_mark_communication_ready_on_current_stream()
+            bagua_grad.bagua_mark_communication_ready()
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):

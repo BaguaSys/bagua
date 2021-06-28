@@ -237,7 +237,6 @@ class BaguaModule:
         for name, param in self.named_parameters():
             def real_hook(*unused):
                 self.bagua_algorithm.init_backward_hook(self)(name)
-                register_post_backward_func(reduce_fallback)
 
                 def real_post_backward_hook(*unused):
                     self.bagua_algorithm.init_post_backward_hook(self)
@@ -251,9 +250,11 @@ class BaguaModule:
             if param.requires_grad:
                 param_tmp = param.expand_as(param)
                 grad_acc = param_tmp.grad_fn.next_functions[0][0]
-                self._bagua_algorithm_hooks.append(grad_acc.register_hook(
+                hook = grad_acc.register_hook(
                     real_hook
-                ))
+                )
+                hook.grad_acc = grad_acc
+                self._bagua_algorithm_hooks.append(hook)
 
         for bucket in self._bagua_buckets:
             self.bagua_algorithm.init_operations(
