@@ -29,4 +29,6 @@ jobs:
       - name: Pytype Python Checker
         # You may pin to the exact commit or the version.
         # uses: theahura/pytype-action@38cf548b60f6da64118a1d74e3277efcf533e1a2
-        uses: theahura/pytype-action@v1.2
+        uses: theahura/pytype-action@main
+        with:
+          args: -d import-error
