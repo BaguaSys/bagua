@@ -22,7 +22,7 @@ class Algorithm:
 
         Args:
             bagua_module: A PyTorch module initialized by
-                `with_bagua(...)` method.
+                ``with_bagua(...)`` method.
 
         Returns:
             A list of list of Bagua tensors. The inner list represents a group
@@ -74,7 +74,7 @@ class Algorithm:
 
         Args:
             bagua_module: A PyTorch module initialized by
-                `with_bagua(...)` method.
+                ``with_bagua(...)`` method.
 
         Returns:
             A function that takes the name of a parameter.
@@ -91,7 +91,7 @@ class Algorithm:
 
         Args:
             bagua_module: A PyTorch module initialized by
-                `with_bagua(...)` method.
+                ``with_bagua(...)`` method.
 
         Returns:
             A function that takes no argument.
@@ -102,11 +102,11 @@ class Algorithm:
 
     def init_post_step_hook(self, bagua_module: BaguaModule):
         """Given a `BaguaModule`, return a hook function that will be executed when the
-        `optimizer.step()` is done.
+        ``optimizer.step()`` is done.
 
         Args:
             bagua_module: A PyTorch module initialized by
-                `with_bagua(...)` method.
+                ``with_bagua(...)`` method.
 
         Returns:
             A function that takes the optimizer that is called step().
@@ -125,6 +125,6 @@ class Algorithm:
 
         Args:
             bagua_module: A PyTorch module initialized by
-                `with_bagua(...)` method.
+                ``with_bagua(...)`` method.
             bucket: A single bucket to register operations.
         """
