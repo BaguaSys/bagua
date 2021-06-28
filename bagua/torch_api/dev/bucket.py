@@ -14,10 +14,10 @@ class BaguaBucket:
         Create a Bagua bucket with a list of Bagua tensors.
 
         Args:
-            tensors (List[BaguaTensor]): A list of Bagua tensors to be put in the
+            tensors: A list of Bagua tensors to be put in the
                 bucket.
-            name (str): The unique name of the bucket.
-            flatten (bool): If True, flatten the input tensors so that they are
+            name: The unique name of the bucket.
+            flatten: If True, flatten the input tensors so that they are
                 contiguous in memory.
         """
         self.tensors = tensors
