@@ -24,6 +24,7 @@ class GradientAllReduceAlgorithm(Algorithm):
             bagua_module: BaguaModule,
             bucket: BaguaBucket,
     ):
+        bucket.backend_bucket.clear_ops()
         if self.hierarchical_reduce:
             bucket.backend_bucket.append_centralized_synchronous_op(
                 bagua_module.bagua_inter_node_communicator,
