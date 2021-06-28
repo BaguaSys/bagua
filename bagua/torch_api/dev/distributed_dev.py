@@ -124,10 +124,10 @@ class BaguaModule:
         `torch.nn.Module`.
 
         Arguments:
-            optimizers (List[torch.optim.Optimizer]): Optimizer(s) used by the
+            optimizers: Optimizer(s) used by the
                 module. It can contain one or more PyTorch optimizers.
-            algorithm (bagua.torch_api.Algorithm): Distributed algorithm
-                used to do the actual communication and update.
+            algorithm: Distributed algorithm used to do the actual communication
+                and update.
 
         Returns:
             The original module, with Bagua related environments initialized.
