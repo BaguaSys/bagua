@@ -4,6 +4,7 @@ You can compare the performance with the horovod script directly.
 """
 
 import argparse
+from bagua.torch_api.dev.algorithms.bytegrad import ByteGradAlgorithm
 from bagua.torch_api.dev.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
 import bagua.torch_api.dev.tensor
 import bagua.torch_api.dev.distributed_dev
@@ -108,7 +109,7 @@ if args.cuda:
 # optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 
-model.with_bagua([optimizer], algorithm=GradientAllReduceAlgorithm())
+model.with_bagua([optimizer], algorithm=ByteGradAlgorithm())
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
