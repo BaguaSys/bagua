@@ -8,6 +8,7 @@ import time
 import logging
 import torch
 import torch.nn
+from typing import List
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
 class BaguaModule:
