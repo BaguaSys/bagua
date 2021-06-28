@@ -200,7 +200,7 @@ def main():
         dist_rank = args.nproc_per_node * args.node_rank + local_rank
         current_env["RANK"] = str(dist_rank)
         current_env["LOCAL_RANK"] = str(local_rank)
-        current_env["LOCAL_SIZE"] = str(args.nproc_per_node)
+        current_env["LOCAL_WORLD_SIZE"] = str(args.nproc_per_node)
 
         # spawn the processes
         with_python = not args.no_python
