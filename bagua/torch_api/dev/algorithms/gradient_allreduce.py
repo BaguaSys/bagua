@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from bagua.torch_api.dev.bucket import BaguaBucket
+from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.algorithms import Algorithm
 
 class GradientAllReduceAlgorithm(Algorithm):
@@ -19,8 +21,8 @@ class GradientAllReduceAlgorithm(Algorithm):
 
     def init_operations(
             self,
-            bagua_module,
-            bucket,
+            bagua_module: BaguaModule,
+            bucket: BaguaBucket,
     ):
         print(
             bagua_module.bagua_inter_node_communicator,

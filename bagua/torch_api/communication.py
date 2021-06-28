@@ -180,7 +180,9 @@ def init_bagua_inter_communicator(stream, leader_rank=0, store=None, device_id=N
     )
     comm.cuda_stream = stream
     logging.debug(
-        f"init bagua internode communicator ok, global rank: {dist.get_rank()} rank: {comm.rank()}"
+        "init bagua internode communicator ok, global rank: %s rank: %s",
+        dist.get_rank(),
+        comm.rank()
     )
     return comm
 
@@ -203,7 +205,9 @@ def init_bagua_intra_communicator(stream, store=None, device_id=None):
     )
     comm.cuda_stream = stream
     logging.debug(
-        f"init bagua intranode communicator ok, global rank: {dist.get_rank()} rank: {comm.rank()}"
+        "init bagua intranode communicator ok, global rank: %s rank: %s",
+        dist.get_rank(),
+        comm.rank(),
     )
     return comm
 
@@ -222,7 +226,9 @@ def init_bagua_communicator(stream, store=None, device_id=None):
     )
     comm.cuda_stream = stream
     logging.debug(
-        f"init bagua global communicator ok, global rank: {dist.get_rank()} rank: {comm.rank()}"
+        "init bagua global communicator ok, global rank: %s rank: %s",
+        dist.get_rank(),
+        comm.rank(),
     )
     return comm
 
