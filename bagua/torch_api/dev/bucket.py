@@ -34,6 +34,9 @@ class BaguaBucket:
             align_bytes=1,
         )
 
+        for tensor in tensors:
+            tensor._bagua_bucket = self
+
     def _flatten_(self):
         """
         Flatten inner tensors in place.
