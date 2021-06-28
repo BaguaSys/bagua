@@ -6,7 +6,7 @@ from bagua.torch_api.utils import to_bagua_datatype
 import gorilla
 
 @gorilla.patches(torch.Tensor)
-class BaguaTensor(object):
+class BaguaTensor:
     """
     This class patch torch.Tensor with additional methods.
     """
