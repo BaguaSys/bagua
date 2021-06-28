@@ -24,13 +24,17 @@ class GradientAllReduceAlgorithm(Algorithm):
             bagua_module: BaguaModule,
             bucket: BaguaBucket,
     ):
-        print(
-            bagua_module.bagua_inter_node_communicator,
-            bagua_module.bagua_intra_node_communicator,
-        )
-        bucket.backend_bucket.append_centralized_synchronous_op(
-            bagua_module.bagua_inter_node_communicator,
-            bagua_module.bagua_intra_node_communicator,
-            hierarchical=self.hierarchical_reduce,
-            average=self.average,
-        )
+        if self.hierarchical_reduce:
+            bucket.backend_bucket.append_centralized_synchronous_op(
+                bagua_module.bagua_inter_node_communicator,
+                bagua_module.bagua_intra_node_communicator,
+                hierarchical=self.hierarchical_reduce,
+                average=self.average,
+            )
+        else:
+            bucket.backend_bucket.append_centralized_synchronous_op(
+                bagua_module.bagua_global_communicator,
+                None,
+                hierarchical=self.hierarchical_reduce,
+                average=self.average,
+            )
