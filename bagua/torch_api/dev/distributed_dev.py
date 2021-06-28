@@ -135,7 +135,7 @@ class BaguaModule:
             If we want to ignore some layers for communication, we can first check
             these layer's corresponding keys in the module's `state_dict` (they are
             in `"{module_name}.{param_name}"` format), then assign the list of
-            keys to `your_module._bagua_params_and_buffers_to_ignore`
+            keys to `your_module._bagua_params_and_buffers_to_ignore`.
 
         Examples::
 
