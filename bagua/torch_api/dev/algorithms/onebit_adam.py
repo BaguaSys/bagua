@@ -12,11 +12,17 @@ class OnebitAdamAlgorithm(Algorithm):
 
     def init_tensors(self, bagua_module: BaguaModule):
         optimizers = bagua_module.bagua_optimizers
+
+        parameters = bagua_module._bagua_build_params()
+        for name, param in parameters:
+           param._one_bit_name = name
+           # param._one_bit_event =
+
         tensor_groups = []
         for optimizer in optimizers:
             for param_group in optimizer.params_in_group:
                 for param in param_group:
-                    tensor_groups.append(param.bagua_ensure_grad().to_bagua_tensor(self.param_i[id(param)]))
+                    tensor_groups.append(param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name))
 
         return [tensor_groups]
 
