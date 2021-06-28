@@ -151,7 +151,7 @@ class BaguaModule:
             ...    )
             >>> model = model.with_bagua(
             ...      [optimizer],
-            ...      GradientAllReduce(...)
+            ...      GradientAllReduce()
             ...    )
         """
 
