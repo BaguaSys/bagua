@@ -80,6 +80,8 @@ class Algorithm:
             A function that takes the name of a parameter.
         """
         def hook(name):
+
+            ## bagua_module._bagua_tensor_map[name] does not have to be grad
             bagua_grad = bagua_module._bagua_tensor_map[name]
             bagua_grad.bagua_mark_communication_ready()
             # print(name, "in", bagua_grad._bagua_bucket.name, "ready")

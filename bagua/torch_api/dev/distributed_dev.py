@@ -184,17 +184,14 @@ class BaguaModule:
                 self.register_forward_pre_hook(num_iteration_step_hook),
              ])
 
-        self.bucket_initialized = False
-        self.param_list = []
         self.param_i = {}
-        index = 0
-        for name, param in self.named_parameters():
-            self.param_list.append(param)
-            self.param_i[name] = index
-            index += 1
+        parameters = self._bagua_build_params()
+        for name, param in parameters:
+            self.param_i[id(param)] = name
+
         self.tensor_events = [
             torch.cuda.Event(enable_timing=False, blocking=False)
-        ] * len(self.param_list)
+        ] * len(self.param_i)
 
         self.current_stream = torch.cuda.current_stream()
         self.bagua_backend = _get_global_state().get_backend()
