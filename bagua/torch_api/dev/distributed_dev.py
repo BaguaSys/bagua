@@ -131,6 +131,12 @@ class BaguaModule:
         Returns:
             The original module, with Bagua related environments initialized.
 
+        .. note::
+            If we want to ignore some layers for communication, we can first check
+            these layer's corresponding keys in the module's `state_dict` (they are
+            in `"{module_name}.{param_name}"` format), then assign the list of
+            keys to `your_module._bagua_params_and_buffers_to_ignore`
+
         Examples::
 
             >>> model = torch.nn.Sequential(
@@ -152,10 +158,11 @@ class BaguaModule:
         # TODO: do we need to check whether optimizers and model parameters are the same?
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
-        if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
-            self.parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
-        else:
-            self.parameters_to_ignore = []
+        self.parameters_to_ignore = []
+        if hasattr(self, "_bagua_params_and_buffers_to_ignore"):
+            self.parameters_to_ignore.extend(self._bagua_params_and_buffers_to_ignore)
+        if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # for compatibility with PyTorch DDP
+            self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
         self._bagua_train_step_counter = 0
         self._bagua_autotune_score_record_list = []
         self._bagua_autotune_last_report_time = time.time()
