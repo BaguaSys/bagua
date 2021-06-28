@@ -115,7 +115,7 @@ class BaguaModule:
             self._bagua_autotune_score_record_list.clear()
             self._bagua_autotune_last_report_time = time.time()
 
-        logging.info("autotune overhead={}".format(time.time() - start_time))
+        logging.info("autotune overhead=%s", time.time() - start_time)
 
 
     def with_bagua(self, optimizers, algorithm):
