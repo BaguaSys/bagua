@@ -95,8 +95,8 @@ class BaguaModule:
             denoised_iter_per_seconds, std, _ = average_by_removing_extreme_values(
                 self._bagua_autotune_score_record_list
                )
-            logging.debug("iter_per_seconds={}, denoised_iter_per_seconds={}, std={}"
-                          .format(iter_per_seconds, denoised_iter_per_seconds, std))
+            logging.debug("iter_per_seconds=%s, denoised_iter_per_seconds=%s, std=%s",
+                          iter_per_seconds, denoised_iter_per_seconds, std)
 
             # report metrics
             # TODO: @shjwudp add support for reporting tensor completion order so that the autotune service does not
