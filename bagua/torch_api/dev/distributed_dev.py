@@ -191,6 +191,7 @@ class BaguaModule:
                 self.register_forward_pre_hook(autotune_hook),
                 self.register_forward_pre_hook(clear_post_backward_callback_queued_hook),
                 self.register_forward_pre_hook(num_iteration_step_hook),
+                self.register_forward_pre_hook(safety_check_hook),
              ])
 
         self.bucket_initialized = False
