@@ -4,6 +4,7 @@ from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.bucket import BaguaBucket
 from bagua.torch_api.dev.tensor import BaguaTensor
 from typing import List
+import torch
 
 
 class Algorithm:
@@ -97,6 +98,21 @@ class Algorithm:
         """
         def hook():
             bagua_module._bagua_backend.wait_pending_comm_ops()
+        return hook
+
+    def init_post_step_hook(self, bagua_module: BaguaModule):
+        """Given a `BaguaModule`, return a hook function that will be executed when the
+        `optimizer.step()` is done.
+
+        Args:
+            bagua_module (BaguaModule): A PyTorch module initialized by
+                `with_bagua(...)` method.
+
+        Returns:
+            A function that takes the optimizer that is called step().
+        """
+        def hook(optimizer: torch.optim.Optimizer):
+            pass
         return hook
 
     def init_operations(

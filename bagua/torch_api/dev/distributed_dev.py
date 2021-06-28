@@ -299,6 +299,20 @@ class BaguaModule:
                 hook.grad_acc = grad_acc
                 self._bagua_algorithm_hooks.append(hook)
 
+        optimizer_hook = self.bagua_algorithm.init_post_step_hook(self)
+
+        from types import MethodType
+        for optimizer in self.bagua_optimizers:
+            if not hasattr(optimizer, "_bagua_original_step"):
+                optimizer._bagua_original_step = optimizer.step
+            def new_step_factory(optimizer):
+                def new_step(self, *args, **kwargs):
+                    result = self._bagua_original_step(*args, **kwargs)
+                    optimizer_hook(self)
+                    return result
+                return MethodType(new_step, optimizer)
+            optimizer.step = new_step_factory(optimizer)
+
         for bucket in self._bagua_buckets:
             self.bagua_algorithm.init_operations(
                 self,
