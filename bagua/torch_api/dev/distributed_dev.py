@@ -150,7 +150,6 @@ class BaguaModule:
         """
 
         # TODO: do we need to check whether optimizers and model parameters are the same?
-        self.step_counter = 0
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
         if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
@@ -176,6 +175,16 @@ class BaguaModule:
             if self.training:
                 self._bagua_train_step_counter += 1
 
+        def safety_check_hook(self, input):
+            SAFETY_CHECK_INTERVAL = 1000
+            if self._bagua_train_step_counter % SAFETY_CHECK_INTERVAL == 0:
+                for bucket in self._bagua_buckets:
+                    assert bucket.check_consistence(), \
+                    f"""{bucket} found memory inconsistent during training, this could
+                    be caused by your coding modifying some module's memory layout
+                    after Bagua initialized. Please move such operations before
+                    Bagua initialization.
+                    """
 
         self._bagua_framework_hooks.extend(
             [
