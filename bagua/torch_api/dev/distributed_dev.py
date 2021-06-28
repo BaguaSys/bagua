@@ -1,4 +1,4 @@
-from bagua.torch_api.dev.algorithms import Algorithm
+# from bagua.torch_api.dev.algorithms import Algorithm
 from bagua.torch_api.utils import to_bagua_datatype, average_by_removing_extreme_values
 from bagua.torch_api.env import get_autotune_level, get_rank
 from bagua.bagua_define import TensorDeclaration
@@ -8,6 +8,7 @@ import time
 import logging
 import torch
 import torch.nn
+from typing import List
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
 class BaguaModule:
@@ -119,7 +120,7 @@ class BaguaModule:
         logging.info("autotune overhead=%s", time.time() - start_time)
 
 
-    def with_bagua(self, optimizers: List[torch.optim.Optimizer], algorithm: Algorithm):
+    def with_bagua(self, optimizers: List[torch.optim.Optimizer], algorithm):
         r"""`with_bagua` enables easy distributed data parallel training on a
         `torch.nn.Module`.
 
@@ -202,17 +203,14 @@ class BaguaModule:
                 self.register_forward_pre_hook(safety_check_hook),
              ])
 
-        self.bucket_initialized = False
-        self.param_list = []
         self.param_i = {}
-        index = 0
-        for name, param in self.named_parameters():
-            self.param_list.append(param)
-            self.param_i[name] = index
-            index += 1
+        parameters = self._bagua_build_params()
+        for name, param in parameters:
+            self.param_i[id(param)] = name
+
         self.tensor_events = [
             torch.cuda.Event(enable_timing=False, blocking=False)
-        ] * len(self.param_list)
+        ] * len(self.param_i)
 
         self.current_stream = torch.cuda.current_stream()
         self.bagua_backend = _get_global_state().get_backend()
