@@ -144,6 +144,7 @@ _ignore_functions = [
     "bagua.torch_api.communication.init_bagua_communicator",
     "bagua.torch_api.communication.broadcast_coalesced",
     "bagua.torch_api.communication.allreduce_coalesced",
+    "bagua.torch_api.communication.start_autotune_server",
 ]
 _ignore_classes = [
     "bagua.bagua_define.TensorDtype",

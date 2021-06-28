@@ -241,12 +241,13 @@ class AutotuneService:
                     10 * 1024 ** 5
                 )  # if you don't divide buckets, set big bucket as 10PB.
             session["bucket_size"] = self.sess_bucket_size
+
             with self.ask_hyperparameters_mutex:
                 self.param_group_info = param_group_info
                 default_hyperparameters = BaguaHyperparameter(
                     buckets=split_bucket_by_bucket_size(
                         tensor_list,
-                        self.default_bucket_size,
+                        session["bucket_size"],
                         self.param_group_info,
                     ),
                 )
