@@ -20,10 +20,8 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 
-parser.add_argument("--model", type=str, default="resnet50",
-                    help="model to benchmark")
-parser.add_argument("--batch-size", type=int,
-                    default=32, help="input batch size")
+parser.add_argument("--model", type=str, default="resnet50", help="model to benchmark")
+parser.add_argument("--batch-size", type=int, default=32, help="input batch size")
 
 parser.add_argument(
     "--num-warmup-batches",
@@ -46,7 +44,10 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--deterministic", action="store_true", default=False, help="deterministic reproducible training"
+    "--deterministic",
+    action="store_true",
+    default=False,
+    help="deterministic reproducible training",
 )
 
 # bagua args
@@ -94,7 +95,8 @@ if args.cuda:
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 
 model, optimizer = bagua.bagua_init(
-    model, optimizer, distributed_algorithm=args.algorithm)
+    model, optimizer, distributed_algorithm=args.algorithm
+)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
@@ -140,8 +142,7 @@ img_secs = []
 for x in range(args.num_iters):
     time = timeit.timeit(benchmark_step, number=args.num_batches_per_iter)
     img_sec = args.batch_size * args.num_batches_per_iter / time
-    log("Iter #%d: %.1f img/sec %s" %
-        (x, img_sec * bagua.get_world_size(), device))
+    log("Iter #%d: %.1f img/sec %s" % (x, img_sec * bagua.get_world_size(), device))
     img_secs.append(img_sec)
 
 # Results
