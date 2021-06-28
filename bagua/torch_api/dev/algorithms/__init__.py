@@ -8,56 +8,6 @@ from typing import List
 import torch
 from collections import OrderedDict
 
-def _build_params_for_reducer(bagua_model):
-    # Build tuple of (module, parameter) for all parameters that require grads.
-    modules_and_parameters = [
-        [
-            (module, parameter)
-            for module_name, module in bagua_model.named_modules()
-            for parameter in [
-                    (f"{module_name}.{param_name}", param)
-                    # Note that we access module.named_parameters instead of
-                    # parameters(module). parameters(module) is only needed in the
-                    # single-process multi device case, where it accesses replicated
-                    # parameters through _former_parameters.
-                for param_name, param in module.named_parameters(recurse=False)
-                if param.requires_grad
-                    and f"{module_name}.{param_name}" not in bagua_model.parameters_to_ignore
-            ]
-        ]
-    ]
-
-    # Deduplicate any parameters that might be shared across child modules.
-    memo = set()
-    modules_and_parameters = [
-        # "p not in memo" is the deduplication check.
-        # "not memo.add(p)" is always True, and it's only there to cause "add(p)" if needed.
-        [(m, p) for m, p in replica_mps if p not in memo and not memo.add(p)]
-        for replica_mps in modules_and_parameters
-    ]
-
-    # Build list of parameters.
-    parameters = [
-        list(parameter for _, parameter in replica)
-        for replica in modules_and_parameters
-    ]
-
-    # Checks if a module will produce a sparse gradient.
-    def produces_sparse_gradient(module):
-        if isinstance(module, torch.nn.Embedding) or isinstance(
-                module, torch.nn.EmbeddingBag
-        ):
-            return module.sparse
-        return False
-
-    # Build list of booleans indicating whether or not to expect sparse
-    # gradients for the corresponding parameters.
-    expect_sparse_gradient = [
-        list(produces_sparse_gradient(module) for module, _ in replica)
-        for replica in modules_and_parameters
-    ]
-
-    return parameters, expect_sparse_gradient
 
 
 class Algorithm:
@@ -91,7 +41,7 @@ class Algorithm:
         """
 
         optimizers = bagua_module.bagua_optimizers
-        parameters, _ = _build_params_for_reducer(bagua_module)
+        parameters, _ = bagua_module._bagua_build_params()
         tensor_groups = [[
            param.bagua_ensure_grad().to_bagua_tensor(name) for inner_parameters in parameters for name, param in inner_parameters
 

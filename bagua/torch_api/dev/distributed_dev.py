@@ -15,24 +15,69 @@ class BaguaModule:
     functionalities.
     """
 
-    def _bagua_get_module_params_and_buffers(self):
-        if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
-            self.parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
-        else:
-            self.parameters_to_ignore = []
-        module_states = []
-        for name, param in self.state_dict().items():
-            if name not in self.parameters_to_ignore:
-                module_states.append(param)
-        return module_states
+    def _bagua_build_params(self):
+        # This function is modified from torch DDP implementation
+        # Build tuple of (module, parameter) for all parameters that require grads.
+        modules_and_parameters = [
+            [
+                (module, parameter)
+                for module_name, module in self.named_modules()
+                for parameter in [
+                        (f"{module_name}.{param_name}", param)
+                        # Note that we access module.named_parameters instead of
+                        # parameters(module). parameters(module) is only needed in the
+                        # single-process multi device case, where it accesses replicated
+                        # parameters through _former_parameters.
+                    for param_name, param in module.named_parameters(recurse=False)
+                    if param.requires_grad
+                        and f"{module_name}.{param_name}" not in self.parameters_to_ignore
+                   ]
+               ]
+           ]
+
+        # Deduplicate any parameters that might be shared across child modules.
+        memo = set()
+        modules_and_parameters = [
+            # "p not in memo" is the deduplication check.
+            # "not memo.add(p)" is always True, and it's only there to cause "add(p)" if needed.
+            [(m, p) for m, p in replica_mps if p not in memo and not memo.add(p)]
+            for replica_mps in modules_and_parameters
+           ]
+
+        # Build list of parameters.
+        parameters = [
+            list(parameter for _, parameter in replica)
+            for replica in modules_and_parameters
+           ]
+
+        # Checks if a module will produce a sparse gradient.
+        def produces_sparse_gradient(module):
+            if isinstance(module, torch.nn.Embedding) or isinstance(
+                    module, torch.nn.EmbeddingBag
+               ):
+                return module.sparse
+            return False
+
+        # Build list of booleans indicating whether or not to expect sparse
+        # gradients for the corresponding parameters.
+        expect_sparse_gradient = [
+            list(produces_sparse_gradient(module) for module, _ in replica)
+            for replica in modules_and_parameters
+           ]
+
+        if any([x for y in expect_sparse_gradient for x in y]):
+            raise NotImplementedError("sparse gradient not supported yet")
+
+        return parameters, expect_sparse_gradient
 
     def _bagua_broadcast_parameters(self):
         """
         Broadcast model and optimizer states.
         """
-        module_states = self._bagua_get_module_params_and_buffers()
-        for state in module_states:
-            broadcast(state, root=0)
+        module_states, _ = self._bagua_build_params()
+        for states in module_states:
+            for name, state in states:
+                broadcast(state, root=0)
         for optimizer in self.bagua_optimizers:
             optimizer_state_dict = optimizer.state_dict()['state']
             for state in optimizer_state_dict.values():
@@ -116,6 +161,10 @@ class BaguaModule:
         self.step_counter = 0
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
+        if hasattr(self, "_ddp_params_and_buffers_to_ignore"): # TODO: document this
+            self.parameters_to_ignore = self._ddp_params_and_buffers_to_ignore
+        else:
+            self.parameters_to_ignore = []
         self._bagua_train_step_counter = 0
         self._bagua_autotune_score_record_list = []
         self._bagua_autotune_last_report_time = time.time()
