@@ -3,11 +3,7 @@
 from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.bucket import BaguaBucket
 from bagua.torch_api.dev.tensor import BaguaTensor
-from bagua.torch_api.distributed_define import ReduceOp
 from typing import List
-import torch
-from collections import OrderedDict
-
 
 
 class Algorithm:
@@ -46,7 +42,7 @@ class Algorithm:
            param.bagua_ensure_grad().to_bagua_tensor(name)
             for name, param in parameters.__reversed__()
         ]]
-        # # TODO: @ganshaoduo consider optimizer groups
+        # # TODO: consider optimizer groups
         # for name, param in reversed(list(bagua_module.named_parameters())):
         #     tensor = param.bagua_ensure_grad().to_bagua_tensor(name) # TODO: check duplicated names
         #     tensor_groups[0].append(tensor)
