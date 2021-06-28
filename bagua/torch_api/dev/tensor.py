@@ -17,7 +17,7 @@ class BaguaTensor(object):
         A Bagua tensor is required to use Bagua's communication algorithms.
 
         Args:
-            name (str): the unique name of the tensor
+            name: the unique name of the tensor
 
         Returns:
             The original tensor with Bagua tensor attributes initialized.
@@ -65,8 +65,8 @@ class BaguaTensor(object):
         Sets the underlying storage using an existing torch.Storage.
 
         Args:
-            storage (Storage): the storage to use
-            storage_offset (int, optional): the offset in the storage
+            storage: the storage to use
+            storage_offset: the offset in the storage
         """
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
