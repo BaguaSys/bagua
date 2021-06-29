@@ -1,5 +1,5 @@
 #![allow(clippy::needless_return)]
-#![recursion_limit = "256"] // workaround recursion limit reached while expanding $crate::__cpp_internal!
+#![recursion_limit = "512"] // workaround recursion limit reached while expanding $crate::__cpp_internal!
 #[macro_use]
 extern crate shadow_rs;
 

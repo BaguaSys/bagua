@@ -20,6 +20,7 @@ pub enum BaguaTensorDtype {
     F16,
     U8,
     I64,
+    U64,
 }
 
 impl BaguaTensorDtype {
@@ -29,6 +30,7 @@ impl BaguaTensorDtype {
             BaguaTensorDtype::F16 => 2,
             BaguaTensorDtype::U8 => 1,
             BaguaTensorDtype::I64 => 8,
+            BaguaTensorDtype::U64 => 8,
         }
     }
 
@@ -38,6 +40,7 @@ impl BaguaTensorDtype {
             BaguaTensorDtype::F16 => 6,
             BaguaTensorDtype::U8 => 1,
             BaguaTensorDtype::I64 => 4,
+            BaguaTensorDtype::U64 => 5,
         }
     }
 }
@@ -87,6 +90,9 @@ impl MinMaxUInt8CompressionParameters {
             BaguaTensorDtype::I64 => {
                 unimplemented!()
             }
+            BaguaTensorDtype::U64 => {
+                unimplemented!()
+            }
         }
     }
 
@@ -119,6 +125,9 @@ impl MinMaxUInt8CompressionParameters {
                 unimplemented!()
             }
             BaguaTensorDtype::I64 => {
+                unimplemented!()
+            }
+            BaguaTensorDtype::U64 => {
                 unimplemented!()
             }
         }
@@ -156,6 +165,9 @@ impl BaguaTensorRaw {
                     unimplemented!()
                 }
                 BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
                     unimplemented!()
                 }
             }
@@ -203,6 +215,9 @@ impl BaguaTensorRaw {
                     unimplemented!()
                 }
                 BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
                     unimplemented!()
                 }
             }
@@ -278,6 +293,9 @@ impl BaguaTensorRaw {
                     BaguaTensorDtype::I64 => {
                         unimplemented!()
                     }
+                    BaguaTensorDtype::U64 => {
+                        unimplemented!()
+                    }
                 }
                 return Ok(BaguaTensorRaw {
                     ptr: output_buffer.ptr,
@@ -332,6 +350,9 @@ impl BaguaTensorRaw {
                 BaguaTensorDtype::I64 => {
                     unimplemented!()
                 }
+                BaguaTensorDtype::U64 => {
+                    unimplemented!()
+                }
             },
         }
     }
@@ -368,6 +389,9 @@ impl BaguaTensorRaw {
             BaguaTensorDtype::I64 => {
                 unimplemented!()
             }
+            BaguaTensorDtype::U64 => {
+                unimplemented!()
+            }
         }
     }
 
@@ -401,6 +425,9 @@ impl BaguaTensorRaw {
                 unimplemented!()
             }
             BaguaTensorDtype::I64 => {
+                unimplemented!()
+            }
+            BaguaTensorDtype::U64 => {
                 unimplemented!()
             }
         }
@@ -458,6 +485,7 @@ impl BaguaTensor {
             "f16" => BaguaTensorDtype::F16,
             "u8" => BaguaTensorDtype::U8,
             "i64" => BaguaTensorDtype::I64,
+            "u64" => BaguaTensorDtype::U64,
             _ => {
                 unimplemented!()
             }

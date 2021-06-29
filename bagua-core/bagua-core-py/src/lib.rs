@@ -68,6 +68,25 @@ impl BaguaSingleCommunicatorPy {
             .alltoall(&mut send_tensor.inner, &mut recv_tensor.inner)
     }
 
+    pub fn alltoall_v(
+        &self,
+        send_tensor: &mut BaguaTensorPy,
+        send_counts: &BaguaTensorPy,
+        send_displs: &BaguaTensorPy,
+        recv_tensor: &mut BaguaTensorPy,
+        recv_counts: &BaguaTensorPy,
+        recv_displs: &BaguaTensorPy,
+    ) {
+        self.inner.alltoall_v(
+            &mut send_tensor.inner,
+            &send_counts.innner,
+            &send_displs.inner,
+            &mut recv_tensor.inner,
+            &recv_counts.inner,
+            &recv_displs.inner,
+        )
+    }
+
     #[staticmethod]
     pub fn generate_nccl_unique_id_str() -> String {
         BaguaSingleCommunicator::generate_nccl_unique_id_str()
