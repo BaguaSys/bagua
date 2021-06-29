@@ -15,6 +15,16 @@ class Algorithm:
     distributed algorithms.
     """
 
+    def need_reset(self) -> bool:
+        """
+        Returns:
+            True if all initialization methods of the current algorithms should
+            be called again. This is useful for algorithms that has multiple
+            stages where each stage needs different initializations.
+        """
+        return False
+
+
     def init_tensors(self, bagua_module: BaguaModule) -> List[List[BaguaTensor]]:
         """
         Given a BaguaModule, return Bagua tensors to be used in Bagua for later
