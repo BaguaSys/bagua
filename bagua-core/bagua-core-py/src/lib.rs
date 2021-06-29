@@ -79,7 +79,7 @@ impl BaguaSingleCommunicatorPy {
     ) {
         self.inner.alltoall_v(
             &mut send_tensor.inner,
-            &send_counts.innner,
+            &send_counts.inner,
             &send_displs.inner,
             &mut recv_tensor.inner,
             &recv_counts.inner,
