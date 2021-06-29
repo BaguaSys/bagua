@@ -106,6 +106,7 @@ class OnebitAdamOptimizer(Optimizer):
     def step(self, closure=None):
         ## Here we assume grad or state["exp_avg"] have already been updated and averaged.
         ## This step only updates weights.
+        self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
 
             lr = group['lr']
@@ -129,7 +130,7 @@ class OnebitAdamOptimizer(Optimizer):
                 update = state["exp_avg"] / denom
                 param.data.add_(-step_size * update)
         
-        self.step_id += 1
+        
 
         # loss = None
         # if closure is not None:
