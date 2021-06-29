@@ -4,6 +4,7 @@ from bagua.torch_api.dev.bucket import BaguaBucket
 from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.algorithms import Algorithm
 from torch.optim.optimizer import Optimizer
+import torch
 
 class OnebitAdamAlgorithm(Algorithm):
     def __init__(self):
