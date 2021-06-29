@@ -41,7 +41,7 @@ class BaguaBucket:
         """
         Flatten inner tensors in place.
         """
-        if check_contiguous(self.tensors):
+        if self.check_flatten():
             return
 
         if len(self.tensors) == 0:
@@ -62,7 +62,7 @@ class BaguaBucket:
             tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.numel()
         # check
-        assert check_contiguous(self.tensors)
+        assert self.check_flatten()
 
     def check_flatten(self) -> bool:
         """
