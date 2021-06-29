@@ -76,7 +76,7 @@ class FusedOptimizer(torch.optim.Optimizer):
             fused_params = []
 
             for _, group_p in grouped_params.items():
-                fused_params.extend(reorder_params(group_p))
+                fused_params.extend(reorder_params(group_p)) # TODO: @wangraying This does not seem to fuse anything if they are still separate tensors?
 
             group["params"] = fused_params
 
