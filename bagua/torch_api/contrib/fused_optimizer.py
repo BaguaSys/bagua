@@ -28,13 +28,13 @@ class FusedOptimizer(torch.optim.Optimizer):
         To use in conjunction with :func:`bagua.torch_api.bagua_init`:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
-        >>> optimizer = bagua.torch_api.FusedOptimizer(optimizer)
+        >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer)
         >>> model, optimizer = bagua.bagua_init(model, optimizer, ...)
 
         To use alone or with :class:`torch.nn.parallel.DistributedDataParallel`, set `do_flatten` to be ``True``:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
-        >>> optimizer = bagua.torch_api.FusedOptimizer(optimizer, do_flatten=True)
+        >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer, do_flatten=True)
     """
 
     def __init__(self, optimizer: torch.optim.Optimizer, do_flatten: bool = False):
