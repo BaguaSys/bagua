@@ -71,9 +71,11 @@ class OnebitAdamAlgorithm(Algorithm):
             )
 
     def init_backward_hook(self, bagua_module: BaguaModule):
-        def hook(parameter_name, parameter):
+        def hook_momentum(parameter_name, parameter):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
-        return hook
+        def hook_grad(parameter_name, parameter):
+            parameter.grad.bagua_mark_communication_ready()
+        return hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
 
 
 class OnebitAdamOptimizer(Optimizer):
