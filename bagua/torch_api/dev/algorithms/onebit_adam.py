@@ -35,26 +35,33 @@ class OnebitAdamAlgorithm(Algorithm):
             bagua_module: BaguaModule,
             bucket: BaguaBucket,
     ):
-        if self.optimizer.step_id <= self.warmup_steps:
-            bucket.backend_bucket.clear_ops()
-            bucket.backend_bucket.append_centralized_synchronous_op(
-                bagua_module.bagua_inter_node_communicator,
-                bagua_module.bagua_intra_node_communicator,
-                hierarchical=self.hierarchical_reduce,
-                average=True,
-            )
-            # bucket.backend_bucket.append("calculate momentum and variance")
-        else:
-            bucket.backend_bucket.clear_ops()
-            # bucket.backend_bucket.append("calculate momentum")
-            bucket.backend_bucket.append_centralized_synchronous_op(
-                bagua_module.bagua_inter_node_communicator,
-                bagua_module.bagua_intra_node_communicator,
-                hierarchical=True,
-                average=True,
-                scattergather=True,
-                compression="MinMaxUInt8",
-            )
+        bucket.backend_bucket.append_centralized_synchronous_op(
+            bagua_module.bagua_global_communicator,
+            None,
+            hierarchical=self.hierarchical_reduce,
+            average=True,
+        )
+
+        # if self.optimizer.step_id <= self.warmup_steps:
+        #     bucket.backend_bucket.clear_ops()
+        #     bucket.backend_bucket.append_centralized_synchronous_op(
+        #         bagua_module.bagua_inter_node_communicator,
+        #         bagua_module.bagua_intra_node_communicator,
+        #         hierarchical=self.hierarchical_reduce,
+        #         average=True,
+        #     )
+        #     # bucket.backend_bucket.append("calculate momentum and variance")
+        # else:
+        #     bucket.backend_bucket.clear_ops()
+        #     # bucket.backend_bucket.append("calculate momentum")
+        #     bucket.backend_bucket.append_centralized_synchronous_op(
+        #         bagua_module.bagua_inter_node_communicator,
+        #         bagua_module.bagua_intra_node_communicator,
+        #         hierarchical=True,
+        #         average=True,
+        #         scattergather=True,
+        #         compression="MinMaxUInt8",
+        #     )
 
 
 class OnebitAdamOptimizer(Optimizer):
@@ -117,8 +124,10 @@ class OnebitAdamOptimizer(Optimizer):
             for param_id, param in enumerate(group['params']):
                 state = self.state[param]
 
-                if self.step_id <= group["warmup_steps"]:
-                    state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
+                state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
+                state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
+                # if self.step_id <= group["warmup_steps"]:
+                #     state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
 
                 bias_correction1 = 1 - beta1 ** self.step_id
                 bias_correction2 = 1 - beta2 ** self.step_id
