@@ -16,4 +16,4 @@ from .env import (
     get_local_size,
 )
 from ..bagua_define import DistributedAlgorithm
-import bagua.torch_api.contrib
+from . import contrib

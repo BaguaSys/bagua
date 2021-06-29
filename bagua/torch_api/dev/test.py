@@ -108,7 +108,7 @@ if args.cuda:
     model.cuda()
 
 optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
-optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer)
+optimizer = bagua.contrib.FusedOptimizer(optimizer)
 # optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 # optimizer = OnebitAdamOptimizer(model.parameters())
 
