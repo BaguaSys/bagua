@@ -76,6 +76,10 @@ impl BaguaSingleCommunicator {
             .broadcast(&mut tensor.inner.write().raw, root_rank);
     }
 
+    pub fn reduce(&self, tensor: &mut BaguaTensor, root_rank: i32) {
+        self.inner.reduce(&mut tensor.inner.write().raw, root_rank);
+    }
+
     pub fn send(&self, tensor: &mut BaguaTensor, peer_rank: i32) {
         self.inner.send(&mut tensor.inner.write().raw, peer_rank);
     }
@@ -108,6 +112,17 @@ impl BaguaSingleCommunicator {
             &recv_counts.inner.read().raw,
             &recv_displs.inner.read().raw,
         );
+    }
+
+    pub fn allgather(&self, send_tensor: &mut BaguaTensor, recv_tensor: &mut BaguaTensor) {
+        self.inner.allgather(
+            &mut send_tensor.inner.write().raw,
+            &mut recv_tensor.inner.write().raw,
+        );
+    }
+
+    pub fn barrier(&self) {
+        self.inner.barrier();
     }
 
     pub fn generate_nccl_unique_id_str() -> String {
