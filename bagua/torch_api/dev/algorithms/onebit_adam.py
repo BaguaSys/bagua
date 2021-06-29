@@ -32,10 +32,10 @@ class OnebitAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     print("Register gradient tensors to the core at step {}".format(self.optimizer.step_id))
-                    registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name)
+                    registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name + '.grad')
                 else:
                     print("Register momentum tensors to the core at step {}".format(self.optimizer.step_id))
-                    registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
+                    registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name + '.momentum')
                 group.append(registered_tensor)
             tensor_groups.append(group)
 
