@@ -23,7 +23,7 @@ class OnebitAdamAlgorithm(Algorithm):
            param._one_bit_name = name
 
         tensor_groups = []
-        print("size of optimizer.params_in_group:{}".format(len(optimizer.params_in_group[0])))
+        print("size of optimizer.params_in_group:{}".format(len(self.optimizer.params_in_group[0])))
         for param_group in self.optimizer.params_in_group:
             for param in param_group:
                 tensor_groups.append(param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name))
