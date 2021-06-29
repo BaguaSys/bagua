@@ -124,6 +124,9 @@ class BaguaGlobalState(object):
             stream=self.stream, store=self.store, device_id=device_id
         )
 
+    def get_communication_stream(self):
+        return self.stream
+
     def get_internode_communicator(self):
         return self.internode_communicator
 
