@@ -126,11 +126,6 @@ impl BaguaTensorPy {
         }
     }
 
-    #[new]
-    pub fn new_from_torch() -> Self {
-        unimplemented!();
-    }
-
     pub fn compress(&self, method: &str, n_chunks: usize, target_chunk: i32) -> Self {
         Self {
             inner: self.inner.compress(method, n_chunks, target_chunk),
