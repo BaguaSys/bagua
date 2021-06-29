@@ -35,6 +35,7 @@ class OnebitAdamAlgorithm(Algorithm):
                     print("Register momentum tensors to the core at step {}".format(self.optimizer.step_id))
                     registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
                     registered_tensor._one_bit_grad = param.grad
+                    param._one_bit_momentum = registered_tensor
                 group.append(registered_tensor)
             tensor_groups.append(group)
 
@@ -68,6 +69,11 @@ class OnebitAdamAlgorithm(Algorithm):
                 scattergather=True,
                 compression="MinMaxUInt8",
             )
+
+    def init_backward_hook(self, bagua_module: BaguaModule):
+        def hook(parameter_name, parameter):
+            parameter._one_bit_momentum.bagua_mark_communication_ready()
+        return hook
 
 
 class OnebitAdamOptimizer(Optimizer):
