@@ -61,6 +61,7 @@ class BaguaTensor:
             self._bagua_ready_event.cuda_event,
         )
 
+    # FIXME: what is this?
     def bagua_mark_communication_ready_eager(self):
         """
         Mark a Bagua tensor ready eagerly for scheduled operations execution.
