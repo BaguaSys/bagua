@@ -113,7 +113,8 @@ if args.cuda:
 optimizer = OnebitAdamOptimizer(model.parameters())
 
 # model.with_bagua([optimizer], algorithm=ByteGradAlgorithm())
-model.with_bagua([optimizer], algorithm=OnebitAdamAlgorithm(5))
+dis_algorithm = OnebitAdamAlgorithm(model, 5)
+model.with_bagua([optimizer], algorithm=dis_algorithm)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
