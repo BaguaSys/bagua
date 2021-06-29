@@ -5,6 +5,7 @@ import bagua_core as B
 from bagua.torch_api.utils import to_bagua_datatype
 import gorilla
 
+
 @gorilla.patches(torch.Tensor)
 class BaguaTensor:
     """
@@ -26,7 +27,7 @@ class BaguaTensor:
         self._bagua_backend_tensor = B.BaguaTensorPy(
             ptr=self.data_ptr(),
             num_elem=self.numel(),
-            num_elem_allocated=self.numel(), # TODO: deprecate num_elem_allocated
+            num_elem_allocated=self.numel(),  # TODO: deprecate num_elem_allocated
             dtype=to_bagua_datatype(self.dtype),
             device_id=self.device.index,
         )
@@ -60,6 +61,15 @@ class BaguaTensor:
             self._bagua_ready_event.cuda_event,
         )
 
+    def bagua_mark_communication_ready_eager(self):
+        """
+        Mark a Bagua tensor ready eagerly for scheduled operations execution.
+        """
+        self._bagua_backend.mark_communication_ready(
+            self._bagua_backend_tensor,
+            self._bagua_ready_event.cuda_event,
+        )
+
     def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         """
         Sets the underlying storage using an existing torch.Storage.
@@ -81,5 +91,7 @@ class BaguaTensor:
             True if consistent. Return False if not, and this generally indicates
             incorrectness in the training workload.
         """
-        return self._bagua_backend_tensor.ptr() == self.data_ptr() \
+        return (
+            self._bagua_backend_tensor.ptr() == self.data_ptr()
             and self._bagua_backend_tensor.num_elem() == self.numel()
+        )
