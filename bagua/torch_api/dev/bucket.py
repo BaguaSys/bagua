@@ -41,6 +41,9 @@ class BaguaBucket:
         """
         Flatten inner tensors in place.
         """
+        if check_contiguous(self.tensors):
+            return
+
         if len(self.tensors) == 0:
             return
         total_size = 0
