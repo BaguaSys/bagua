@@ -8,11 +8,11 @@ import torch
 import math
 
 class OnebitAdamAlgorithm(Algorithm):
-    def __init__(self, warmup_steps: int, hierarchical_reduce: bool=False):
+    def __init__(self, onebit_optimizer: Optimizer, warmup_steps: int, hierarchical_reduce: bool=False):
 
         self.warmup_steps = warmup_steps
         self.hierarchical_reduce = hierarchical_reduce
-        # self.optimizer = onebit_optimizer
+        self.optimizer = onebit_optimizer
 
     def need_reset(self):
         return self.optimizer.step_id == self.warmup_steps
@@ -20,8 +20,8 @@ class OnebitAdamAlgorithm(Algorithm):
     def init_tensors(self, bagua_module: BaguaModule):
         
         parameters = bagua_module._bagua_build_params()
-        optimizers = bagua_module.bagua_optimizers
-        self.optimizer = optimizers[0]
+        # optimizers = bagua_module.bagua_optimizers
+        # self.optimizer = optimizers[0]
         
         for name, param in parameters:
            param._one_bit_name = name
@@ -32,10 +32,10 @@ class OnebitAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     print("Register gradient tensors to the core at step {}".format(self.optimizer.step_id))
-                    registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name + '.grad')
+                    registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name)
                 else:
                     print("Register momentum tensors to the core at step {}".format(self.optimizer.step_id))
-                    registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name + '.momentum')
+                    registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
                 group.append(registered_tensor)
             tensor_groups.append(group)
 
