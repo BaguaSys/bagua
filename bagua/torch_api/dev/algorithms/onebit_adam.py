@@ -89,9 +89,9 @@ class OnebitAdamOptimizer(Optimizer):
                 if len(state) == 0:
                     state['exp_avg'] = torch.zeros_like(p, memory_format=torch.preserve_format)
                     state['exp_avg_sq'] = torch.zeros_like(p, memory_format=torch.preserve_format)
+                    state['step'] = 0
                 exp_avgs.append(state['exp_avg'])
                 exp_avg_sqs.append(state['exp_avg_sq'])
-                state['step'] += 1
                 state_steps.append(state['step'])
 
             self.params_in_group.append(params_with_grad)
