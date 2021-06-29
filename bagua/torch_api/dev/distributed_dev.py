@@ -197,8 +197,13 @@ class BaguaModule:
                     Bagua initialization.
                     """
 
+        def algorithm_reset_hook(self, input):
+            if self.bagua_algorithm.need_reset():
+                self._bagua_init_algorithm()
+
         self._bagua_framework_hooks.extend(
             [
+                self.register_forward_pre_hook(algorithm_reset_hook),
                 self.register_forward_pre_hook(autotune_hook),
                 self.register_forward_pre_hook(clear_post_backward_callback_queued_hook),
                 self.register_forward_pre_hook(num_iteration_step_hook),
