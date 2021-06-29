@@ -112,7 +112,7 @@ if args.cuda:
 # optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 optimizer = OnebitAdamOptimizer(model.parameters())
 
-model.with_bagua([optimizer], algorithm=ByteGradAlgorithm())
+# model.with_bagua([optimizer], algorithm=ByteGradAlgorithm())
 model.with_bagua([optimizer], algorithm=OnebitAdamAlgorithm())
 
 # Set up fixed fake data
