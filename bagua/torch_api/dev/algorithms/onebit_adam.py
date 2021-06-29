@@ -34,6 +34,7 @@ class OnebitAdamAlgorithm(Algorithm):
                 else:
                     print("Register momentum tensors to the core at step {}".format(self.optimizer.step_id))
                     registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
+                    registered_tensor._one_bit_grad = param.grad
                 group.append(registered_tensor)
             tensor_groups.append(group)
 
@@ -44,12 +45,6 @@ class OnebitAdamAlgorithm(Algorithm):
             bagua_module: BaguaModule,
             bucket: BaguaBucket,
     ):
-        # bucket.backend_bucket.append_centralized_synchronous_op(
-        #     bagua_module.bagua_global_communicator,
-        #     None,
-        #     hierarchical=self.hierarchical_reduce,
-        #     average=True,
-        # )
         bucket.backend_bucket.clear_ops()
         if self.optimizer.step_id < self.warmup_steps:
             bucket.backend_bucket.append_centralized_synchronous_op(
@@ -60,7 +55,10 @@ class OnebitAdamAlgorithm(Algorithm):
             )
         else:
             def calculate_momentum(*args):
-                print(bucket.name)
+                beta1, beta2  = self.optimizer.param_groups[0]['betas']
+                for tensor in bucket:
+                    tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
+
             bucket.backend_bucket.append_python_op(calculate_momentum)
             bucket.backend_bucket.append_centralized_synchronous_op(
                 bagua_module.bagua_inter_node_communicator,
@@ -70,10 +68,6 @@ class OnebitAdamAlgorithm(Algorithm):
                 scattergather=True,
                 compression="MinMaxUInt8",
             )
-    
-
-
-    
 
 
 class OnebitAdamOptimizer(Optimizer):
@@ -136,10 +130,9 @@ class OnebitAdamOptimizer(Optimizer):
             for param_id, param in enumerate(group['params']):
                 state = self.state[param]
 
-                state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
-                state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
-                # if self.step_id <= group["warmup_steps"]:
-                #     state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
+                if self.step_id < group["warmup_steps"]:
+                    state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
+                    state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
 
                 bias_correction1 = 1 - beta1 ** self.step_id
                 bias_correction2 = 1 - beta2 ** self.step_id
