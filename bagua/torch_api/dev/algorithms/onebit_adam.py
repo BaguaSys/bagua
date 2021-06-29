@@ -34,7 +34,7 @@ class OnebitAdamAlgorithm(Algorithm):
                 else:
                     print("Register momentum tensors to the core at step {}".format(self.optimizer.step_id))
                     registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
-                    registered_tensor._one_bit_grad = param.grad
+                    registered_tensor._one_bit_grad = param.bagua_ensure_grad()
                     param._one_bit_momentum = registered_tensor
                 group.append(registered_tensor)
             tensor_groups.append(group)
