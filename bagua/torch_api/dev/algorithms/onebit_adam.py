@@ -20,8 +20,6 @@ class OnebitAdamAlgorithm(Algorithm):
     def init_tensors(self, bagua_module: BaguaModule):
         
         parameters = bagua_module._bagua_build_params()
-        # optimizers = bagua_module.bagua_optimizers
-        # self.optimizer = optimizers[0]
         
         for name, param in parameters:
            param._one_bit_name = name
@@ -63,7 +61,7 @@ class OnebitAdamAlgorithm(Algorithm):
         else:
             def calculate_momentum(*args):
                 print(bucket.name)
-            # bucket.backend_bucket.append_python_op(calculate_momentum)
+            bucket.backend_bucket.append_python_op(calculate_momentum)
             bucket.backend_bucket.append_centralized_synchronous_op(
                 bagua_module.bagua_inter_node_communicator,
                 bagua_module.bagua_intra_node_communicator,
