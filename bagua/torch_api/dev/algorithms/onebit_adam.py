@@ -59,6 +59,7 @@ class OnebitAdamAlgorithm(Algorithm):
             )
         else:
             def calculate_momentum(*args):
+                # FIXME: with global communication stream?
                 beta1, beta2  = self.optimizer.param_groups[0]['betas']
                 for tensor in bucket.tensors:
                     tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
