@@ -43,10 +43,10 @@ class OnebitAdamAlgorithm(Algorithm):
                 hierarchical=self.hierarchical_reduce,
                 average=True,
             )
-            bucket.backend_bucket.append("calculate momentum and variance")
+            # bucket.backend_bucket.append("calculate momentum and variance")
         else:
             bucket.backend_bucket.clear_ops()
-            bucket.backend_bucket.append("calculate momentum")
+            # bucket.backend_bucket.append("calculate momentum")
             bucket.backend_bucket.append_centralized_synchronous_op(
                 bagua_module.bagua_inter_node_communicator,
                 bagua_module.bagua_intra_node_communicator,
