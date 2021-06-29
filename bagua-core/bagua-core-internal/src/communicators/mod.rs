@@ -91,6 +91,25 @@ impl BaguaSingleCommunicator {
         );
     }
 
+    pub fn alltoall_v(
+        &self,
+        send_tensor: &mut BaguaTensor,
+        send_counts: &BaguaTensor,
+        send_displs: &BaguaTensor,
+        recv_tensor: &mut BaguaTensor,
+        recv_counts: &BaguaTensor,
+        recv_displs: &BaguaTensor,
+    ) {
+        self.inner.alltoall_v(
+            &mut send_tensor.inner.write().raw,
+            &send_counts.inner.read().raw,
+            &send_displs.inner.read().raw,
+            &mut recv_tensor.inner.write().raw,
+            &recv_counts.inner.read().raw,
+            &recv_displs.inner.read().raw,
+        );
+    }
+
     pub fn generate_nccl_unique_id_str() -> String {
         let unique_id = vec![0_i8; 128];
         let unique_id_ptr = unique_id.as_ptr();
@@ -373,6 +392,72 @@ impl BaguaCommunicatorInner {
                     Al::Alltoall<Al::NCCLBackend>(static_cast<unsigned char*>(send_buf_ptr), static_cast<unsigned char*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
                     Al::Alltoall<Al::NCCLBackend>(static_cast<long long int*>(send_buf_ptr), static_cast<long long int*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn alltoall_v(
+        &self,
+        send_tensor: &BaguaTensorRaw,
+        send_counts_tensor: &BaguaTensorRaw,
+        send_displs_tensor: &BaguaTensorRaw,
+        recv_tensor: &mut BaguaTensorRaw,
+        recv_counts_tensor: &BaguaTensorRaw,
+        recv_displs_tensor: &BaguaTensorRaw,
+    ) {
+        let communicator_ptr = self.comm_ptr;
+        let nranks = self.nranks;
+        let nccl_tensor_type = send_tensor.dtype.to_nccl_datatype();
+        assert_eq!(
+            send_counts_tensor.dtype.to_nccl_datatype(),
+            5,
+            "send_counts_tensor.dtype must be BaguaTensorDtype::U64"
+        );
+        assert_eq!(
+            send_displs_tensor.dtype.to_nccl_datatype(),
+            5,
+            "send_displs_tensor.dtype must be BaguaTensorDtype::U64"
+        );
+        assert_eq!(
+            recv_counts_tensor.dtype.to_nccl_datatype(),
+            5,
+            "recv_counts_tensor.dtype must be BaguaTensorDtype::U64"
+        );
+        assert_eq!(
+            recv_displs_tensor.dtype.to_nccl_datatype(),
+            5,
+            "recv_displs_tensor.dtype must be BaguaTensorDtype::U64"
+        );
+
+        let send_buf_ptr = send_tensor.ptr;
+        let send_counts_ptr = send_counts_tensor.ptr;
+        let send_displs_ptr = send_displs_tensor.ptr;
+        let recv_buf_ptr = recv_tensor.ptr;
+        let recv_counts_ptr = recv_counts_tensor.ptr;
+        let recv_displs_ptr = recv_displs_tensor.ptr;
+
+        unsafe {
+            cpp::cpp!([
+                send_buf_ptr as "void *", send_counts_ptr as "uint64_t *", send_displs_ptr as "uint64_t *",
+                recv_buf_ptr as "void *", recv_counts_ptr as "uint64_t *", recv_displs_ptr as "uint64_t *",
+                nranks as "size_t", communicator_ptr as "Al::NCCLCommunicator *",  nccl_tensor_type as "ncclDataType_t"]
+            {
+                std::vector<size_t> send_counts(send_counts_ptr, send_counts_ptr + nranks);
+                std::vector<size_t> send_displs(send_displs_ptr, send_displs_ptr + nranks);
+                std::vector<size_t> recv_counts(recv_counts_ptr, recv_counts_ptr + nranks);
+                std::vector<size_t> recv_displs(recv_displs_ptr, recv_displs_ptr + nranks);
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Alltoallv<Al::NCCLBackend>(static_cast<const float*>(send_buf_ptr), send_counts, send_displs, static_cast<float*>(recv_buf_ptr), recv_counts, recv_displs, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Alltoallv<Al::NCCLBackend>(static_cast<const __half*>(send_buf_ptr), send_counts, send_displs, static_cast<__half*>(recv_buf_ptr), recv_counts, recv_displs, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Alltoallv<Al::NCCLBackend>(static_cast<const unsigned char*>(send_buf_ptr), send_counts, send_displs, static_cast<unsigned char*>(recv_buf_ptr), recv_counts, recv_displs, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Alltoallv<Al::NCCLBackend>(static_cast<const long long int*>(send_buf_ptr), send_counts, send_displs, static_cast<long long int*>(recv_buf_ptr), recv_counts, recv_displs, *communicator_ptr);
                 } else {
                     fputs("unsupport tensor data type.\n", stderr);
                     abort();
