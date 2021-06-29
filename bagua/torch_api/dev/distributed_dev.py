@@ -113,7 +113,7 @@ class BaguaModule:
             )
 
             # update parameters
-            self._bagua_reset_algorithm()
+            self._bagua_reset_algorithm_buckets()
             self._bagua_autotune_score_record_list.clear()
             self._bagua_autotune_last_report_time = time.time()
 
@@ -170,6 +170,8 @@ class BaguaModule:
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
         self._bagua_framework_hooks = [] # hooks for bagua framework logic, not cleared when changing algorithms
+        self._bagua_algorithm_hooks = []
+        self._bagua_buckets = []
         self._bagua_backend = _get_global_state().get_backend()
 
         def autotune_hook(self, input):
@@ -257,8 +259,7 @@ class BaguaModule:
 
 
     def _bagua_init_algorithm(self):
-        self._bagua_algorithm_hooks = []
-        self._bagua_buckets = []
+        self._bagua_cleanup_algorithm()
         self._bagua_tensor_groups = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
             [(tensor.bagua_tensor_name, tensor)
@@ -266,15 +267,16 @@ class BaguaModule:
              for tensor in tensor_group]
         )
         self._bagua_autotune_register_tensors()
-        self._bagua_reset_algorithm()
+        self._bagua_reset_algorithm_buckets()
 
-    def _bagua_reset_algorithm(self):
-        # cleanup
+    def _bagua_cleanup_algorithm(self):
         for hook in self._bagua_algorithm_hooks:
             hook.remove()
         self._bagua_algorithm_hooks.clear()
         self._bagua_buckets.clear()
 
+    def _bagua_reset_algorithm_buckets(self):
+        self._bagua_cleanup_algorithm()
         # reset
         raw_buckets = self._bagua_autotune_get_buckets()
         self._bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
