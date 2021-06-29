@@ -5,25 +5,28 @@ from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.algorithms import Algorithm
 from torch.optim.optimizer import Optimizer
 import torch
+import math
 
 class OnebitAdamAlgorithm(Algorithm):
-    def __init__(self):
+    def __init__(self, warmup_steps: int, hierarchical_reduce: bool=False):
 
-        pass
+        self.warmup_steps = warmup_steps
+        self.hierarchical_reduce = hierarchical_reduce
 
     def init_tensors(self, bagua_module: BaguaModule):
         optimizers = bagua_module.bagua_optimizers
+        assert len(optimizers) == 1, "OnebitAdam algorithm onlys supports one optimizer."
+        self.optimizer = optimizers[0]
 
         parameters = bagua_module._bagua_build_params()
         for name, param in parameters:
            param._one_bit_name = name
 
         tensor_groups = []
-        for optimizer in optimizers:
-            print("size of optimizer.params_in_group:{}".format(len(optimizer.params_in_group[0])))
-            for param_group in optimizer.params_in_group:
-                for param in param_group:
-                    tensor_groups.append(param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name))
+        print("size of optimizer.params_in_group:{}".format(len(optimizer.params_in_group[0])))
+        for param_group in self.optimizer.params_in_group:
+            for param in param_group:
+                tensor_groups.append(param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name))
 
         return [tensor_groups]
 
@@ -32,16 +35,26 @@ class OnebitAdamAlgorithm(Algorithm):
             bagua_module: BaguaModule,
             bucket: BaguaBucket,
     ):
-        bucket.backend_bucket.clear_ops()
-        bucket.backend_bucket.append_centralized_synchronous_op(
-            bagua_module.bagua_inter_node_communicator,
-            bagua_module.bagua_intra_node_communicator,
-            hierarchical=True,
-            average=True,
-            scattergather=True,
-            compression="MinMaxUInt8",
-        )
-
+        if self.optimizer.step_id <= self.warmup_steps:
+            bucket.backend_bucket.clear_ops()
+            bucket.backend_bucket.append_centralized_synchronous_op(
+                bagua_module.bagua_inter_node_communicator,
+                bagua_module.bagua_intra_node_communicator,
+                hierarchical=self.hierarchical_reduce,
+                average=True,
+            )
+            bucket.backend_bucket.append("calculate momentum and variance")
+        else:
+            bucket.backend_bucket.clear_ops()
+            bucket.backend_bucket.append("calculate momentum")
+            bucket.backend_bucket.append_centralized_synchronous_op(
+                bagua_module.bagua_inter_node_communicator,
+                bagua_module.bagua_intra_node_communicator,
+                hierarchical=True,
+                average=True,
+                scattergather=True,
+                compression="MinMaxUInt8",
+            )
 
 
 class OnebitAdamOptimizer(Optimizer):
@@ -49,7 +62,7 @@ class OnebitAdamOptimizer(Optimizer):
         self,
         params,
         lr=1e-3,
-        compression_start=100,
+        warmup_steps=100,
         is_bert=False,
         freeze_test_step=-1,
         betas=(0.9, 0.999),
@@ -65,35 +78,25 @@ class OnebitAdamOptimizer(Optimizer):
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(
-            lr=lr, compression_start=compression_start, is_bert=is_bert, freeze_test_step=freeze_test_step, betas=betas, eps=eps, weight_decay=weight_decay
+            lr=lr, warmup_steps=warmup_steps, is_bert=is_bert, freeze_test_step=freeze_test_step, betas=betas, eps=eps, weight_decay=weight_decay
         )
         super(OnebitAdamOptimizer, self).__init__(params, defaults)
 
         self.params_in_group = []
         self.exp_avgs_in_group = []
+        self.step_id = 0
 
-        ###
+        ### initialize momentum and variance
         for group_id, group in enumerate(self.param_groups):
-
             params_with_grad = []
-            grads = []
             exp_avgs = []
-            exp_avg_sqs = []
-            state_steps = []
-            beta1, beta2 = group['betas']
-
             for p in group['params']:
                 params_with_grad.append(p)
-                grads.append(p.grad)
                 state = self.state[p]
                 if len(state) == 0:
                     state['exp_avg'] = torch.zeros_like(p, memory_format=torch.preserve_format)
                     state['exp_avg_sq'] = torch.zeros_like(p, memory_format=torch.preserve_format)
-                    state['step'] = 0
                 exp_avgs.append(state['exp_avg'])
-                exp_avg_sqs.append(state['exp_avg_sq'])
-                state_steps.append(state['step'])
-
             self.params_in_group.append(params_with_grad)
             self.exp_avgs_in_group.append(exp_avgs)
 
@@ -101,7 +104,32 @@ class OnebitAdamOptimizer(Optimizer):
         super(OnebitAdam, self).__setstate__(state)
 
     def step(self, closure=None):
-        pass
+        ## Here we assume grad or state["exp_avg"] have already been updated and averaged.
+        ## This step only updates weights.
+        for group_id, group in enumerate(self.param_groups):
+
+            lr = group['lr']
+            weight_decay = group['weight_decay']
+            beta1, beta2 = group['betas']
+            eps = group['eps']
+
+            for param_id, param in enumerate(group['params']):
+                state = self.state[param]
+
+                if self.step_id <= group["warmup_steps"]:
+                    state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
+
+                bias_correction1 = 1 - beta1 ** self.step_id
+                bias_correction2 = 1 - beta2 ** self.step_id
+
+                denom = (
+                    state["exp_avg_sq"].sqrt() / math.sqrt(bias_correction2)
+                ).add_(eps)
+                step_size = lr / bias_correction1
+                update = state["exp_avg"] / denom
+                param.data.add_(-step_size * update)
+        
+        self.step_id += 1
 
         # loss = None
         # if closure is not None:
