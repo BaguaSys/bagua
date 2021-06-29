@@ -8,13 +8,11 @@ import torch
 import math
 
 class OnebitAdamAlgorithm(Algorithm):
-    def __init__(self, bagua_module: BaguaModule, warmup_steps: int, hierarchical_reduce: bool=False):
+    def __init__(self, onebit_optimizer: Optimizer, warmup_steps: int, hierarchical_reduce: bool=False):
 
         self.warmup_steps = warmup_steps
         self.hierarchical_reduce = hierarchical_reduce
-        optimizers = bagua_module.bagua_optimizers
-        assert len(optimizers) == 1, "OnebitAdam algorithm onlys supports one optimizer."
-        self.optimizer = optimizers[0]
+        self.optimizer = onebit_optimizer
 
     def need_reset(self):
         return self.optimizer.step_id == self.warmup_steps
