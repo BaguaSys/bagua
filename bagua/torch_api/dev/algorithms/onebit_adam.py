@@ -57,7 +57,7 @@ class OnebitAdamAlgorithm(Algorithm):
         else:
             def calculate_momentum(*args):
                 beta1, beta2  = self.optimizer.param_groups[0]['betas']
-                for tensor in bucket:
+                for tensor in bucket.tensors:
                     tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
 
             bucket.backend_bucket.append_python_op(calculate_momentum)
