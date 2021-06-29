@@ -60,7 +60,7 @@ class OnebitAdamAlgorithm(Algorithm):
         else:
             def calculate_momentum(*args):
                 print(bucket.name)
-            bucket.backend_bucket.append_python_op(calculate_momentum)
+            # bucket.backend_bucket.append_python_op(calculate_momentum)
             bucket.backend_bucket.append_centralized_synchronous_op(
                 bagua_module.bagua_inter_node_communicator,
                 bagua_module.bagua_intra_node_communicator,
