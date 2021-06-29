@@ -107,7 +107,7 @@ if args.cuda:
     # Move model to GPU.
     model.cuda()
 
-optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
+# optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
 # optimizer = bagua.contrib.FusedOptimizer(optimizer)
 # optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 optimizer = OnebitAdamOptimizer(model.parameters())
