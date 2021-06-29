@@ -127,9 +127,7 @@ impl BaguaTensorPy {
     }
 
     #[new]
-    pub fn new_from_torch(
-
-    ) -> Self {
+    pub fn new_from_torch() -> Self {
         unimplemented!();
     }
 
