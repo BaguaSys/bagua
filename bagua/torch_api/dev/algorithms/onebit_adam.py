@@ -15,7 +15,12 @@ class OnebitAdamAlgorithm(Algorithm):
         self.optimizer = onebit_optimizer
 
     def need_reset(self):
-        return self.optimizer.step_id == self.warmup_steps
+
+        if self.optimizer.step_id == self.warmup_steps:
+            print("Onebit Adam starts to compress from step {}".format(self.optimizer.step_id))
+            return True
+        else:
+            return False
 
     def init_tensors(self, bagua_module: BaguaModule):
         
@@ -29,10 +34,8 @@ class OnebitAdamAlgorithm(Algorithm):
             group = []
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
-                    print("Register gradient tensors to the core at step {}".format(self.optimizer.step_id))
                     registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name)
                 else:
-                    print("Register momentum tensors to the core at step {}".format(self.optimizer.step_id))
                     registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
                     registered_tensor._one_bit_grad = param.bagua_ensure_grad()
                     param._one_bit_momentum = registered_tensor
