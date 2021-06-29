@@ -8,60 +8,72 @@ import torch
 import math
 
 class OnebitAdamAlgorithm(Algorithm):
-    def __init__(self, warmup_steps: int, hierarchical_reduce: bool=False):
+    def __init__(self, onebit_optimizer: Optimizer, warmup_steps: int, hierarchical_reduce: bool=False):
 
         self.warmup_steps = warmup_steps
         self.hierarchical_reduce = hierarchical_reduce
+        self.optimizer = onebit_optimizer
+
+    def need_reset(self):
+        return self.optimizer.step_id == self.warmup_steps
 
     def init_tensors(self, bagua_module: BaguaModule):
-        optimizers = bagua_module.bagua_optimizers
-        assert len(optimizers) == 1, "OnebitAdam algorithm onlys supports one optimizer."
-        self.optimizer = optimizers[0]
-
+        
         parameters = bagua_module._bagua_build_params()
+        
         for name, param in parameters:
            param._one_bit_name = name
 
-        tensor_groups = []
-        print("size of optimizer.params_in_group:{}".format(len(self.optimizer.params_in_group[0])))
-        for param_group in self.optimizer.params_in_group:
-            for param in param_group:
-                tensor_groups.append(param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name))
+        tensor_groups = []            
+        for param_group, m_group in zip(self.optimizer.params_in_group, self.optimizer.exp_avgs_in_group):
+            group = []
+            for param, exp_avgs in zip(param_group, m_group):
+                if self.optimizer.step_id < self.warmup_steps:
+                    print("Register gradient tensors to the core at step {}".format(self.optimizer.step_id))
+                    registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name)
+                else:
+                    print("Register momentum tensors to the core at step {}".format(self.optimizer.step_id))
+                    registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
+                group.append(registered_tensor)
+            tensor_groups.append(group)
 
-        return [tensor_groups]
+        return tensor_groups
 
     def init_operations(
             self,
             bagua_module: BaguaModule,
             bucket: BaguaBucket,
     ):
-        bucket.backend_bucket.append_centralized_synchronous_op(
-            bagua_module.bagua_global_communicator,
-            None,
-            hierarchical=self.hierarchical_reduce,
-            average=True,
-        )
+        # bucket.backend_bucket.append_centralized_synchronous_op(
+        #     bagua_module.bagua_global_communicator,
+        #     None,
+        #     hierarchical=self.hierarchical_reduce,
+        #     average=True,
+        # )
+        bucket.backend_bucket.clear_ops()
+        if self.optimizer.step_id < self.warmup_steps:
+            bucket.backend_bucket.append_centralized_synchronous_op(
+                bagua_module.bagua_inter_node_communicator,
+                bagua_module.bagua_intra_node_communicator,
+                hierarchical=self.hierarchical_reduce,
+                average=True,
+            )
+        else:
+            def calculate_momentum(*args):
+                print(bucket.name)
+            bucket.backend_bucket.append_python_op(calculate_momentum)
+            bucket.backend_bucket.append_centralized_synchronous_op(
+                bagua_module.bagua_inter_node_communicator,
+                bagua_module.bagua_intra_node_communicator,
+                hierarchical=self.hierarchical_reduce,
+                average=True,
+                scattergather=True,
+                compression="MinMaxUInt8",
+            )
+    
 
-        # if self.optimizer.step_id <= self.warmup_steps:
-        #     bucket.backend_bucket.clear_ops()
-        #     bucket.backend_bucket.append_centralized_synchronous_op(
-        #         bagua_module.bagua_inter_node_communicator,
-        #         bagua_module.bagua_intra_node_communicator,
-        #         hierarchical=self.hierarchical_reduce,
-        #         average=True,
-        #     )
-        #     # bucket.backend_bucket.append("calculate momentum and variance")
-        # else:
-        #     bucket.backend_bucket.clear_ops()
-        #     # bucket.backend_bucket.append("calculate momentum")
-        #     bucket.backend_bucket.append_centralized_synchronous_op(
-        #         bagua_module.bagua_inter_node_communicator,
-        #         bagua_module.bagua_intra_node_communicator,
-        #         hierarchical=True,
-        #         average=True,
-        #         scattergather=True,
-        #         compression="MinMaxUInt8",
-        #     )
+
+    
 
 
 class OnebitAdamOptimizer(Optimizer):
