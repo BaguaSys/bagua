@@ -77,14 +77,11 @@ class Algorithm:
                 ``with_bagua(...)`` method.
 
         Returns:
-            A function that takes the name of a parameter.
+            A function that takes the name of a parameter (as in
+            torch.nn.Module.named_parameters()) and the parameter itself.
         """
-        def hook(name):
-
-            ## bagua_module._bagua_tensor_map[name] does not have to be grad
-            bagua_grad = bagua_module._bagua_tensor_map[name]
-            bagua_grad.bagua_mark_communication_ready()
-            # print(name, "in", bagua_grad._bagua_bucket.name, "ready")
+        def hook(parameter_name, parameter):
+            parameter.grad.bagua_mark_communication_ready()
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
