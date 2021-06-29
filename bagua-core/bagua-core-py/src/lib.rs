@@ -55,6 +55,10 @@ impl BaguaSingleCommunicatorPy {
         self.inner.broadcast(&mut tensor.inner, root_rank)
     }
 
+    pub fn reduce(&self, tensor: &mut BaguaTensorPy, root_rank: i32) {
+        self.inner.reduce(&mut tensor.inner, root_rank)
+    }
+
     pub fn send(&self, tensor: &mut BaguaTensorPy, peer_rank: i32) {
         self.inner.send(&mut tensor.inner, peer_rank)
     }
@@ -85,6 +89,15 @@ impl BaguaSingleCommunicatorPy {
             &recv_counts.inner,
             &recv_displs.inner,
         )
+    }
+
+    pub fn allgather(&self, send_tensor: &mut BaguaTensorPy, recv_tensor: &mut BaguaTensorPy) {
+        self.inner
+            .allgather(&mut send_tensor.inner, &mut recv_tensor.inner)
+    }
+
+    pub fn barrier(&self) {
+        self.inner.barrier()
     }
 
     #[staticmethod]
