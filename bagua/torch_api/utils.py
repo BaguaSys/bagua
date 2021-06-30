@@ -222,6 +222,7 @@ def to_bagua_datatype(datatype):
     else:
         raise ValueError(f"unsupported data type {datatype}.")
 
+
 def to_bagua_reduce_op(torch_reduce_op):
     if torch_reduce_op == dist.ReduceOp.SUM:
         return 0

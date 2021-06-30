@@ -310,8 +310,8 @@ def reduce(tensor, dst, op=dist.ReduceOp.SUM,
             Defaults to None.
     """  # noqa: W293
 
-    assert tensor.device != torch.device("cpu"),\
-        "input tensor must be CUDA and dense"
+    assert tensor.device != torch.device(
+        "cpu"), "input tensor must be CUDA and dense"
 
     if comm is None:
         comm = _get_global_state().get_global_communicator()
