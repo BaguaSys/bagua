@@ -58,10 +58,10 @@ class BayesianOptimizer:
         )
 
     def tell(self, param_dict: dict, score: float) -> None:
+        param_v = [
+            float(param_dict[name]) for name, _ in self.param_declaration.items()  # noqa: E501
+        ]
         try:
-            param_v = [
-                float(param_dict[name]) for name, _ in self.param_declaration.items()
-            ]
             self.bayesian_optimizer.tell(param_v, -score)
         except ValueError as err:
             logging.warning(
