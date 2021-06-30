@@ -21,18 +21,20 @@ class BaguaBucket:
                 contiguous in memory.
         """
         self.tensors = tensors
+
+        if alignment > 1:
+            padding = sum(tensor.numel() for tensor in self.tensors) % alignment
+            if padding > 0:
+                padding = alignment - padding
+                pad_tensor = torch.zeros(padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device)
+                self.tensors.append(pad_tensor.to_bagua_tensor("padding_tensor_bucket_" + name))
+
+
         self.backend_tensor = None
         self.flatten = flatten
         if self.flatten:
             self._flatten_()
         self.name = name
-
-        if alignment > 1:
-            padding = sum(tensor.numel() for tensor in self.tensors) % alignment % alignment
-            if padding > 0:
-                padding = alignment - padding
-                pad_tensor = torch.zeros(padding)
-                self.tensors.append(pad_tensor.to_bagua_tensor("padding_tensor_bucket_" + name))
 
         self.backend_bucket = B.BaguaBucketPy(
             name,
