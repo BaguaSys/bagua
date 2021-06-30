@@ -59,7 +59,8 @@ class BayesianOptimizer:
 
     def tell(self, param_dict: dict, score: float) -> None:
         param_v = [
-            float(param_dict[name]) for name, _ in self.param_declaration.items()  # noqa: E501
+            float(param_dict[name]) 
+            for name, _ in self.param_declaration.items()  # noqa: E501
         ]
         try:
             self.bayesian_optimizer.tell(param_v, -score)
