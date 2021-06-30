@@ -147,10 +147,10 @@ class AutotuneService:
             {
                 "bucket_size_2p": IntParam(  # bucket_size = 2 ^ bucket_size_2p
                     val=13,
-                    space_dimension=[  # 0 ~ 2GB
+                    space_dimension=(  # 0 ~ 2GB
                         10,
                         31,
-                    ],
+                    ),
                 ),
                 "is_hierarchical_reduce": BoolParam(False),
             },
