@@ -1,4 +1,6 @@
 use bagua_core_internal::communicators::BaguaSingleCommunicator;
+use std::ffi::CStr;
+use std::os::raw::c_char;
 
 pub struct BaguaSingleCommunicatorC {
     inner: BaguaSingleCommunicator,
@@ -9,7 +11,7 @@ pub extern "C" fn bagua_single_communicator_c_create(
     nranks: usize,
     device_id: usize,
     stream_ptr: u64,
-    nccl_unique_id_str: &str,
+    nccl_unique_id_str: *const c_char,
 ) -> *mut BaguaSingleCommunicatorC {
     let obj = BaguaSingleCommunicatorC {
         inner: bagua_core_internal::communicators::BaguaSingleCommunicator::new(
@@ -17,7 +19,7 @@ pub extern "C" fn bagua_single_communicator_c_create(
             nranks,
             device_id,
             stream_ptr,
-            nccl_unique_id_str,
+            unsafe { CStr::from_ptr(nccl_unique_id_str).to_str().unwrap() },
         ),
     };
 

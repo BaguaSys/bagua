@@ -1,6 +1,6 @@
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::BaguaCommunicator;
-use crate::datatypes::{BaguaBucket, BaguaTensorRaw, TensorCompressionMethod};
+use crate::datatypes::{BaguaBucket, BaguaTensorRaw, RawBaguaTensor, TensorCompressionMethod};
 use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
 use crate::BaguaCommOpChannels;
 use std::sync::Arc;
@@ -35,19 +35,20 @@ impl CommOpTrait for CentralizedLowPrecisionSynchronous {
                     .expect("cannot compress tensor");
                 let temp_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id]
                     .try_pull(
-                        compressed_tensor.num_elem_allocated * compressed_tensor.dtype.bytes(),
+                        compressed_tensor.num_elements_allocated()
+                            * compressed_tensor.dtype().bytes(),
                     )
                     .expect("cannot allocate cuda memory");
                 let mut temp_tensor = BaguaTensorRaw {
                     ptr: temp_buf.ptr,
-                    num_elem_allocated: compressed_tensor.num_elem_allocated,
-                    dtype: compressed_tensor.dtype.clone(),
-                    num_elem: compressed_tensor.num_elem,
-                    device_id: compressed_tensor.device_id,
-                    pool_allocation: Some(temp_buf),
+                    num_elem_allocated: compressed_tensor.num_elements_allocated(),
+                    dtype: compressed_tensor.dtype().clone(),
+                    num_elem: compressed_tensor.num_elements(),
+                    device_id: compressed_tensor.device_id(),
+                    pool_allocations: vec![Arc::new(temp_buf)],
                 };
                 tracing::debug!("start alltoall");
-                c.alltoall(&compressed_tensor, &mut temp_tensor);
+                c.alltoall(compressed_tensor.as_ref(), &mut temp_tensor);
                 tracing::debug!("start decompress");
                 t.raw.decompress_from(
                     &self.compression_method,
@@ -72,7 +73,7 @@ impl CommOpTrait for CentralizedLowPrecisionSynchronous {
                     )
                     .expect("cannot compress tensor");
                 tracing::debug!("start allgather");
-                c.allgather(&compressed_tensor, &mut temp_tensor);
+                c.allgather(compressed_tensor.as_ref(), &mut temp_tensor);
                 tracing::debug!("start decompress");
                 t.raw.decompress_from(
                     &self.compression_method,

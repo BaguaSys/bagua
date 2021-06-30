@@ -1,6 +1,7 @@
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaHierarchicalCommunicator, NCCLGroupGuard};
-use crate::datatypes::{BaguaBucket, BaguaReductionOp, BaguaTensorRaw};
+use crate::datatypes::{BaguaBucket, BaguaReductionOp, BaguaTensorRaw, RawBaguaTensor};
+use crate::events::BaguaEventChannel;
 use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
 use crate::{BaguaCommOpChannels, BaguaScheduledCommOp};
 use parking_lot::Mutex;
@@ -53,7 +54,7 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
             dtype: t.raw.dtype,
             num_elem: t.raw.num_elem,
             device_id: t.raw.device_id,
-            pool_allocation: Some(peer_tensor_buffer),
+            pool_allocations: vec![Arc::new(peer_tensor_buffer)],
         };
 
         let peer_mode = &self.peer_selection_mode;
@@ -107,12 +108,13 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
         if step % comm_interval == 0 {
             // TODO: move this to .then() python API instead of hard code this in op
             let post_backward_comm_op = BaguaScheduledCommOp {
+                name: format!("post backward comm op for bucket {}", bucket.name),
                 bucket: bucket.clone(),
                 ops: vec![Arc::new(DecentralizedFullPrecisionSynchronousPostStep {
                     communicator: self.communicator.clone(),
                     result_weight: peer_tensor,
                 })],
-                event_channel: Default::default(),
+                event_channel: BaguaEventChannel::new("decentralized_post_backward"),
             };
 
             comm_op_channels

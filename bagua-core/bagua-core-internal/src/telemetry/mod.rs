@@ -27,7 +27,7 @@ pub struct BaguaCommCoreTelemetry {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TelemetryPayload {
-    tensor_ready_order: Vec<u64>,
+    tensor_ready_order: Vec<String>,
     communication_time_ms: u64,
 }
 
@@ -55,8 +55,10 @@ impl BaguaCommCoreTelemetry {
         }
     }
 
-    pub fn new_tensor_ready(&mut self, tensor_id: u64) {
-        self.current_payload.tensor_ready_order.push(tensor_id);
+    pub fn new_tensor_ready(&mut self, tensor_name: &str) {
+        self.current_payload
+            .tensor_ready_order
+            .push(tensor_name.to_string());
     }
 
     pub fn push_payload_and_clear(&mut self) -> Result<(), BaguaCoreError> {
