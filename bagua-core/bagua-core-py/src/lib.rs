@@ -1,8 +1,12 @@
 #![allow(clippy::needless_return)]
 
 use bagua_core_internal::communicators::BaguaSingleCommunicator;
-use bagua_core_internal::datatypes::{BaguaBucket, BaguaTensor, BaguaTensorDtype};
+use bagua_core_internal::datatypes::{
+    BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype,
+};
 use bagua_core_internal::BaguaCommBackend;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use numpy::{IntoPyArray, PyArray1};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -47,16 +51,21 @@ impl BaguaSingleCommunicatorPy {
         self.inner.device_id()
     }
 
-    pub fn allreduce(&self, tensor: &mut BaguaTensorPy) {
-        self.inner.allreduce(&mut tensor.inner)
+    pub fn allreduce(&self, tensor: &mut BaguaTensorPy, op: u8) {
+        self.inner
+            .allreduce(&mut tensor.inner, BaguaReductionOp::from_u8(op).unwrap())
     }
 
     pub fn broadcast(&self, tensor: &mut BaguaTensorPy, root_rank: i32) {
         self.inner.broadcast(&mut tensor.inner, root_rank)
     }
 
-    pub fn reduce(&self, tensor: &mut BaguaTensorPy, root_rank: i32) {
-        self.inner.reduce(&mut tensor.inner, root_rank)
+    pub fn reduce(&self, tensor: &mut BaguaTensorPy, root_rank: i32, op: u8) {
+        self.inner.reduce(
+            &mut tensor.inner,
+            root_rank,
+            BaguaReductionOp::from_u8(op).unwrap(),
+        )
     }
 
     pub fn send(&self, tensor: &mut BaguaTensorPy, peer_rank: i32) {

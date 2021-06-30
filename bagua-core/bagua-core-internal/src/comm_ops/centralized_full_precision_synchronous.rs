@@ -1,6 +1,6 @@
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::BaguaCommunicator;
-use crate::datatypes::{BaguaBucket, BaguaTensorRaw};
+use crate::datatypes::{BaguaBucket, BaguaReductionOp, BaguaTensorRaw};
 use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
 use crate::BaguaCommOpChannels;
 use std::sync::Arc;
@@ -54,7 +54,7 @@ impl CommOpTrait for CentralizedFullPrecisionSynchronous {
                     tracing::debug!("internode communication done")
                 } else {
                     tracing::debug!("start allreduce");
-                    c.allreduce(&mut t.raw);
+                    c.allreduce(&mut t.raw, BaguaReductionOp::SUM);
                     tracing::debug!("internode communication done");
                     if self.average {
                         t.raw.divide_inplace(stream_ptr, c.nranks as f32);

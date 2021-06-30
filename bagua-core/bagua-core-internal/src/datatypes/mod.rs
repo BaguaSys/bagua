@@ -10,9 +10,26 @@ use crate::resource_pool::{CudaMemory, CUDA_DEVICE_MEMORY_POOL};
 use crate::telemetry::TELEMETRY;
 use crate::{kernels, BaguaCoreError};
 use itertools::Itertools;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use parking_lot::{Mutex, RwLock};
 use sized_object_pool::DynamicPoolItem;
 use std::sync::Arc;
+
+// must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
+#[derive(Clone, Copy, Debug, PartialEq, FromPrimitive)]
+pub enum BaguaReductionOp {
+    SUM,
+    PROD,
+    MIN,
+    MAX,
+    LOR,
+    LAND,
+    LXOR,
+    BOR,
+    BAND,
+    BXOR,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BaguaTensorDtype {
