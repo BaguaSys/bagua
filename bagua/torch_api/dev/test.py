@@ -107,14 +107,14 @@ if args.cuda:
     # Move model to GPU.
     model.cuda()
 
-optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
+# optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
 # optimizer = bagua.contrib.FusedOptimizer(optimizer)
 # optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
-# optimizer = OnebitAdamOptimizer(model.parameters())
+optimizer = OnebitAdamOptimizer(model.parameters())
 
-model.with_bagua([optimizer], algorithm=GradientAllReduceAlgorithm())
+# model.with_bagua([optimizer], algorithm=GradientAllReduceAlgorithm())
 # model.with_bagua([optimizer], algorithm=ByteGradAlgorithm())
-# model.with_bagua([optimizer], algorithm=OnebitAdamAlgorithm(optimizer, 30))
+model.with_bagua([optimizer], algorithm=OnebitAdamAlgorithm(optimizer, 30))
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)

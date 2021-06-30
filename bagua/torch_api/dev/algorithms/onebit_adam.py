@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
+from bagua.torch_api.communication import _get_global_state
 from bagua.torch_api.dev.bucket import BaguaBucket
+from bagua.torch_api.dev.tensor import BaguaTensor
+import bagua
 from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.algorithms import Algorithm
 from torch.optim.optimizer import Optimizer
 import torch
 import math
+from typing import List
 
 class OnebitAdamAlgorithm(Algorithm):
     def __init__(self, onebit_optimizer: Optimizer, warmup_steps: int, hierarchical_reduce: bool=True):
@@ -44,6 +48,25 @@ class OnebitAdamAlgorithm(Algorithm):
 
         return tensor_groups
 
+    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+        """
+        Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
+        The default implementation follows the suggestion to do the bucketing.
+
+        Args:
+            tensors: Bagua tensors grouped in different
+                lists, representing Bagua's suggestion on how to bucketing the
+                tensors.
+
+        Returns:
+            A list of Bagua buckets.
+        """
+        bagua_buckets = []
+        for idx, bucket in enumerate(tensors):
+            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=bagua.torch_api.get_world_size())
+            bagua_buckets.append(bagua_bucket)
+        return bagua_buckets
+
     def init_operations(
             self,
             bagua_module: BaguaModule,
@@ -60,9 +83,10 @@ class OnebitAdamAlgorithm(Algorithm):
         else:
             def calculate_momentum(*args):
                 # FIXME: with global communication stream?
-                beta1, beta2  = self.optimizer.param_groups[0]['betas']
-                for tensor in bucket.tensors:
-                    tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
+                with torch.cuda.stream(_get_global_state().get_communication_stream()):
+                    beta1, beta2  = self.optimizer.param_groups[0]['betas']
+                    for tensor in bucket.tensors:
+                        tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
 
             bucket.backend_bucket.append_python_op(calculate_momentum)
             bucket.backend_bucket.append_centralized_synchronous_op(

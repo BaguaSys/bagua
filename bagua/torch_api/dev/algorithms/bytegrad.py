@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 from bagua.torch_api.dev.bucket import BaguaBucket
+from bagua.torch_api.dev.tensor import BaguaTensor
 from bagua.torch_api.dev.distributed_dev import BaguaModule
 from bagua.torch_api.dev.algorithms import Algorithm
+import bagua
+from typing import List
 
 class ByteGradAlgorithm(Algorithm):
     def __init__(self, average: bool=True):
@@ -16,6 +19,25 @@ class ByteGradAlgorithm(Algorithm):
                 Otherwise, they are summed.
         """
         self.average = average
+
+    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+        """
+        Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
+        The default implementation follows the suggestion to do the bucketing.
+
+        Args:
+            tensors: Bagua tensors grouped in different
+                lists, representing Bagua's suggestion on how to bucketing the
+                tensors.
+
+        Returns:
+            A list of Bagua buckets.
+        """
+        bagua_buckets = []
+        for idx, bucket in enumerate(tensors):
+            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=bagua.torch_api.get_world_size()) # TODO: check duplicated names
+            bagua_buckets.append(bagua_bucket)
+        return bagua_buckets
 
     def init_operations(
             self,

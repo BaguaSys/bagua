@@ -9,7 +9,7 @@ from bagua.torch_api.utils import check_contiguous
 
 
 class BaguaBucket:
-    def __init__(self, tensors: List[BaguaTensor], name: str, flatten: bool) -> None:
+    def __init__(self, tensors: List[BaguaTensor], name: str, flatten: bool, alignment: int=1) -> None:
         """
         Create a Bagua bucket with a list of Bagua tensors.
 
@@ -26,6 +26,13 @@ class BaguaBucket:
         if self.flatten:
             self._flatten_()
         self.name = name
+
+        if alignment > 1:
+            padding = sum(tensor.numel() for tensor in self.tensors) % alignment % alignment
+            if padding > 0:
+                padding = alignment - padding
+                pad_tensor = torch.zeros(padding)
+                self.tensors.append(pad_tensor.to_bagua_tensor("padding_tensor_bucket_" + name))
 
         self.backend_bucket = B.BaguaBucketPy(
             name,
