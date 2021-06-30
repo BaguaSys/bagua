@@ -18,7 +18,7 @@ from .env import (
 )
 from ..service.autotune_service import AutotuneClient
 from .exceptions import RepeatedInitializationError
-from .utils import flatten, unflatten, to_bagua_datatype
+from .utils import flatten, unflatten, to_bagua_datatype, to_bagua_reduce_op
 from ..bagua_define import BaguaHyperparameter
 
 _global_state = None
@@ -301,10 +301,48 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
     torch.cuda.synchronize()
 
 
+def reduce(tensor, dst, op=dist.ReduceOp.SUM,
+           comm: B.BaguaSingleCommunicatorPy = None):
+    r"""Reduces the tensor across all processes.
+
+    Only the process whit rank `dst` is going to receive the final result.
+
+    Args:
+        tensor (torch.Tensor): Input and output of the collective. The
+            function operates in-place.
+        dst (int): Destination rank
+        op (optional): one of the values from `torch.distributed.ReduceOp`
+            enum. Specifies an operation used for element-wise reductions.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """  # noqa: W293
+
+    assert tensor.device != torch.device(
+        "cpu"), "input tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = _get_global_state().get_global_communicator()
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        b_tensor = B.BaguaTensorPy(
+            ptr=tensor.data_ptr(),
+            num_elem=tensor.numel(),
+            num_elem_allocated=tensor.numel(),
+            dtype=to_bagua_datatype(tensor.dtype),
+            device_id=tensor.device.index,
+        )
+        comm.reduce(b_tensor, dst, to_bagua_reduce_op(op))
+
+    torch.cuda.synchronize()
+
 def allreduce_coalesced(
     tensors,
+    op=dist.ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
-    average: bool = True,
 ):
     for tensor in tensors:
         assert tensor.device != torch.device(
@@ -326,10 +364,7 @@ def allreduce_coalesced(
             dtype=to_bagua_datatype(coalesced.dtype),
             device_id=coalesced.device.index,
         )
-        comm.allreduce(b_coalesced)
-
-        if average:
-            coalesced /= comm.nranks()
+        comm.allreduce(b_coalesced, to_bagua_reduce_op(op))
 
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
@@ -340,7 +375,7 @@ def allreduce_coalesced(
 
 def allreduce(
     tensor,
-    average: bool = True,
+    op=dist.ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Reduces the tensor data across all machines in such a way that all get
@@ -350,8 +385,7 @@ def allreduce(
     Args:
         tensor (torch.Tensor): Input and output of the collective. The
             function operates in-place.
-        average (bool, optional): Average the reduced tensor or
-            not, Defaults to True.
+        op (optional): one of the values from `torch.distributed.ReduceOp` enum. Specifies an operation used for element-wise reductions.
         comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
             work on. If None the global bagua communicator will be used.
             Defaults to None.
@@ -397,10 +431,7 @@ def allreduce(
             dtype=to_bagua_datatype(tensor.dtype),
             device_id=tensor.device.index,
         )
-        comm.allreduce(b_tensor)
-
-        if average:
-            tensor /= comm.nranks()
+        comm.allreduce(b_tensor, to_bagua_reduce_op(op))
 
     # TODO: remove
     torch.cuda.synchronize()

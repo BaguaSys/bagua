@@ -58,10 +58,11 @@ class BayesianOptimizer:
         )
 
     def tell(self, param_dict: dict, score: float) -> None:
+        param_v = [
+            float(param_dict[name])
+            for name, _ in self.param_declaration.items()  # noqa: E501
+        ]
         try:
-            param_v = [
-                float(param_dict[name]) for name, _ in self.param_declaration.items()
-            ]
             self.bayesian_optimizer.tell(param_v, -score)
         except ValueError as err:
             logging.warning(
@@ -165,31 +166,31 @@ def autotune_system_hyperparameters(host_list, nproc_per_node, ssh_port):
         {
             "NCCL_MIN_NCHANNELS": IntParam(
                 val=0,  # 0 means no set
-                space_dimension=[
+                space_dimension=(
                     0,
                     12,
-                ],
+                ),
             ),
             "NCCL_SOCKET_NTHREADS": IntParam(
                 val=0,  # 0 means no set
-                space_dimension=[
+                space_dimension=(
                     0,
                     8,
-                ],
+                ),
             ),
             "NCCL_NSOCKS_PERTHREAD": IntParam(
                 val=0,  # 0 means no set
-                space_dimension=[
+                space_dimension=(
                     0,
                     8,
-                ],
+                ),
             ),
             "nccl_buffsize_2p": IntParam(
                 val=0,  # power of 2, 0 means no set
-                space_dimension=[
+                space_dimension=(
                     0,
                     26,
-                ],
+                ),
             ),
         }
     )

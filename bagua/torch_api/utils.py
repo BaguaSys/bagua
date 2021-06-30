@@ -212,6 +212,25 @@ def to_bagua_datatype(datatype):
         raise ValueError(f"unsupported data type {datatype}.")
 
 
+def to_bagua_reduce_op(torch_reduce_op):
+    if torch_reduce_op == dist.ReduceOp.SUM:
+        return 0
+    elif torch_reduce_op == dist.ReduceOp.PRODUCT:
+        return 1
+    elif torch_reduce_op == dist.ReduceOp.MIN:
+        return 2
+    elif torch_reduce_op == dist.ReduceOp.MAX:
+        return 3
+    elif torch_reduce_op == dist.ReduceOp.BOR:
+        return 7
+    elif torch_reduce_op == dist.ReduceOp.BAND:
+        return 8
+    elif torch_reduce_op == dist.ReduceOp.BXOR:
+        return 9
+    else:
+        raise ValueError(f"unsupported reduce op {torch_reduce_op}.")
+
+
 def average_by_removing_extreme_values(raw_score_list):
     score_list = np.asarray(raw_score_list)
 
