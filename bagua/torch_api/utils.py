@@ -6,19 +6,8 @@ import numpy as np
 
 LOGGER = logging.getLogger(__name__)
 
-try:
-    import apex
-
-    flatten, unflatten = (
-        apex.parallel.distributed.flatten,
-        apex.parallel.distributed.unflatten,
-    )
-except ImportError:
-    LOGGER.warning(
-        "Warning:  apex was not installed. Falling back to Python flatten and unflatten."
-    )
-    flatten = torch._utils._flatten_dense_tensors
-    unflatten = torch._utils._unflatten_dense_tensors
+flatten = torch._utils._flatten_dense_tensors
+unflatten = torch._utils._unflatten_dense_tensors
 
 
 def apply_flattened_call(bucket, call, extra_args=None):
