@@ -4,7 +4,7 @@ from typing import List
 
 import bagua_core as B
 import torch
-from bagua.torch_api.dev.tensor import BaguaTensor
+from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.utils import check_contiguous
 
 

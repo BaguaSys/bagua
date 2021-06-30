@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from bagua.torch_api.dev.bucket import BaguaBucket
-from bagua.torch_api.dev.distributed_dev import BaguaModule
-from bagua.torch_api.dev.algorithms import Algorithm
+from bagua.torch_api.bucket import BaguaBucket
+from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.algorithms import Algorithm
 
 class GradientAllReduceAlgorithm(Algorithm):
     def __init__(self, hierarchical_reduce: bool=False, average: bool = True):

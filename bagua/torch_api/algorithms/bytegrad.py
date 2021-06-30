@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from bagua.torch_api.dev.bucket import BaguaBucket
-from bagua.torch_api.dev.tensor import BaguaTensor
-from bagua.torch_api.dev.distributed_dev import BaguaModule
-from bagua.torch_api.dev.algorithms import Algorithm
-import bagua
+from bagua.torch_api.bucket import BaguaBucket
+from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api import get_world_size
 from typing import List
 
 class ByteGradAlgorithm(Algorithm):
@@ -35,7 +35,7 @@ class ByteGradAlgorithm(Algorithm):
         """
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=bagua.torch_api.get_world_size()) # TODO: check duplicated names
+            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=get_world_size()) # TODO: check duplicated names
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 

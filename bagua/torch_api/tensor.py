@@ -63,16 +63,6 @@ class BaguaTensor:
             self._bagua_ready_event.cuda_event,
         )
 
-    # FIXME: what is this?
-    def bagua_mark_communication_ready_eager(self):
-        """
-        Mark a Bagua tensor ready eagerly for scheduled operations execution.
-        """
-        self._bagua_backend.mark_communication_ready(
-            self._bagua_backend_tensor,
-            self._bagua_ready_event.cuda_event,
-        )
-
     def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         """
         Sets the underlying storage using an existing torch.Storage.

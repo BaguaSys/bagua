@@ -29,7 +29,7 @@ class FusedOptimizer(torch.optim.Optimizer):
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
         >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer)
-        >>> model, optimizer = bagua.bagua_init(model, optimizer, ...)
+        >>> model = model.with_bagua([optimizer], GradientAllReduceAlgorithm())
 
         To use alone or with :class:`torch.nn.parallel.DistributedDataParallel`, set `do_flatten` to be ``True``:
 

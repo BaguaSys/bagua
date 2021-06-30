@@ -1,18 +1,8 @@
-from bagua.torch_api.dev.algorithms.bytegrad import ByteGradAlgorithm
-from bagua.torch_api.dev.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
-import bagua.torch_api.dev.tensor
-import bagua.torch_api.dev.distributed_dev
-from bagua.torch_api.dev.algorithms.onebit_adam import OnebitAdamAlgorithm, OnebitAdamOptimizer 
-
-# FIXME: move to appropriate places
-import gorilla
-patches = gorilla.find_patches([
-    bagua.torch_api.dev.tensor,
-    bagua.torch_api.dev.distributed_dev,
-])
-for patch in patches:
-    gorilla.apply(patch)
-
+from bagua.torch_api.algorithms.bytegrad import ByteGradAlgorithm
+from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
+import bagua.torch_api.tensor
+import bagua.torch_api.distributed
+from bagua.torch_api.algorithms.onebit_adam import OnebitAdamAlgorithm, OnebitAdamOptimizer
 
 import argparse
 import os
@@ -321,7 +311,7 @@ def main_worker(args):
 
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
-            train_sampler.set_epoch(epoch)
+            train_sampler.set_epoch(epoch) # pytype: disable=attribute-error
 
         # train for one epoch
         train(train_loader, model, criterion, optimizer, scaler, epoch, args)

@@ -4,20 +4,12 @@ You can compare the performance with the horovod script directly.
 """
 
 import argparse
-from bagua.torch_api.dev.algorithms.bytegrad import ByteGradAlgorithm
-from bagua.torch_api.dev.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
-import bagua.torch_api.dev.tensor
-import bagua.torch_api.dev.distributed_dev
-from bagua.torch_api.dev.algorithms.onebit_adam import OnebitAdamAlgorithm, OnebitAdamOptimizer 
-
-# FIXME: move to appropriate places
-import gorilla
-patches = gorilla.find_patches([
-    bagua.torch_api.dev.tensor,
-    bagua.torch_api.dev.distributed_dev,
-])
-for patch in patches:
-    gorilla.apply(patch)
+from bagua.torch_api.algorithms.bytegrad import ByteGradAlgorithm
+from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
+from bagua.torch_api.algorithms.decentralized import DecentralizedAlgorithm
+import bagua.torch_api.tensor
+import bagua.torch_api.distributed
+from bagua.torch_api.algorithms.onebit_adam import OnebitAdamAlgorithm, OnebitAdamOptimizer
 
 import timeit
 import torch.backends.cudnn as cudnn
@@ -107,14 +99,15 @@ if args.cuda:
     # Move model to GPU.
     model.cuda()
 
-# optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
+optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
 # optimizer = bagua.contrib.FusedOptimizer(optimizer)
 # optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
-optimizer = OnebitAdamOptimizer(model.parameters())
+# optimizer = OnebitAdamOptimizer(model.parameters())
 
 # model.with_bagua([optimizer], algorithm=GradientAllReduceAlgorithm())
 # model.with_bagua([optimizer], algorithm=ByteGradAlgorithm())
-model.with_bagua([optimizer], algorithm=OnebitAdamAlgorithm(optimizer, 30))
+# model.with_bagua([optimizer], algorithm=OnebitAdamAlgorithm(optimizer, 30))
+model.with_bagua([optimizer], algorithm=DecentralizedAlgorithm())
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)

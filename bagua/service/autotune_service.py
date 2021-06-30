@@ -1,7 +1,6 @@
 import copy
 import csv
 import requests
-import socket
 import os
 import time
 import threading
@@ -9,7 +8,6 @@ import json
 import logging
 import math
 import multiprocessing
-import flask
 from flask import Flask, request, session
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 import prometheus_client
@@ -18,14 +16,11 @@ from bagua.autotune import BayesianOptimizer, IntParam, BoolParam
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
-    DistributedAlgorithm,
     BaguaHyperparameter,
 )
 import numpy as np
-import enum
 from typing import Dict, List, Tuple
 from collections import OrderedDict
-from bagua.torch_api.utils import average_by_removing_extreme_values
 
 
 class NpEncoder(json.JSONEncoder):
@@ -283,7 +278,6 @@ class AutotuneService:
             iter_per_seconds: float = req["iter_per_seconds"]
             denoised_iter_per_seconds: float = req["denoised_iter_per_seconds"]
             hyperparameters = req["hyperparameters"]
-            distributed_algorithm = hyperparameters["distributed_algorithm"]
 
             if not self.is_initialized:
                 return "Service not ready for ask_hyperparameters!", 405

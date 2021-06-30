@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 from bagua.torch_api.communication import _get_global_state
-from bagua.torch_api.dev.bucket import BaguaBucket
-from bagua.torch_api.dev.tensor import BaguaTensor
-import bagua
-from bagua.torch_api.dev.distributed_dev import BaguaModule
-from bagua.torch_api.dev.algorithms import Algorithm
+from bagua.torch_api.bucket import BaguaBucket
+from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api import get_world_size
+from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.algorithms import Algorithm
 from torch.optim.optimizer import Optimizer
 import torch
 import math
@@ -33,9 +33,8 @@ class OnebitAdamAlgorithm(Algorithm):
         for name, param in parameters:
            param._one_bit_name = name
 
-        tensor_groups = []            
+        tensors = []
         for param_group, m_group in zip(self.optimizer.params_in_group, self.optimizer.exp_avgs_in_group):
-            group = []
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name)
@@ -43,10 +42,9 @@ class OnebitAdamAlgorithm(Algorithm):
                     registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
                     registered_tensor._one_bit_grad = param.bagua_ensure_grad()
                     param._one_bit_momentum = registered_tensor
-                group.append(registered_tensor)
-            tensor_groups.append(group)
+                tensors.append(registered_tensor)
 
-        return tensor_groups
+        return tensors
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
         """
@@ -63,7 +61,7 @@ class OnebitAdamAlgorithm(Algorithm):
         """
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=bagua.torch_api.get_world_size())
+            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=get_world_size())
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
@@ -82,7 +80,6 @@ class OnebitAdamAlgorithm(Algorithm):
             )
         else:
             def calculate_momentum(*args):
-                # FIXME: with global communication stream?
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
                     beta1, beta2  = self.optimizer.param_groups[0]['betas']
                     for tensor in bucket.tensors:
@@ -148,9 +145,6 @@ class OnebitAdamOptimizer(Optimizer):
                 exp_avgs.append(state['exp_avg'])
             self.params_in_group.append(params_with_grad)
             self.exp_avgs_in_group.append(exp_avgs)
-
-    def __setstate__(self, state):
-        super(OnebitAdam, self).__setstate__(state)
 
     def step(self, closure=None):
         ## Here we assume grad or state["exp_avg"] have already been updated and averaged.

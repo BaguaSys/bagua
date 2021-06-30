@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-from bagua.torch_api.dev.bucket import BaguaBucket
-from bagua.torch_api.dev.tensor import BaguaTensor
-from bagua.torch_api.dev.distributed_dev import BaguaModule
-from bagua.torch_api.dev.algorithms import Algorithm
+from bagua.torch_api.bucket import BaguaBucket
+from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.algorithms import Algorithm
 from typing import List
 import torch
 
 
-class DecentralizedAllReduceAlgorithm(Algorithm):
+class DecentralizedAlgorithm(Algorithm):
     def __init__(
         self,
         peer_selection_mode: str = "all",
@@ -26,25 +26,22 @@ class DecentralizedAllReduceAlgorithm(Algorithm):
         self.peer_selection_mode = peer_selection_mode
         self.compression = compression
         self.communication_interval = communication_interval
+        self.tensor_groups = []
 
-    def init_tensors(self, bagua_module: BaguaModule) -> List[List[BaguaTensor]]:
-
-        optimizers = bagua_module.bagua_optimizers
+    def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module._bagua_build_params()
-        tensor_groups = [
-            [param.to_bagua_tensor(name) for name, param in parameters.__reversed__()]
-        ]
-        # # TODO: consider optimizer groups
-        # for name, param in reversed(list(bagua_module.named_parameters())):
-        #     tensor = param.bagua_ensure_grad().to_bagua_tensor(name) # TODO: check duplicated names
-        #     tensor_groups[0].append(tensor)
-        return tensor_groups
+        self.tensors = [param.to_bagua_tensor(name) for name, param in parameters.__reversed__()]
+        return self.tensors
+
+    def init_pre_forward_hook(self, bagua_module: BaguaModule):
+        def hook():
+            for tensor in self.tensors:
+                tensor.bagua_mark_communication_ready()
+        return hook
 
     def init_backward_hook(self, bagua_module: BaguaModule):
-        def hook(name):
-            bagua_weight = bagua_module._bagua_tensor_map[name]
-            bagua_weight.bagua_mark_communication_ready_eager()
-
+        def hook(parameter_name, parameter):
+            return
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
