@@ -44,5 +44,7 @@ RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://
     make -j$(nproc) install && \
     rm -rf /var/tmp/hwloc* && cd -
 
+RUN mkdir /bagua && git clone https://github.com/BaguaSys/examples.git /bagua/examples
+
 COPY ./ /var/tmp/bagua
 RUN cd /var/tmp/bagua && python3 -m pip install . && cd - && rm -rf /var/tmp/bagua
