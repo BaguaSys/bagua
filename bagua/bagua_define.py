@@ -3,7 +3,7 @@ import json
 from typing import List
 import sys
 if sys.version_info >= (3, 8):
-    from typing import TypedDict  # pylint: disable=no-name-in-module
+    from typing import TypedDict  # pytype: disable=not-supported-yet pylint: disable=no-name-in-module
 else:
     from typing_extensions import TypedDict
 from pydantic import BaseModel
