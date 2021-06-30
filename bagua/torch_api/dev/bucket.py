@@ -30,8 +30,6 @@ class BaguaBucket:
         self.backend_bucket = B.BaguaBucketPy(
             name,
             [tensor._bagua_backend_tensor for tensor in tensors],
-            inplace=self.flatten,
-            align_bytes=1,  # TODO: deprecate align_bytes
         )
 
         for tensor in self.tensors:
@@ -70,18 +68,3 @@ class BaguaBucket:
             True if the bucket's tensors are contiguous in memory.
         """
         return check_contiguous(self.tensors)
-
-    def check_consistence(self) -> bool:
-        """
-        Check the consistency between the bagua bucket and the underlying tensors..
-
-        Returns:
-            True if consistent. Return False if not, and this generally indicates
-            incorrectness in the training workload.
-        """
-        for tensor in self.tensors:
-            if not tensor.check_consistence():
-                return False
-        if self.flatten and not self.check_flatten:
-            return False
-        return True

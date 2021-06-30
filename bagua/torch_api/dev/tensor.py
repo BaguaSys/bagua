@@ -6,11 +6,15 @@ from bagua.torch_api.utils import to_bagua_datatype
 import gorilla
 
 
-@gorilla.patches(torch.Tensor)
+@gorilla.patches(torch.Tensor, filter=lambda name, obj: "bagua" in name)
 class BaguaTensor:
     """
     This class patch torch.Tensor with additional methods.
     """
+    def _bagua_sanity_check(self):
+        assert self._bagua_backend_tensor.data_ptr() == self.data_ptr()
+        assert self._bagua_backend_tensor.num_elements() == self.numel()
+        assert self._bagua_backend_tensor.num_elements_allocated() == self.numel()
 
     def to_bagua_tensor(self, name: str):
         """
@@ -25,12 +29,10 @@ class BaguaTensor:
         """
         self.bagua_tensor_name = name
         self._bagua_backend_tensor = B.BaguaTensorPy(
-            ptr=self.data_ptr(),
-            num_elem=self.numel(),
-            num_elem_allocated=self.numel(),  # TODO: deprecate num_elem_allocated
-            dtype=to_bagua_datatype(self.dtype),
-            device_id=self.device.index,
+            name=self.bagua_tensor_name,
+            torch_tensor=self,
         )
+        self._bagua_sanity_check()
         self._bagua_backend = _get_global_state().get_backend()
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
@@ -81,18 +83,3 @@ class BaguaTensor:
         """
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
-        self._bagua_backend_tensor.reset_ptr(self.data_ptr())
-
-    def check_consistence(self) -> bool:
-        """
-        Check the consistency between the bagua tensor and the underlying CUDA
-        backend tensor.
-
-        Returns:
-            True if consistent. Return False if not, and this generally indicates
-            incorrectness in the training workload.
-        """
-        return (
-            self._bagua_backend_tensor.ptr() == self.data_ptr()
-            and self._bagua_backend_tensor.num_elem() == self.numel()
-        )

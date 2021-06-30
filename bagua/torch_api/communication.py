@@ -262,6 +262,7 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
 
+    # TODO: remove
     torch.cuda.synchronize()
 
 
@@ -291,14 +292,12 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
 
     with torch.cuda.stream(comm.cuda_stream):
         b_tensor = B.BaguaTensorPy(
-            ptr=tensor.data_ptr(),
-            num_elem=tensor.numel(),
-            num_elem_allocated=tensor.numel(),
-            dtype=to_bagua_datatype(tensor.dtype),
-            device_id=tensor.device.index,
+            name="",
+            torch_tensor=tensor,
         )
         comm.broadcast(b_tensor, root)
 
+    # TODO: remove
     torch.cuda.synchronize()
 
 
@@ -335,6 +334,7 @@ def allreduce_coalesced(
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
 
+    # TODO: remove
     torch.cuda.synchronize()
 
 
@@ -402,4 +402,5 @@ def allreduce(
         if average:
             tensor /= comm.nranks()
 
+    # TODO: remove
     torch.cuda.synchronize()
