@@ -279,7 +279,7 @@ pub trait RawBaguaTensor: Debug {
                             * compressed_buffer.dtype().bytes(),
                         chunk_size as _,
                         n_chunks as _,
-                        self.num_elements_allocated() as _,
+                        self.data_ptr() as _,
                         stream_ptr as _,
                     );
                 },
@@ -394,7 +394,7 @@ impl TorchTensorRaw {
         unsafe {
             (self.extract_torch_c_data().storage_.storage_impl_.target_ as *const StorageImpl)
                 .as_ref()
-                .expect("torch c data has not storage")
+                .expect("torch c data has no storage")
         }
     }
 }
