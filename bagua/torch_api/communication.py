@@ -18,7 +18,7 @@ from .env import (
 )
 from ..service.autotune_service import AutotuneClient
 from .exceptions import RepeatedInitializationError
-from .utils import flatten, unflatten, to_bagua_datatype
+from .utils import flatten, unflatten, to_bagua_datatype, to_bagua_reduce_op
 from ..bagua_define import BaguaHyperparameter
 
 _global_state = None
@@ -292,7 +292,9 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
 
     torch.cuda.synchronize()
 
-def reduce(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
+
+def reduce(tensor, dst, op=dist.ReduceOp.SUM,
+           comm: B.BaguaSingleCommunicatorPy = None):
     r"""Reduces the tensor across all processes.
 
     Only the process whit rank `dst` is going to receive the final result.
@@ -301,13 +303,15 @@ def reduce(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy 
         tensor (torch.Tensor): Input and output of the collective. The
             function operates in-place.
         dst (int): Destination rank
-        op (optional): one of the values from `torch.distributed.ReduceOp` enum. Specifies an operation used for element-wise reductions.
+        op (optional): one of the values from `torch.distributed.ReduceOp`
+            enum. Specifies an operation used for element-wise reductions.
         comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
             work on. If None the global bagua communicator will be used.
             Defaults to None.
     """  # noqa: W293
 
-    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+    assert tensor.device != torch.device("cpu"),\
+        "input tensor must be CUDA and dense"
 
     if comm is None:
         comm = _get_global_state().get_global_communicator()
