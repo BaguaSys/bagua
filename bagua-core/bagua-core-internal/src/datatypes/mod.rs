@@ -8,12 +8,15 @@ use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaSingleCommunicator};
 use crate::resource_pool::{CudaMemory, CUDA_DEVICE_MEMORY_POOL};
 use crate::telemetry::TELEMETRY;
+use crate::torch_ffi::root::c10::{DeviceType, StorageImpl, TensorImpl};
 use crate::{kernels, BaguaCoreError};
 use itertools::Itertools;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use parking_lot::{Mutex, RwLock};
 use sized_object_pool::DynamicPoolItem;
+use std::ffi::c_void;
+use std::fmt::Debug;
 use std::sync::Arc;
 
 // must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
@@ -63,13 +66,390 @@ impl BaguaTensorDtype {
 }
 
 #[derive(Debug)]
+pub struct TorchTensorRaw {
+    pub torch_tensor_cdata: u64,
+    pub dtype: BaguaTensorDtype,
+}
+
+#[derive(Debug)]
 pub struct BaguaTensorRaw {
     pub ptr: u64,
     pub num_elem_allocated: usize,
     pub dtype: BaguaTensorDtype,
     pub num_elem: usize,
     pub device_id: usize,
-    pub pool_allocation: Option<DynamicPoolItem<CudaMemory>>,
+    pub pool_allocations: Vec<Arc<DynamicPoolItem<CudaMemory>>>,
+}
+
+pub trait RawBaguaTensor: Debug {
+    fn data_ptr(&self) -> u64;
+    fn num_elements(&self) -> usize;
+    fn num_elements_allocated(&self) -> usize;
+    fn device_id(&self) -> usize;
+    fn dtype(&self) -> BaguaTensorDtype;
+
+    fn divide_inplace(&mut self, stream_ptr: u64, divide_factor: f32) {
+        let tensor_ptr = self.data_ptr();
+        let total_num_elem = self.num_elements();
+        unsafe {
+            match self.dtype() {
+                BaguaTensorDtype::F32 => {
+                    kernels::divide_inplace_f32_host(
+                        tensor_ptr as _,
+                        divide_factor as f32,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::F16 => {
+                    kernels::divide_inplace_f16_host(
+                        tensor_ptr as _,
+                        divide_factor as f32,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::U8 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
+                    unimplemented!()
+                }
+            }
+        }
+    }
+
+    fn clone_from(&mut self, other: &dyn RawBaguaTensor, stream_ptr: u64) {
+        assert_eq!(self.dtype(), other.dtype());
+        assert_eq!(self.num_elements(), other.num_elements());
+        unsafe {
+            let src = other.data_ptr();
+            let dst = self.data_ptr();
+            let count = self.num_elements() * self.dtype().bytes();
+            cpp::cpp!([stream_ptr as "cudaStream_t", dst as "void *", src as "const void *", count as "size_t"]
+            {
+            CUDACHECK(cudaMemcpyAsync( dst, src , count, cudaMemcpyDeviceToDevice, stream_ptr));
+            });
+        }
+    }
+
+    fn average_inplace(&mut self, other: &dyn RawBaguaTensor, stream_ptr: u64) {
+        assert_eq!(self.dtype(), other.dtype());
+        assert_eq!(self.num_elements(), other.num_elements());
+        let tensor_ptr = self.data_ptr();
+        let total_num_elem = self.num_elements();
+        unsafe {
+            match self.dtype() {
+                BaguaTensorDtype::F32 => {
+                    kernels::average_inplace_f32_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::F16 => {
+                    kernels::average_inplace_f16_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::U8 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
+                    unimplemented!()
+                }
+            }
+        }
+    }
+
+    fn compress(
+        &self,
+        compression: &TensorCompressionMethod,
+        n_chunks: usize,
+        stream_ptr: u64,
+        target_chunk: i32,
+    ) -> Result<Box<dyn RawBaguaTensor + Send + Sync>, BaguaCoreError> {
+        match compression {
+            TensorCompressionMethod::MinMaxUInt8(_parameters) => {
+                assert_eq!(
+                    self.num_elements_allocated() % n_chunks,
+                    0,
+                    "compression tensor size % n_chunks must be 0"
+                );
+                let chunk_size = self.num_elements_allocated() / n_chunks;
+                let output_buffer_size =
+                    MinMaxUInt8CompressionParameters::get_compressed_buffer_size(
+                        n_chunks,
+                        chunk_size,
+                        &self.dtype(),
+                    );
+                let output_buffer =
+                    CUDA_DEVICE_MEMORY_POOL[self.device_id()].try_pull(output_buffer_size)?;
+
+                let temp_buffer_size = MinMaxUInt8CompressionParameters::get_temp_buffer_size(
+                    self.data_ptr(),
+                    self.num_elements(),
+                    output_buffer.ptr,
+                    stream_ptr,
+                    &self.dtype(),
+                );
+                let temp_buffer =
+                    CUDA_DEVICE_MEMORY_POOL[self.device_id()].try_pull(temp_buffer_size)?;
+
+                match self.dtype() {
+                    BaguaTensorDtype::F32 => unsafe {
+                        kernels::compress_f32_to_uint8_host(
+                            self.data_ptr() as _,
+                            self.num_elements() as _,
+                            chunk_size as _,
+                            n_chunks as _,
+                            output_buffer.ptr as _,
+                            output_buffer_size,
+                            temp_buffer.ptr as _,
+                            temp_buffer_size,
+                            target_chunk,
+                            stream_ptr as _,
+                        );
+                    },
+                    BaguaTensorDtype::F16 => unsafe {
+                        kernels::compress_f16_to_uint8_host(
+                            self.data_ptr() as _,
+                            self.num_elements() as _,
+                            chunk_size as _,
+                            n_chunks as _,
+                            output_buffer.ptr as _,
+                            output_buffer_size,
+                            temp_buffer.ptr as _,
+                            temp_buffer_size,
+                            target_chunk,
+                            stream_ptr as _,
+                        );
+                    },
+                    BaguaTensorDtype::U8 => {
+                        unimplemented!()
+                    }
+                    BaguaTensorDtype::I64 => {
+                        unimplemented!()
+                    }
+                    BaguaTensorDtype::U64 => {
+                        unimplemented!()
+                    }
+                }
+                return Ok(Box::new(BaguaTensorRaw {
+                    ptr: output_buffer.ptr,
+                    num_elem_allocated: output_buffer_size,
+                    dtype: BaguaTensorDtype::U8,
+                    num_elem: output_buffer_size,
+                    device_id: self.device_id(),
+                    pool_allocations: vec![Arc::new(output_buffer)],
+                }));
+            }
+        }
+    }
+
+    fn decompress_from(
+        &mut self,
+        compression: &TensorCompressionMethod,
+        n_chunks: usize,
+        compressed_buffer: &dyn RawBaguaTensor,
+        stream_ptr: u64,
+    ) {
+        assert_eq!(
+            self.num_elements_allocated() % n_chunks,
+            0,
+            "compression tensor size % n_chunks must be 0"
+        );
+        let chunk_size = self.num_elements_allocated() / n_chunks;
+        match compression {
+            TensorCompressionMethod::MinMaxUInt8(_parameters) => match self.dtype() {
+                BaguaTensorDtype::F32 => unsafe {
+                    kernels::decompress_uint8_to_f32_host(
+                        compressed_buffer.data_ptr() as _,
+                        compressed_buffer.num_elements_allocated()
+                            * compressed_buffer.dtype().bytes(),
+                        chunk_size as _,
+                        n_chunks as _,
+                        self.num_elements_allocated() as _,
+                        stream_ptr as _,
+                    );
+                },
+                BaguaTensorDtype::F16 => unsafe {
+                    kernels::decompress_uint8_to_f16_host(
+                        compressed_buffer.data_ptr() as _,
+                        compressed_buffer.num_elements_allocated()
+                            * compressed_buffer.dtype().bytes(),
+                        chunk_size as _,
+                        n_chunks as _,
+                        self.data_ptr() as _,
+                        stream_ptr as _,
+                    );
+                },
+                BaguaTensorDtype::U8 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
+                    unimplemented!()
+                }
+            },
+        }
+    }
+
+    fn reduce_mean_inplace(&mut self, n_chunks: usize, target_chunk: usize, stream_ptr: u64) {
+        assert_eq!(
+            self.num_elements_allocated() % n_chunks,
+            0,
+            "reduce_mean_inplace requires tensor aligned"
+        );
+        let chunk_size = self.num_elements_allocated() / n_chunks;
+        match self.dtype() {
+            BaguaTensorDtype::F32 => unsafe {
+                kernels::reduce_mean_f32_inplace_host(
+                    self.data_ptr() as _,
+                    chunk_size as _,
+                    n_chunks as _,
+                    target_chunk as _,
+                    stream_ptr as _,
+                );
+            },
+            BaguaTensorDtype::F16 => unsafe {
+                kernels::reduce_mean_f16_inplace_host(
+                    self.data_ptr() as _,
+                    chunk_size as _,
+                    n_chunks as _,
+                    target_chunk as _,
+                    stream_ptr as _,
+                );
+            },
+            BaguaTensorDtype::U8 => {
+                unimplemented!()
+            }
+            BaguaTensorDtype::I64 => {
+                unimplemented!()
+            }
+            BaguaTensorDtype::U64 => {
+                unimplemented!()
+            }
+        }
+    }
+
+    fn reduce_sum_inplace(&mut self, n_chunks: usize, target_chunk: usize, stream_ptr: u64) {
+        assert_eq!(
+            self.num_elements_allocated() % n_chunks,
+            0,
+            "reduce_sum_inplace requires tensor aligned"
+        );
+        let chunk_size = self.num_elements_allocated() / n_chunks;
+        match self.dtype() {
+            BaguaTensorDtype::F32 => unsafe {
+                kernels::reduce_sum_f32_inplace_host(
+                    self.data_ptr() as _,
+                    chunk_size as _,
+                    n_chunks as _,
+                    target_chunk as _,
+                    stream_ptr as _,
+                );
+            },
+            BaguaTensorDtype::F16 => unsafe {
+                kernels::reduce_sum_f16_inplace_host(
+                    self.data_ptr() as _,
+                    chunk_size as _,
+                    n_chunks as _,
+                    target_chunk as _,
+                    stream_ptr as _,
+                );
+            },
+            BaguaTensorDtype::U8 => {
+                unimplemented!()
+            }
+            BaguaTensorDtype::I64 => {
+                unimplemented!()
+            }
+            BaguaTensorDtype::U64 => {
+                unimplemented!()
+            }
+        }
+    }
+}
+
+impl TorchTensorRaw {
+    fn extract_torch_c_data(&self) -> &TensorImpl {
+        unsafe { (self.torch_tensor_cdata as *const TensorImpl).as_ref() }
+            .expect("torch c data pointer is null")
+    }
+
+    fn extract_storage(&self) -> &StorageImpl {
+        unsafe {
+            (self.extract_torch_c_data().storage_.storage_impl_.target_ as *const StorageImpl)
+                .as_ref()
+                .expect("torch c data has not storage")
+        }
+    }
+}
+
+impl RawBaguaTensor for TorchTensorRaw {
+    fn data_ptr(&self) -> u64 {
+        let cdata = self.extract_torch_c_data();
+        let storage = self.extract_storage();
+        storage.data_ptr_.ptr_.data_ as u64
+            + cdata.storage_offset_ as u64 * self.dtype.bytes() as u64
+    }
+
+    fn num_elements(&self) -> usize {
+        self.extract_torch_c_data().numel_ as _
+    }
+
+    fn num_elements_allocated(&self) -> usize {
+        self.num_elements()
+    }
+
+    fn device_id(&self) -> usize {
+        let storage_data_ptr = &self.extract_storage().data_ptr_;
+        assert_eq!(
+            storage_data_ptr.device_.type_,
+            DeviceType::CUDA,
+            "currently only cuda tensors are supported in Bagua"
+        );
+        return storage_data_ptr.device_.index_ as _;
+    }
+
+    fn dtype(&self) -> BaguaTensorDtype {
+        self.dtype
+    }
+}
+
+impl RawBaguaTensor for BaguaTensorRaw {
+    fn data_ptr(&self) -> u64 {
+        self.ptr
+    }
+
+    fn num_elements(&self) -> usize {
+        self.num_elem
+    }
+
+    fn num_elements_allocated(&self) -> usize {
+        self.num_elem_allocated
+    }
+
+    fn device_id(&self) -> usize {
+        self.device_id
+    }
+
+    fn dtype(&self) -> BaguaTensorDtype {
+        self.dtype
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -156,315 +536,36 @@ pub enum TensorCompressionMethod {
     MinMaxUInt8(MinMaxUInt8CompressionParameters),
 }
 
-impl BaguaTensorRaw {
-    pub fn divide_inplace(&mut self, stream_ptr: u64, divide_factor: f32) {
-        let tensor_ptr = self.ptr;
-        let total_num_elem = self.num_elem;
-        unsafe {
-            match self.dtype {
-                BaguaTensorDtype::F32 => {
-                    kernels::divide_inplace_f32_host(
-                        tensor_ptr as _,
-                        divide_factor as f32,
-                        total_num_elem as i32,
-                        stream_ptr as _,
-                    );
-                }
-                BaguaTensorDtype::F16 => {
-                    kernels::divide_inplace_f16_host(
-                        tensor_ptr as _,
-                        divide_factor as f32,
-                        total_num_elem as i32,
-                        stream_ptr as _,
-                    );
-                }
-                BaguaTensorDtype::U8 => {
-                    unimplemented!()
-                }
-                BaguaTensorDtype::I64 => {
-                    unimplemented!()
-                }
-                BaguaTensorDtype::U64 => {
-                    unimplemented!()
-                }
-            }
-        }
-    }
-
-    pub fn clone_from(&mut self, other: &Self, stream_ptr: u64) {
-        assert_eq!(self.dtype, other.dtype);
-        assert_eq!(self.num_elem, other.num_elem);
-        unsafe {
-            let src = other.ptr;
-            let dst = self.ptr;
-            let count = self.num_elem * self.dtype.bytes();
-            cpp::cpp!([stream_ptr as "cudaStream_t", dst as "void *", src as "const void *", count as "size_t"]
-            {
-            CUDACHECK(cudaMemcpyAsync( dst, src , count, cudaMemcpyDeviceToDevice, stream_ptr));
-            });
-        }
-    }
-
-    pub fn average_inplace(&mut self, other: &Self, stream_ptr: u64) {
-        assert_eq!(self.dtype, other.dtype);
-        assert_eq!(self.num_elem, other.num_elem);
-        let tensor_ptr = self.ptr;
-        let total_num_elem = self.num_elem;
-        unsafe {
-            match self.dtype {
-                BaguaTensorDtype::F32 => {
-                    kernels::average_inplace_f32_host(
-                        tensor_ptr as _,
-                        other.ptr as _,
-                        total_num_elem as i32,
-                        stream_ptr as _,
-                    );
-                }
-                BaguaTensorDtype::F16 => {
-                    kernels::average_inplace_f16_host(
-                        tensor_ptr as _,
-                        other.ptr as _,
-                        total_num_elem as i32,
-                        stream_ptr as _,
-                    );
-                }
-                BaguaTensorDtype::U8 => {
-                    unimplemented!()
-                }
-                BaguaTensorDtype::I64 => {
-                    unimplemented!()
-                }
-                BaguaTensorDtype::U64 => {
-                    unimplemented!()
-                }
-            }
-        }
-    }
-
-    pub fn compress(
-        &self,
-        compression: &TensorCompressionMethod,
-        n_chunks: usize,
-        stream_ptr: u64,
-        target_chunk: i32,
-    ) -> Result<BaguaTensorRaw, BaguaCoreError> {
-        match compression {
-            TensorCompressionMethod::MinMaxUInt8(_parameters) => {
-                assert_eq!(
-                    self.num_elem_allocated % n_chunks,
-                    0,
-                    "compression tensor size % n_chunks must be 0"
-                );
-                let chunk_size = self.num_elem_allocated / n_chunks;
-                let output_buffer_size =
-                    MinMaxUInt8CompressionParameters::get_compressed_buffer_size(
-                        n_chunks,
-                        chunk_size,
-                        &self.dtype,
-                    );
-                let output_buffer =
-                    CUDA_DEVICE_MEMORY_POOL[self.device_id].try_pull(output_buffer_size)?;
-
-                let temp_buffer_size = MinMaxUInt8CompressionParameters::get_temp_buffer_size(
-                    self.ptr,
-                    self.num_elem,
-                    output_buffer.ptr,
-                    stream_ptr,
-                    &self.dtype,
-                );
-                let temp_buffer =
-                    CUDA_DEVICE_MEMORY_POOL[self.device_id].try_pull(temp_buffer_size)?;
-
-                match self.dtype {
-                    BaguaTensorDtype::F32 => unsafe {
-                        kernels::compress_f32_to_uint8_host(
-                            self.ptr as _,
-                            self.num_elem as _,
-                            chunk_size as _,
-                            n_chunks as _,
-                            output_buffer.ptr as _,
-                            output_buffer_size,
-                            temp_buffer.ptr as _,
-                            temp_buffer_size,
-                            target_chunk,
-                            stream_ptr as _,
-                        );
-                    },
-                    BaguaTensorDtype::F16 => unsafe {
-                        kernels::compress_f16_to_uint8_host(
-                            self.ptr as _,
-                            self.num_elem as _,
-                            chunk_size as _,
-                            n_chunks as _,
-                            output_buffer.ptr as _,
-                            output_buffer_size,
-                            temp_buffer.ptr as _,
-                            temp_buffer_size,
-                            target_chunk,
-                            stream_ptr as _,
-                        );
-                    },
-                    BaguaTensorDtype::U8 => {
-                        unimplemented!()
-                    }
-                    BaguaTensorDtype::I64 => {
-                        unimplemented!()
-                    }
-                    BaguaTensorDtype::U64 => {
-                        unimplemented!()
-                    }
-                }
-                return Ok(BaguaTensorRaw {
-                    ptr: output_buffer.ptr,
-                    num_elem_allocated: output_buffer_size,
-                    dtype: BaguaTensorDtype::U8,
-                    num_elem: output_buffer_size,
-                    device_id: self.device_id,
-                    pool_allocation: Some(output_buffer),
-                });
-            }
-        }
-    }
-
-    pub fn decompress_from(
-        &mut self,
-        compression: &TensorCompressionMethod,
-        n_chunks: usize,
-        compressed_buffer: &BaguaTensorRaw,
-        stream_ptr: u64,
-    ) {
-        assert_eq!(
-            self.num_elem_allocated % n_chunks,
-            0,
-            "compression tensor size % n_chunks must be 0"
-        );
-        let chunk_size = self.num_elem_allocated / n_chunks;
-        match compression {
-            TensorCompressionMethod::MinMaxUInt8(_parameters) => match self.dtype {
-                BaguaTensorDtype::F32 => unsafe {
-                    kernels::decompress_uint8_to_f32_host(
-                        compressed_buffer.ptr as _,
-                        compressed_buffer.num_elem_allocated * compressed_buffer.dtype.bytes(),
-                        chunk_size as _,
-                        n_chunks as _,
-                        self.ptr as _,
-                        stream_ptr as _,
-                    );
-                },
-                BaguaTensorDtype::F16 => unsafe {
-                    kernels::decompress_uint8_to_f16_host(
-                        compressed_buffer.ptr as _,
-                        compressed_buffer.num_elem_allocated * compressed_buffer.dtype.bytes(),
-                        chunk_size as _,
-                        n_chunks as _,
-                        self.ptr as _,
-                        stream_ptr as _,
-                    );
-                },
-                BaguaTensorDtype::U8 => {
-                    unimplemented!()
-                }
-                BaguaTensorDtype::I64 => {
-                    unimplemented!()
-                }
-                BaguaTensorDtype::U64 => {
-                    unimplemented!()
-                }
-            },
-        }
-    }
-
-    pub fn reduce_mean_inplace(&mut self, n_chunks: usize, target_chunk: usize, stream_ptr: u64) {
-        assert_eq!(
-            self.num_elem_allocated % n_chunks,
-            0,
-            "reduce_mean_inplace requires tensor aligned"
-        );
-        let chunk_size = self.num_elem_allocated / n_chunks;
-        match self.dtype {
-            BaguaTensorDtype::F32 => unsafe {
-                kernels::reduce_mean_f32_inplace_host(
-                    self.ptr as _,
-                    chunk_size as _,
-                    n_chunks as _,
-                    target_chunk as _,
-                    stream_ptr as _,
-                );
-            },
-            BaguaTensorDtype::F16 => unsafe {
-                kernels::reduce_mean_f16_inplace_host(
-                    self.ptr as _,
-                    chunk_size as _,
-                    n_chunks as _,
-                    target_chunk as _,
-                    stream_ptr as _,
-                );
-            },
-            BaguaTensorDtype::U8 => {
-                unimplemented!()
-            }
-            BaguaTensorDtype::I64 => {
-                unimplemented!()
-            }
-            BaguaTensorDtype::U64 => {
-                unimplemented!()
-            }
-        }
-    }
-
-    pub fn reduce_sum_inplace(&mut self, n_chunks: usize, target_chunk: usize, stream_ptr: u64) {
-        assert_eq!(
-            self.num_elem_allocated % n_chunks,
-            0,
-            "reduce_sum_inplace requires tensor aligned"
-        );
-        let chunk_size = self.num_elem_allocated / n_chunks;
-        match self.dtype {
-            BaguaTensorDtype::F32 => unsafe {
-                kernels::reduce_sum_f32_inplace_host(
-                    self.ptr as _,
-                    chunk_size as _,
-                    n_chunks as _,
-                    target_chunk as _,
-                    stream_ptr as _,
-                );
-            },
-            BaguaTensorDtype::F16 => unsafe {
-                kernels::reduce_sum_f16_inplace_host(
-                    self.ptr as _,
-                    chunk_size as _,
-                    n_chunks as _,
-                    target_chunk as _,
-                    stream_ptr as _,
-                );
-            },
-            BaguaTensorDtype::U8 => {
-                unimplemented!()
-            }
-            BaguaTensorDtype::I64 => {
-                unimplemented!()
-            }
-            BaguaTensorDtype::U64 => {
-                unimplemented!()
-            }
-        }
-    }
-}
+impl BaguaTensorRaw {}
 
 #[derive(Debug)]
 pub struct BaguaTensorInner {
-    pub raw: BaguaTensorRaw,
+    pub name: String,
+    pub raw: Box<dyn RawBaguaTensor + Send + Sync>,
     pub ready_for_comm: bool,
     pub ready_cuda_event_ptr: u64,
 }
 
 #[derive(Clone, Debug)]
 pub struct BaguaTensor {
-    pub id: u64,
     pub inner: Arc<RwLock<BaguaTensorInner>>,
 }
 
 impl BaguaTensor {
+    pub fn new_from_torch(name: String, torch_cdata_ptr: u64, dtype: BaguaTensorDtype) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(BaguaTensorInner {
+                name,
+                raw: Box::new(TorchTensorRaw {
+                    torch_tensor_cdata: torch_cdata_ptr,
+                    dtype,
+                }),
+                ready_for_comm: false,
+                ready_cuda_event_ptr: 0,
+            })),
+        }
+    }
+
     pub fn mark_comm_ready(&self, cuda_event_ptr: u64) {
         if cuda_event_ptr == 0 {
             tracing::info!("mark comm ready with an event 0, ignoring event");
@@ -472,7 +573,7 @@ impl BaguaTensor {
         match TELEMETRY.as_ref() {
             None => {}
             Some(ref x) => {
-                x.lock().new_tensor_ready(self.id);
+                x.lock().new_tensor_ready(self.inner.read().name.as_str());
             }
         }
         let mut guard = self.inner.write();
@@ -484,53 +585,19 @@ impl BaguaTensor {
         self.inner.write().ready_for_comm = false;
     }
 
+    pub fn name(&self) -> String {
+        self.inner.read().name.clone()
+    }
+
     pub fn ready_for_comm(&self) -> bool {
         self.inner.read().ready_for_comm
-    }
-}
-
-impl BaguaTensor {
-    pub fn new(
-        ptr: u64,
-        num_elem: usize,
-        num_elem_allocated: usize,
-        dtype: &str,
-        device_id: usize,
-    ) -> Self {
-        let dtype = match dtype {
-            "f32" => BaguaTensorDtype::F32,
-            "f16" => BaguaTensorDtype::F16,
-            "u8" => BaguaTensorDtype::U8,
-            "i64" => BaguaTensorDtype::I64,
-            "u64" => BaguaTensorDtype::U64,
-            _ => {
-                unimplemented!()
-            }
-        };
-        let id = lazy_id::Id::lazy().get();
-        tracing::debug!("generate tensor id {}", id);
-        Self {
-            id,
-            inner: Arc::new(RwLock::new(BaguaTensorInner {
-                raw: BaguaTensorRaw {
-                    ptr,
-                    num_elem,
-                    num_elem_allocated,
-                    dtype,
-                    device_id,
-                    pool_allocation: None,
-                },
-                ready_for_comm: false,
-                ready_cuda_event_ptr: 0,
-            })),
-        }
     }
 
     pub fn compress(&self, method: &str, n_chunks: usize, target_chunk: i32) -> Self {
         match method {
             "min_max_uint8" => Self {
-                id: 0,
                 inner: Arc::new(RwLock::new(BaguaTensorInner {
+                    name: "compressed_tensor".to_string(),
                     raw: self
                         .inner
                         .read()
@@ -543,7 +610,7 @@ impl BaguaTensor {
                             0,
                             target_chunk,
                         )
-                        .expect("unable to compress"),
+                        .expect("cannot compress tensor"),
                     ready_for_comm: false,
                     ready_cuda_event_ptr: 0,
                 })),
@@ -592,7 +659,7 @@ impl BaguaTensor {
                 self.inner.write().raw.decompress_from(
                     &TensorCompressionMethod::MinMaxUInt8(MinMaxUInt8CompressionParameters {}),
                     n_chunks,
-                    &compressed_buffer.inner.read().raw,
+                    compressed_buffer.inner.read().raw.as_ref(),
                     0,
                 );
             }
@@ -602,28 +669,24 @@ impl BaguaTensor {
         }
     }
 
-    pub fn ptr(&self) -> u64 {
-        self.inner.read().raw.ptr
+    pub fn data_ptr(&self) -> u64 {
+        self.inner.read().raw.data_ptr()
     }
 
-    pub fn id(&self) -> u64 {
-        self.id
+    pub fn device_id(&self) -> usize {
+        self.inner.read().raw.device_id()
     }
 
-    pub fn num_elem(&self) -> usize {
-        self.inner.read().raw.num_elem
+    pub fn num_elements(&self) -> usize {
+        self.inner.read().raw.num_elements()
     }
 
-    pub fn num_elem_allocated(&self) -> usize {
-        self.inner.read().raw.num_elem_allocated
+    pub fn num_elements_allocated(&self) -> usize {
+        self.inner.read().raw.num_elements_allocated()
     }
 
     pub fn dtype(&self) -> String {
-        format!("{:?}", self.inner.read().raw.dtype)
-    }
-
-    pub fn reset_ptr(&mut self, ptr: u64) {
-        self.inner.write().raw.ptr = ptr;
+        format!("{:?}", self.inner.read().raw.dtype())
     }
 }
 
@@ -631,9 +694,7 @@ impl BaguaTensor {
 pub struct BaguaBucketInner {
     pub tensors: Vec<BaguaTensor>,
     pub dtype: BaguaTensorDtype,
-    pub inplace: bool,
     pub comm_ops: Vec<Arc<dyn CommOpTrait + Sync + Send>>,
-    pub align_bytes: usize,
 }
 
 pub struct BaguaCommunicationTensor<'b> {
@@ -644,7 +705,47 @@ pub struct BaguaCommunicationTensor<'b> {
 }
 
 impl BaguaBucketInner {
+    pub fn contiguous(&self) -> bool {
+        let bytes_per_element = self.dtype.bytes() as u64;
+        let t = &(*self.tensors.first().unwrap()).inner.read();
+        let mut current_ptr =
+            t.raw.data_ptr() + t.raw.num_elements_allocated() as u64 * bytes_per_element;
+        for tensor in self.tensors.iter().dropping(1) {
+            let inner_tensor = &tensor.inner.read();
+            tracing::debug!(
+                "current_ptr {} next tensor data_ptr {}",
+                current_ptr,
+                inner_tensor.raw.data_ptr()
+            );
+            if current_ptr != inner_tensor.raw.data_ptr() {
+                return false;
+            } else {
+                current_ptr += inner_tensor.raw.num_elements_allocated() as u64 * bytes_per_element;
+            }
+        }
+        return true;
+    }
+
+    pub fn total_num_elements(&self) -> usize {
+        self.tensors
+            .iter()
+            .map(|tensor| tensor.num_elements())
+            .sum::<usize>()
+    }
+
+    pub fn total_num_elements_allocated(&self) -> usize {
+        self.tensors
+            .iter()
+            .map(|tensor| tensor.num_elements_allocated())
+            .sum::<usize>()
+    }
+
+    pub fn total_allocated_bytes(&self) -> usize {
+        self.total_num_elements_allocated() * self.dtype.bytes()
+    }
+
     /// NOTE: this does not wait for memcpy finished
+    // TODO: simplify args
     pub fn get_communication_tensor(
         &self,
         stream_ptr: u64,
@@ -663,28 +764,18 @@ impl BaguaBucketInner {
             }
             tensor.inner.write().ready_cuda_event_ptr = 0;
         }
-        match self.inplace && !force_copy {
+        match self.contiguous() && !force_copy {
             true => {
                 tracing::debug!("bucket is inplace, creating communication tensor without copy");
-                let tensor = self.tensors.first().unwrap().inner.read();
-                let total_num_elem: usize = self
-                    .tensors
-                    .iter()
-                    .map(|x| x.inner.read().raw.num_elem)
-                    .sum();
-                let total_num_elem_allocated: usize = self
-                    .tensors
-                    .iter()
-                    .map(|x| x.inner.read().raw.num_elem_allocated)
-                    .sum();
+                let total_num_elem_allocated: usize = self.total_num_elements_allocated();
                 BaguaCommunicationTensor {
                     raw: BaguaTensorRaw {
-                        ptr: tensor.raw.ptr,
-                        num_elem: total_num_elem,
-                        dtype: tensor.raw.dtype.clone(),
+                        ptr: self.tensors[0].data_ptr(),
+                        num_elem: total_num_elem_allocated,
+                        dtype: self.dtype,
                         num_elem_allocated: total_num_elem_allocated,
-                        device_id: tensor.raw.device_id,
-                        pool_allocation: None,
+                        device_id: self.tensors[0].device_id(),
+                        pool_allocations: vec![],
                     },
                     need_copy_back: false,
                     bucket: &self,
@@ -697,47 +788,34 @@ impl BaguaBucketInner {
                 let total_num_elem: usize = self
                     .tensors
                     .iter()
-                    .map(|x| x.inner.read().raw.num_elem)
+                    .map(|x| x.inner.read().raw.num_elements())
                     .sum();
-                let total_bytes = {
-                    let mut result = total_num_elem * first_tensor.raw.dtype.bytes();
-                    if self.align_bytes > 0 {
-                        result =
-                            (result + (self.align_bytes - 1)) / self.align_bytes * self.align_bytes;
-                    }
-                    result
-                };
-                assert_eq!(
-                    total_bytes % first_tensor.raw.dtype.bytes(),
-                    0,
-                    "cannot align tensor"
-                );
-                let buffer_tensor = CUDA_DEVICE_MEMORY_POOL[first_tensor.raw.device_id]
-                    .try_pull(total_bytes)
+                let buffer_tensor = CUDA_DEVICE_MEMORY_POOL[first_tensor.raw.device_id()]
+                    .try_pull(self.total_allocated_bytes())
                     .expect("unable to allocate GPU buffer memory to do bucketing");
 
                 let mut dst = buffer_tensor.ptr;
                 for tensor in &self.tensors {
                     let tensor = tensor.inner.read();
-                    let src = tensor.raw.ptr;
-                    let count = tensor.raw.num_elem * tensor.raw.dtype.bytes();
+                    let src = tensor.raw.data_ptr();
+                    let count = tensor.raw.num_elements() * tensor.raw.dtype().bytes();
                     unsafe {
                         cpp::cpp!([stream_ptr as "cudaStream_t", dst as "void *", src as "const void *", count as "size_t"]
                         {
                         CUDACHECK(cudaMemcpyAsync( dst, src , count, cudaMemcpyDeviceToDevice, stream_ptr));
                         });
                     }
-                    dst += tensor.raw.num_elem as u64 * tensor.raw.dtype.bytes() as u64;
+                    dst += tensor.raw.num_elements() as u64 * tensor.raw.dtype().bytes() as u64;
                 }
 
                 BaguaCommunicationTensor {
                     raw: BaguaTensorRaw {
                         ptr: buffer_tensor.ptr,
                         num_elem: total_num_elem,
-                        dtype: first_tensor.raw.dtype.clone(),
-                        num_elem_allocated: total_bytes / first_tensor.raw.dtype.bytes(),
-                        device_id: first_tensor.raw.device_id,
-                        pool_allocation: Some(buffer_tensor),
+                        dtype: first_tensor.raw.dtype().clone(),
+                        num_elem_allocated: self.total_num_elements_allocated(),
+                        device_id: first_tensor.raw.device_id(),
+                        pool_allocations: vec![Arc::new(buffer_tensor)],
                     },
                     need_copy_back: if force_not_copy_back { false } else { true },
                     bucket: &self,
@@ -755,8 +833,8 @@ impl<'b> Drop for BaguaCommunicationTensor<'b> {
             let mut src = self.raw.ptr;
             for tensor in &self.bucket.tensors {
                 let tensor = tensor.inner.read();
-                let dst = tensor.raw.ptr;
-                let count = tensor.raw.num_elem * tensor.raw.dtype.bytes();
+                let dst = tensor.raw.data_ptr();
+                let count = tensor.raw.num_elements() * tensor.raw.dtype().bytes();
                 unsafe {
                     cpp::cpp!([stream_ptr as "cudaStream_t", dst as "void *", src as "const void *", count as "size_t"]
                     {
@@ -779,33 +857,27 @@ impl<'b> Drop for BaguaCommunicationTensor<'b> {
 
 #[derive(Debug, Clone)]
 pub struct BaguaBucket {
-    pub id: u64,
     pub name: String,
     pub inner: Arc<Mutex<BaguaBucketInner>>,
 }
 
 impl BaguaBucket {
-    pub fn new(
-        tensors: &[&BaguaTensor],
-        name: &str,
-        inplace: bool,
-        align_bytes: usize,
-    ) -> Result<Self, BaguaCoreError> {
+    pub fn new(tensors: &[&BaguaTensor], name: &str) -> Result<Self, BaguaCoreError> {
         if tensors.is_empty() {
             return Err(BaguaCoreError::BucketError("bucket is empty".into()));
         }
 
         let first_tensor = (*tensors.first().unwrap()).inner.read();
-        let dtype: &BaguaTensorDtype = &first_tensor.raw.dtype;
-        let device_id = first_tensor.raw.device_id;
+        let dtype: &BaguaTensorDtype = &first_tensor.raw.dtype();
+        let device_id = first_tensor.raw.device_id();
         for tensor in tensors.iter() {
             let tensor = tensor.inner.read();
-            if dtype != &tensor.raw.dtype {
+            if dtype != &tensor.raw.dtype() {
                 return Err(BaguaCoreError::BucketError(
                     "tensors in the same bucket should be of the same dtype".into(),
                 ));
             }
-            if device_id != tensor.raw.device_id {
+            if device_id != tensor.raw.device_id() {
                 return Err(BaguaCoreError::BucketError(
                     "tensors in the same bucket should be of the same device".into(),
                 ));
@@ -814,59 +886,19 @@ impl BaguaBucket {
 
         for tensor in tensors.iter() {
             let tensor = tensor.inner.read();
-            if tensor.raw.num_elem_allocated < tensor.raw.num_elem {
+            if tensor.raw.num_elements_allocated() < tensor.raw.num_elements() {
                 return Err(BaguaCoreError::TensorError(
                     "num_elem_allocated should always be greater than num_elem in a tensor".into(),
                 ));
             }
         }
 
-        // inplace memory contiguous check
-        if inplace {
-            let t = &(*tensors.first().unwrap()).inner.read();
-            let bytes_per_element = dtype.bytes() as u64;
-            let mut current_ptr = t.raw.ptr + t.raw.num_elem_allocated as u64 * bytes_per_element;
-            for tensor in tensors.iter().dropping(1) {
-                let inner_tensor = &tensor.inner.read();
-                if current_ptr != inner_tensor.raw.ptr {
-                    return Err(BaguaCoreError::BucketError(
-                        "tensors in a bucket not contiguous while marked as inplace".into(),
-                    ));
-                } else {
-                    current_ptr += inner_tensor.raw.num_elem_allocated as u64 * bytes_per_element;
-                }
-            }
-
-            let mut total_bytes = 0;
-            for (i, tensor) in tensors.iter().enumerate() {
-                let inner_tensor = &tensor.inner.read();
-                if (inner_tensor.raw.num_elem != inner_tensor.raw.num_elem_allocated)
-                    && (i != (tensors.len() - 1))
-                {
-                    return Err(BaguaCoreError::BucketError(
-                        "non-last tensors in a bucket should have num_elem == num_elem_allocated in inplace mode".into()
-                    ));
-                }
-                total_bytes += inner_tensor.raw.num_elem_allocated * inner_tensor.raw.dtype.bytes();
-            }
-
-            if total_bytes % align_bytes != 0 {
-                return Err(BaguaCoreError::BucketError(
-                    "inplace bucket tensors are not properly aligned".into(),
-                ));
-            }
-        }
-
-        let id = lazy_id::Id::lazy().get();
         Ok(Self {
-            id,
             name: name.to_owned(),
             inner: Arc::new(Mutex::new(BaguaBucketInner {
-                inplace,
                 tensors: tensors.iter().map(|x| (**x).clone()).collect(),
                 comm_ops: vec![],
-                dtype: tensors.first().unwrap().inner.read().raw.dtype.clone(),
-                align_bytes,
+                dtype: tensors.first().unwrap().inner.read().raw.dtype().clone(),
             })),
         })
     }

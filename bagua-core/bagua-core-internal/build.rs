@@ -14,16 +14,18 @@ fn main() {
     let mut cuda_cc = cc::Build::new();
     cuda_cc
         .cuda(true)
-        .opt_level(3)
         .include("cpp/include")
         .include("third_party/cub-1.8.0")
         .include("../python/bagua_core/.data/include")
         .flag("-std=c++14")
         .flag("-cudart=shared");
-    for sm in supported_sms {
-        cuda_cc
-            .flag("-gencode")
-            .flag(format!("arch=compute_{},code=sm_{}", sm, sm).as_str());
+
+    if std::env::var("PROFILE").unwrap() == "release" {
+        for sm in supported_sms {
+            cuda_cc
+                .flag("-gencode")
+                .flag(format!("arch=compute_{},code=sm_{}", sm, sm).as_str());
+        }
     }
     cuda_cc
         .file("kernels/bagua_kernels.cu")
@@ -82,5 +84,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/");
     println!("cargo:rerun-if-changed=kernels/");
     println!("cargo:rerun-if-changed=build.rs");
+
+    // bindgen --allowlist-type '.*TensorImpl.*' --enable-cxx-namespaces --ignore-functions --ignore-methods --size_t-is-usize --default-enum-style=rust --opaque-type 'std.*' --opaque-type 'c10::optional.*' wrapper.h -- -x c++ -std=c++14 > src/torch_ffi.rs
     shadow_rs::new().unwrap();
 }

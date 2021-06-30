@@ -1,5 +1,6 @@
-use crate::datatypes::{BaguaCommunicationTensor, BaguaReductionOp, BaguaTensor, BaguaTensorRaw};
-use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
+use crate::datatypes::{
+    BaguaCommunicationTensor, BaguaReductionOp, BaguaTensor, BaguaTensorRaw, RawBaguaTensor,
+};
 use crate::BaguaCoreError;
 use itertools::Itertools;
 use std::sync::Arc;
@@ -68,31 +69,33 @@ impl BaguaSingleCommunicator {
     }
 
     pub fn allreduce(&self, tensor: &mut BaguaTensor, op: BaguaReductionOp) {
-        self.inner.allreduce(&mut tensor.inner.write().raw, op);
+        self.inner.allreduce(tensor.inner.write().raw.as_mut(), op);
     }
 
     pub fn broadcast(&self, tensor: &mut BaguaTensor, root_rank: i32) {
         self.inner
-            .broadcast(&mut tensor.inner.write().raw, root_rank);
+            .broadcast(tensor.inner.write().raw.as_mut(), root_rank);
     }
 
     pub fn reduce(&self, tensor: &mut BaguaTensor, root_rank: i32, op: BaguaReductionOp) {
         self.inner
-            .reduce(&mut tensor.inner.write().raw, root_rank, op);
+            .reduce(tensor.inner.write().raw.as_mut(), root_rank, op);
     }
 
     pub fn send(&self, tensor: &mut BaguaTensor, peer_rank: i32) {
-        self.inner.send(&mut tensor.inner.write().raw, peer_rank);
+        self.inner
+            .send(tensor.inner.write().raw.as_mut(), peer_rank);
     }
 
     pub fn recv(&self, tensor: &mut BaguaTensor, peer_rank: i32) {
-        self.inner.recv(&mut tensor.inner.write().raw, peer_rank);
+        self.inner
+            .recv(tensor.inner.write().raw.as_mut(), peer_rank);
     }
 
     pub fn alltoall(&self, send_tensor: &mut BaguaTensor, recv_tensor: &mut BaguaTensor) {
         self.inner.alltoall(
-            &mut send_tensor.inner.write().raw,
-            &mut recv_tensor.inner.write().raw,
+            send_tensor.inner.write().raw.as_mut(),
+            recv_tensor.inner.write().raw.as_mut(),
         );
     }
 
@@ -106,19 +109,19 @@ impl BaguaSingleCommunicator {
         recv_displs: &BaguaTensor,
     ) {
         self.inner.alltoall_v(
-            &mut send_tensor.inner.write().raw,
-            &send_counts.inner.read().raw,
-            &send_displs.inner.read().raw,
-            &mut recv_tensor.inner.write().raw,
-            &recv_counts.inner.read().raw,
-            &recv_displs.inner.read().raw,
+            send_tensor.inner.write().raw.as_mut(),
+            send_counts.inner.read().raw.as_ref(),
+            send_displs.inner.read().raw.as_ref(),
+            recv_tensor.inner.write().raw.as_mut(),
+            recv_counts.inner.read().raw.as_ref(),
+            recv_displs.inner.read().raw.as_ref(),
         );
     }
 
     pub fn allgather(&self, send_tensor: &mut BaguaTensor, recv_tensor: &mut BaguaTensor) {
         self.inner.allgather(
-            &mut send_tensor.inner.write().raw,
-            &mut recv_tensor.inner.write().raw,
+            send_tensor.inner.write().raw.as_mut(),
+            recv_tensor.inner.write().raw.as_mut(),
         );
     }
 
@@ -333,11 +336,11 @@ impl Drop for NCCLGroupGuard {
 }
 
 impl BaguaCommunicatorInner {
-    pub fn broadcast(&self, tensor: &mut BaguaTensorRaw, root_rank: i32) {
+    pub fn broadcast(&self, tensor: &mut dyn RawBaguaTensor, root_rank: i32) {
         let communicator_ptr = self.comm_ptr;
-        let tensor_ptr = tensor.ptr;
-        let total_num_elem = tensor.num_elem_allocated;
-        let nccl_tensor_type = tensor.dtype.to_nccl_datatype();
+        let tensor_ptr = tensor.data_ptr();
+        let total_num_elem = tensor.num_elements_allocated();
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
 
         unsafe {
             cpp::cpp!([tensor_ptr as "void *", root_rank as "int", total_num_elem as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
@@ -358,11 +361,11 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn reduce(&self, tensor: &mut BaguaTensorRaw, root_rank: i32, op: BaguaReductionOp) {
+    pub fn reduce(&self, tensor: &mut dyn RawBaguaTensor, root_rank: i32, op: BaguaReductionOp) {
         let communicator_ptr = self.comm_ptr;
-        let tensor_ptr = tensor.ptr;
-        let total_num_elem = tensor.num_elem_allocated;
-        let nccl_tensor_type = tensor.dtype.to_nccl_datatype();
+        let tensor_ptr = tensor.data_ptr();
+        let total_num_elem = tensor.num_elements_allocated();
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
 
         unsafe {
             cpp::cpp!([tensor_ptr as "void *", root_rank as "int", total_num_elem as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t", op as "uint8_t"]
@@ -383,19 +386,19 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn alltoall(&self, send_tensor: &BaguaTensorRaw, recv_tensor: &mut BaguaTensorRaw) {
+    pub fn alltoall(&self, send_tensor: &dyn RawBaguaTensor, recv_tensor: &mut dyn RawBaguaTensor) {
         let communicator_ptr = self.comm_ptr;
-        let tensor_ptr = send_tensor.ptr;
+        // TODO: also check recv buf?
         assert_eq!(
-            send_tensor.num_elem_allocated % self.nranks,
+            send_tensor.num_elements_allocated() % self.nranks,
             0,
             "tensors must be aligned before using allscatter"
         );
-        let send_chunk_size = send_tensor.num_elem_allocated / self.nranks;
-        let nccl_tensor_type = send_tensor.dtype.to_nccl_datatype();
+        let send_chunk_size = send_tensor.num_elements_allocated() / self.nranks;
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
 
-        let send_buf_ptr = send_tensor.ptr;
-        let recv_buf_ptr = recv_tensor.ptr;
+        let send_buf_ptr = send_tensor.data_ptr();
+        let recv_buf_ptr = recv_tensor.data_ptr();
 
         unsafe {
             cpp::cpp!([recv_buf_ptr as "void *", send_buf_ptr as "void *", send_chunk_size as "size_t", communicator_ptr as "Al::NCCLCommunicator *",  nccl_tensor_type as "ncclDataType_t"]
@@ -418,43 +421,43 @@ impl BaguaCommunicatorInner {
 
     pub fn alltoall_v(
         &self,
-        send_tensor: &BaguaTensorRaw,
-        send_counts_tensor: &BaguaTensorRaw,
-        send_displs_tensor: &BaguaTensorRaw,
-        recv_tensor: &mut BaguaTensorRaw,
-        recv_counts_tensor: &BaguaTensorRaw,
-        recv_displs_tensor: &BaguaTensorRaw,
+        send_tensor: &dyn RawBaguaTensor,
+        send_counts_tensor: &dyn RawBaguaTensor,
+        send_displs_tensor: &dyn RawBaguaTensor,
+        recv_tensor: &mut dyn RawBaguaTensor,
+        recv_counts_tensor: &dyn RawBaguaTensor,
+        recv_displs_tensor: &dyn RawBaguaTensor,
     ) {
         let communicator_ptr = self.comm_ptr;
         let nranks = self.nranks;
-        let nccl_tensor_type = send_tensor.dtype.to_nccl_datatype();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
         assert_eq!(
-            send_counts_tensor.dtype.to_nccl_datatype(),
+            send_counts_tensor.dtype().to_nccl_datatype(),
             5,
             "send_counts_tensor.dtype must be BaguaTensorDtype::U64"
         );
         assert_eq!(
-            send_displs_tensor.dtype.to_nccl_datatype(),
+            send_displs_tensor.dtype().to_nccl_datatype(),
             5,
             "send_displs_tensor.dtype must be BaguaTensorDtype::U64"
         );
         assert_eq!(
-            recv_counts_tensor.dtype.to_nccl_datatype(),
+            recv_counts_tensor.dtype().to_nccl_datatype(),
             5,
             "recv_counts_tensor.dtype must be BaguaTensorDtype::U64"
         );
         assert_eq!(
-            recv_displs_tensor.dtype.to_nccl_datatype(),
+            recv_displs_tensor.dtype().to_nccl_datatype(),
             5,
             "recv_displs_tensor.dtype must be BaguaTensorDtype::U64"
         );
 
-        let send_buf_ptr = send_tensor.ptr;
-        let send_counts_ptr = send_counts_tensor.ptr;
-        let send_displs_ptr = send_displs_tensor.ptr;
-        let recv_buf_ptr = recv_tensor.ptr;
-        let recv_counts_ptr = recv_counts_tensor.ptr;
-        let recv_displs_ptr = recv_displs_tensor.ptr;
+        let send_buf_ptr = send_tensor.data_ptr();
+        let send_counts_ptr = send_counts_tensor.data_ptr();
+        let send_displs_ptr = send_displs_tensor.data_ptr();
+        let recv_buf_ptr = recv_tensor.data_ptr();
+        let recv_counts_ptr = recv_counts_tensor.data_ptr();
+        let recv_displs_ptr = recv_displs_tensor.data_ptr();
 
         unsafe {
             cpp::cpp!([
@@ -482,11 +485,11 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn send(&self, send_tensor: &BaguaTensorRaw, peer_rank: i32) {
+    pub fn send(&self, send_tensor: &dyn RawBaguaTensor, peer_rank: i32) {
         let communicator_ptr = self.comm_ptr;
-        let tensor_ptr = send_tensor.ptr;
-        let total_num_elem = send_tensor.num_elem_allocated;
-        let nccl_tensor_type = send_tensor.dtype.to_nccl_datatype();
+        let tensor_ptr = send_tensor.data_ptr();
+        let total_num_elem = send_tensor.num_elements_allocated();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
 
         unsafe {
             cpp::cpp!([tensor_ptr as "void *", total_num_elem as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t", peer_rank as "int"]
@@ -507,11 +510,11 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn recv(&self, recv_tensor: &mut BaguaTensorRaw, peer_rank: i32) {
+    pub fn recv(&self, recv_tensor: &mut dyn RawBaguaTensor, peer_rank: i32) {
         let communicator_ptr = self.comm_ptr;
-        let tensor_ptr = recv_tensor.ptr;
-        let total_num_elem = recv_tensor.num_elem_allocated;
-        let nccl_tensor_type = recv_tensor.dtype.to_nccl_datatype();
+        let tensor_ptr = recv_tensor.data_ptr();
+        let total_num_elem = recv_tensor.num_elements_allocated();
+        let nccl_tensor_type = recv_tensor.dtype().to_nccl_datatype();
 
         unsafe {
             cpp::cpp!([tensor_ptr as "void *", total_num_elem as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t", peer_rank as "int"]
@@ -532,25 +535,29 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn allgather(&self, send_tensor: &BaguaTensorRaw, recv_tensor: &mut BaguaTensorRaw) {
+    pub fn allgather(
+        &self,
+        send_tensor: &dyn RawBaguaTensor,
+        recv_tensor: &mut dyn RawBaguaTensor,
+    ) {
         let communicator_ptr = self.comm_ptr;
-        let send_tensor_ptr = send_tensor.ptr;
+        let send_tensor_ptr = send_tensor.data_ptr();
         assert_eq!(
-            send_tensor.num_elem_allocated,
-            recv_tensor.num_elem_allocated
+            send_tensor.num_elements_allocated(),
+            recv_tensor.num_elements_allocated()
         );
-        assert_eq!(send_tensor.dtype, recv_tensor.dtype);
+        assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
         assert_eq!(
-            send_tensor.num_elem_allocated % self.nranks,
+            send_tensor.num_elements_allocated() % self.nranks,
             0,
             "tensors must be aligned before using allgather"
         );
-        let send_chunk_size = send_tensor.num_elem_allocated / self.nranks;
-        let nccl_tensor_type = send_tensor.dtype.to_nccl_datatype();
+        let send_chunk_size = send_tensor.num_elements_allocated() / self.nranks;
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
 
         let send_buf_ptr = send_tensor_ptr
-            + self.rank as u64 * send_chunk_size as u64 * send_tensor.dtype.bytes() as u64;
-        let recv_buf_ptr = recv_tensor.ptr;
+            + self.rank as u64 * send_chunk_size as u64 * send_tensor.dtype().bytes() as u64;
+        let recv_buf_ptr = recv_tensor.data_ptr();
 
         unsafe {
             cpp::cpp!([recv_buf_ptr as "void *", send_buf_ptr as "void *", send_chunk_size as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
@@ -582,11 +589,11 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn allreduce(&self, tensor: &mut BaguaTensorRaw, op: BaguaReductionOp) {
+    pub fn allreduce(&self, tensor: &mut dyn RawBaguaTensor, op: BaguaReductionOp) {
         let communicator_ptr = self.comm_ptr;
-        let tensor_ptr = tensor.ptr;
-        let total_num_elem = tensor.num_elem_allocated;
-        let nccl_tensor_type = tensor.dtype.to_nccl_datatype();
+        let tensor_ptr = tensor.data_ptr();
+        let total_num_elem = tensor.num_elements_allocated();
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
 
         unsafe {
             cpp::cpp!([tensor_ptr as "void *", total_num_elem as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t", op as "uint8_t"]

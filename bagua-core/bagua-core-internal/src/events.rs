@@ -3,10 +3,18 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct BaguaEventChannel {
+    pub name: String,
     inner: Arc<(Mutex<bool>, parking_lot::Condvar)>,
 }
 
 impl BaguaEventChannel {
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            inner: Arc::new((Mutex::new(false), parking_lot::Condvar::new())),
+        }
+    }
+
     pub fn finish(&self) {
         let &(ref lock, ref cvar) = &*self.inner;
         let mut finished = lock.lock();
@@ -19,14 +27,6 @@ impl BaguaEventChannel {
         let mut finished = lock.lock();
         if !*finished {
             cvar.wait(&mut finished);
-        }
-    }
-}
-
-impl Default for BaguaEventChannel {
-    fn default() -> Self {
-        Self {
-            inner: Arc::new((Mutex::new(false), parking_lot::Condvar::new())),
         }
     }
 }

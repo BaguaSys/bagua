@@ -1,6 +1,6 @@
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::BaguaCommunicator;
-use crate::datatypes::{BaguaBucket, BaguaReductionOp, BaguaTensorRaw};
+use crate::datatypes::{BaguaBucket, BaguaReductionOp, BaguaTensorRaw, RawBaguaTensor};
 use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
 use crate::BaguaCommOpChannels;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ impl CommOpTrait for CentralizedFullPrecisionSynchronous {
                     dtype: t.raw.dtype.clone(),
                     num_elem: t.raw.num_elem,
                     device_id: t.raw.device_id,
-                    pool_allocation: Some(temp_buf),
+                    pool_allocations: vec![Arc::new(temp_buf)],
                 };
                 if self.scattergather {
                     tracing::debug!("start alltoall");
