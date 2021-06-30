@@ -1,6 +1,6 @@
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaHierarchicalCommunicator, NCCLGroupGuard};
-use crate::datatypes::{BaguaBucket, BaguaTensorRaw};
+use crate::datatypes::{BaguaBucket, BaguaReductionOp, BaguaTensorRaw};
 use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
 use crate::{BaguaCommOpChannels, BaguaScheduledCommOp};
 use parking_lot::Mutex;
@@ -72,7 +72,7 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                             if step % comm_interval == 0 {
                                 peer_tensor.clone_from(&t.raw, c.stream_ptr);
                                 let _guard = NCCLGroupGuard::new();
-                                c.allreduce(&mut peer_tensor);
+                                c.allreduce(&mut peer_tensor, BaguaReductionOp::SUM);
                                 peer_tensor.divide_inplace(stream_ptr, c.nranks as f32);
                             }
                         }
