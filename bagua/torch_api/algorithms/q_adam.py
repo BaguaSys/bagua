@@ -54,8 +54,8 @@ class QAdamAlgorithm(Algorithm):
                 param._bagua_grad = registered_tensor
             else:
                 registered_tensor = param._q_adam_momentum.ensure_bagua_tensor(name)
-                registered_tensor._bagua_grad = param.bagua_ensure_grad()
-                # param.momentum = momentum
+                registered_tensor._q_adam_grad = param.bagua_ensure_grad()
+                param._q_adam_momentum = registered_tensor
             tensors.append(registered_tensor)
 
         self._communication_tensor_names = set(name for name, _ in parameters)
@@ -125,7 +125,7 @@ class QAdamAlgorithm(Algorithm):
             def calculate_momentum(*args):
                 beta1, beta2 = self.optimizer.param_groups[0]["betas"]
                 for tensor in bucket.tensors:
-                    tensor.mul_(beta1).add_(tensor._bagua_grad, alpha=1 - beta1)
+                    tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
 
             bucket.append_python_op(calculate_momentum)
             bucket.append_centralized_synchronous_op(
@@ -210,8 +210,6 @@ class QAdamOptimizer(Optimizer):
             # self.exp_avgs_in_group.append(exp_avgs)
 
     def step(self, closure=None):
-        # Here we assume grad or state["exp_avg"] have already been updated and averaged.
-        # This step only updates weights.
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
 
