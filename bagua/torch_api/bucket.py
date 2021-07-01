@@ -104,8 +104,13 @@ class BaguaBucket:
         Returns:
             The bucket itself.
         """
+        def wrapper_function_factory(pyop):
+            def wrapped_pyop(name):
+                with torch.cuda.stream(_get_global_state().get_communication_stream()):
+                    python_function(name)
+            return wrapped_pyop
 
-        self.backend_bucket.append_python_op(python_function)
+        self.backend_bucket.append_python_op(wrapper_function_factory(python_function))
         return self
 
     def append_centralized_synchronous_op(
