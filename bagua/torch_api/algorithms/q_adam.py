@@ -27,7 +27,7 @@ class QAdamAlgorithm(Algorithm):
 
     def init_tensors(self, bagua_module: BaguaModule):
         
-        parameters = bagua_module._bagua_build_params()
+        parameters = bagua_module.bagua_build_params()
         
         for name, param in parameters:
            param._one_bit_name = name
