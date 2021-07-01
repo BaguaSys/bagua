@@ -82,19 +82,19 @@ impl BaguaSingleCommunicatorPy {
     pub fn alltoall_v(
         &self,
         send_tensor: &mut BaguaTensorPy,
-        send_counts: &BaguaTensorPy,
-        send_displs: &BaguaTensorPy,
+        send_counts: Vec<usize>,
+        send_displs: Vec<usize>,
         recv_tensor: &mut BaguaTensorPy,
-        recv_counts: &BaguaTensorPy,
-        recv_displs: &BaguaTensorPy,
+        recv_counts: Vec<usize>,
+        recv_displs: Vec<usize>,
     ) {
         self.inner.alltoall_v(
             &mut send_tensor.inner,
-            &send_counts.inner,
-            &send_displs.inner,
+            &send_counts,
+            &send_displs,
             &mut recv_tensor.inner,
-            &recv_counts.inner,
-            &recv_displs.inner,
+            &recv_counts,
+            &recv_displs,
         )
     }
 
