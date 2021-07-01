@@ -20,6 +20,16 @@ class TensorDeclaration(TypedDict):
     dtype: TensorDtype
 
 
+def get_tensor_declaration_bytes(td: TensorDeclaration) -> int:
+    dtype_unit_size = {
+        TensorDtype.F32.value: 4,
+        TensorDtype.F16.value: 2,
+        TensorDtype.U8.value: 1,
+    }
+
+    return td["num_elements"] * dtype_unit_size[td["dtype"]]
+
+
 class BaguaHyperparameter(BaseModel):
     """
     Structured all bagua hyperparameters
@@ -31,5 +41,8 @@ class BaguaHyperparameter(BaseModel):
     def update(self, param_dict: dict):
         tmp = self.dict()
         tmp.update(param_dict)
-        self.parse_obj(tmp)
+        for key, value in param_dict.items():
+            if key in tmp:
+                self.__dict__[key] = value
+
         return self

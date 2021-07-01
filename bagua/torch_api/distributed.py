@@ -1,6 +1,10 @@
-from bagua.torch_api.utils import to_bagua_datatype, average_by_removing_extreme_values
+from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
-from bagua.bagua_define import TensorDeclaration
+from bagua.bagua_define import (
+    TensorDeclaration,
+    BaguaHyperparameter,
+    get_tensor_declaration_bytes,
+)
 from bagua.torch_api.globals import _get_global_state
 import gorilla
 import time
@@ -98,46 +102,26 @@ class BaguaModule:
             self.bagua_train_step_counter != 0
             and self.bagua_train_step_counter % CYCLE_STEP == 0
         ):
-            # calculate metrics
-            self._bagua_autotune_score_record_list.append(
-                CYCLE_STEP / float(time.time() - self._bagua_autotune_last_report_time)
-            )
-            if len(self._bagua_autotune_score_record_list) == 0:
-                iter_per_seconds = 0.0
-            else:
-                iter_per_seconds = sum(self._bagua_autotune_score_record_list) / len(
-                    self._bagua_autotune_score_record_list
-                )
-            logging.debug(
-                "score_record_list={}".format(self._bagua_autotune_score_record_list)
-            )
-            denoised_iter_per_seconds, std, _ = average_by_removing_extreme_values(
-                self._bagua_autotune_score_record_list
-            )
-            logging.debug(
-                "iter_per_seconds=%s, denoised_iter_per_seconds=%s, std=%s",
-                iter_per_seconds,
-                denoised_iter_per_seconds,
-                std,
-            )
+            # get speed metrics
+            time_since_last_update = time.time() - \
+                    self._bagua_autotune_last_report_time
+            speed = self._speed_metrics.get(time_since_last_update)
 
             # report metrics
-            # TODO: @shjwudp add support for reporting tensor completion order so that the autotune service does not
-            # rely on tensor registration order
-            from bagua.torch_api.communication import get_bagua_hyperparameters
-
-            self._bagua_autotune_client.report_metrics(
+            # TODO: @shjwudp add support for reporting tensor completion order
+            # so that the autotune service does not rely on tensor registration
+            # order
+            rsp = self._bagua_autotune_client.report_metrics(
                 rank=get_rank(),
                 unix_timestamp=time.time(),
                 train_iter=self.bagua_train_step_counter,
-                iter_per_seconds=iter_per_seconds,
-                denoised_iter_per_seconds=denoised_iter_per_seconds,
-                hyperparameters=get_bagua_hyperparameters().dict(),
+                hyperparameters=self._bagua_hyperparameters,
+                speed=speed,
             )
+            assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
             # update parameters
             self._bagua_reset_algorithm_buckets()
-            self._bagua_autotune_score_record_list.clear()
             self._bagua_autotune_last_report_time = time.time()
 
         logging.info("autotune overhead=%s", time.time() - start_time)
@@ -190,14 +174,15 @@ class BaguaModule:
             []
         )  #: the parameter names to ignore during communication
         if hasattr(self, "_bagua_params_and_buffers_to_ignore"):
-            self.parameters_to_ignore.extend(self._bagua_params_and_buffers_to_ignore)
+            self.parameters_to_ignore.extend(
+                self._bagua_params_and_buffers_to_ignore)
         if hasattr(
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
-            self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
+            self.parameters_to_ignore.extend(
+                self._ddp_params_and_buffers_to_ignore)
         self.bagua_train_step_counter = 0  #: number of iterations in training mode
         self.bagua_buckets = []  #: all Bagua buckets in a list
-        self._bagua_autotune_score_record_list = []
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
         self._bagua_framework_hooks = (
@@ -205,6 +190,9 @@ class BaguaModule:
         )  # hooks for bagua framework logic, not cleared when changing algorithms
         self._bagua_algorithm_hooks = []
         self._bagua_backend = _get_global_state().get_backend()
+        self._bagua_hyperparameters = BaguaHyperparameter()
+        self._speed_metrics_switch_on = get_autotune_level() >= 1
+        self._speed_metrics = StatisticalAverage()
 
         def autotune_hook(self, input):
             if self.training:
@@ -225,11 +213,37 @@ class BaguaModule:
         def algorithm_forward_pre_hook(self, input):
             self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
+        def insert_speed_metrics_event(self):
+            if not self._speed_metrics_switch_on:
+                return
+
+            if hasattr(self, "_last_event_pair"):
+                (start, stop) = self._last_event_pair
+                try:
+                    elapsed_time_s = start.elapsed_time(stop) / 1000.
+                    tensor_list = list(sum(self.reducer.buckets, []))
+                    total_bytes = sum([
+                        get_tensor_declaration_bytes(td)
+                        for td in tensor_list])
+                    total_gbytes = total_bytes / 1024. ** 3
+                    speed = total_gbytes / elapsed_time_s
+                    self.speed_metric.record(speed)
+                except RuntimeError as err:
+                    logging.debug("Ignore cuda err={}".format(err))
+
+            start_event = torch.cuda.Event(enable_timing=True)
+            self._speed_metrics_end_event = \
+                torch.cuda.Event(enable_timing=True)
+            torch.cuda.current_stream().record_event(start_event)
+            self._last_event_pair = (start_event,
+                                        self._speed_metrics_end_event)
+
         self._bagua_framework_hooks.extend(
             [
                 self.register_forward_pre_hook(num_iteration_step_hook),
                 self.register_forward_pre_hook(algorithm_reset_hook),
                 self.register_forward_pre_hook(algorithm_forward_pre_hook),
+                self.register_forward_pre_hook(insert_speed_metrics_event),
                 self.register_forward_pre_hook(autotune_hook),
                 self.register_forward_pre_hook(
                     clear_post_backward_callback_queued_hook
@@ -270,33 +284,27 @@ class BaguaModule:
             )
             for tensor in self._bagua_tensors
         ]
-        bagua_tensor_group_info = dict(
-            [
-                (tensor.bagua_tensor_name, 0) for tensor in self._bagua_tensors
-            ]  # TODO: remove parameter group logic
-        )
 
-        self._bagua_autotune_client.register_models(  # TODO: @shjwudp rename to register tensors
-            autotune_tensor_list, bagua_tensor_group_info
-        ).json()  # TODO: @shjwudp error check
+        rsp = self._bagua_autotune_client.register_tensors(
+            autotune_tensor_list
+        )
+        assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
     def _bagua_autotune_get_buckets(self):
-        response = self._bagua_autotune_client.ask_hyperparameters(
+        rsp = self._bagua_autotune_client.ask_hyperparameters(
             rank=get_rank(), train_iter=self.bagua_train_step_counter
-        ).json()
-
-        from bagua.torch_api.communication import get_bagua_hyperparameters
-
-        get_bagua_hyperparameters().update(  # TODO: @shjwudp do we need global hyperparameters?
-            response["recommended_hyperparameters"]
         )
+        assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
+        recommended_hyperparameters = rsp.json()["recommended_hyperparameters"]
+        is_autotune_completed = rsp.json()["is_autotune_completed"]
 
-        self._bagua_autotune_completed = not response[
-            "is_autotune_processing"
-        ]  # TODO: @shjwudp rename this to is autotune completed
+        self._bagua_hyperparameters.update(recommended_hyperparameters)
+
+        self._bagua_autotune_completed = is_autotune_completed
         recommended_buckets = map(
-            lambda x: list(map(lambda y: self._bagua_tensor_map[y["name"]], x)),
-            response["recommended_hyperparameters"]["buckets"],
+            lambda x: list(
+                map(lambda y: self._bagua_tensor_map[y["name"]], x)),
+            recommended_hyperparameters["buckets"],
         )
         return list(recommended_buckets)
 
@@ -304,7 +312,8 @@ class BaguaModule:
         self._bagua_cleanup_algorithm()
         self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
-            [(tensor.bagua_tensor_name, tensor) for tensor in self._bagua_tensors]
+            [(tensor.bagua_tensor_name, tensor)
+             for tensor in self._bagua_tensors]
         )
         self._bagua_autotune_register_tensors()
         self._bagua_reset_algorithm_buckets()
@@ -318,15 +327,21 @@ class BaguaModule:
     def _bagua_reset_algorithm_buckets(self):
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
+        self.bagua_buckets.extend(
+            self.bagua_algorithm.tensors_to_buckets(raw_buckets))
 
         for name, param in self.named_parameters():
 
             def real_hook_factory(param_name, parameter):
                 def real_hook(*unused):
-                    self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
+                    self.bagua_algorithm.init_backward_hook(
+                        self)(param_name, parameter)
 
                     def real_post_backward_hook(*unused):
+                        if self._speed_metrics_switch_on:
+                            torch.cuda.current_stream().record_event(
+                                self._speed_metrics_end_event)
+
                         self.bagua_algorithm.init_post_backward_hook(self)()
 
                     if not self._is_post_backward_callback_queued:
@@ -344,7 +359,8 @@ class BaguaModule:
                 hook.grad_acc = grad_acc
                 self._bagua_algorithm_hooks.append(hook)
 
-        optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(self)
+        optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(
+            self)
 
         from types import MethodType
 
