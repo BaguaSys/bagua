@@ -32,8 +32,6 @@ class BaguaModule:
 
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
-
-    :ivar bagua_inter_node_communicator:
     """
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
@@ -259,16 +257,13 @@ class BaguaModule:
         )
 
         # get communicators
-        self.bagua_inter_node_communicator = (
+        self._bagua_inter_node_communicator = (
             _get_global_state().get_internode_communicator()
         )
-        """
-        Bagua inter-node (cross machine) communicator.
-        """
-        self.bagua_intra_node_communicator = (
+        self._bagua_intra_node_communicator = (
             _get_global_state().get_intranode_communicator()
         )
-        self.bagua_global_communicator = _get_global_state().get_global_communicator()
+        self._bagua_global_communicator = _get_global_state().get_global_communicator()
         self.bagua_communication_stream = _get_global_state().get_communication_stream()
 
         self._bagua_broadcast_parameters()
