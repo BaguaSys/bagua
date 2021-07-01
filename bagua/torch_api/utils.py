@@ -119,7 +119,7 @@ def flatten_module_params(params_list, align_bytes: int):
     for params in params_list:
         for p in params:
             # copy data
-            flatten_weights_tensor[offset:offset + p.numel()] = p.data.reshape(-1)
+            flatten_weights_tensor[offset : offset + p.numel()] = p.data.reshape(-1)
 
             if p.grad is not None:
                 flatten_grads_tensor[offset : offset + p.numel()] = p.grad.data.reshape(
