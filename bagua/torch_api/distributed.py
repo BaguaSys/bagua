@@ -33,7 +33,7 @@ class BaguaModule:
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
 
-    :ivar bagua_inter_node_communicator
+    :ivar bagua_inter_node_communicator:
     """
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
