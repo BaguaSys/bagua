@@ -38,6 +38,7 @@ extensions = [
 
 
 napoleon_numpy_docstring = True
+autoapi_python_class_content = "both"
 autodoc_typehints = "description"
 autoapi_type = "python"
 autoapi_dirs = ["../bagua"]

@@ -6,19 +6,8 @@ import numpy as np
 
 LOGGER = logging.getLogger(__name__)
 
-try:
-    import apex
-
-    flatten, unflatten = (
-        apex.parallel.distributed.flatten,
-        apex.parallel.distributed.unflatten,
-    )
-except ImportError:
-    LOGGER.warning(
-        "Warning:  apex was not installed. Falling back to Python flatten and unflatten."
-    )
-    flatten = torch._utils._flatten_dense_tensors
-    unflatten = torch._utils._unflatten_dense_tensors
+flatten = torch._utils._flatten_dense_tensors
+unflatten = torch._utils._unflatten_dense_tensors
 
 
 def apply_flattened_call(bucket, call, extra_args=None):
@@ -269,7 +258,7 @@ def average_by_removing_extreme_values(raw_score_list):
             break
         score_list = weed_out_outliers(score_list)
 
-    score = np.mean(score_list)
-    std = np.std(score_list)
+    # score = np.mean(score_list) # TODO: @shjwudp check whether these are still needed
+    # std = np.std(score_list)
 
     return np.mean(score_list), np.std(score_list), score_list.tolist()

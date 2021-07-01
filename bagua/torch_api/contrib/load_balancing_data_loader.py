@@ -3,7 +3,7 @@ import math
 import torch.distributed as dist
 from torch.utils.data.sampler import Sampler
 from torch.utils.data.dataset import Dataset
-from typing import TypeVar, Optional, Iterator, Callable
+from typing import Optional, Iterator, Callable
 from collections import OrderedDict
 
 __all__ = ["LoadBalancingDistributedSampler", "LoadBalancingDistributedBatchSampler"]

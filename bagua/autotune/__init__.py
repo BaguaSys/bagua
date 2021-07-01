@@ -1,3 +1,4 @@
+# TODO: @shjwudp merge with service module
 import copy
 import collections
 import logging
@@ -5,8 +6,6 @@ import os
 import re
 import skopt
 import time
-import math
-import numpy as np
 from typing import Tuple
 from pssh.clients import ParallelSSHClient
 from pssh.exceptions import Timeout
