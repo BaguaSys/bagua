@@ -122,7 +122,7 @@ def flatten_module_params(params_list, align_bytes: int):
             flatten_weights_tensor[offset:offset + p.numel()] = p.data.reshape(-1)
 
             if p.grad is not None:
-                flatten_grads_tensor[offset:offset + p.numel()] = p.grad.data.reshape(
+                flatten_grads_tensor[offset : offset + p.numel()] = p.grad.data.reshape(
                     -1
                 )
             else:
@@ -235,7 +235,7 @@ def average_by_removing_extreme_values(raw_score_list):
     score_list = np.asarray(raw_score_list)
 
     # weed out warm up data
-    score_list = score_list[len(score_list) // 3:]
+    score_list = score_list[len(score_list) // 3 :]
 
     def weed_out_outliers(X):
         mean = np.mean(X)
