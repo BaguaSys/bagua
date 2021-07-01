@@ -119,7 +119,7 @@ class QAdamAlgorithm(Algorithm):
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
                     beta1, beta2 = self.optimizer.param_groups[0]["betas"]
                     for tensor in bucket.tensors:
-                        tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
+                        tensor.mul_(beta1).add_(tensor._bagua_grad, alpha=1 - beta1)
 
             bucket.backend_bucket.append_python_op(calculate_momentum)
             bucket.backend_bucket.append_centralized_synchronous_op(
@@ -133,13 +133,13 @@ class QAdamAlgorithm(Algorithm):
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
-            parameter._q_adam_momentum.bagua_mark_communication_ready()
+            parameter.momentum.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
             assert (
-                parameter._q_adam_grad.data_ptr() == parameter.grad.data_ptr()
+                parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr()
             ), "QAdam grad data_ptr should match grad data_ptr"
-            parameter._q_adam_grad.bagua_mark_communication_ready()
+            parameter._bagua_grad.bagua_mark_communication_ready()
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
