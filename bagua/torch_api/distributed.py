@@ -26,6 +26,14 @@ class BaguaModule:
     :ivar parameters_to_ignore: The parameter names in ``"{module_name}.{param_name}"`` format to ignore
         when calling ``self.bagua_build_params()``.
     :vartype parameters_to_ignore: List[str]
+
+    :ivar bagua_train_step_counter: Number of iterations in training mode
+    :vartype bagua_train_step_counter: int
+
+    :ivar bagua_buckets: All Bagua buckets in a list.
+    :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
+
+    :ivar bagua_inter_node_communicator
     """
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
@@ -202,8 +210,14 @@ class BaguaModule:
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
-        self.bagua_train_step_counter = 0  #: number of iterations in training mode
-        self.bagua_buckets = []  #: all Bagua buckets in a list
+        self.bagua_train_step_counter = 0
+        """
+        Number of iterations in training mode.
+        """
+        self.bagua_buckets = []
+        """
+        All Bagua buckets in a list.
+        """
         self._bagua_autotune_score_record_list = []
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
@@ -248,6 +262,9 @@ class BaguaModule:
         self.bagua_inter_node_communicator = (
             _get_global_state().get_internode_communicator()
         )
+        """
+        Bagua inter-node (cross machine) communicator.
+        """
         self.bagua_intra_node_communicator = (
             _get_global_state().get_intranode_communicator()
         )
