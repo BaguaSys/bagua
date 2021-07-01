@@ -12,6 +12,7 @@ class BaguaTensor:
     """
     This class patch torch.Tensor with additional methods.
     """
+
     def _bagua_sanity_check(self):
         assert self._bagua_backend_tensor.data_ptr() == self.data_ptr()
         assert self._bagua_backend_tensor.num_elements() == self.numel()
@@ -20,9 +21,9 @@ class BaguaTensor:
     def is_bagua_tensor(self) -> bool:
         return hasattr(self, "_bagua_backend_tensor")
 
-    def ensure_bagua_tensor(self, name: Optional[str]=None):
+    def ensure_bagua_tensor(self, name: Optional[str] = None):
         """
-        Convert a PyTorch tensor or parameter to Bagua tensor and return it.
+        Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
         A Bagua tensor is required to use Bagua's communication algorithms.
 
         Args:
@@ -45,6 +46,21 @@ class BaguaTensor:
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
         return self
+
+    def to_bagua_tensor(self, name: Optional[str] = None):
+        """
+        Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
+        The original tensor is not changed. A Bagua tensor is required to use
+        Bagua's communication algorithms.
+
+        Args:
+            name: the unique name of the tensor
+
+        Returns:
+            The new Bagua tensor sharing the same storage with the original tensor.
+        """
+        new_tensor = torch.Tensor(cdata=self._cdata)
+        return new_tensor.ensure_bagua_tensor(name)
 
     def bagua_backend_tensor(self) -> B.BaguaTensorPy:
         """

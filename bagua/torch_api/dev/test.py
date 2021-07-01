@@ -104,10 +104,10 @@ optimizer = optim.Adam(model.parameters(), lr=0.01 * bagua.get_world_size())
 # optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 # optimizer = OnebitAdamOptimizer(model.parameters())
 
-model.with_bagua([optimizer], algorithm=GradientAllReduceAlgorithm())
+# model.with_bagua([optimizer], algorithm=GradientAllReduceAlgorithm())
 # model.with_bagua([optimizer], algorithm=ByteGradAlgorithm())
 # model.with_bagua([optimizer], algorithm=OnebitAdamAlgorithm(optimizer, 30))
-# model.with_bagua([optimizer], algorithm=DecentralizedAlgorithm())
+model.with_bagua([optimizer], algorithm=DecentralizedAlgorithm())
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)

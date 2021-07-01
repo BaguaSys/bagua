@@ -236,7 +236,7 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        comm.broadcast(coalesced.ensure_bagua_tensor().bagua_backend_tensor(), root)
+        comm.broadcast(coalesced.to_bagua_tensor().bagua_backend_tensor(), root)
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
 
@@ -269,7 +269,7 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.broadcast(tensor.ensure_bagua_tensor().bagua_backend_tensor(), root)
+        comm.broadcast(tensor.to_bagua_tensor().bagua_backend_tensor(), root)
 
     # TODO: remove
     torch.cuda.synchronize()
@@ -302,7 +302,7 @@ def reduce(tensor, dst, op=dist.ReduceOp.SUM,
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.reduce(tensor.ensure_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op))
+        comm.reduce(tensor.to_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op))
 
     torch.cuda.synchronize()
 
@@ -324,7 +324,7 @@ def allreduce_coalesced(
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        comm.allreduce(coalesced.ensure_bagua_tensor("allreduce_coalesced"), to_bagua_reduce_op(op))
+        comm.allreduce(coalesced.to_bagua_tensor("allreduce_coalesced"), to_bagua_reduce_op(op))
 
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
@@ -384,7 +384,7 @@ def allreduce(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.allreduce(tensor.ensure_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op))
+        comm.allreduce(tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op))
 
     # TODO: remove
     torch.cuda.synchronize()
