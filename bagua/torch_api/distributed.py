@@ -157,7 +157,11 @@ class BaguaModule:
 
         logging.info("autotune overhead=%s", time.time() - start_time)
 
-    def with_bagua(self, optimizers: List[torch.optim.Optimizer], algorithm: "bagua.torch_api.algorithms.Algorithm") -> BaguaModule:
+    def with_bagua(
+        self,
+        optimizers: List[torch.optim.Optimizer],
+        algorithm: "bagua.torch_api.algorithms.Algorithm",
+    ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         ``torch.nn.Module``.
 
