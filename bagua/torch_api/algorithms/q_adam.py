@@ -88,9 +88,9 @@ class QAdamAlgorithm(Algorithm):
         bagua_module: BaguaModule,
         bucket: BaguaBucket,
     ):
-        bucket.backend_bucket.clear_ops()
+        bucket.clear_ops()
         if self.optimizer.step_id < self.warmup_steps:
-            bucket.backend_bucket.append_centralized_synchronous_op(
+            bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
             )
@@ -101,8 +101,8 @@ class QAdamAlgorithm(Algorithm):
                     for tensor in bucket.tensors:
                         tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
 
-            bucket.backend_bucket.append_python_op(calculate_momentum)
-            bucket.backend_bucket.append_centralized_synchronous_op(
+            bucket.append_python_op(calculate_momentum)
+            bucket.append_centralized_synchronous_op(
                 hierarchical=self.hierarchical_reduce,
                 average=True,
                 scattergather=True,
