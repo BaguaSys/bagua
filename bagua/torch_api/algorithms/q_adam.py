@@ -55,7 +55,7 @@ class QAdamAlgorithm(Algorithm):
             else:
                 registered_tensor = param._q_adam_momentum.ensure_bagua_tensor(name)
                 registered_tensor._q_adam_grad = param.bagua_ensure_grad()
-                param._q_adam_momentum = registered_tensor
+                # param._q_adam_momentum = registered_tensor
             tensors.append(registered_tensor)
 
         self._communication_tensor_names = set(name for name, _ in parameters)
