@@ -94,6 +94,15 @@ class BaguaTensor:
             self._bagua_ready_event.cuda_event,
         )
 
+    def bagua_mark_communication_ready_without_synchronization(self):
+        """
+        Mark a Bagua tensor ready immediately, without CUDA event synchronization.
+        """
+        self._bagua_backend.mark_communication_ready(
+            self._bagua_backend_tensor,
+            0,
+        )
+
     def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         """
         Sets the underlying storage using an existing torch.Storage.
