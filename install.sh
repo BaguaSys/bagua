@@ -72,6 +72,4 @@ curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # install bagua
-#python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
-python3 -m pip install bagua-core==0.2.2.dev18 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
-python3 -m pip install bagua==0.4.1.dev26 -f https://repo.arrayfire.com/python/wheels/3.8.0/ -i https://pypi.org/simple
+python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
