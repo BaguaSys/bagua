@@ -13,7 +13,7 @@ from bagua.torch_api.utils import check_contiguous
 
 class BaguaBucket:
     def __init__(
-            self, tensors: List[BaguaTensor], name: str, flatten: bool, alignment: int = 1
+        self, tensors: List[BaguaTensor], name: str, flatten: bool, alignment: int = 1
     ) -> None:
         """
         Create a Bagua bucket with a list of Bagua tensors.
@@ -76,7 +76,7 @@ class BaguaBucket:
         offset = 0
         for tensor in self.tensors:
             # copy data
-            flatten_tensor[offset: offset + tensor.numel()] = tensor.data.reshape(-1)
+            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
             tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.numel()
         # check
@@ -108,9 +108,13 @@ class BaguaBucket:
         self.backend_bucket.append_python_op(python_function)
         return self
 
-    def append_centralized_synchronous_op(self, hierarchical: bool = False,
-                                          average: bool = True, scattergather: bool = False,
-                                          compression: Optional[str] = None) -> BaguaBucket:
+    def append_centralized_synchronous_op(
+        self,
+        hierarchical: bool = False,
+        average: bool = True,
+        scattergather: bool = False,
+        compression: Optional[str] = None,
+    ) -> BaguaBucket:
         """
         Append a centralized synchronous operation to a bucket. It will sum or average the tensors in the bucket
         for all workers.
@@ -150,7 +154,12 @@ class BaguaBucket:
             )
         return self
 
-    def append_decentralized_synchronous_op(self, hierarchical: bool =True, peer_selection_mode: str="all", communication_interval: int =1) -> BaguaBucket:
+    def append_decentralized_synchronous_op(
+        self,
+        hierarchical: bool = True,
+        peer_selection_mode: str = "all",
+        communication_interval: int = 1,
+    ) -> BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
