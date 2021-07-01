@@ -49,13 +49,13 @@ autoapi_ignore = [
     "*/bagua/distributed/*",
     "*/bagua/script/*",
     "*/bagua/service/*",
-    "*/bagua/torch_api/algorithms/*.py",
     "*/bagua/torch_api/tools/*.py",
     "*/bagua/torch_api/compression.py",
-    "*/bagua/torch_api/distributed_define.py",
     "*/bagua/torch_api/exceptions.py",
     "*/bagua/torch_api/utils.py",
+    "*/bagua/torch_api/globals.py",
     "*/bagua/version.py",
+    "*/bagua/bagua_define.py",
 ]
 autoapi_options = [
     "members",
@@ -123,11 +123,10 @@ html_show_copyright = True
 
 
 _ignore_methods = [
-    "bagua.torch_api.contrib.data.LoadBalancingDistributedSampler.shuffle_chunks",
-    "bagua.torch_api.contrib.data.LoadBalancingDistributedBatchSampler.generate_batches",
-    "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedSampler.shuffle_chunks",
-    "bagua.torch_api.contrib.data.load_balancing_data_loader.LoadBalancingDistributedBatchSampler.generate_batches",
-    "bagua.bagua_define.DistributedAlgorithm.from_str",
+    "bagua.torch_api.contrib.LoadBalancingDistributedSampler.shuffle_chunks",
+    "bagua.torch_api.contrib.LoadBalancingDistributedBatchSampler.generate_batches",
+    "bagua.torch_api.contrib.load_balancing_data_loader.LoadBalancingDistributedSampler.shuffle_chunks",
+    "bagua.torch_api.contrib.load_balancing_data_loader.LoadBalancingDistributedBatchSampler.generate_batches",
 ]
 _ignore_functions = [
     "bagua.torch_api.env.get_autotune_server_addr",
@@ -135,8 +134,7 @@ _ignore_functions = [
     "bagua.torch_api.env.get_bagua_service_port",
     "bagua.torch_api.env.is_report_metrics_switch_on",
     "bagua.torch_api.env.get_autotune_level",
-    "bagua.torch_api.communication._get_global_state",
-    "bagua.torch_api.communication.is_initialized",
+    "bagua.torch_api.globals.is_initialized",
     "bagua.torch_api.communication.get_bagua_hyperparameters",
     "bagua.torch_api.communication.get_hyperparameters_service_client",
     "bagua.torch_api.communication.gen_nccl_unique_id",
@@ -148,10 +146,10 @@ _ignore_functions = [
     "bagua.torch_api.communication.start_autotune_server",
 ]
 _ignore_classes = [
-    "bagua.bagua_define.TensorDtype",
-    "bagua.bagua_define.TensorDeclaration",
-    "bagua.bagua_define.BaguaHyperparameter",
     "bagua.torch_api.communication.BaguaGlobalState",
+    "bagua.torch_api.algorithms.BaguaModule",
+    "bagua.torch_api.algorithms.BaguaBucket",
+    "bagua.torch_api.algorithms.BaguaTensor",
 ]
 
 

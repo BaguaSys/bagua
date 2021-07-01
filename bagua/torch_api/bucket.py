@@ -21,6 +21,9 @@ class BaguaBucket:
             name: The unique name of the bucket.
             flatten: If True, flatten the input tensors so that they are
                 contiguous in memory.
+            alignment: If alignment > 1, Bagua will create a padding tensor to
+                the bucket so that the total number of elements in the bucket divides
+                the given alignment.
         """
         self.tensors = tensors
 

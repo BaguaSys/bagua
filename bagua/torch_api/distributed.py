@@ -372,7 +372,7 @@ class BaguaModule:
         )
 
 
-base = gorilla._get_base(BaguaModule)
-decorator_data = gorilla.get_decorator_data(base)
-for patch in decorator_data.patches:
+_base = gorilla._get_base(BaguaModule)
+_decorator_data = gorilla.get_decorator_data(_base)
+for patch in _decorator_data.patches:
     gorilla.apply(patch)

@@ -72,7 +72,7 @@ class Algorithm:
 
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
         """Given a `BaguaModule`, return a hook function that will be executed before the
-         forward process.
+        forward process.
 
         Args:
             bagua_module: A PyTorch module initialized by
