@@ -192,3 +192,4 @@ class BaguaBucket:
         Clear the previously appended operations.
         """
         self.backend_bucket.clear_ops()
+        return self
