@@ -102,19 +102,19 @@ impl BaguaSingleCommunicator {
     pub fn alltoall_v(
         &self,
         send_tensor: &mut BaguaTensor,
-        send_counts: &BaguaTensor,
-        send_displs: &BaguaTensor,
+        send_counts: &[usize],
+        send_displs: &[usize],
         recv_tensor: &mut BaguaTensor,
-        recv_counts: &BaguaTensor,
-        recv_displs: &BaguaTensor,
+        recv_counts: &[usize],
+        recv_displs: &[usize],
     ) {
         self.inner.alltoall_v(
             send_tensor.inner.write().raw.as_mut(),
-            send_counts.inner.read().raw.as_ref(),
-            send_displs.inner.read().raw.as_ref(),
+            send_counts,
+            send_displs,
             recv_tensor.inner.write().raw.as_mut(),
-            recv_counts.inner.read().raw.as_ref(),
-            recv_displs.inner.read().raw.as_ref(),
+            recv_counts,
+            recv_displs,
         );
     }
 
@@ -422,47 +422,27 @@ impl BaguaCommunicatorInner {
     pub fn alltoall_v(
         &self,
         send_tensor: &dyn RawBaguaTensor,
-        send_counts_tensor: &dyn RawBaguaTensor,
-        send_displs_tensor: &dyn RawBaguaTensor,
+        send_counts: &[usize],
+        send_displs: &[usize],
         recv_tensor: &mut dyn RawBaguaTensor,
-        recv_counts_tensor: &dyn RawBaguaTensor,
-        recv_displs_tensor: &dyn RawBaguaTensor,
+        recv_counts: &[usize],
+        recv_displs: &[usize],
     ) {
         let communicator_ptr = self.comm_ptr;
         let nranks = self.nranks;
         let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
-        assert_eq!(
-            send_counts_tensor.dtype().to_nccl_datatype(),
-            5,
-            "send_counts_tensor.dtype must be BaguaTensorDtype::U64"
-        );
-        assert_eq!(
-            send_displs_tensor.dtype().to_nccl_datatype(),
-            5,
-            "send_displs_tensor.dtype must be BaguaTensorDtype::U64"
-        );
-        assert_eq!(
-            recv_counts_tensor.dtype().to_nccl_datatype(),
-            5,
-            "recv_counts_tensor.dtype must be BaguaTensorDtype::U64"
-        );
-        assert_eq!(
-            recv_displs_tensor.dtype().to_nccl_datatype(),
-            5,
-            "recv_displs_tensor.dtype must be BaguaTensorDtype::U64"
-        );
 
         let send_buf_ptr = send_tensor.data_ptr();
-        let send_counts_ptr = send_counts_tensor.data_ptr();
-        let send_displs_ptr = send_displs_tensor.data_ptr();
+        let send_counts_ptr = send_counts.as_ptr();
+        let send_displs_ptr = send_displs.as_ptr();
         let recv_buf_ptr = recv_tensor.data_ptr();
-        let recv_counts_ptr = recv_counts_tensor.data_ptr();
-        let recv_displs_ptr = recv_displs_tensor.data_ptr();
+        let recv_counts_ptr = recv_counts.as_ptr();
+        let recv_displs_ptr = recv_displs.as_ptr();
 
         unsafe {
             cpp::cpp!([
-                send_buf_ptr as "void *", send_counts_ptr as "uint64_t *", send_displs_ptr as "uint64_t *",
-                recv_buf_ptr as "void *", recv_counts_ptr as "uint64_t *", recv_displs_ptr as "uint64_t *",
+                send_buf_ptr as "void *", send_counts_ptr as "size_t *", send_displs_ptr as "size_t *",
+                recv_buf_ptr as "void *", recv_counts_ptr as "size_t *", recv_displs_ptr as "size_t *",
                 nranks as "size_t", communicator_ptr as "Al::NCCLCommunicator *",  nccl_tensor_type as "ncclDataType_t"]
             {
                 std::vector<size_t> send_counts(send_counts_ptr, send_counts_ptr + nranks);
