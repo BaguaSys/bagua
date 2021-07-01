@@ -179,8 +179,11 @@ class BaguaModule:
 
         # TODO: do we need to check whether optimizers and model parameters are the same?
         self.bagua_optimizers = (
-            optimizers  #: the optimizers passed in by ``with_bagua(...)``
+            optimizers
         )
+        """
+        The optimizers passed in by ``with_bagua(...)``.
+        """
         self.bagua_algorithm = (
             algorithm  #: the algorithm passed in by ``with_bagua(...)``
         )
