@@ -68,7 +68,7 @@ class Algorithm:
         return bagua_buckets
 
 
-    def init_pre_forward_hook(self, bagua_module: BaguaModule):
+    def init_forward_pre_hook(self, bagua_module: BaguaModule):
         """Given a `BaguaModule`, return a hook function that will be executed before the
          forward process.
 
@@ -77,9 +77,9 @@ class Algorithm:
                 ``with_bagua(...)`` method.
 
         Returns:
-            A function that takes no argument.
+            A function that takes the model's input.
         """
-        def hook():
+        def hook(input):
             pass
         return hook
 

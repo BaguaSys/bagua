@@ -33,8 +33,8 @@ class DecentralizedAlgorithm(Algorithm):
         self.tensors = [param.ensure_bagua_tensor(name) for name, param in parameters.__reversed__()]
         return self.tensors
 
-    def init_pre_forward_hook(self, bagua_module: BaguaModule):
-        def hook():
+    def init_forward_pre_hook(self, bagua_module: BaguaModule):
+        def hook(input):
             for tensor in self.tensors:
                 tensor.bagua_mark_communication_ready()
         return hook
