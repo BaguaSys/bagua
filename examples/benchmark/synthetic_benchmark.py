@@ -54,8 +54,8 @@ parser.add_argument(
 parser.add_argument(
     "--algorithm",
     type=str,
-    default="allreduce",
-    help="allreduce, quantize, decentralize or 1bit-adam",
+    default="gradient_allreduce",
+    help="gradient_allreduce, bytegrad, decentralized or onebit_adam",
 )
 parser.add_argument(
     "--amp",
@@ -107,6 +107,8 @@ elif args.algorithm == "onebit_adam":
     from bagua.torch_api.algorithms import onebit_adam
     optimizer = onebit_adam.OnebitAdamOptimizer(model.parameters())
     algorithm = onebit_adam.OnebitAdamAlgorithm(optimizer, 10)
+else:
+    raise NotImplementedError
 
 model = model.with_bagua([optimizer], algorithm)
 

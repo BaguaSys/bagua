@@ -145,8 +145,8 @@ def main():
     parser.add_argument(
         "--algorithm",
         type=str,
-        default="allreduce",
-        help="allreduce, quantize, decentralize",
+        default="gradient_allreduce",
+        help="gradient_allreduce, bytegrad, decentralized, onebit_adam",
     )
     parser.add_argument(
         "--checkpoint_path",
@@ -208,6 +208,22 @@ def main():
     model = Net().cuda()
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
+    if args.algorithm == "gradient_allreduce":
+        from bagua.torch_api.algorithms import gradient_allreduce
+        algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
+    elif args.algorithm == "decentralized":
+        from bagua.torch_api.algorithms import decentralized
+        algorithm = decentralized.DecentralizedAlgorithm()
+    elif args.algorithm == "bytegrad":
+        from bagua.torch_api.algorithms import bytegrad
+        algorithm = bytegrad.ByteGradAlgorithm()
+    elif args.algorithm == "onebit_adam":
+        from bagua.torch_api.algorithms import onebit_adam
+        optimizer = onebit_adam.OnebitAdamOptimizer(model.parameters())
+        algorithm = onebit_adam.OnebitAdamAlgorithm(optimizer, 10)
+    else:
+        raise NotImplementedError
+
     start_epoch = 1
     if os.path.exists(args.checkpoint_path):
         checkpoint = torch.load(args.checkpoint_path)
@@ -215,8 +231,8 @@ def main():
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"]
 
-    model, optimizer = bagua.bagua_init(
-        model, optimizer, distributed_algorithm=args.algorithm
+    model = model.with_bagua(
+        [optimizer], algorithm
     )
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)

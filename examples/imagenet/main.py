@@ -143,8 +143,8 @@ parser.add_argument(
 parser.add_argument(
     "--algorithm",
     type=str,
-    default="allreduce",
-    help="distributed algorithm: {allreduce, quantize, decentralize}",
+    default="gradient_allreduce",
+    help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, onebit_adam}",
 )
 
 
@@ -207,6 +207,22 @@ def main_worker(args):
         weight_decay=args.weight_decay,
     )
 
+    if args.algorithm == "gradient_allreduce":
+        from bagua.torch_api.algorithms import gradient_allreduce
+        algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
+    elif args.algorithm == "decentralized":
+        from bagua.torch_api.algorithms import decentralized
+        algorithm = decentralized.DecentralizedAlgorithm()
+    elif args.algorithm == "bytegrad":
+        from bagua.torch_api.algorithms import bytegrad
+        algorithm = bytegrad.ByteGradAlgorithm()
+    elif args.algorithm == "onebit_adam":
+        from bagua.torch_api.algorithms import onebit_adam
+        optimizer = onebit_adam.OnebitAdamOptimizer(model.parameters())
+        algorithm = onebit_adam.OnebitAdamAlgorithm(optimizer, 10)
+    else:
+        raise NotImplementedError
+
     scaler = torch.cuda.amp.GradScaler(enabled=args.amp)
 
     # optionally resume from a checkpoint
@@ -232,10 +248,9 @@ def main_worker(args):
             print("=> no checkpoint found at '{}'".format(args.resume))
 
     if args.distributed:
-        model, optimizer = bagua.bagua_init(
-            model,
-            optimizer,
-            distributed_algorithm=args.algorithm,
+        model = model.with_bagua(
+            [optimizer],
+            algorithm,
         )
 
     cudnn.benchmark = True
