@@ -1,4 +1,11 @@
-### v0.3.0
+## v0.3.1
+
+### Fixes
+
+* always mark bagua padding tensor as ready 63f88d4
+* fix alltoall_v parameter types (#27) b541d85
+
+## v0.3.0
 
 ### ⚠ BREAKING CHANGE
 
