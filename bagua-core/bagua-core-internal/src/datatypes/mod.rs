@@ -801,11 +801,6 @@ impl BaguaBucketInner {
             t.raw.data_ptr() + t.raw.num_elements_allocated() as u64 * bytes_per_element;
         for tensor in self.tensors.iter().dropping(1) {
             let inner_tensor = &tensor.inner.read();
-            tracing::debug!(
-                "current_ptr {} next tensor data_ptr {}",
-                current_ptr,
-                inner_tensor.raw.data_ptr()
-            );
             if current_ptr != inner_tensor.raw.data_ptr() {
                 return false;
             } else {
