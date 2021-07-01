@@ -18,7 +18,16 @@ class QAdamAlgorithm(Algorithm):
         q_adam_optimizer: Optimizer,
         hierarchical_reduce: bool = True,
     ):
+        """
+        Create an instance of the
+        `QAdam Algorithm <https://baguasys.github.io/tutorials/algorithms/q_adam.html>`_
+        .
 
+        Args:
+            q_adam_optimizer (QAdamOptimizer): A QAdam optimizer initialized with model parameters.
+            hierarchical (bool): Enable hierarchical communication.
+
+        """
         self.hierarchical_reduce = hierarchical_reduce
         self.optimizer = q_adam_optimizer
         self.warmup_steps = self.optimizer.warmup_steps
@@ -27,7 +36,7 @@ class QAdamAlgorithm(Algorithm):
 
         if self.optimizer.step_id == self.warmup_steps:
             print(
-                "Onebit Adam starts to compress from step {}".format(
+                "QAdam starts to compress from step {}".format(
                     self.optimizer.step_id
                 )
             )
@@ -40,7 +49,7 @@ class QAdamAlgorithm(Algorithm):
         parameters = bagua_module.bagua_build_params()
 
         for name, param in parameters:
-            param._one_bit_name = name
+            param._q_adam_name = name
 
         tensors = []
         for param_group, m_group in zip(
@@ -49,15 +58,15 @@ class QAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._one_bit_name
+                        param._q_adam_name
                     )
-                    param._one_bit_grad = registered_tensor
+                    param._q_adam_grad = registered_tensor
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._one_bit_name
+                        param._q_adam_name
                     )
-                    registered_tensor._one_bit_grad = param.bagua_ensure_grad()
-                    param._one_bit_momentum = registered_tensor
+                    registered_tensor._q_adam_grad = param.bagua_ensure_grad()
+                    param._q_adam_momentum = registered_tensor
                 tensors.append(registered_tensor)
 
         return tensors
@@ -90,19 +99,18 @@ class QAdamAlgorithm(Algorithm):
     ):
         bucket.backend_bucket.clear_ops()
         if self.optimizer.step_id < self.warmup_steps:
-            bucket.backend_bucket.append_centralized_synchronous_op(
+            bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
             )
         else:
             def calculate_momentum(*args):
-                with torch.cuda.stream(_get_global_state().get_communication_stream()):
-                    beta1, beta2 = self.optimizer.param_groups[0]["betas"]
-                    for tensor in bucket.tensors:
-                        tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
+                beta1, beta2 = self.optimizer.param_groups[0]["betas"]
+                for tensor in bucket.tensors:
+                    tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
 
-            bucket.backend_bucket.append_python_op(calculate_momentum)
-            bucket.backend_bucket.append_centralized_synchronous_op(
+            bucket.append_python_op(calculate_momentum)
+            bucket.append_centralized_synchronous_op(
                 hierarchical=self.hierarchical_reduce,
                 average=True,
                 scattergather=True,
@@ -111,13 +119,13 @@ class QAdamAlgorithm(Algorithm):
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
-            parameter._one_bit_momentum.bagua_mark_communication_ready()
+            parameter._q_adam_momentum.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
             assert (
-                parameter._one_bit_grad.data_ptr() == parameter.grad.data_ptr()
-            ), "one bit grad data_ptr should match grad data_ptr"
-            parameter._one_bit_grad.bagua_mark_communication_ready()
+                parameter._q_adam_grad.data_ptr() == parameter.grad.data_ptr()
+            ), "QAdam grad data_ptr should match grad data_ptr"
+            parameter._q_adam_grad.bagua_mark_communication_ready()
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
@@ -164,6 +172,12 @@ class QAdamOptimizer(Optimizer):
             params_with_grad = []
             exp_avgs = []
             for p in group["params"]:
+                # p._q_adam_momentum = torch.zeros_like(
+                #     p, memory_format=torch.preserve_format
+                # )
+                # p._q_adam_variance = torch.zeros_like(
+                #     p, memory_format=torch.preserve_format
+                # )
                 params_with_grad.append(p)
                 state = self.state[p]
                 if len(state) == 0:
@@ -178,8 +192,6 @@ class QAdamOptimizer(Optimizer):
             self.exp_avgs_in_group.append(exp_avgs)
 
     def step(self, closure=None):
-        # Here we assume grad or state["exp_avg"] have already been updated and averaged.
-        # This step only updates weights.
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
 
@@ -192,9 +204,13 @@ class QAdamOptimizer(Optimizer):
 
                 if self.step_id < self.warmup_steps:
                     state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
+                    # param._q_adam_momentum.mul_(beta1).add_(param.grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(
                         param.grad, param.grad, value=1 - beta2
                     )
+                    # param._q_adam_variance.mul_(beta2).addcmul_(
+                    #     param.grad, param.grad, value=1 - beta2
+                    # )
 
                 bias_correction1 = 1 - beta1 ** self.step_id
                 bias_correction2 = 1 - beta2 ** self.step_id
@@ -202,6 +218,10 @@ class QAdamOptimizer(Optimizer):
                 denom = (state["exp_avg_sq"].sqrt() / math.sqrt(bias_correction2)).add_(
                     eps
                 )
+                # denom = (param._q_adam_variance.sqrt() / math.sqrt(bias_correction2)).add_(
+                #     eps
+                # )
                 step_size = lr / bias_correction1
                 update = state["exp_avg"] / denom
+                # update = param._q_adam_momentum / denom
                 param.data.add_(-step_size * update)
