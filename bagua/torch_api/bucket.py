@@ -152,7 +152,7 @@ class BaguaBucket:
             )
         else:
             self.backend_bucket.append_centralized_synchronous_op(
-                _get_global_state().get_global_communitor(),
+                _get_global_state().get_global_communicator(),
                 None,
                 hierarchical=hierarchical,
                 average=average,
