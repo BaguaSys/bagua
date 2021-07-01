@@ -83,6 +83,7 @@ class Algorithm:
         """
         def hook(input):
             pass
+        return hook
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         """Given a `BaguaModule`, return a hook function that will be executed on every
