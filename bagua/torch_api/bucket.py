@@ -29,6 +29,9 @@ class BaguaBucket:
                 the given alignment.
         """
         self.tensors = tensors
+        """
+        The tensors contained within the bucket.
+        """
 
         if alignment > 1:
             padding = sum(tensor.numel() for tensor in self.tensors) % alignment
