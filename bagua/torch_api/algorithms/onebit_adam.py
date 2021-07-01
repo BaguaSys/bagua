@@ -38,6 +38,7 @@ class OnebitAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(param._one_bit_name)
+                    param._one_bit_grad = registered_tensor
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(param._one_bit_name)
                     registered_tensor._one_bit_grad = param.bagua_ensure_grad()
@@ -99,7 +100,8 @@ class OnebitAdamAlgorithm(Algorithm):
         def hook_momentum(parameter_name, parameter):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
         def hook_grad(parameter_name, parameter):
-            parameter.grad.bagua_mark_communication_ready()
+            assert parameter._one_bit_grad.data_ptr() == parameter.grad.data_ptr(), "one bit grad data_ptr should match grad data_ptr"
+            parameter._one_bit_grad.bagua_mark_communication_ready()
         return hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
 
 

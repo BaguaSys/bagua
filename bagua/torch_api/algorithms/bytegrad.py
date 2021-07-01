@@ -35,7 +35,7 @@ class ByteGradAlgorithm(Algorithm):
         """
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=get_world_size()) # TODO: check duplicated names
+            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=get_world_size())
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
