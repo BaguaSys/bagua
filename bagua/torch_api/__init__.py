@@ -17,3 +17,4 @@ from .env import (  # noqa: F401
 )
 from . import contrib  # noqa: F401
 from . import communication  # noqa: F401
+from . import algorithms  # noqa: F401
