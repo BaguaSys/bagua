@@ -29,8 +29,8 @@ class DecentralizedAlgorithm(Algorithm):
         self.tensor_groups = []
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
-        parameters = bagua_module._bagua_build_params()
-        self.tensors = [param.to_bagua_tensor(name) for name, param in parameters.__reversed__()]
+        parameters = bagua_module.bagua_build_params()
+        self.tensors = [param.ensure_bagua_tensor(name) for name, param in parameters.__reversed__()]
         return self.tensors
 
     def init_pre_forward_hook(self, bagua_module: BaguaModule):

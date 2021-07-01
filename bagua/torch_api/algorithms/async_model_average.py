@@ -19,9 +19,9 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.sync_interval_ms = sync_interval_ms
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
-        parameters = bagua_module._bagua_build_params()
+        parameters = bagua_module.bagua_build_params()
         tensors = [
-           param.to_bagua_tensor(name)
+           param.ensure_bagua_tensor(name)
             for name, param in parameters.__reversed__()
         ]
         # for name, param in reversed(list(bagua_module.named_parameters())):

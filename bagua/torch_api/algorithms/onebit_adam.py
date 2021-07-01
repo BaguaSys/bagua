@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from bagua.torch_api.communication import _get_global_state
+from bagua.torch_api.globals import _get_global_state
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api import get_world_size
@@ -28,7 +28,7 @@ class OnebitAdamAlgorithm(Algorithm):
 
     def init_tensors(self, bagua_module: BaguaModule):
         
-        parameters = bagua_module._bagua_build_params()
+        parameters = bagua_module.bagua_build_params()
         
         for name, param in parameters:
            param._one_bit_name = name
@@ -37,9 +37,9 @@ class OnebitAdamAlgorithm(Algorithm):
         for param_group, m_group in zip(self.optimizer.params_in_group, self.optimizer.exp_avgs_in_group):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
-                    registered_tensor = param.bagua_ensure_grad().to_bagua_tensor(param._one_bit_name)
+                    registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(param._one_bit_name)
                 else:
-                    registered_tensor = exp_avgs.to_bagua_tensor(param._one_bit_name)
+                    registered_tensor = exp_avgs.ensure_bagua_tensor(param._one_bit_name)
                     registered_tensor._one_bit_grad = param.bagua_ensure_grad()
                     param._one_bit_momentum = registered_tensor
                 tensors.append(registered_tensor)

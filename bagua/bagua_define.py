@@ -2,7 +2,7 @@ import enum
 import json
 from typing import List
 import sys
-if sys.version_info >= (3, 8):
+if sys.version_info >= (3, 9):
     from typing import TypedDict  # pytype: disable=not-supported-yet
 else:
     from typing_extensions import TypedDict

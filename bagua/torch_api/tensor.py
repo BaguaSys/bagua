@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from bagua.torch_api.communication import _get_global_state
+from typing import Optional
+
+from bagua.torch_api.globals import _get_global_state
 import torch
 import bagua_core as B
-from bagua.torch_api.utils import to_bagua_datatype
 import gorilla
 
 
@@ -16,7 +17,10 @@ class BaguaTensor:
         assert self._bagua_backend_tensor.num_elements() == self.numel()
         assert self._bagua_backend_tensor.num_elements_allocated() == self.numel()
 
-    def to_bagua_tensor(self, name: str):
+    def is_bagua_tensor(self) -> bool:
+        return hasattr(self, "_bagua_backend_tensor")
+
+    def ensure_bagua_tensor(self, name: Optional[str]=None):
         """
         Convert a PyTorch tensor or parameter to Bagua tensor and return it.
         A Bagua tensor is required to use Bagua's communication algorithms.
@@ -27,7 +31,11 @@ class BaguaTensor:
         Returns:
             The original tensor with Bagua tensor attributes initialized.
         """
-        self.bagua_tensor_name = name
+        if self.is_bagua_tensor():
+            if name is not None:
+                assert self.bagua_tensor_name == name, "assigning a different name to existing bagua tensor is forbidden"
+            return
+        self.bagua_tensor_name = name if name is not None else ""
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
             torch_tensor=self,
@@ -37,6 +45,13 @@ class BaguaTensor:
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
         return self
+
+    def bagua_backend_tensor(self) -> B.BaguaTensorPy:
+        """
+        Returns:
+            The raw Bagua backend tensor.
+        """
+        return self._bagua_backend_tensor
 
     def bagua_ensure_grad(self) -> torch.Tensor:
         """
@@ -73,3 +88,9 @@ class BaguaTensor:
         """
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
+
+
+base = gorilla._get_base(BaguaTensor)
+decorator_data = gorilla.get_decorator_data(base)
+for patch in decorator_data.patches:
+    gorilla.apply(patch)

@@ -38,14 +38,14 @@ class Algorithm:
             A list of Bagua tensors for communication.
         """
 
-        parameters = bagua_module._bagua_build_params()
-        tensors = [
-           param.bagua_ensure_grad().to_bagua_tensor(name)
-            for name, param in parameters.__reversed__()
-        ]
-        # for name, param in reversed(list(bagua_module.named_parameters())):
-        #     tensor = param.bagua_ensure_grad().to_bagua_tensor(name) # TODO: check duplicated names
-        #     tensor_groups[0].append(tensor)
+        parameters = bagua_module.bagua_build_params()
+        tensors = []
+        for name, param in parameters.__reversed__():
+            grad = param.bagua_ensure_grad().ensure_bagua_tensor(name)
+            param._bagua_grad = grad
+            tensors.append(grad)
+        self._communication_tensor_names = set(name for name, _ in parameters)
+        assert len(self._communication_tensor_names) == len(tensors), "tensor names should be unique"
         return tensors
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
@@ -97,7 +97,9 @@ class Algorithm:
             torch.nn.Module.named_parameters()) and the parameter itself.
         """
         def hook(parameter_name, parameter):
-            parameter.grad.bagua_mark_communication_ready()
+            if parameter_name in self._communication_tensor_names:
+                assert parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr(), "bagua grad data_ptr should match parameter grad"
+                parameter._bagua_grad.bagua_mark_communication_ready()
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
@@ -115,7 +117,7 @@ class Algorithm:
             bagua_module._bagua_backend.wait_pending_comm_ops()
         return hook
 
-    def init_post_step_hook(self, bagua_module: BaguaModule):
+    def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         """Given a `BaguaModule`, return a hook function that will be executed when the
         ``optimizer.step()`` is done.
 
