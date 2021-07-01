@@ -29,5 +29,5 @@ jobs:
         # uses: reviewdog/action-flake8@6146a50d029068dbd40bf1c6ce75f5fd8970a1b1
         uses: reviewdog/action-flake8@v3.0.0
         with:
-          fail_on_error: true
+          fail_on_error: false
           flake8_args: "--ignore E501,E203"
