@@ -242,24 +242,34 @@ impl BaguaCommBackendPy {
     }
 
     /// calling a second time will overwrite previous buckets
-    pub fn register_ordered_buckets(&mut self, buckets: Vec<PyRef<BaguaBucketPy>>) -> PyResult<()> {
+    pub fn register_ordered_buckets(
+        &mut self,
+        buckets: Vec<PyRef<BaguaBucketPy>>,
+        py: Python,
+    ) -> PyResult<()> {
         let mut buckets_inner = Vec::with_capacity(buckets.len());
         for b in buckets.iter() {
             buckets_inner.push(&b.inner)
         }
-        self.inner
-            .register_ordered_buckets(buckets_inner.as_slice())
-            .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
+        py.allow_threads(|| {
+            self.inner
+                .register_ordered_buckets(buckets_inner.as_slice())
+        })
+        .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
     pub fn mark_communication_ready(
         &mut self,
         tensor: PyRef<BaguaTensorPy>,
         ready_cuda_event_ptr: u64,
+        py: Python,
     ) -> PyResult<()> {
-        self.inner
-            .mark_communication_ready(&tensor.inner, ready_cuda_event_ptr)
-            .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
+        let inner = &tensor.inner;
+        py.allow_threads(|| {
+            self.inner
+                .mark_communication_ready(inner, ready_cuda_event_ptr)
+        })
+        .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
     pub fn wait_pending_comm_ops(&self, py: Python) -> PyResult<usize> {
@@ -267,15 +277,13 @@ impl BaguaCommBackendPy {
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
-    pub fn start_upload_telemetry(&self, skip: bool) -> PyResult<()> {
-        self.inner
-            .start_upload_telemetry(skip)
+    pub fn start_upload_telemetry(&self, skip: bool, py: Python) -> PyResult<()> {
+        py.allow_threads(|| self.inner.start_upload_telemetry(skip))
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
-    pub fn execute_post_backward_comm_ops(&self) -> PyResult<usize> {
-        self.inner
-            .execute_post_backward_comm_ops()
+    pub fn execute_post_backward_comm_ops(&self, py: Python) -> PyResult<usize> {
+        py.allow_threads(|| self.inner.execute_post_backward_comm_ops())
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
 
