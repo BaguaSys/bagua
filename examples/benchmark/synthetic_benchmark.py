@@ -94,9 +94,21 @@ if args.cuda:
 
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
 
-model, optimizer = bagua.bagua_init(
-    model, optimizer, distributed_algorithm=args.algorithm
-)
+if args.algorithm == "gradient_allreduce":
+    from bagua.torch_api.algorithms import gradient_allreduce
+    algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
+elif args.algorithm == "decentralized":
+    from bagua.torch_api.algorithms import decentralized
+    algorithm = decentralized.DecentralizedAlgorithm()
+elif args.algorithm == "bytegrad":
+    from bagua.torch_api.algorithms import bytegrad
+    algorithm = bytegrad.ByteGradAlgorithm()
+elif args.algorithm == "onebit_adam":
+    from bagua.torch_api.algorithms import onebit_adam
+    optimizer = onebit_adam.OnebitAdamOptimizer(model.parameters())
+    algorithm = onebit_adam.OnebitAdamAlgorithm(optimizer, 10)
+
+model = model.with_bagua([optimizer], algorithm)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
