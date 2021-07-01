@@ -12,6 +12,8 @@ So far, Bagua has integrated primitives including
 
 Its effectiveness has been verified in various scenarios, including VGG and ResNet on ImageNet, Bert Large and many industrial applications at Kuaishou.
 
+The underlying communication execution engine is in [bagua-core](https://github.com/BaguaSys/bagua-core), a library written in Rust.
+
 ## Installation
 
 Develop version:
@@ -35,6 +37,6 @@ make html
 
 ## Links
 
-* [Bagua Github](https://github.com/BaguaSys/bagua)
+* [Bagua Main Repo](https://github.com/BaguaSys/bagua)
 * [Bagua Tutorials](https://baguasys.github.io/tutorials)
 * [Bagua API Documentation](https://bagua.readthedocs.io/)
