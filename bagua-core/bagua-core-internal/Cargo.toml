@@ -31,6 +31,7 @@ num-derive = "0.3"
 
 [dependencies.pyo3]
 version = "0.13.2"
+features = ["auto-initialize"]
 
 [build-dependencies]
 shadow-rs = "0.6"

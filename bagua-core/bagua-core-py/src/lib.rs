@@ -5,7 +5,6 @@ use bagua_core_internal::datatypes::{
     BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype,
 };
 use bagua_core_internal::BaguaCommBackend;
-use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use numpy::{IntoPyArray, PyArray1};
 use pyo3::exceptions::PyRuntimeError;
@@ -162,7 +161,7 @@ impl BaguaTensorPy {
                     .expect("must pass valid torch tensor")
                     .extract()?,
                 bagua_dtype,
-            ),
+            )?,
         })
     }
 
@@ -384,6 +383,9 @@ impl BaguaBucketPy {
 
 #[pymodule]
 fn bagua_core(_py: Python, m: &PyModule) -> PyResult<()> {
+    if std::env::var("LOG_LEVEL").is_err() {
+        std::env::set_var("LOG_LEVEL", "WARN");
+    }
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_env("LOG_LEVEL"))
         .init();
