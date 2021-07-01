@@ -18,7 +18,16 @@ class QAdamAlgorithm(Algorithm):
         q_adam_optimizer: Optimizer,
         hierarchical_reduce: bool = True,
     ):
+        """
+        Create an instance of the
+        `QAdam Algorithm <https://baguasys.github.io/tutorials/algorithms/q_adam.html>`_
+        .
 
+        Args:
+            q_adam_optimizer (QAdamOptimizer): A QAdam optimizer initialized with model parameters.
+            hierarchical (bool): Enable hierarchical communication.
+
+        """
         self.hierarchical_reduce = hierarchical_reduce
         self.optimizer = q_adam_optimizer
         self.warmup_steps = self.optimizer.warmup_steps
@@ -44,7 +53,7 @@ class QAdamAlgorithm(Algorithm):
                 registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(name)
                 param._bagua_grad = registered_tensor
             else:
-                registered_tensor = param.momentum.ensure_bagua_tensor(name)
+                registered_tensor = param._q_adam_momentum.ensure_bagua_tensor(name)
                 registered_tensor._bagua_grad = param.bagua_ensure_grad()
                 # param.momentum = momentum
             tensors.append(registered_tensor)
@@ -116,10 +125,9 @@ class QAdamAlgorithm(Algorithm):
             )
         else:
             def calculate_momentum(*args):
-                with torch.cuda.stream(_get_global_state().get_communication_stream()):
-                    beta1, beta2 = self.optimizer.param_groups[0]["betas"]
-                    for tensor in bucket.tensors:
-                        tensor.mul_(beta1).add_(tensor._bagua_grad, alpha=1 - beta1)
+                beta1, beta2 = self.optimizer.param_groups[0]["betas"]
+                for tensor in bucket.tensors:
+                    tensor.mul_(beta1).add_(tensor._bagua_grad, alpha=1 - beta1)
 
             bucket.backend_bucket.append_python_op(calculate_momentum)
             bucket.backend_bucket.append_centralized_synchronous_op(
@@ -133,7 +141,7 @@ class QAdamAlgorithm(Algorithm):
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
-            parameter.momentum.bagua_mark_communication_ready()
+            parameter._q_adam_momentum.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
             assert (
@@ -186,10 +194,10 @@ class QAdamOptimizer(Optimizer):
             params_with_grad = []
             exp_avgs = []
             for p in group["params"]:
-                p.momentum = torch.zeros_like(
+                p._q_adam_momentum = torch.zeros_like(
                     p, memory_format=torch.preserve_format
                 )
-                p.variance = torch.zeros_like(
+                p._q_adam_variance = torch.zeros_like(
                     p, memory_format=torch.preserve_format
                 )
                 # params_with_grad.append(p)
@@ -220,11 +228,11 @@ class QAdamOptimizer(Optimizer):
 
                 if self.step_id < self.warmup_steps:
                     # state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
-                    param.momentum.mul_(beta1).add_(param.grad, alpha=1 - beta1)
+                    param._q_adam_momentum.mul_(beta1).add_(param.grad, alpha=1 - beta1)
                     # state["exp_avg_sq"].mul_(beta2).addcmul_(
                     #     param.grad, param.grad, value=1 - beta2
                     # )
-                    param.variance.mul_(beta2).addcmul_(
+                    param._q_adam_variance.mul_(beta2).addcmul_(
                         param.grad, param.grad, value=1 - beta2
                     )
 
@@ -234,10 +242,10 @@ class QAdamOptimizer(Optimizer):
                 # denom = (state["exp_avg_sq"].sqrt() / math.sqrt(bias_correction2)).add_(
                 #     eps
                 # )
-                denom = (param.variance.sqrt() / math.sqrt(bias_correction2)).add_(
+                denom = (param._q_adam_variance.sqrt() / math.sqrt(bias_correction2)).add_(
                     eps
                 )
                 step_size = lr / bias_correction1
                 # update = state["exp_avg"] / denom
-                update = param.momentum / denom
+                update = param._q_adam_momentum / denom
                 param.data.add_(-step_size * update)
