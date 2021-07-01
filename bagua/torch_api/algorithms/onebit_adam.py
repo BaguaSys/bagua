@@ -12,6 +12,7 @@ import math
 from typing import List
 
 
+
 class OnebitAdamAlgorithm(Algorithm):
     def __init__(
         self,
@@ -99,6 +100,7 @@ class OnebitAdamAlgorithm(Algorithm):
             )
         else:
 
+
             def calculate_momentum(*args):
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
                     beta1, beta2 = self.optimizer.param_groups[0]["betas"]
@@ -118,6 +120,7 @@ class OnebitAdamAlgorithm(Algorithm):
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
+
 
         def hook_grad(parameter_name, parameter):
             assert (
