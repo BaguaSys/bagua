@@ -19,8 +19,8 @@ class BaguaModule:
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
-        Build tuple of (parameter_name, parameter) for all parameters that require grads and not in
-        the ``_bagua_params_and_buffers_to_ignore`` attribute.
+        Build tuple of ``(parameter_name, parameter)`` for all parameters that
+        require grads and not in the ``_bagua_params_and_buffers_to_ignore`` attribute.
         """
         modules_and_parameters = [
             (module, parameter)
