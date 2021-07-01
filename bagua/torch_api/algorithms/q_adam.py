@@ -60,7 +60,7 @@ class QAdamAlgorithm(Algorithm):
         """
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=bagua.torch_api.get_world_size())
+            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=get_world_size())
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
