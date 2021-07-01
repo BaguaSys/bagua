@@ -49,7 +49,6 @@ if [ "$OS_NAME" == "Ubuntu" ]; then
 elif [ "$OS_NAME" == "CentOS Linux" ]; then
   if [ $VERSION_ID == "7" ]; then
     yum install centos-release-scl-rh -y && yum install devtoolset-8-toolchain -y
-    #scl enable devtoolset-8 bash
     source /opt/rh/devtoolset-8/enable
     yum remove okay-release -y && yum install http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-1.noarch.rpm -y
     yum remove cmake3 -y && yum install cmake3 -y
