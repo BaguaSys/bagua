@@ -7,7 +7,7 @@ import time
 import logging
 import torch
 import torch.nn
-from typing import List
+from typing import List, Tuple
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -17,13 +17,10 @@ class BaguaModule:
     functionalities.
     """
 
-    def bagua_build_params(self):
+    def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
         Build tuple of (parameter_name, parameter) for all parameters that require grads and not in
         the ``_bagua_params_and_buffers_to_ignore`` attribute.
-
-        Returns:
-            List[(str, torch.nn.Parameter)]
         """
         modules_and_parameters = [
             (module, parameter)
