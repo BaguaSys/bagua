@@ -678,7 +678,8 @@ impl BaguaTensor {
     }
 
     pub fn ready_for_comm(&self) -> bool {
-        self.inner.read().ready_for_comm
+        let inner = self.inner.read();
+        inner.ready_for_comm || inner.name.starts_with("bagua_padding_tensor")
     }
 
     pub fn compress(&self, method: &str, n_chunks: usize, target_chunk: i32) -> Self {
