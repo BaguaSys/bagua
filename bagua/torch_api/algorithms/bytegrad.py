@@ -8,7 +8,6 @@ from bagua.torch_api import get_world_size
 from typing import List
 
 
-
 class ByteGradAlgorithm(Algorithm):
     def __init__(self, average: bool = True):
         """

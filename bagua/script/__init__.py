@@ -1,1 +1,1 @@
-from . import baguarun
+from . import baguarun  # noqa: F401

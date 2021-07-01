@@ -218,7 +218,7 @@ class AutotuneService:
     def setup_app(self, app):
         @app.route("/api/v1/bagua_backend_metrics", methods=["POST"])
         def report_bagua_backend_metrics():
-            req: dict = request.get_json(force=True)
+            req: dict = request.get_json(force=True)  # TODO: @shjwudp
             tensor_ready_order: list = req["tensor_ready_order"]
             communication_time_ms: float = req["communication_time_ms"]
             hyperparameters: dict = req["hyperparameters"]
@@ -274,8 +274,8 @@ class AutotuneService:
             req: dict = request.get_json(force=True)
             rank: int = req["rank"]
             unix_timestamp: float = req["unix_timestamp"]
-            train_iter: int = req["train_iter"]
             iter_per_seconds: float = req["iter_per_seconds"]
+            train_iter: int = req["train_iter"]
             denoised_iter_per_seconds: float = req["denoised_iter_per_seconds"]
             hyperparameters = req["hyperparameters"]
 

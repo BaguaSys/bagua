@@ -126,8 +126,8 @@ def group_params_by_storage(params):
     grouped_params = {}
     for p in params:
         weight_storage = p.data.storage().data_ptr()
-        l = grouped_params.get(weight_storage, [])
-        l.append(p)
-        grouped_params[weight_storage] = l
+        param_list = grouped_params.get(weight_storage, [])
+        param_list.append(p)
+        grouped_params[weight_storage] = param_list
 
     return grouped_params

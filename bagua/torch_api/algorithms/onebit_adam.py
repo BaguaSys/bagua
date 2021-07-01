@@ -12,7 +12,6 @@ import math
 from typing import List
 
 
-
 class OnebitAdamAlgorithm(Algorithm):
     def __init__(
         self,
@@ -99,8 +98,6 @@ class OnebitAdamAlgorithm(Algorithm):
                 average=True,
             )
         else:
-
-
             def calculate_momentum(*args):
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
                     beta1, beta2 = self.optimizer.param_groups[0]["betas"]
@@ -120,7 +117,6 @@ class OnebitAdamAlgorithm(Algorithm):
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
-
 
         def hook_grad(parameter_name, parameter):
             assert (
@@ -168,7 +164,7 @@ class OnebitAdamOptimizer(Optimizer):
         self.exp_avgs_in_group = []
         self.step_id = 0
 
-        ### initialize momentum and variance
+        # initialize momentum and variance
         for group_id, group in enumerate(self.param_groups):
             params_with_grad = []
             exp_avgs = []
@@ -187,13 +183,13 @@ class OnebitAdamOptimizer(Optimizer):
             self.exp_avgs_in_group.append(exp_avgs)
 
     def step(self, closure=None):
-        ## Here we assume grad or state["exp_avg"] have already been updated and averaged.
-        ## This step only updates weights.
+        # Here we assume grad or state["exp_avg"] have already been updated and averaged.
+        # This step only updates weights.
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
 
             lr = group["lr"]
-            weight_decay = group["weight_decay"]
+            # weight_decay = group["weight_decay"] # TODO: @ganshaoduo check if this should be used
             beta1, beta2 = group["betas"]
             eps = group["eps"]
 

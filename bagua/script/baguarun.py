@@ -30,7 +30,6 @@ Node 2 *(IP: 192.168.1.2):
 import argparse
 import os
 from pssh.clients import ParallelSSHClient
-from pssh.exceptions import Timeout
 
 
 def pssh_bagua_launch(

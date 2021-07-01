@@ -84,7 +84,7 @@ class BaguaTensor:
                 self.grad = t
             return self.grad
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
     def bagua_mark_communication_ready(self):
         """
