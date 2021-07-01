@@ -19,7 +19,7 @@ class BaguaModule:
 
     :ivar bagua_optimizers: The optimizers passed in by ``with_bagua(...)``.
     :vartype bagua_optimizers: List[torch.optim.Optimizer]
-    :ivar bagua_algorithm : The algorithm passed in by ``with_bagua(...)``.
+    :ivar bagua_algorithm: The algorithm passed in by ``with_bagua(...)``.
     :vartype bagua_algorithm: bagua.torch_api.algorithms.Algorithm
     :ivar parameters_to_ignore: The parameter names in ``"{module_name}.{param_name}"`` format to ignore
         when calling ``self.bagua_build_params()``.
