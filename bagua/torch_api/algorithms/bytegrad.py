@@ -7,8 +7,9 @@ from bagua.torch_api.algorithms import Algorithm
 from bagua.torch_api import get_world_size
 from typing import List
 
+
 class ByteGradAlgorithm(Algorithm):
-    def __init__(self, average: bool=True):
+    def __init__(self, average: bool = True):
         """
         Create an instance of the
         `ByteGrad <https://baguasys.github.io/tutorials/algorithms/bytegrad.html>`_
@@ -35,14 +36,16 @@ class ByteGradAlgorithm(Algorithm):
         """
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(bucket, flatten=True, name=str(idx), alignment=get_world_size())
+            bagua_bucket = BaguaBucket(
+                bucket, flatten=True, name=str(idx), alignment=get_world_size()
+            )
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
     def init_operations(
-            self,
-            bagua_module: BaguaModule,
-            bucket: BaguaBucket,
+        self,
+        bagua_module: BaguaModule,
+        bucket: BaguaBucket,
     ):
         bucket.backend_bucket.clear_ops()
         bucket.backend_bucket.append_centralized_synchronous_op(

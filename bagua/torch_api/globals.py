@@ -1,5 +1,6 @@
 _global_state = None
 
+
 def _set_global_state(global_state):
     global _global_state
     _global_state = global_state

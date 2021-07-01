@@ -171,7 +171,7 @@ def init_bagua_inter_communicator(stream, leader_rank=0, store=None, device_id=N
     logging.debug(
         "init bagua internode communicator ok, global rank: %s rank: %s",
         dist.get_rank(),
-        comm.rank()
+        comm.rank(),
     )
     return comm
 
@@ -275,8 +275,7 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
     torch.cuda.synchronize()
 
 
-def reduce(tensor, dst, op=dist.ReduceOp.SUM,
-           comm: B.BaguaSingleCommunicatorPy = None):
+def reduce(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Reduces the tensor across all processes.
 
     Only the process whit rank `dst` is going to receive the final result.
@@ -292,8 +291,7 @@ def reduce(tensor, dst, op=dist.ReduceOp.SUM,
             Defaults to None.
     """  # noqa: W293
 
-    assert tensor.device != torch.device(
-        "cpu"), "input tensor must be CUDA and dense"
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
     if comm is None:
         comm = _get_global_state().get_global_communicator()
@@ -302,9 +300,12 @@ def reduce(tensor, dst, op=dist.ReduceOp.SUM,
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.reduce(tensor.to_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op))
+        comm.reduce(
+            tensor.to_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op)
+        )
 
     torch.cuda.synchronize()
+
 
 def allreduce_coalesced(
     tensors,
@@ -324,7 +325,9 @@ def allreduce_coalesced(
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        comm.allreduce(coalesced.to_bagua_tensor("allreduce_coalesced"), to_bagua_reduce_op(op))
+        comm.allreduce(
+            coalesced.to_bagua_tensor("allreduce_coalesced"), to_bagua_reduce_op(op)
+        )
 
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
@@ -384,7 +387,9 @@ def allreduce(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.allreduce(tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op))
+        comm.allreduce(
+            tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op)
+        )
 
     # TODO: remove
     torch.cuda.synchronize()

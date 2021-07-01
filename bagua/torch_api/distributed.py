@@ -36,7 +36,7 @@ class BaguaModule:
                 # parameters through _former_parameters.
                 for param_name, param in module.named_parameters(recurse=False)
                 if param.requires_grad
-                   and f"{module_name}.{param_name}" not in self.parameters_to_ignore
+                and f"{module_name}.{param_name}" not in self.parameters_to_ignore
             ]
         ]
 
@@ -44,17 +44,19 @@ class BaguaModule:
         memo = set()
         # "p not in memo" is the deduplication check.
         # "not memo.add(p)" is always True, and it's only there to cause "add(p)" if needed.
-        modules_and_parameters = [(m, p) for m, p in modules_and_parameters if p not in memo and not memo.add(p)]
+        modules_and_parameters = [
+            (m, p)
+            for m, p in modules_and_parameters
+            if p not in memo and not memo.add(p)
+        ]
 
         # Build list of parameters.
-        parameters = [
-            parameter for _, parameter in modules_and_parameters
-        ]
+        parameters = [parameter for _, parameter in modules_and_parameters]
 
         # Checks if a module will produce a sparse gradient.
         def produces_sparse_gradient(module):
             if isinstance(module, torch.nn.Embedding) or isinstance(
-                    module, torch.nn.EmbeddingBag
+                module, torch.nn.EmbeddingBag
             ):
                 return module.sparse
             return False
@@ -75,21 +77,27 @@ class BaguaModule:
         Broadcast model and optimizer states.
         """
         from bagua.torch_api.communication import broadcast
+
         module_states = self.bagua_build_params()
         for name, state in module_states:
             broadcast(state, root=0)
         for optimizer in self.bagua_optimizers:
-            optimizer_state_dict = optimizer.state_dict()['state']
+            optimizer_state_dict = optimizer.state_dict()["state"]
             for state in optimizer_state_dict.values():
                 for inner_state in state.values():
-                    if isinstance(inner_state, torch.Tensor):  # TODO: consider the case where this is a scalar
+                    if isinstance(
+                        inner_state, torch.Tensor
+                    ):  # TODO: consider the case where this is a scalar
                         broadcast(inner_state, root=0)
 
     def _bagua_autotune_step(self):
         CYCLE_STEP = 100
         start_time = time.time()
 
-        if self.bagua_train_step_counter != 0 and self.bagua_train_step_counter % CYCLE_STEP == 0:
+        if (
+            self.bagua_train_step_counter != 0
+            and self.bagua_train_step_counter % CYCLE_STEP == 0
+        ):
             # calculate metrics
             self._bagua_autotune_score_record_list.append(
                 CYCLE_STEP / float(time.time() - self._bagua_autotune_last_report_time)
@@ -98,18 +106,26 @@ class BaguaModule:
                 iter_per_seconds = 0.0
             else:
                 iter_per_seconds = sum(self._bagua_autotune_score_record_list) / len(
-                    self._bagua_autotune_score_record_list)
-            logging.debug("score_record_list={}".format(self._bagua_autotune_score_record_list))
+                    self._bagua_autotune_score_record_list
+                )
+            logging.debug(
+                "score_record_list={}".format(self._bagua_autotune_score_record_list)
+            )
             denoised_iter_per_seconds, std, _ = average_by_removing_extreme_values(
                 self._bagua_autotune_score_record_list
             )
-            logging.debug("iter_per_seconds=%s, denoised_iter_per_seconds=%s, std=%s",
-                          iter_per_seconds, denoised_iter_per_seconds, std)
+            logging.debug(
+                "iter_per_seconds=%s, denoised_iter_per_seconds=%s, std=%s",
+                iter_per_seconds,
+                denoised_iter_per_seconds,
+                std,
+            )
 
             # report metrics
             # TODO: @shjwudp add support for reporting tensor completion order so that the autotune service does not
             # rely on tensor registration order
             from bagua.torch_api.communication import get_bagua_hyperparameters
+
             self._bagua_autotune_client.report_metrics(
                 rank=get_rank(),
                 unix_timestamp=time.time(),
@@ -164,19 +180,29 @@ class BaguaModule:
         """
 
         # TODO: do we need to check whether optimizers and model parameters are the same?
-        self.bagua_optimizers = optimizers  #: the optimizers passed in by ``with_bagua(...)``
-        self.bagua_algorithm = algorithm  #: the algorithm passed in by ``with_bagua(...)``
-        self.parameters_to_ignore = []  #: the parameter names to ignore during communication
+        self.bagua_optimizers = (
+            optimizers  #: the optimizers passed in by ``with_bagua(...)``
+        )
+        self.bagua_algorithm = (
+            algorithm  #: the algorithm passed in by ``with_bagua(...)``
+        )
+        self.parameters_to_ignore = (
+            []
+        )  #: the parameter names to ignore during communication
         if hasattr(self, "_bagua_params_and_buffers_to_ignore"):
             self.parameters_to_ignore.extend(self._bagua_params_and_buffers_to_ignore)
-        if hasattr(self, "_ddp_params_and_buffers_to_ignore"):  # for compatibility with PyTorch DDP
+        if hasattr(
+            self, "_ddp_params_and_buffers_to_ignore"
+        ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
         self.bagua_train_step_counter = 0  #: number of iterations in training mode
         self.bagua_buckets = []  #: all Bagua buckets in a list
         self._bagua_autotune_score_record_list = []
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
-        self._bagua_framework_hooks = []  # hooks for bagua framework logic, not cleared when changing algorithms
+        self._bagua_framework_hooks = (
+            []
+        )  # hooks for bagua framework logic, not cleared when changing algorithms
         self._bagua_algorithm_hooks = []
         self._bagua_backend = _get_global_state().get_backend()
 
@@ -199,23 +225,32 @@ class BaguaModule:
         def algorithm_forward_pre_hook(self, input):
             self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
-        self._bagua_framework_hooks.extend([
-            self.register_forward_pre_hook(num_iteration_step_hook),
-            self.register_forward_pre_hook(algorithm_reset_hook),
-            self.register_forward_pre_hook(algorithm_forward_pre_hook),
-            self.register_forward_pre_hook(autotune_hook),
-            self.register_forward_pre_hook(clear_post_backward_callback_queued_hook),
-        ])
+        self._bagua_framework_hooks.extend(
+            [
+                self.register_forward_pre_hook(num_iteration_step_hook),
+                self.register_forward_pre_hook(algorithm_reset_hook),
+                self.register_forward_pre_hook(algorithm_forward_pre_hook),
+                self.register_forward_pre_hook(autotune_hook),
+                self.register_forward_pre_hook(
+                    clear_post_backward_callback_queued_hook
+                ),
+            ]
+        )
 
         # get communicators
-        self.bagua_inter_node_communicator = _get_global_state().get_internode_communicator()
-        self.bagua_intra_node_communicator = _get_global_state().get_intranode_communicator()
+        self.bagua_inter_node_communicator = (
+            _get_global_state().get_internode_communicator()
+        )
+        self.bagua_intra_node_communicator = (
+            _get_global_state().get_intranode_communicator()
+        )
         self.bagua_global_communicator = _get_global_state().get_global_communicator()
 
         self._bagua_broadcast_parameters()
 
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client
+
         self._bagua_autotune_client = get_hyperparameters_service_client()
 
         self._bagua_init_algorithm()
@@ -236,12 +271,13 @@ class BaguaModule:
             for tensor in self._bagua_tensors
         ]
         bagua_tensor_group_info = dict(
-            [(tensor.bagua_tensor_name, 0) for tensor in self._bagua_tensors]  # TODO: remove parameter group logic
+            [
+                (tensor.bagua_tensor_name, 0) for tensor in self._bagua_tensors
+            ]  # TODO: remove parameter group logic
         )
 
         self._bagua_autotune_client.register_models(  # TODO: @shjwudp rename to register tensors
-            autotune_tensor_list,
-            bagua_tensor_group_info
+            autotune_tensor_list, bagua_tensor_group_info
         ).json()  # TODO: @shjwudp error check
 
     def _bagua_autotune_get_buckets(self):
@@ -250,23 +286,25 @@ class BaguaModule:
         ).json()
 
         from bagua.torch_api.communication import get_bagua_hyperparameters
+
         get_bagua_hyperparameters().update(  # TODO: @shjwudp do we need global hyperparameters?
             response["recommended_hyperparameters"]
         )
 
         self._bagua_autotune_completed = not response[
-            "is_autotune_processing"]  # TODO: @shjwudp rename this to is autotune completed
+            "is_autotune_processing"
+        ]  # TODO: @shjwudp rename this to is autotune completed
         recommended_buckets = map(
-            lambda x: list(map(lambda y: self._bagua_tensor_map[y['name']], x)),
-            response['recommended_hyperparameters']['buckets'])
+            lambda x: list(map(lambda y: self._bagua_tensor_map[y["name"]], x)),
+            response["recommended_hyperparameters"]["buckets"],
+        )
         return list(recommended_buckets)
 
     def _bagua_init_algorithm(self):
         self._bagua_cleanup_algorithm()
         self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
-            [(tensor.bagua_tensor_name, tensor)
-             for tensor in self._bagua_tensors]
+            [(tensor.bagua_tensor_name, tensor) for tensor in self._bagua_tensors]
         )
         self._bagua_autotune_register_tensors()
         self._bagua_reset_algorithm_buckets()
@@ -283,6 +321,7 @@ class BaguaModule:
         self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
 
         for name, param in self.named_parameters():
+
             def real_hook_factory(param_name, parameter):
                 def real_hook(*unused):
                     self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
@@ -301,15 +340,14 @@ class BaguaModule:
             if param.requires_grad:
                 param_tmp = param.expand_as(param)
                 grad_acc = param_tmp.grad_fn.next_functions[0][0]
-                hook = grad_acc.register_hook(
-                    real_hook_factory(name, param)
-                )
+                hook = grad_acc.register_hook(real_hook_factory(name, param))
                 hook.grad_acc = grad_acc
                 self._bagua_algorithm_hooks.append(hook)
 
         optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(self)
 
         from types import MethodType
+
         for optimizer in self.bagua_optimizers:
             if not hasattr(optimizer, "_bagua_original_step"):
                 optimizer._bagua_original_step = optimizer.step
@@ -329,7 +367,9 @@ class BaguaModule:
                 self,
                 bucket,
             )
-        self._bagua_backend.register_ordered_buckets([bucket.backend_bucket for bucket in self.bagua_buckets])
+        self._bagua_backend.register_ordered_buckets(
+            [bucket.backend_bucket for bucket in self.bagua_buckets]
+        )
 
 
 base = gorilla._get_base(BaguaModule)

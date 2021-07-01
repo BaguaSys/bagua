@@ -99,7 +99,7 @@ def reorder_params(params):
         tmp_params.append(p)
 
     if len(tmp_params) > 0:
-        grouped.append(collocate_params(tmp_params)) # FIXME: potential OOM
+        grouped.append(collocate_params(tmp_params))  # FIXME: potential OOM
 
     return grouped
 

@@ -34,7 +34,9 @@ class BaguaTensor:
         """
         if self.is_bagua_tensor():
             if name is not None:
-                assert self.bagua_tensor_name == name, "assigning a different name to existing bagua tensor is forbidden"
+                assert (
+                    self.bagua_tensor_name == name
+                ), "assigning a different name to existing bagua tensor is forbidden"
             return
         self.bagua_tensor_name = name if name is not None else ""
         self._bagua_backend_tensor = B.BaguaTensorPy(

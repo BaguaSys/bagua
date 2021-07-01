@@ -4,8 +4,9 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
 
+
 class GradientAllReduceAlgorithm(Algorithm):
-    def __init__(self, hierarchical_reduce: bool=False, average: bool = True):
+    def __init__(self, hierarchical_reduce: bool = False, average: bool = True):
         """
         Create an instance of the
         `GradientAllReduce <https://baguasys.github.io/tutorials/algorithms/gradient-allreduce.html>`_
@@ -20,9 +21,9 @@ class GradientAllReduceAlgorithm(Algorithm):
         self.average = average
 
     def init_operations(
-            self,
-            bagua_module: BaguaModule,
-            bucket: BaguaBucket,
+        self,
+        bagua_module: BaguaModule,
+        bucket: BaguaBucket,
     ):
         bucket.backend_bucket.clear_ops()
         if self.hierarchical_reduce:
