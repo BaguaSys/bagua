@@ -62,6 +62,7 @@ autoapi_options = [
     "show-inheritance",
     "imported-members",
 ]
+autoapi_member_order = "groupwise"
 
 master_doc = "autoapi/index"
 

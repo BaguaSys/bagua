@@ -243,6 +243,7 @@ class BaguaModule:
             _get_global_state().get_intranode_communicator()
         )
         self.bagua_global_communicator = _get_global_state().get_global_communicator()
+        self.bagua_communication_stream = _get_global_state().get_communication_stream()
 
         self._bagua_broadcast_parameters()
 
