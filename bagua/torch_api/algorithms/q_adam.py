@@ -34,7 +34,6 @@ class QAdamAlgorithm(Algorithm):
 
         tensor_groups = []            
         for param_group, m_group in zip(self.optimizer.params_in_group, self.optimizer.exp_avgs_in_group):
-            group = []
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(param._one_bit_name)
@@ -42,8 +41,7 @@ class QAdamAlgorithm(Algorithm):
                     registered_tensor = exp_avgs.ensure_bagua_tensor(param._one_bit_name)
                     registered_tensor._one_bit_grad = param.bagua_ensure_grad()
                     param._one_bit_momentum = registered_tensor
-                group.append(registered_tensor)
-            tensor_groups.append(group)
+                tensor_groups.append(registered_tensor)
 
         return tensor_groups
 
