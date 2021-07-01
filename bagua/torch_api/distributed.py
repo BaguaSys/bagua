@@ -16,6 +16,8 @@ class BaguaModule:
     """
     This class patches `torch.nn.Module` with several methods to enable Bagua
     functionalities.
+
+    :ivar bagua_optimizers: The optimizers passed in by ``with_bagua(...)``.
     """
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
@@ -181,9 +183,6 @@ class BaguaModule:
         self.bagua_optimizers = (
             optimizers
         )
-        """
-        The optimizers passed in by ``with_bagua(...)``.
-        """
         self.bagua_algorithm = (
             algorithm  #: the algorithm passed in by ``with_bagua(...)``
         )
