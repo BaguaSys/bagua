@@ -1,3 +1,4 @@
+from __future__ import annotations
 from bagua.torch_api.utils import to_bagua_datatype, average_by_removing_extreme_values
 from bagua.torch_api.env import get_autotune_level, get_rank
 from bagua.bagua_define import TensorDeclaration
@@ -139,7 +140,7 @@ class BaguaModule:
 
         logging.info("autotune overhead=%s", time.time() - start_time)
 
-    def with_bagua(self, optimizers: List[torch.optim.Optimizer], algorithm: "bagua.torch_api.algorithms.Algorithm"):
+    def with_bagua(self, optimizers: List[torch.optim.Optimizer], algorithm: "bagua.torch_api.algorithms.Algorithm") -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         ``torch.nn.Module``.
 
