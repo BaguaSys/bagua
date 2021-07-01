@@ -32,6 +32,10 @@ class BaguaBucket:
         """
         The tensors contained within the bucket.
         """
+        self.name = name
+        """
+        The bucket's name.
+        """
 
         if alignment > 1:
             padding = sum(tensor.numel() for tensor in self.tensors) % alignment
@@ -41,14 +45,14 @@ class BaguaBucket:
                     padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device
                 )
                 self.tensors.append(
-                    pad_tensor.to_bagua_tensor("padding_tensor_bucket_" + name)
+                    # padding tensor must be of name bagua_padding_tensor, so that they are always marked as ready for communication in the backend
+                    pad_tensor.to_bagua_tensor("bagua_padding_tensor_bucket_" + name)
                 )
 
         self.backend_tensor = None
         self.flatten = flatten
         if self.flatten:
             self._flatten_()
-        self.name = name
 
         self.backend_bucket = B.BaguaBucketPy(
             name,
