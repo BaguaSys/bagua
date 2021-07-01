@@ -30,4 +30,4 @@ jobs:
         uses: reviewdog/action-flake8@v3.0.0
         with:
           fail_on_error: true
-          flake8_args: "--ignore E501"
+          flake8_args: "--ignore E501,E203"
