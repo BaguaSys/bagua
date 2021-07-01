@@ -133,6 +133,23 @@ def train(args, train_dataset, model, tokenizer):
     optimizer = AdamW(
         optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon
     )
+
+    if args.algorithm == "gradient_allreduce":
+        from bagua.torch_api.algorithms import gradient_allreduce
+        algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
+    elif args.algorithm == "decentralized":
+        from bagua.torch_api.algorithms import decentralized
+        algorithm = decentralized.DecentralizedAlgorithm()
+    elif args.algorithm == "bytegrad":
+        from bagua.torch_api.algorithms import bytegrad
+        algorithm = bytegrad.ByteGradAlgorithm()
+    elif args.algorithm == "onebit_adam":
+        from bagua.torch_api.algorithms import onebit_adam
+        optimizer = onebit_adam.OnebitAdamOptimizer(model.parameters())
+        algorithm = onebit_adam.OnebitAdamAlgorithm(optimizer, 10)
+    else:
+        raise NotImplementedError
+
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
     )
@@ -167,7 +184,7 @@ def train(args, train_dataset, model, tokenizer):
 
     # Distributed training (should be after apex fp16 initialization)
     if args.distributed:
-        model, optimizer = bagua.bagua_init(model, optimizer, algorithm=args.algorithm)
+        model = model.with_bagua([optimizer], algorithm)
 
     # Train!
     logger.info("***** Running training *****")
@@ -870,8 +887,8 @@ def main():
     parser.add_argument(
         "--algorithm",
         type=str,
-        default="allreduce",
-        help="distributed algorithm: {allreduce, quantize, decentralize}",
+        default="gradient_allreduce",
+        help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, onebit_adam}",
     )
     args = parser.parse_args()
 
