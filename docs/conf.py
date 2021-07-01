@@ -50,7 +50,6 @@ autoapi_ignore = [
     "*/bagua/script/*",
     "*/bagua/service/*",
     "*/bagua/torch_api/tools/*.py",
-    "*/bagua/torch_api/compression.py",
     "*/bagua/torch_api/exceptions.py",
     "*/bagua/torch_api/utils.py",
     "*/bagua/torch_api/globals.py",
@@ -63,6 +62,7 @@ autoapi_options = [
     "show-inheritance",
     "imported-members",
 ]
+autoapi_member_order = "groupwise"
 
 master_doc = "autoapi/index"
 
