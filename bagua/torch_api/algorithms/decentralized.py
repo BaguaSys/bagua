@@ -21,7 +21,11 @@ class DecentralizedAlgorithm(Algorithm):
         algorithm.
 
         Args:
-            peer_selection_mode (str): xxx.
+            peer_selection_mode (str): Can be "all" or "shift_one". "all" means all workers'
+                weights are averaged in each communication step. "shift_one" means each worker
+                selects a different peer to do weights average in each communication step.
+            compression (str): Not supported yet.
+            communication_interval (int): Number of iterations between two communication steps.
         """
         self.peer_selection_mode = peer_selection_mode
         self.compression = compression
