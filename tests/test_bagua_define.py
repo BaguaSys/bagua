@@ -3,7 +3,6 @@ from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
     TensorDtype,
-    DistributedAlgorithm,
 )
 
 
@@ -22,13 +21,11 @@ class TestBaguaDefine(unittest.TestCase):
         hp = hp.update(
             {
                 "buckets": buckets,
-                "distributed_algorithm": DistributedAlgorithm.Decentralize.value,
             }
         )
 
         assert hp.buckets == buckets
-        assert hp.is_hierarchical_reduce == False
-        assert hp.distributed_algorithm == DistributedAlgorithm.Decentralize.value
+        assert hp.is_hierarchical_reduce is False
 
 
 if __name__ == "__main__":
