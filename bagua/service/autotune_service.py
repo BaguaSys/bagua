@@ -12,7 +12,7 @@ from flask import Flask, request, session
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 import prometheus_client
 from prometheus_client import make_wsgi_app
-from bagua.autotune import BayesianOptimizer, IntParam, BoolParam
+from .autotune import BayesianOptimizer, IntParam, BoolParam
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
@@ -81,8 +81,8 @@ try:
     rank0_train_iter = prometheus_client.Gauge(
         "rank0_train_iter", "The iteration when parameters reporting."
     )
-    rank0_denoised_iter_per_seconds = prometheus_client.Gauge(
-        "rank0_denoised_iter_per_seconds",
+    rank0_speed = prometheus_client.Gauge(
+        "rank0_speed",
         "Data used for hyperparameters evaluation.",
     )
 except ValueError:
@@ -90,14 +90,14 @@ except ValueError:
 
 
 def record_autotune_log(
-    autotune_log_filepath: str, autotune_hp: dict, train_iter: int, score: float
+    autotune_logfile_path: str, autotune_hp: dict, train_iter: int, score: float
 ):
-    with open(autotune_log_filepath, "a") as autotune_log:
+    with open(autotune_logfile_path, "a") as autotune_log:
         csv_writer = csv.DictWriter(
             autotune_log,
             fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
         )
-        first_line = open(autotune_log_filepath).readline()
+        first_line = open(autotune_logfile_path).readline()
         if not first_line:
             csv_writer.writeheader()
 
@@ -121,7 +121,7 @@ class AutotuneService:
         max_samples=60,
         sampling_confidence_time_s=5,
         warmup_time_s=30,
-        autotune_log_filepath="/tmp/bagua_autotune.log",
+        autotune_logfile_path="/tmp/bagua_autotune.log",
         default_bucket_size=10 * 1024 ** 2,
     ):
         self.autotune_level = autotune_level
@@ -131,10 +131,10 @@ class AutotuneService:
         self.warmup_time_s = warmup_time_s
         self.warmup_flag = False
         self.is_initialized = False
-        self.autotune_log_filepath = autotune_log_filepath
+        self.autotune_logfile_path = autotune_logfile_path
         if self.autotune_level >= 1:
             try:
-                os.remove(self.autotune_log_filepath)
+                os.remove(self.autotune_logfile_path)
             except OSError:
                 pass
 
@@ -142,7 +142,7 @@ class AutotuneService:
             {
                 "bucket_size_2p": IntParam(  # bucket_size = 2 ^ bucket_size_2p
                     val=13,
-                    space_dimension=(  # 0 ~ 2GB
+                    space_dimension=(  # 1KB ~ 2GB
                         10,
                         31,
                     ),
@@ -161,15 +161,14 @@ class AutotuneService:
         self.ask_hyperparameters_mutex = threading.Lock()
         self.recommended_hyperparameters: BaguaHyperparameter = BaguaHyperparameter()
         self.recommended_from_iter = 0
-        self.param_group_info: Dict[str, int] = {}
         self.default_bucket_size: int = default_bucket_size
-        self.sess_bucket_size: int = self.default_bucket_size
+        self.forerunner_bucket_size: int = -1
 
         # metrics to autotune
         self.metrics_mutex = threading.Lock()
         rank0_hyperparameters.info(self.recommended_hyperparameters.dict())
         rank0_train_iter.set(-1)
-        rank0_denoised_iter_per_seconds.set(-1)
+        rank0_speed.set(-1)
 
     def tell_and_ask_bayesian_recommended_hyperparameters(
         self, bagua_hp, score, train_iter, bucket_size_2p
@@ -187,7 +186,7 @@ class AutotuneService:
                 autotune_hp, train_iter, score
             )
         )
-        record_autotune_log(self.autotune_log_filepath, autotune_hp, train_iter, score)
+        record_autotune_log(self.autotune_logfile_path, autotune_hp, train_iter, score)
 
         tensor_list = [
             tensor_declar for bucket in bagua_hp.buckets for tensor_declar in bucket
@@ -195,15 +194,6 @@ class AutotuneService:
         recommended_buckets = split_bucket_by_bucket_size(
             tensor_list,
             recommended_bucket_size,
-            self.param_group_info,
-        )
-        logging.info(
-            "bucket_size={}, recommended_bucket_size={}, recommended_buckets={}, is_hierarchical_reduce={}".format(
-                2 ** bucket_size_2p,
-                recommended_bucket_size,
-                recommended_buckets,
-                recommended_autotune_hp["is_hierarchical_reduce"],
-            )
         )
 
         recommended_bagua_hp = BaguaHyperparameter(
@@ -223,27 +213,23 @@ class AutotuneService:
             communication_time_ms: float = req["communication_time_ms"]
             hyperparameters: dict = req["hyperparameters"]
 
-        @app.route("/api/v1/register_models", methods=["POST"])
-        def register_models():
+        @app.route("/api/v1/register_tensors", methods=["POST"])
+        def register_tensors():
             req: dict = request.get_json(force=True)
             tensor_list: list[TensorDeclaration] = req["tensor_list"]
-            param_group_info: Dict[str, int] = req["param_group_info"]
             whether_to_bucket: bool = req["whether_to_bucket"]
 
-            self.sess_bucket_size = self.default_bucket_size
+            session["bucket_size"] = self.default_bucket_size
             if whether_to_bucket is False:
-                self.sess_bucket_size = (
+                session["bucket_size"] = (
                     10 * 1024 ** 5
                 )  # if you don't divide buckets, set big bucket as 10PB.
-            session["bucket_size"] = self.sess_bucket_size
 
             with self.ask_hyperparameters_mutex:
-                self.param_group_info = param_group_info
                 default_hyperparameters = BaguaHyperparameter(
                     buckets=split_bucket_by_bucket_size(
                         tensor_list,
                         session["bucket_size"],
-                        self.param_group_info,
                     ),
                 )
                 if self.is_initialized:
@@ -258,9 +244,7 @@ class AutotuneService:
                 self.last_time_the_hyperparameters_was_granted = time.time()
 
                 logging.info(
-                    "tensor_list={}, buckets={}".format(
-                        tensor_list, default_hyperparameters.buckets
-                    )
+                    "default_hyperparameters={}".format(default_hyperparameters.dict())
                 )
                 self.is_initialized = True
                 return json.dumps(
@@ -273,10 +257,8 @@ class AutotuneService:
         def report_metrics():
             req: dict = request.get_json(force=True)
             rank: int = req["rank"]
-            unix_timestamp: float = req["unix_timestamp"]
-            iter_per_seconds: float = req["iter_per_seconds"]
             train_iter: int = req["train_iter"]
-            denoised_iter_per_seconds: float = req["denoised_iter_per_seconds"]
+            speed: float = req["speed"]
             hyperparameters = req["hyperparameters"]
 
             if not self.is_initialized:
@@ -287,17 +269,18 @@ class AutotuneService:
                 if train_iter <= rank0_train_iter.collect()[-1].samples[-1].value:
                     return json.dumps({})
 
-                logging.info(
-                    "rank={}, train_iter={}, denoised_iter_per_seconds={}, hyperparameters={}".format(
+                logging.debug(
+                    "rank={}, train_iter={}, speed={}, "
+                    "hyperparameters={}".format(
                         rank,
                         train_iter,
-                        denoised_iter_per_seconds,
+                        speed,
                         hyperparameters,
                     )
                 )
                 rank0_hyperparameters.info(hyperparameters)
                 rank0_train_iter.set(train_iter)
-                rank0_denoised_iter_per_seconds.set(denoised_iter_per_seconds)
+                rank0_speed.set(speed)
 
             return json.dumps({})
 
@@ -333,16 +316,14 @@ class AutotuneService:
                     recommended_train_iter = int(
                         rank0_train_iter.collect()[-1].samples[-1].value
                     )
-                    denoised_iter_per_seconds = (
-                        rank0_denoised_iter_per_seconds.collect()[-1].samples[-1].value
-                    )
+                    speed = rank0_speed.collect()[-1].samples[-1].value
                     hyperparameters = (
                         rank0_hyperparameters.collect()[-1].samples[-1].labels
                     )
                     self.hyperparameters_and_score_list.append(
                         [
                             BaguaHyperparameter(**hyperparameters),
-                            denoised_iter_per_seconds,
+                            speed,
                         ]
                     )
                     hyperparameters_and_score_list = copy.deepcopy(
@@ -350,37 +331,57 @@ class AutotuneService:
                     )
 
                     logging.info(
-                        "recommended_train_iter={}, hyperparameters={}, denoised_iter_per_seconds={}".format(
+                        "recommended_train_iter={}, hyperparameters={}, speed={}".format(
                             recommended_train_iter,
                             hyperparameters,
-                            denoised_iter_per_seconds,
+                            speed,
                         )
                     )
 
+                sampling_time = (
+                    time.time() - self.last_time_the_hyperparameters_was_granted
+                )
+
                 # warmup pass
                 if self.warmup_flag:
+                    # At last pass one time
                     if (
-                        time.time() - self.last_time_the_hyperparameters_was_granted
-                        < self.warmup_time_s
+                        sampling_time < self.warmup_time_s
+                        or self.warmup_pass_count == 0  # noqa: W503
                     ):
+                        logging.info(
+                            "warmup pass, time.time={}, last={}, "
+                            "warmup_time_s={}".format(
+                                time.time(),
+                                self.last_time_the_hyperparameters_was_granted,
+                                self.warmup_time_s,
+                            )
+                        )
+                        self.warmup_pass_count += 1
                         return
                     self.last_time_the_hyperparameters_was_granted = time.time()
                     self.warmup_flag = False
 
                 # Skip if the sampling time is insufficient
-                if (
-                    time.time() - self.last_time_the_hyperparameters_was_granted
-                    < self.sampling_confidence_time_s
-                ):
+                if sampling_time < self.sampling_confidence_time_s:
+                    logging.debug(
+                        "Insufficient sampling time, time={}, last={}, "
+                        "sampling_confidence_time_s={}".format(
+                            time.time(),
+                            self.last_time_the_hyperparameters_was_granted,
+                            self.sampling_confidence_time_s,
+                        )
+                    )
                     return
 
                 logging.info(
-                    "rank={}, train_iter={}, sampling_counter={}, max_samples={}".format(
+                    "rank={}, train_iter={}, sampling_counter={}, "
+                    "max_samples={}".format(
                         rank, train_iter, self.sampling_counter, self.max_samples
                     )
                 )
                 bagua_hp = BaguaHyperparameter(**hyperparameters)
-                score = denoised_iter_per_seconds
+                score = speed
                 bucket_size_2p = int(math.log(session["bucket_size"], 2))
                 (
                     recommended_bagua_hp,
@@ -395,7 +396,7 @@ class AutotuneService:
                 if self.sampling_counter < self.max_samples:
                     self.recommended_hyperparameters = recommended_bagua_hp
                     self.recommended_from_iter = recommended_train_iter
-                    self.sess_bucket_size = int(
+                    self.forerunner_bucket_size = int(
                         2 ** recommended_autotune_hp["bucket_size_2p"]
                     )
                 else:
@@ -433,22 +434,24 @@ class AutotuneService:
                     == len(self.check_board)
                     and self.check_board[rank] < train_iter
                 ):
+                    self.forerunner_bucket_size: int = session["bucket_size"]
                     autotune()
 
+                session["bucket_size"] = self.forerunner_bucket_size
                 logging.debug(
                     "bucket_size={}, tarin_iter={}, rank={}".format(
                         session["bucket_size"], train_iter, rank
                     )
                 )
-                session["bucket_size"] = self.sess_bucket_size
                 self.check_board[rank] = train_iter
 
                 return json.dumps(
                     {
                         "recommended_hyperparameters": self.recommended_hyperparameters.dict(),
                         "recommended_from_iter": self.recommended_from_iter,
-                        "is_autotune_processing": self.sampling_counter
-                        < self.max_samples,
+                        # fmt: off
+                        "is_autotune_completed":
+                            self.sampling_counter > self.max_samples,
                     },
                 )
 
@@ -475,145 +478,69 @@ class AutotuneService:
 
 
 class AutotuneClient:
-    def __init__(self, service_addr: str, service_port: int):
+    def __init__(
+        self,
+        service_addr: str,
+        service_port: int,
+        proxies={
+            "http": None,
+            "https": None,
+        },
+    ):
         self.autotune_service_addr = "{}:{}".format(service_addr, service_port)
         self.session = requests.Session()
+        self.proxies = proxies
 
     def report_metrics(
         self,
         rank: int,
         unix_timestamp: float,
         train_iter: int,
-        iter_per_seconds: float,
-        denoised_iter_per_seconds: float,
         hyperparameters: dict,
-        proxies={
-            "http": None,
-            "https": None,
-        },
-    ):
-        try:
-            rsp = self.session.post(
-                "http://{}/api/v1/report_metrics".format(self.autotune_service_addr),
-                json={
-                    "rank": rank,
-                    "unix_timestamp": unix_timestamp,
-                    "train_iter": train_iter,
-                    "iter_per_seconds": iter_per_seconds,
-                    "denoised_iter_per_seconds": denoised_iter_per_seconds,
-                    "hyperparameters": hyperparameters,
-                },
-                proxies=proxies,
-            )
-            return rsp.status_code
-        except Exception as ex:
-            logging.warning(
-                "rank={}, train_iter={}, ex={}".format(rank, train_iter, ex)
-            )
-            return -1
+        speed: float,
+    ) -> requests.Response:
+        rsp = self.session.post(
+            "http://{}/api/v1/report_metrics".format(self.autotune_service_addr),
+            json={
+                "rank": rank,
+                "unix_timestamp": unix_timestamp,
+                "train_iter": train_iter,
+                "hyperparameters": hyperparameters,
+                "speed": speed,
+            },
+            proxies=self.proxies,
+        )
+        return rsp
 
-    def register_models(
+    def register_tensors(
         self,
         tensor_list: List[TensorDeclaration],
-        param_group_info: Dict[str, int] = {},
         whether_to_bucket: bool = True,
-        proxies={
-            "http": None,
-            "https": None,
-        },
-    ):
-        while True:
-            try:
-                rsp = self.session.post(
-                    "http://{}/api/v1/register_models".format(
-                        self.autotune_service_addr
-                    ),
-                    json={
-                        "tensor_list": tensor_list,
-                        "param_group_info": param_group_info,
-                        "whether_to_bucket": whether_to_bucket,
-                    },
-                    proxies=proxies,
-                )
-                assert (
-                    rsp.status_code == 200
-                ), "request register_models failed, rsp={}".format(rsp)
-                return rsp
-            except Exception as ex:
-                logging.warning("ex={}".format(ex))
-                time.sleep(1)
-                continue
-
-    def request_checkboard(self):
-        while True:
-            try:
-                rsp = self.session.get(
-                    "http://{}/api/v1/checkboard".format(self.autotune_service_addr)
-                )
-                return rsp
-            except Exception as ex:
-                logging.warning("ex={}".format(ex))
-                time.sleep(1)
-                continue
-
-    def wait_for_all_process_parameters_updated(self, my_train_iter: int):
-        while True:
-            rsp = self.request_checkboard()
-            assert (
-                rsp.status_code == 200
-            ), "rsp={}, 503 may be due to http_proxy".format(rsp)
-            check_board = rsp.json()["check_board"]
-            if all([train_iter == my_train_iter for train_iter in check_board]):
-                break
-            logging.info("check_board={}".format(check_board))
-            time.sleep(1)
+    ) -> requests.Response:
+        rsp = self.session.post(
+            "http://{}/api/v1/register_tensors".format(self.autotune_service_addr),
+            json={
+                "tensor_list": tensor_list,
+                "whether_to_bucket": whether_to_bucket,
+            },
+            proxies=self.proxies,
+        )
+        return rsp
 
     def ask_hyperparameters(
         self,
         rank: int,
         train_iter: int,
-        proxies={
-            "http": None,
-            "https": None,
-        },
-    ):
-        while True:
-            try:
-                rsp = self.session.post(
-                    "http://{}/api/v1/ask_hyperparameters".format(
-                        self.autotune_service_addr
-                    ),
-                    json={
-                        "rank": rank,
-                        "train_iter": train_iter,
-                    },
-                    proxies=proxies,
-                )
-                assert rsp.status_code == 200, "rsp={}".format(rsp)
-                return rsp
-            except Exception as ex:
-                logging.warning("rank={}, exception={}".format(rank, ex))
-                time.sleep(1)
-                continue
-
-    def reset(
-        self,
-        proxies={
-            "http": None,
-            "https": None,
-        },
-    ):
-        while True:
-            try:
-                rsp = self.session.post(
-                    "http://{}/api/v1/reset".format(self.autotune_service_addr),
-                    proxies=proxies,
-                )
-                return rsp
-            except Exception as ex:
-                logging.warning("ex={}".format(ex))
-                time.sleep(1)
-                continue
+    ) -> requests.Response:
+        rsp = self.session.post(
+            "http://{}/api/v1/ask_hyperparameters".format(self.autotune_service_addr),
+            json={
+                "rank": rank,
+                "train_iter": train_iter,
+            },
+            proxies=self.proxies,
+        )
+        return rsp
 
 
 if __name__ == "__main__":
