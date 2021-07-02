@@ -1,9 +1,9 @@
 import logging
 import multiprocessing
 import bagua_core as B
-from flask import Flask
 import bagua.torch_api.globals
 from bagua.service import AutotuneService
+from . import env
 from .env import (
     get_world_size,
     get_rank,
@@ -17,7 +17,6 @@ from .globals import _get_global_state, is_initialized
 from ..service.autotune_service import AutotuneClient
 from .exceptions import RepeatedInitializationError
 from .utils import flatten, unflatten, to_bagua_reduce_op
-from ..bagua_define import BaguaHyperparameter
 import torch
 import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
@@ -25,12 +24,16 @@ import torch.distributed.distributed_c10d as c10d
 _autotune_server = None
 
 
-def start_autotune_server():
-    """Start autotune server in background."""
-    global _autotune_server
+def run_flask_app():
+    from flask import Flask
 
     autotune_service = AutotuneService(
         world_size=get_world_size(),
+        autotune_level=env.get_autotune_level(),
+        max_samples=env.get_autotune_max_samples(),
+        sampling_confidence_time_s=env.get_autotune_sampling_confidence_time_s(),
+        warmup_time_s=env.get_autotune_warmup_time_s(),
+        autotune_logfile_path=env.get_autotune_logfile_path(),
         default_bucket_size=get_default_bucket_size(),
     )
     app = Flask(__name__)
@@ -38,14 +41,18 @@ def start_autotune_server():
     log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
-    _autotune_server = multiprocessing.Process(
-        target=app.run,
-        kwargs={
-            "host": "0.0.0.0",
-            "port": get_bagua_service_port(),
-            "debug": False,
-        },
+    app.run(
+        host="0.0.0.0",
+        port=get_bagua_service_port(),
+        debug=False,
     )
+
+
+def start_autotune_server():
+    """Start autotune server in background."""
+    global _autotune_server
+
+    _autotune_server = multiprocessing.Process(target=run_flask_app)
     _autotune_server.daemon = True
     _autotune_server.start()
 
@@ -96,7 +103,6 @@ class BaguaGlobalState(object):
         self.backend = B.BaguaCommBackendPy(100, device_id=device_id)
         self.stream = torch.cuda.Stream(priority=-1)
         self.store = store
-        self.hyperparameters = BaguaHyperparameter()
         self.hyperparameters_service_client = AutotuneClient(
             get_master_addr(), get_bagua_service_port()
         )
@@ -124,10 +130,6 @@ class BaguaGlobalState(object):
 
     def get_backend(self):
         return self.backend
-
-
-def get_bagua_hyperparameters():
-    return _get_global_state().hyperparameters
 
 
 def get_hyperparameters_service_client():
