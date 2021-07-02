@@ -51,7 +51,7 @@ class QAdamOptimizer(Optimizer):
         self.step_id = 0
         self.warmup_steps = warmup_steps
 
-        ### initialize momentum and variance
+        # initialize momentum and variance
         for group_id, group in enumerate(self.param_groups):
             params_with_grad = []
             exp_avgs = []
