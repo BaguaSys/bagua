@@ -90,7 +90,9 @@ def pssh_bagua_launch(
         )
 
     enable_host_logger()
-    client = ParallelSSHClient(host_list, host_config=host_config, pool_size=10 + len(host_list))
+    client = ParallelSSHClient(
+        host_list, host_config=host_config, pool_size=10 + len(host_list)
+    )
     output = client.run_command(
         "%(cmd)s",
         host_args=host_args,
