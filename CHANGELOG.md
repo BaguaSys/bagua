@@ -1,3 +1,24 @@
+## v0.6.2
+
+### Fixes
+
+* fix QAdam gradient is not BaguaTensor during first stage 1d4dc82
+
+## v0.6.1
+
+### Features
+
+* add QAdam algorithm (#92) 0dafd24
+* broadcast model parameters on every algorithm reset e5b36dc
+* wrap python op in communication stream context by default 51eb656
+* add append op methods to python `BaguaBucket` class (#87) 84d8cbc
+
+### Fixes
+
+* BaguaBucket.tensors should only contain original passed in tensors c4ff05f
+* fix append python op callable reference 04019cc
+* fix BaguaBacket.clear_ops() return value 8cb9f54
+
 ## v0.6.0
 
 ### ⚠ BREAKING CHANGE

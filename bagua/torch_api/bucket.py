@@ -36,20 +36,19 @@ class BaguaBucket:
         """
         The bucket's name.
         """
+        self.padding_tensor = None
 
         if alignment > 1:
             padding = sum(tensor.numel()
                           for tensor in self.tensors) % alignment
             if padding > 0:
                 padding = alignment - padding
-                pad_tensor = torch.zeros(
+                # padding tensor must be of name bagua_padding_tensor, so that they are always marked as ready for communication in the backend
+                self.padding_tensor = torch.zeros(
                     padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device
-                )
-                self.tensors.append(
-                    # padding tensor must be of name bagua_padding_tensor, so that they are always marked as ready for communication in the backend
-                    pad_tensor.to_bagua_tensor(
-                        "bagua_padding_tensor_bucket_" + name)
-                )
+                ).to_bagua_tensor("bagua_padding_tensor_bucket_" + name)
+
+        self._all_tensors = self.tensors + [self.padding_tensor] if self.padding_tensor is not None else self.tensors
 
         self.backend_tensor = None
         self.flatten = flatten
@@ -58,10 +57,10 @@ class BaguaBucket:
 
         self.backend_bucket = B.BaguaBucketPy(
             name,
-            [tensor._bagua_backend_tensor for tensor in tensors],
+            [tensor._bagua_backend_tensor for tensor in self._all_tensors]
         )
 
-        for tensor in self.tensors:
+        for tensor in self._all_tensors:
             tensor._bagua_bucket = self
 
     def _flatten_(self):
@@ -71,19 +70,19 @@ class BaguaBucket:
         if self.check_flatten():
             return
 
-        if len(self.tensors) == 0:
+        if len(self._all_tensors) == 0:
             return
         total_size = 0
-        for tensor in self.tensors:
+        for tensor in self._all_tensors:
             total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(total_size, dtype=self.tensors[0].dtype).to(
-            self.tensors[0].device
+        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
+            self._all_tensors[0].device
         )
         flatten_storage = flatten_tensor.storage()
 
         offset = 0
-        for tensor in self.tensors:
+        for tensor in self._all_tensors:
             # copy data
             flatten_tensor[offset: offset + tensor.numel()] = tensor.data.reshape(-1)
             tensor.bagua_set_storage(flatten_storage, offset)
@@ -96,7 +95,7 @@ class BaguaBucket:
         Returns:
             True if the bucket's tensors are contiguous in memory.
         """
-        return check_contiguous(self.tensors)
+        return check_contiguous(self._all_tensors)
 
     def append_python_op(self, python_function: Callable[[str], None]) -> BaguaBucket:
         """
