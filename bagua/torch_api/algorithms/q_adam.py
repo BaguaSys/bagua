@@ -11,11 +11,20 @@ import math
 from typing import List
 
 class QAdamAlgorithm(Algorithm):
-    def __init__(self, onebit_optimizer: Optimizer, warmup_steps: int=100, hierarchical_reduce: bool=True):
+    def __init__(self, onebit_optimizer: Optimizer, hierarchical_reduce: bool=True):
+        """
+        Create an instance of the
+        `QAdam Algorithm <https://baguasys.github.io/tutorials/algorithms/q-adam.html>`_
+        .
 
-        self.warmup_steps = warmup_steps
+        Args:
+            q_adam_optimizer (QAdamOptimizer): A QAdam optimizer initialized with model parameters.
+            hierarchical (bool): Enable hierarchical communication.
+
+        """
         self.hierarchical_reduce = hierarchical_reduce
         self.optimizer = onebit_optimizer
+        self.warmup_steps = self.optimizer.warmup_steps
 
     def need_reset(self):
 
@@ -105,12 +114,29 @@ class QAdamOptimizer(Optimizer):
         params,
         lr=1e-3,
         warmup_steps=100,
-        is_bert=False,
-        freeze_test_step=-1,
         betas=(0.9, 0.999),
         eps=1e-8,
         weight_decay=0,
     ):
+
+        """
+        Create an instance of the
+        `QAdamOptimizer`_
+        .
+
+        Args:
+            params (iterable): iterable of parameters to optimize or dicts defining
+                parameter groups
+            lr (float, optional): learning rate (default: 1e-3)
+            warmup_steps (int): number of steps to do warm up in the begining of training.
+            betas (Tuple[float, float], optional): coefficients used for computing
+                running averages of gradient and its square (default: (0.9, 0.999))
+            eps (float, optional): term added to the denominator to improve
+                numerical stability (default: 1e-8)
+            weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
+
+
+        """
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -120,13 +146,14 @@ class QAdamOptimizer(Optimizer):
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(
-            lr=lr, warmup_steps=warmup_steps, is_bert=is_bert, freeze_test_step=freeze_test_step, betas=betas, eps=eps, weight_decay=weight_decay
+            lr=lr, betas=betas, eps=eps, weight_decay=weight_decay
         )
         super(QAdamOptimizer, self).__init__(params, defaults)
 
         self.params_in_group = []
         self.exp_avgs_in_group = []
         self.step_id = 0
+        self.warmup_steps = warmup_steps
 
         ### initialize momentum and variance
         for group_id, group in enumerate(self.param_groups):
@@ -146,8 +173,6 @@ class QAdamOptimizer(Optimizer):
         super(QAdamOptimizer, self).__setstate__(state)
 
     def step(self, closure=None):
-        ## Here we assume grad or state["exp_avg"] have already been updated and averaged.
-        ## This step only updates weights.
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
 
@@ -159,7 +184,7 @@ class QAdamOptimizer(Optimizer):
             for param_id, param in enumerate(group['params']):
                 state = self.state[param]
 
-                if self.step_id < group["warmup_steps"]:
+                if self.step_id < self.warmup_steps:
                     state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(param.grad, param.grad, value=1 - beta2)
 
