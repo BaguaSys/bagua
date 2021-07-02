@@ -2,7 +2,6 @@
 
 """
 Multi-node launch script. execute bagua.distributed.launch on the specified host list.
-
 The following is an example of running bagua program with two nodes:
 ```bash
 # Started by baguarun
@@ -10,7 +9,6 @@ Launch bagua on two nodes *(192.168.1.1, 192.168.1.2)*
     >>> baguarun --host_list 192.168.1.1,192.168.1.2 --ssh_port ${COMM_SSH_PORT}
                 --nproc_per_node=NUM_GPUS_YOU_HAVE --master_port=1234
                 YOUR_TRAINING_SCRIPT.py (--arg1 --arg2 --arg3 and all other arguments of your training script)
-
 # The same operation do with bagua.distributed.launch
 Node 1: *(IP: 192.168.1.1, and has a free port: 1234)*
 ::
@@ -29,7 +27,12 @@ Node 2 *(IP: 192.168.1.2):
 
 import argparse
 import os
+import pssh
+import gevent
 from pssh.clients import ParallelSSHClient
+from pssh.config import HostConfig
+from pssh.exceptions import Timeout
+from pssh.utils import enable_host_logger
 
 
 def pssh_bagua_launch(
@@ -37,9 +40,8 @@ def pssh_bagua_launch(
     script_cmd: str,
     env: dict = {},
 ):
-    host_list = args.host_list
+    host_list = [host for (host, _) in args.host_list]
     nproc_per_node = args.nproc_per_node
-    ssh_port = args.ssh_port
     assert len(host_list) != 0, "Invalid host_list={}".format(host_list)
 
     if "PATH" not in env:
@@ -68,6 +70,8 @@ def pssh_bagua_launch(
     if args.no_python:
         bypass_args.append("--no_python")
 
+    host_config = [HostConfig(port=port) for (_, port) in args.host_list]
+
     master_addr = host_list[0]
     host_args = []
     for i, _ in enumerate(host_list):
@@ -87,16 +91,23 @@ def pssh_bagua_launch(
             }
         )
 
-    client = ParallelSSHClient(host_list, port=ssh_port)
+    enable_host_logger()
+    client = ParallelSSHClient(host_list, host_config=host_config, pool_size=10 + len(host_list))
     output = client.run_command(
         "%(cmd)s",
         host_args=host_args,
         shell="bash -xc",
         use_pty=True,  # The key configuration of process safe exit
     )
-    host_out = output[0]
-    for line in host_out.stdout:
-        print(line, flush=True)
+
+    def do_output(host_out):
+        for line in host_out.stdout:
+            pass
+
+    cmds = [client.pool.spawn(do_output, host_out) for host_out in output]
+    gevent.joinall(cmds)
+
+    client.join()
 
 
 def parse_args():
@@ -139,13 +150,23 @@ def parse_args():
 
     if args.host_list is None:
         args.host_list = os.environ.get("BAGUA_NODE_DOMAIN_NAMES", "")
-    if args.ssh_port is None:
+    if args.ssh_port is None and "BAGUA_SSH_PORT" in os.environ:
         args.ssh_port = int(os.environ["BAGUA_SSH_PORT"])
 
     assert args.host_list, "`--host_list` or $BAGUA_NODE_DOMAIN_NAMES must be set"
-    assert args.ssh_port, "`--host_list` or $BAGUA_SSH_PORT must be set"
+    host_list = []
+    for host_str in args.host_list.split(","):
+        host_or_pair = host_str.split(":")
+        if len(host_or_pair) == 1:
+            assert args.ssh_port, "`--host_list` or $BAGUA_SSH_PORT must be set"
+            host_list.append((host_or_pair[0], args.ssh_port))
+        elif len(host_or_pair) == 2:
+            (host, port) = host_or_pair
+            host_list.append((host, int(port)))
+        else:
+            raise Exception("Invalid host={}".format(host_str))
 
-    args.host_list = args.host_list.split(",")
+    args.host_list = host_list
 
     args.set_env = {}
     if args.x is not None:
