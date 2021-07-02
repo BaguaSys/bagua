@@ -1,3 +1,9 @@
+## v0.6.2
+
+### Fixes
+
+* fix QAdam gradient is not BaguaTensor during first stage 1d4dc82
+
 ## v0.6.1
 
 ### Features
