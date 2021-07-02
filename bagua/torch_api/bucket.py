@@ -207,4 +207,4 @@ class BaguaBucket:
         return self
 
     def bagua_bytes(self) -> int:
-        return sum(tensor.bytes() for tensor in self.tensors)
+        return sum(tensor.bagua_bytes() for tensor in self.tensors)
