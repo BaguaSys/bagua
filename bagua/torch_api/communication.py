@@ -30,7 +30,7 @@ def run_flask_app():
     from flask import Flask
     autotune_service = AutotuneService(
         world_size=get_world_size(),
-        autotune_level=get_autotune_level(),
+        autotune_level=env.get_autotune_level(),
         max_samples=env.get_autotune_max_samples(),
         sampling_confidence_time_s=env.get_autotune_sampling_confidence_time_s(),
         warmup_time_s=env.get_autotune_warmup_time_s(),
