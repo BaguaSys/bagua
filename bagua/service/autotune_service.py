@@ -162,6 +162,7 @@ class AutotuneService:
         self.recommended_hyperparameters: BaguaHyperparameter = BaguaHyperparameter()
         self.recommended_from_iter = 0
         self.default_bucket_size: int = default_bucket_size
+        self.forerunner_bucket_size: int = -1
 
         # metrics to autotune
         self.metrics_mutex = threading.Lock()
@@ -433,7 +434,7 @@ class AutotuneService:
                     == len(self.check_board)
                     and self.check_board[rank] < train_iter
                 ):
-                    self.forerunner_bucket_size = session["bucket_size"]
+                    self.forerunner_bucket_size: int = session["bucket_size"]
                     autotune()
 
                 session["bucket_size"] = self.forerunner_bucket_size
