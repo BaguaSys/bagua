@@ -85,8 +85,7 @@ class BaguaBucket:
         offset = 0
         for tensor in self.tensors:
             # copy data
-            flatten_tensor[offset: offset +
-                           tensor.numel()] = tensor.data.reshape(-1)
+            flatten_tensor[offset: offset + tensor.numel()] = tensor.data.reshape(-1)
             tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.numel()
         # check
