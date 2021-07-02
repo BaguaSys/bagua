@@ -140,6 +140,7 @@ class QAdamAlgorithm(Algorithm):
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._one_bit_name
                     )
+                    param._one_bit_grad = registered_tensor
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(
                         param._one_bit_name
@@ -192,7 +193,8 @@ class QAdamAlgorithm(Algorithm):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
-            parameter.grad.bagua_mark_communication_ready()
+            assert parameter.grad.data_ptr() == parameter._one_bit_grad.data_ptr(), "gradient data_ptr should match _one_bit_grad data_ptr"
+            parameter._one_bit_grad.bagua_mark_communication_ready()
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
