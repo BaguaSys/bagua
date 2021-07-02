@@ -244,7 +244,7 @@ class BaguaModule:
                 try:
                     elapsed_time_s = start.elapsed_time(stop) / 1000.
                     total_bytes = sum(
-                        bucket.bytes() for bucket in self.bagua_buckets)
+                        bucket.bagua_bytes() for bucket in self.bagua_buckets)
                     total_gbytes = total_bytes / 1024. ** 3
                     speed = total_gbytes / elapsed_time_s
                     self.speed_metric.record(speed)

@@ -116,7 +116,7 @@ class BaguaTensor:
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
 
-    def bytes(self) -> int:
+    def bagua_bytes(self) -> int:
         return self.numel() * self.element_size()
 
 
