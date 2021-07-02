@@ -10,7 +10,7 @@
 Bagua
 ======
 
-This is Bagua API documentation. See `tutorials <https://baguasys.github.io/tutorials/>`_ if you need step by step instructions on how to use Bagua.
+This website contains Bagua API documentation. See `tutorials <https://baguasys.github.io/tutorials/>`_ if you need step by step instructions on how to use Bagua.
 
 
 .. toctree::

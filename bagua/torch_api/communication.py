@@ -1,49 +1,39 @@
 import logging
 import multiprocessing
-import torch
-import torch.distributed as dist
-import torch.distributed.distributed_c10d as c10d
 import bagua_core as B
-from flask import Flask
+import bagua.torch_api.globals
 from bagua.service import AutotuneService
+from . import env
 from .env import (
     get_world_size,
     get_rank,
     get_local_rank,
     get_local_size,
     get_master_addr,
-    get_bagua_service_port,
     get_default_bucket_size,
     get_bagua_service_port,
 )
+from .globals import _get_global_state, is_initialized
 from ..service.autotune_service import AutotuneClient
 from .exceptions import RepeatedInitializationError
-from .utils import flatten, unflatten, to_bagua_datatype
-from ..bagua_define import BaguaHyperparameter
+from .utils import flatten, unflatten, to_bagua_reduce_op
+import torch
+import torch.distributed as dist
+import torch.distributed.distributed_c10d as c10d
 
-_global_state = None
 _autotune_server = None
 
 
-def _get_global_state():
-    global _global_state
-    return _global_state
-
-
-def is_initialized():
-    """
-    Checking if bagua global communication state has been initialized
-    """
-    global _global_state
-    return _global_state is not None
-
-
-def start_autotune_server():
-    """Start autotune server in background."""
-    global _autotune_server
+def run_flask_app():
+    from flask import Flask
 
     autotune_service = AutotuneService(
         world_size=get_world_size(),
+        autotune_level=env.get_autotune_level(),
+        max_samples=env.get_autotune_max_samples(),
+        sampling_confidence_time_s=env.get_autotune_sampling_confidence_time_s(),
+        warmup_time_s=env.get_autotune_warmup_time_s(),
+        autotune_logfile_path=env.get_autotune_logfile_path(),
         default_bucket_size=get_default_bucket_size(),
     )
     app = Flask(__name__)
@@ -51,14 +41,18 @@ def start_autotune_server():
     log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
-    _autotune_server = multiprocessing.Process(
-        target=app.run,
-        kwargs={
-            "host": "0.0.0.0",
-            "port": get_bagua_service_port(),
-            "debug": False,
-        },
+    app.run(
+        host="0.0.0.0",
+        port=get_bagua_service_port(),
+        debug=False,
     )
+
+
+def start_autotune_server():
+    """Start autotune server in background."""
+    global _autotune_server
+
+    _autotune_server = multiprocessing.Process(target=run_flask_app)
     _autotune_server.daemon = True
     _autotune_server.start()
 
@@ -99,8 +93,7 @@ def init_process_group():
     if get_rank() == 0:
         start_autotune_server()
 
-    global _global_state
-    _global_state = BaguaGlobalState(store)
+    bagua.torch_api.globals._set_global_state(BaguaGlobalState(store))
 
 
 class BaguaGlobalState(object):
@@ -110,7 +103,6 @@ class BaguaGlobalState(object):
         self.backend = B.BaguaCommBackendPy(100, device_id=device_id)
         self.stream = torch.cuda.Stream(priority=-1)
         self.store = store
-        self.hyperparameters = BaguaHyperparameter()
         self.hyperparameters_service_client = AutotuneClient(
             get_master_addr(), get_bagua_service_port()
         )
@@ -123,6 +115,9 @@ class BaguaGlobalState(object):
         self.global_communicator = init_bagua_communicator(
             stream=self.stream, store=self.store, device_id=device_id
         )
+
+    def get_communication_stream(self):
+        return self.stream
 
     def get_internode_communicator(self):
         return self.internode_communicator
@@ -137,12 +132,8 @@ class BaguaGlobalState(object):
         return self.backend
 
 
-def get_bagua_hyperparameters():
-    return _global_state.hyperparameters
-
-
 def get_hyperparameters_service_client():
-    return _global_state.hyperparameters_service_client
+    return _get_global_state().hyperparameters_service_client
 
 
 def gen_nccl_unique_id(comm_type: str, root=0, store=None):
@@ -180,7 +171,9 @@ def init_bagua_inter_communicator(stream, leader_rank=0, store=None, device_id=N
     )
     comm.cuda_stream = stream
     logging.debug(
-        f"init bagua internode communicator ok, global rank: {dist.get_rank()} rank: {comm.rank()}"
+        "init bagua internode communicator ok, global rank: %s rank: %s",
+        dist.get_rank(),
+        comm.rank(),
     )
     return comm
 
@@ -203,7 +196,9 @@ def init_bagua_intra_communicator(stream, store=None, device_id=None):
     )
     comm.cuda_stream = stream
     logging.debug(
-        f"init bagua intranode communicator ok, global rank: {dist.get_rank()} rank: {comm.rank()}"
+        "init bagua intranode communicator ok, global rank: %s rank: %s",
+        dist.get_rank(),
+        comm.rank(),
     )
     return comm
 
@@ -222,7 +217,9 @@ def init_bagua_communicator(stream, store=None, device_id=None):
     )
     comm.cuda_stream = stream
     logging.debug(
-        f"init bagua global communicator ok, global rank: {dist.get_rank()} rank: {comm.rank()}"
+        "init bagua global communicator ok, global rank: %s rank: %s",
+        dist.get_rank(),
+        comm.rank(),
     )
     return comm
 
@@ -241,18 +238,11 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        b_coalesced = B.BaguaTensorPy(
-            ptr=coalesced.data_ptr(),
-            num_elem=coalesced.numel(),
-            num_elem_allocated=coalesced.numel(),
-            dtype=to_bagua_datatype(coalesced.dtype),
-            device_id=coalesced.device.index,
-        )
-        comm.broadcast(b_coalesced, root)
-
+        comm.broadcast(coalesced.to_bagua_tensor().bagua_backend_tensor(), root)
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
 
+    # TODO: remove
     torch.cuda.synchronize()
 
 
@@ -281,22 +271,48 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        b_tensor = B.BaguaTensorPy(
-            ptr=tensor.data_ptr(),
-            num_elem=tensor.numel(),
-            num_elem_allocated=tensor.numel(),
-            dtype=to_bagua_datatype(tensor.dtype),
-            device_id=tensor.device.index,
+        comm.broadcast(tensor.to_bagua_tensor().bagua_backend_tensor(), root)
+
+    # TODO: remove
+    torch.cuda.synchronize()
+
+
+def reduce(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
+    r"""Reduces the tensor across all processes.
+
+    Only the process whit rank `dst` is going to receive the final result.
+
+    Args:
+        tensor (torch.Tensor): Input and output of the collective. The
+            function operates in-place.
+        dst (int): Destination rank
+        op (optional): one of the values from `torch.distributed.ReduceOp`
+            enum. Specifies an operation used for element-wise reductions.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """  # noqa: W293
+
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = _get_global_state().get_global_communicator()
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.reduce(
+            tensor.to_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op)
         )
-        comm.broadcast(b_tensor, root)
 
     torch.cuda.synchronize()
 
 
 def allreduce_coalesced(
     tensors,
+    op=dist.ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
-    average: bool = True,
 ):
     for tensor in tensors:
         assert tensor.device != torch.device(
@@ -311,27 +327,20 @@ def allreduce_coalesced(
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        b_coalesced = B.BaguaTensorPy(
-            ptr=coalesced.data_ptr(),
-            num_elem=coalesced.numel(),
-            num_elem_allocated=coalesced.numel(),
-            dtype=to_bagua_datatype(coalesced.dtype),
-            device_id=coalesced.device.index,
+        comm.allreduce(
+            coalesced.to_bagua_tensor("allreduce_coalesced"), to_bagua_reduce_op(op)
         )
-        comm.allreduce(b_coalesced)
-
-        if average:
-            coalesced /= comm.nranks()
 
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
 
+    # TODO: remove
     torch.cuda.synchronize()
 
 
 def allreduce(
     tensor,
-    average: bool = True,
+    op=dist.ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Reduces the tensor data across all machines in such a way that all get
@@ -341,8 +350,7 @@ def allreduce(
     Args:
         tensor (torch.Tensor): Input and output of the collective. The
             function operates in-place.
-        average (bool, optional): Average the reduced tensor or
-            not, Defaults to True.
+        op (optional): one of the values from `torch.distributed.ReduceOp` enum. Specifies an operation used for element-wise reductions.
         comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
             work on. If None the global bagua communicator will be used.
             Defaults to None.
@@ -381,16 +389,9 @@ def allreduce(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        b_tensor = B.BaguaTensorPy(
-            ptr=tensor.data_ptr(),
-            num_elem=tensor.numel(),
-            num_elem_allocated=tensor.numel(),
-            dtype=to_bagua_datatype(tensor.dtype),
-            device_id=tensor.device.index,
+        comm.allreduce(
+            tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op)
         )
-        comm.allreduce(b_tensor)
 
-        if average:
-            tensor /= comm.nranks()
-
+    # TODO: remove
     torch.cuda.synchronize()

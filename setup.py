@@ -29,13 +29,13 @@ if __name__ == "__main__":
         use_scm_version={"local_scheme": "no-local-version"},
         setup_requires=["setuptools_scm"],
         url="https://github.com/BaguaSys/bagua",
-        python_requires=">=3.6",
+        python_requires=">=3.7",
         description="Bagua is a flexible and performant distributed training algorithm development framework.",
         packages=find_packages(exclude=("tests")),
         author="Kuaishou AI Platform & DS3 Lab",
         author_email="admin@mail.xrlian.com",
         install_requires=[
-            "bagua-core>=0.2,<0.3",
+            "bagua-core>=0.3,<0.4",
             "deprecation",
             "pytest-benchmark",
             "scikit-optimize",
@@ -45,6 +45,7 @@ if __name__ == "__main__":
             "parallel-ssh",
             "pydantic",
             "requests",
+            "gorilla",
         ],
         entry_points={
             "console_scripts": [

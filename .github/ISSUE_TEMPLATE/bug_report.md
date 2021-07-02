@@ -14,6 +14,7 @@ A clear and concise description of what the bug is.
 
  - Your operating system and version:
  - Your python version:
+ - Your PyTorch version:
  - How did you install python (e.g. apt or pyenv)? Did you use a virtualenv?:
  - Have you tried using latest bagua master (`python3 -m pip install git+https://github.com/BaguaSys/bagua.git -f https://repo.arrayfire.com/python/wheels/3.8.0/
 `)?:

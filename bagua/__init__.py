@@ -9,6 +9,5 @@ See tutorials_ for Bagua's rationale and benchmark.
 .. _tutorials: https://baguasys.github.io/tutorials/
 """
 
-import bagua_core
-from . import torch_api, autotune, script, bagua_define
-from .version import __version__
+import bagua_core  # noqa: F401
+from .version import __version__  # noqa: F401

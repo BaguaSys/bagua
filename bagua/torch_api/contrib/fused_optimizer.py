@@ -28,13 +28,13 @@ class FusedOptimizer(torch.optim.Optimizer):
         To use in conjunction with :func:`bagua.torch_api.bagua_init`:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
-        >>> optimizer = bagua.torch_api.FusedOptimizer(optimizer)
-        >>> model, optimizer = bagua.bagua_init(model, optimizer, ...)
+        >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer)
+        >>> model = model.with_bagua([optimizer], GradientAllReduceAlgorithm())
 
         To use alone or with :class:`torch.nn.parallel.DistributedDataParallel`, set `do_flatten` to be ``True``:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
-        >>> optimizer = bagua.torch_api.FusedOptimizer(optimizer, do_flatten=True)
+        >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer, do_flatten=True)
     """
 
     def __init__(self, optimizer: torch.optim.Optimizer, do_flatten: bool = False):
@@ -99,7 +99,7 @@ def reorder_params(params):
         tmp_params.append(p)
 
     if len(tmp_params) > 0:
-        grouped.append(collocate_params(tmp_params))
+        grouped.append(collocate_params(tmp_params))  # FIXME: potential OOM
 
     return grouped
 
@@ -126,8 +126,8 @@ def group_params_by_storage(params):
     grouped_params = {}
     for p in params:
         weight_storage = p.data.storage().data_ptr()
-        l = grouped_params.get(weight_storage, [])
-        l.append(p)
-        grouped_params[weight_storage] = l
+        param_list = grouped_params.get(weight_storage, [])
+        param_list.append(p)
+        grouped_params[weight_storage] = param_list
 
     return grouped_params
