@@ -26,6 +26,7 @@ _autotune_server = None
 
 def run_flask_app():
     from flask import Flask
+
     autotune_service = AutotuneService(
         world_size=get_world_size(),
         autotune_level=env.get_autotune_level(),
@@ -51,8 +52,7 @@ def start_autotune_server():
     """Start autotune server in background."""
     global _autotune_server
 
-    _autotune_server = multiprocessing.Process(
-        target=run_flask_app)
+    _autotune_server = multiprocessing.Process(target=run_flask_app)
     _autotune_server.daemon = True
     _autotune_server.start()
 

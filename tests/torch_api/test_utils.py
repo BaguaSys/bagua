@@ -13,33 +13,32 @@ class TestUtils(unittest.TestCase):
         )
         time.sleep(1)
 
-        m.record(6.)
+        m.record(6.0)
 
         test_answer_list = [
-            (1., 6.),
-            (2., (6. + 5.) / 2.),
-            (3., (6. + 4.5005175 * 2.) / 3.),
-            (5., (6. + 3.5034241850204078 * 4.) / 5.),
-            (7., (6. + 2.499061185570463 * (4. + 2.0166309999999985)) / 7.),
+            (1.0, 6.0),
+            (2.0, (6.0 + 5.0) / 2.0),
+            (3.0, (6.0 + 4.5005175 * 2.0) / 3.0),
+            (5.0, (6.0 + 3.5034241850204078 * 4.0) / 5.0),
+            (7.0, (6.0 + 2.499061185570463 * (4.0 + 2.0166309999999985)) / 7.0),
         ]
         test_val_list = []
         for (last_n_seconds, _) in test_answer_list:
-            test_val_list.append(
-                m.get_records_mean(last_n_seconds))
+            test_val_list.append(m.get_records_mean(last_n_seconds))
 
         for a, (n, b) in zip(test_val_list, test_answer_list):
             self.assertTrue(
                 np.isclose(a, b, atol=0.1),
-                "last_n_seconds={}, test_val={}, answer={}, m={}".format(
-                    n, a, b, m
-                ))
+                "last_n_seconds={}, test_val={}, answer={}, m={}".format(n, a, b, m),
+            )
 
         self.assertTrue(
             np.isclose(
                 m.total_recording_time(),
-                4. + 2.0166309999999985 + 1,
+                4.0 + 2.0166309999999985 + 1,
                 atol=0.1,
-            ), "total_recording_time={}".format(m.total_recording_time())
+            ),
+            "total_recording_time={}".format(m.total_recording_time()),
         )
 
 

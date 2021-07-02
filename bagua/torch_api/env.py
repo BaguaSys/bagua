@@ -74,6 +74,7 @@ def is_report_metrics_switch_on():
 
 # ** Autotune Environment Variable **
 
+
 def get_autotune_level() -> int:
     """Get the autotune level.
     Returns:
@@ -87,13 +88,12 @@ def get_autotune_max_samples() -> int:
 
 
 def get_autotune_sampling_confidence_time_s() -> float:
-    return float(os.environ.get("BAGUA_AUTOTUNE_SAMPLING_CONFIDENCE_TIME_S", 5.))
+    return float(os.environ.get("BAGUA_AUTOTUNE_SAMPLING_CONFIDENCE_TIME_S", 5.0))
 
 
 def get_autotune_warmup_time_s() -> float:
-    return float(os.environ.get("BAGUA_AUTOTUNE_WARMUP_TIME_S", 30.))
+    return float(os.environ.get("BAGUA_AUTOTUNE_WARMUP_TIME_S", 30.0))
 
 
 def get_autotune_logfile_path() -> str:
-    return os.environ.get(
-        "BAGUA_AUTOTUNE_LOGFILE_PATH", "/tmp/bagua_autotune.log")
+    return os.environ.get("BAGUA_AUTOTUNE_LOGFILE_PATH", "/tmp/bagua_autotune.log")

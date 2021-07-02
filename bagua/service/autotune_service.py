@@ -95,8 +95,7 @@ def record_autotune_log(
     with open(autotune_logfile_path, "a") as autotune_log:
         csv_writer = csv.DictWriter(
             autotune_log,
-            fieldnames=sorted(["train_iter", "score"] +
-                              list(autotune_hp.keys())),
+            fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
         )
         first_line = open(autotune_logfile_path).readline()
         if not first_line:
@@ -186,8 +185,7 @@ class AutotuneService:
                 autotune_hp, train_iter, score
             )
         )
-        record_autotune_log(self.autotune_logfile_path,
-                            autotune_hp, train_iter, score)
+        record_autotune_log(self.autotune_logfile_path, autotune_hp, train_iter, score)
 
         tensor_list = [
             tensor_declar for bucket in bagua_hp.buckets for tensor_declar in bucket
@@ -244,8 +242,9 @@ class AutotuneService:
                 self.recommended_hyperparameters = default_hyperparameters
                 self.last_time_the_hyperparameters_was_granted = time.time()
 
-                logging.info("default_hyperparameters={}".format(
-                    default_hyperparameters.dict()))
+                logging.info(
+                    "default_hyperparameters={}".format(default_hyperparameters.dict())
+                )
                 self.is_initialized = True
                 return json.dumps(
                     {
@@ -316,10 +315,7 @@ class AutotuneService:
                     recommended_train_iter = int(
                         rank0_train_iter.collect()[-1].samples[-1].value
                     )
-                    speed = (
-                        rank0_speed.collect(
-                        )[-1].samples[-1].value
-                    )
+                    speed = rank0_speed.collect()[-1].samples[-1].value
                     hyperparameters = (
                         rank0_hyperparameters.collect()[-1].samples[-1].labels
                     )
@@ -341,25 +337,28 @@ class AutotuneService:
                         )
                     )
 
-                sampling_time = time.time() - self.last_time_the_hyperparameters_was_granted
+                sampling_time = (
+                    time.time() - self.last_time_the_hyperparameters_was_granted
+                )
 
                 # warmup pass
                 if self.warmup_flag:
                     # At last pass one time
-                    if sampling_time < self.warmup_time_s \
-                            or self.warmup_pass_count == 0:
+                    if (
+                        sampling_time < self.warmup_time_s
+                        or self.warmup_pass_count == 0
+                    ):
                         logging.info(
                             "warmup pass, time.time={}, last={}, "
-                            "warmup_time_s={}"
-                            .format(
+                            "warmup_time_s={}".format(
                                 time.time(),
                                 self.last_time_the_hyperparameters_was_granted,
-                                self.warmup_time_s
-                            ))
+                                self.warmup_time_s,
+                            )
+                        )
                         self.warmup_pass_count += 1
                         return
-                    self.last_time_the_hyperparameters_was_granted = \
-                        time.time()
+                    self.last_time_the_hyperparameters_was_granted = time.time()
                     self.warmup_flag = False
 
                 # Skip if the sampling time is insufficient
@@ -370,14 +369,14 @@ class AutotuneService:
                             time.time(),
                             self.last_time_the_hyperparameters_was_granted,
                             self.sampling_confidence_time_s,
-                        ))
+                        )
+                    )
                     return
 
                 logging.info(
                     "rank={}, train_iter={}, sampling_counter={}, "
                     "max_samples={}".format(
-                        rank, train_iter, self.sampling_counter,
-                        self.max_samples
+                        rank, train_iter, self.sampling_counter, self.max_samples
                     )
                 )
                 bagua_hp = BaguaHyperparameter(**hyperparameters)
@@ -447,11 +446,10 @@ class AutotuneService:
 
                 return json.dumps(
                     {
-                        "recommended_hyperparameters":
-                            self.recommended_hyperparameters.dict(),
+                        "recommended_hyperparameters": self.recommended_hyperparameters.dict(),
                         "recommended_from_iter": self.recommended_from_iter,
-                        "is_autotune_completed":
-                            self.sampling_counter > self.max_samples,
+                        "is_autotune_completed": self.sampling_counter
+                        > self.max_samples,
                     },
                 )
 
@@ -469,8 +467,7 @@ class AutotuneService:
             return json.dumps({})
 
         # Add prometheus wsgi middleware to route /metrics requests
-        app.wsgi_app = DispatcherMiddleware(
-            app.wsgi_app, {"/metrics": make_wsgi_app()})
+        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
 
         # set secret-key
         app.config.update(SECRET_KEY=os.urandom(24))
@@ -479,10 +476,15 @@ class AutotuneService:
 
 
 class AutotuneClient:
-    def __init__(self, service_addr: str, service_port: int, proxies={
-        "http": None,
-        "https": None,
-    }):
+    def __init__(
+        self,
+        service_addr: str,
+        service_port: int,
+        proxies={
+            "http": None,
+            "https": None,
+        },
+    ):
         self.autotune_service_addr = "{}:{}".format(service_addr, service_port)
         self.session = requests.Session()
         self.proxies = proxies
@@ -496,8 +498,7 @@ class AutotuneClient:
         speed: float,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/report_metrics".format(
-                self.autotune_service_addr),
+            "http://{}/api/v1/report_metrics".format(self.autotune_service_addr),
             json={
                 "rank": rank,
                 "unix_timestamp": unix_timestamp,
@@ -515,9 +516,7 @@ class AutotuneClient:
         whether_to_bucket: bool = True,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/register_tensors".format(
-                self.autotune_service_addr
-            ),
+            "http://{}/api/v1/register_tensors".format(self.autotune_service_addr),
             json={
                 "tensor_list": tensor_list,
                 "whether_to_bucket": whether_to_bucket,
@@ -532,9 +531,7 @@ class AutotuneClient:
         train_iter: int,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/ask_hyperparameters".format(
-                self.autotune_service_addr
-            ),
+            "http://{}/api/v1/ask_hyperparameters".format(self.autotune_service_addr),
             json={
                 "rank": rank,
                 "train_iter": train_iter,

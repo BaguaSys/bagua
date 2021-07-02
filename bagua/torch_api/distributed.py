@@ -117,8 +117,7 @@ class BaguaModule:
             and self.bagua_train_step_counter % CYCLE_STEP == 0
         ):
             # get speed metrics
-            time_since_last_update = time.time() - \
-                self._bagua_autotune_last_report_time
+            time_since_last_update = time.time() - self._bagua_autotune_last_report_time
             speed = self._speed_metrics.get(time_since_last_update)
 
             # report metrics
@@ -181,23 +180,17 @@ class BaguaModule:
             ...    )
         """
 
-        self.bagua_optimizers = (
-            optimizers
-        )
-        self.bagua_algorithm = (
-            algorithm
-        )
+        self.bagua_optimizers = optimizers
+        self.bagua_algorithm = algorithm
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
         if hasattr(self, "_bagua_params_and_buffers_to_ignore"):
-            self.parameters_to_ignore.extend(
-                self._bagua_params_and_buffers_to_ignore)
+            self.parameters_to_ignore.extend(self._bagua_params_and_buffers_to_ignore)
         if hasattr(
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
-            self.parameters_to_ignore.extend(
-                self._ddp_params_and_buffers_to_ignore)
+            self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
         self.bagua_train_step_counter = 0
         """
         Number of iterations in training mode.
@@ -243,22 +236,18 @@ class BaguaModule:
             if hasattr(self, "_last_event_pair"):
                 (start, stop) = self._last_event_pair
                 try:
-                    elapsed_time_s = start.elapsed_time(stop) / 1000.
-                    total_bytes = sum(
-                        bucket.bytes() for bucket in self.bagua_buckets)
-                    total_gbytes = total_bytes / 1024. ** 3
+                    elapsed_time_s = start.elapsed_time(stop) / 1000.0
+                    total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
+                    total_gbytes = total_bytes / 1024.0 ** 3
                     speed = total_gbytes / elapsed_time_s
                     self._speed_metrics.record(speed)
                 except RuntimeError as err:
                     logging.debug("Ignore cuda err={}".format(err))
 
             start_event = torch.cuda.Event(enable_timing=True)
-            self._speed_metrics_end_event = \
-                torch.cuda.Event(enable_timing=True)
+            self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
             torch.cuda.current_stream().record_event(start_event)
-            self._last_event_pair = (
-                start_event,
-                self._speed_metrics_end_event)
+            self._last_event_pair = (start_event, self._speed_metrics_end_event)
 
         self._bagua_framework_hooks.extend(
             [
@@ -306,9 +295,7 @@ class BaguaModule:
             for tensor in self._bagua_tensors
         ]
 
-        rsp = self._bagua_autotune_client.register_tensors(
-            autotune_tensor_list
-        )
+        rsp = self._bagua_autotune_client.register_tensors(autotune_tensor_list)
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
     def _bagua_autotune_get_buckets(self):
@@ -323,8 +310,7 @@ class BaguaModule:
 
         self._bagua_autotune_completed = is_autotune_completed
         recommended_buckets = map(
-            lambda x: list(
-                map(lambda y: self._bagua_tensor_map[y["name"]], x)),
+            lambda x: list(map(lambda y: self._bagua_tensor_map[y["name"]], x)),
             recommended_hyperparameters["buckets"],
         )
         return list(recommended_buckets)
@@ -334,8 +320,7 @@ class BaguaModule:
         self._bagua_broadcast_parameters()
         self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
-            [(tensor.bagua_tensor_name, tensor)
-             for tensor in self._bagua_tensors]
+            [(tensor.bagua_tensor_name, tensor) for tensor in self._bagua_tensors]
         )
         self._bagua_autotune_register_tensors()
         self._bagua_reset_algorithm_buckets()
@@ -349,20 +334,19 @@ class BaguaModule:
     def _bagua_reset_algorithm_buckets(self):
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(
-            self.bagua_algorithm.tensors_to_buckets(raw_buckets))
+        self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
 
         for name, param in self.named_parameters():
 
             def real_hook_factory(param_name, parameter):
                 def real_hook(*unused):
-                    self.bagua_algorithm.init_backward_hook(
-                        self)(param_name, parameter)
+                    self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
 
                     def real_post_backward_hook(*unused):
                         if self._speed_metrics_switch_on:
                             torch.cuda.current_stream().record_event(
-                                self._speed_metrics_end_event)
+                                self._speed_metrics_end_event
+                            )
 
                         self.bagua_algorithm.init_post_backward_hook(self)()
 
@@ -381,8 +365,7 @@ class BaguaModule:
                 hook.grad_acc = grad_acc
                 self._bagua_algorithm_hooks.append(hook)
 
-        optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(
-            self)
+        optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(self)
 
         from types import MethodType
 

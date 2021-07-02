@@ -148,10 +148,10 @@ def set_bagua_env(args, current_env):
     current_env["BAGUA_DEFAULT_BUCKET_SIZE"] = str(args.default_bucket_size)
     current_env["BAGUA_AUTOTUNE"] = str(args.autotune_level)
     current_env["BAGUA_AUTOTUNE_MAX_SAMPLES"] = str(args.autotune_max_samples)
-    current_env["BAGUA_AUTOTUNE_SAMPLING_CONFIDENCE_TIME_S"] = \
-        str(args.autotune_sampling_confidence_time)
-    current_env["BAGUA_AUTOTUNE_WARMUP_TIME_S"] = \
-        str(args.autotune_warmup_time)
+    current_env["BAGUA_AUTOTUNE_SAMPLING_CONFIDENCE_TIME_S"] = str(
+        args.autotune_sampling_confidence_time
+    )
+    current_env["BAGUA_AUTOTUNE_WARMUP_TIME_S"] = str(args.autotune_warmup_time)
     current_env["BAGUA_AUTOTUNE_LOGFILE_PATH"] = args.autotune_logfile
 
 

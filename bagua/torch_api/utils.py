@@ -272,7 +272,7 @@ class StatisticalAverage:
         self,
         last_update_time: float = time.time(),
         records: List[float] = [],
-        record_tail: Tuple[float, float] = (0., 0.),   # [tail_len, tail_val]
+        record_tail: Tuple[float, float] = (0.0, 0.0),  # [tail_len, tail_val]
     ) -> None:
         """Track and record the average over a period of time.
 
@@ -292,8 +292,7 @@ class StatisticalAverage:
         self.record_tail: Tuple[float, float] = record_tail
 
     def record_seconds(self) -> float:
-        return 2. ** (len(self.records) - 1) \
-            if len(self.records) != 0 else 0.
+        return 2.0 ** (len(self.records) - 1) if len(self.records) != 0 else 0.0
 
     def total_recording_time(self) -> float:
         (tail_seconds, _) = self.record_tail
@@ -301,8 +300,8 @@ class StatisticalAverage:
         return self.record_seconds() + tail_seconds
 
     def get_records_mean(self, last_n_seconds: float) -> float:
-        if last_n_seconds <= 0.:
-            return 0.
+        if last_n_seconds <= 0.0:
+            return 0.0
 
         records_seconds = self.record_seconds()
         (tail_seconds, tail_mean) = self.record_tail
@@ -310,15 +309,15 @@ class StatisticalAverage:
         if len(self.records) == 0:
             return tail_mean
 
-        if last_n_seconds < 1.:
+        if last_n_seconds < 1.0:
             return self.records[0]
 
         if last_n_seconds <= records_seconds:
-            floor_id = max(0, math.floor(math.log(last_n_seconds, 2.)))
-            floor_time = 2. ** floor_id
+            floor_id = max(0, math.floor(math.log(last_n_seconds, 2.0)))
+            floor_time = 2.0 ** floor_id
             if floor_id + 1 < len(self.records):
                 a, b = self.records[floor_id], self.records[floor_id + 1]
-                a_l, b_l = floor_time, floor_time * 2.
+                a_l, b_l = floor_time, floor_time * 2.0
                 mean = a + (b - a) * (last_n_seconds - a_l) / (b_l - a_l)
             else:
                 mean = self.records[floor_id]
@@ -335,19 +334,18 @@ class StatisticalAverage:
         now = time.time()
         time_dist: float = now - self.last_update_time
         new_records: List[float] = []
-        new_tail: Tuple[float, float] = (0., 0.)
+        new_tail: Tuple[float, float] = (0.0, 0.0)
 
         for i in range(64):
-            coverage_period = 2. ** i
+            coverage_period = 2.0 ** i
 
             if coverage_period <= time_dist:
                 new_records.append(val)
             elif coverage_period <= time_dist + self.total_recording_time():
                 record_contribution_percentage = time_dist / coverage_period
-                new_val = val * record_contribution_percentage + \
-                    self.get_records_mean(
-                        coverage_period - time_dist
-                    ) * (1. - record_contribution_percentage)
+                new_val = val * record_contribution_percentage + self.get_records_mean(
+                    coverage_period - time_dist
+                ) * (1.0 - record_contribution_percentage)
 
                 new_records.append(new_val)
 
@@ -357,11 +355,10 @@ class StatisticalAverage:
                 new_total_time = time_dist + self.total_recording_time()
                 report_contribution_percentage = time_dist / new_total_time
 
-                tail_len = new_total_time - 2. ** (len(new_records) - 1)
-                tail_val = val * report_contribution_percentage + \
-                    self.get_records_mean(
-                        self.total_recording_time()
-                    ) * (1. - report_contribution_percentage)
+                tail_len = new_total_time - 2.0 ** (len(new_records) - 1)
+                tail_val = val * report_contribution_percentage + self.get_records_mean(
+                    self.total_recording_time()
+                ) * (1.0 - report_contribution_percentage)
                 new_tail = (tail_len, tail_val)
                 break
 
@@ -381,8 +378,10 @@ class StatisticalAverage:
         return self.get_records_mean(last_n_seconds - time_dist)
 
     def __str__(self) -> str:
-        return str({
-            "last_update_time": self.last_update_time,
-            "records": self.records,
-            "record_tail": self.record_tail,
-        })
+        return str(
+            {
+                "last_update_time": self.last_update_time,
+                "records": self.records,
+                "record_tail": self.record_tail,
+            }
+        )
