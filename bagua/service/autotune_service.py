@@ -346,7 +346,7 @@ class AutotuneService:
                     # At last pass one time
                     if (
                         sampling_time < self.warmup_time_s
-                        or self.warmup_pass_count == 0
+                        or self.warmup_pass_count == 0  # noqa: W503
                     ):
                         logging.info(
                             "warmup pass, time.time={}, last={}, "
