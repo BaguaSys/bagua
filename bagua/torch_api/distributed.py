@@ -5,7 +5,6 @@ from bagua.torch_api.env import get_autotune_level, get_rank
 from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
-    get_tensor_declaration_bytes,
 )
 from bagua.torch_api.globals import _get_global_state
 import gorilla
@@ -244,10 +243,8 @@ class BaguaModule:
                 (start, stop) = self._last_event_pair
                 try:
                     elapsed_time_s = start.elapsed_time(stop) / 1000.
-                    tensor_list = list(sum(self.reducer.buckets, []))
-                    total_bytes = sum([
-                        get_tensor_declaration_bytes(td)
-                        for td in tensor_list])
+                    total_bytes = sum(
+                        bucket.bytes() for bucket in self.bagua_buckets)
                     total_gbytes = total_bytes / 1024. ** 3
                     speed = total_gbytes / elapsed_time_s
                     self.speed_metric.record(speed)
