@@ -271,8 +271,6 @@ class BaguaModule:
         self._bagua_global_communicator = _get_global_state().get_global_communicator()
         self.bagua_communication_stream = _get_global_state().get_communication_stream()
 
-        self._bagua_broadcast_parameters()
-
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client
 
@@ -327,6 +325,7 @@ class BaguaModule:
 
     def _bagua_init_algorithm(self):
         self._bagua_cleanup_algorithm()
+        self._bagua_broadcast_parameters()
         self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
             [(tensor.bagua_tensor_name, tensor) for tensor in self._bagua_tensors]
