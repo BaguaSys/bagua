@@ -116,9 +116,6 @@ class BaguaTensor:
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
 
-    def bagua_bytes(self) -> int:
-        return self.numel() * self.element_size()
-
 
 _base = gorilla._get_base(BaguaTensor)
 _decorator_data = gorilla.get_decorator_data(_base)

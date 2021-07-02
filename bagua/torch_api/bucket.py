@@ -206,5 +206,5 @@ class BaguaBucket:
         self.backend_bucket.clear_ops()
         return self
 
-    def bagua_bytes(self) -> int:
-        return sum(tensor.bagua_bytes() for tensor in self.tensors)
+    def bytes(self) -> int:
+        return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)
