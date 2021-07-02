@@ -129,7 +129,7 @@ class BaguaModule:
                 rank=get_rank(),
                 unix_timestamp=time.time(),
                 train_iter=self.bagua_train_step_counter,
-                hyperparameters=self._bagua_hyperparameters,
+                hyperparameters=self._bagua_hyperparameters.dict(),
                 speed=speed,
             )
             assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
