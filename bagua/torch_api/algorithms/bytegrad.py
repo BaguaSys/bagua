@@ -47,10 +47,8 @@ class ByteGradAlgorithm(Algorithm):
         bagua_module: BaguaModule,
         bucket: BaguaBucket,
     ):
-        bucket.backend_bucket.clear_ops()
-        bucket.backend_bucket.append_centralized_synchronous_op(
-            bagua_module.bagua_inter_node_communicator,
-            bagua_module.bagua_intra_node_communicator,
+        bucket.clear_ops()
+        bucket.append_centralized_synchronous_op(
             hierarchical=True,
             average=self.average,
             scattergather=True,

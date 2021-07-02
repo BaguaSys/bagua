@@ -1,3 +1,5 @@
+from __future__ import annotations
+import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
 from bagua.bagua_define import (
@@ -11,7 +13,7 @@ import time
 import logging
 import torch
 import torch.nn
-from typing import List
+from typing import List, Tuple
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -19,15 +21,28 @@ class BaguaModule:
     """
     This class patches `torch.nn.Module` with several methods to enable Bagua
     functionalities.
+
+    :ivar bagua_optimizers: The optimizers passed in by ``with_bagua(...)``.
+    :vartype bagua_optimizers: List[torch.optim.Optimizer]
+
+    :ivar bagua_algorithm: The algorithm passed in by ``with_bagua(...)``.
+    :vartype bagua_algorithm: bagua.torch_api.algorithms.Algorithm
+
+    :ivar parameters_to_ignore: The parameter names in ``"{module_name}.{param_name}"`` format to ignore
+        when calling ``self.bagua_build_params()``.
+    :vartype parameters_to_ignore: List[str]
+
+    :ivar bagua_train_step_counter: Number of iterations in training mode
+    :vartype bagua_train_step_counter: int
+
+    :ivar bagua_buckets: All Bagua buckets in a list.
+    :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
     """
 
-    def bagua_build_params(self):
+    def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
-        Build tuple of (parameter_name, parameter) for all parameters that require grads and not in
-        the ``_bagua_params_and_buffers_to_ignore`` attribute.
-
-        Returns:
-            List[(str, torch.nn.Parameter)]
+        Build tuple of ``(parameter_name, parameter)`` for all parameters that
+        require grads and not in the ``_bagua_params_and_buffers_to_ignore`` attribute.
         """
         modules_and_parameters = [
             (module, parameter)
@@ -126,14 +141,18 @@ class BaguaModule:
 
         logging.info("autotune overhead=%s", time.time() - start_time)
 
-    def with_bagua(self, optimizers: List[torch.optim.Optimizer], algorithm):
-        r"""`with_bagua` enables easy distributed data parallel training on a
-        `torch.nn.Module`.
+    def with_bagua(  # pytype: disable=module-attr
+        self,
+        optimizers: List[torch.optim.Optimizer],
+        algorithm: "bagua.torch_api.algorithms.Algorithm",
+    ) -> BaguaModule:
+        r"""``with_bagua`` enables easy distributed data parallel training on a
+        ``torch.nn.Module``.
 
         Arguments:
             optimizers: Optimizer(s) used by the
                 module. It can contain one or more PyTorch optimizers.
-            algorithm (bagua.torch_api.algorithm.Algorithm): Distributed algorithm
+            algorithm: Distributed algorithm
                 used to do the actual communication and update.
 
         Returns:
@@ -163,12 +182,11 @@ class BaguaModule:
             ...    )
         """
 
-        # TODO: do we need to check whether optimizers and model parameters are the same?
         self.bagua_optimizers = (
-            optimizers  #: the optimizers passed in by ``with_bagua(...)``
+            optimizers
         )
         self.bagua_algorithm = (
-            algorithm  #: the algorithm passed in by ``with_bagua(...)``
+            algorithm
         )
         self.parameters_to_ignore = (
             []
@@ -179,10 +197,15 @@ class BaguaModule:
         if hasattr(
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
-            self.parameters_to_ignore.extend(
-                self._ddp_params_and_buffers_to_ignore)
-        self.bagua_train_step_counter = 0  #: number of iterations in training mode
-        self.bagua_buckets = []  #: all Bagua buckets in a list
+            self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
+        self.bagua_train_step_counter = 0
+        """
+        Number of iterations in training mode.
+        """
+        self.bagua_buckets = []
+        """
+        All Bagua buckets in a list.
+        """
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
         self._bagua_framework_hooks = (
@@ -252,15 +275,14 @@ class BaguaModule:
         )
 
         # get communicators
-        self.bagua_inter_node_communicator = (
+        self._bagua_inter_node_communicator = (
             _get_global_state().get_internode_communicator()
         )
-        self.bagua_intra_node_communicator = (
+        self._bagua_intra_node_communicator = (
             _get_global_state().get_intranode_communicator()
         )
-        self.bagua_global_communicator = _get_global_state().get_global_communicator()
-
-        self._bagua_broadcast_parameters()
+        self._bagua_global_communicator = _get_global_state().get_global_communicator()
+        self.bagua_communication_stream = _get_global_state().get_communication_stream()
 
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client
@@ -310,6 +332,7 @@ class BaguaModule:
 
     def _bagua_init_algorithm(self):
         self._bagua_cleanup_algorithm()
+        self._bagua_broadcast_parameters()
         self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
             [(tensor.bagua_tensor_name, tensor)
