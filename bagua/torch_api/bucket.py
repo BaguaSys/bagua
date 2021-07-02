@@ -47,7 +47,11 @@ class BaguaBucket:
                     padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device
                 ).to_bagua_tensor("bagua_padding_tensor_bucket_" + name)
 
-        self._all_tensors = self.tensors + [self.padding_tensor] if self.padding_tensor is not None else self.tensors
+        self._all_tensors = (
+            self.tensors + [self.padding_tensor]
+            if self.padding_tensor is not None
+            else self.tensors
+        )
 
         self.backend_tensor = None
         self.flatten = flatten
@@ -55,8 +59,7 @@ class BaguaBucket:
             self._flatten_()
 
         self.backend_bucket = B.BaguaBucketPy(
-            name,
-            [tensor._bagua_backend_tensor for tensor in self._all_tensors]
+            name, [tensor._bagua_backend_tensor for tensor in self._all_tensors]
         )
 
         for tensor in self._all_tensors:
