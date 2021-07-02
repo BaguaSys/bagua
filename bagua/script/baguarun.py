@@ -27,11 +27,9 @@ Node 2 *(IP: 192.168.1.2):
 
 import argparse
 import os
-import pssh
 import gevent
 from pssh.clients import ParallelSSHClient
 from pssh.config import HostConfig
-from pssh.exceptions import Timeout
 from pssh.utils import enable_host_logger
 
 
