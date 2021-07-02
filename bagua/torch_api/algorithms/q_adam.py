@@ -11,6 +11,7 @@ import math
 from typing import List
 
 
+
 class QAdamAlgorithm(Algorithm):
     def __init__(self, onebit_optimizer: Optimizer, hierarchical_reduce: bool = True):
         """
@@ -99,6 +100,7 @@ class QAdamAlgorithm(Algorithm):
             )
         else:
 
+
             def calculate_momentum(*args):
                 # FIXME: with global communication stream?
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
@@ -117,6 +119,7 @@ class QAdamAlgorithm(Algorithm):
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
+
 
         def hook_grad(parameter_name, parameter):
             parameter.grad.bagua_mark_communication_ready()
