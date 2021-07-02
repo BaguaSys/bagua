@@ -102,7 +102,7 @@ class QAdamOptimizer(Optimizer):
 
 
 class QAdamAlgorithm(Algorithm):
-    def __init__(self, q_adam_optimizer: QAdamOptimizer, hierarchical_reduce: bool = True):
+    def __init__(self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True):
         """
         Create an instance of the
         `QAdam Algorithm <https://baguasys.github.io/tutorials/algorithms/q-adam.html>`_
@@ -111,9 +111,8 @@ class QAdamAlgorithm(Algorithm):
         Args:
             q_adam_optimizer: A QAdamOptimizer initialized with model parameters.
             hierarchical: Enable hierarchical communication.
-
         """
-        self.hierarchical_reduce = hierarchical_reduce
+        self.hierarchical = hierarchical
         self.optimizer = onebit_optimizer
         self.warmup_steps = self.optimizer.warmup_steps
 
@@ -184,7 +183,7 @@ class QAdamAlgorithm(Algorithm):
 
             bucket.append_python_op(calculate_momentum)
             bucket.append_centralized_synchronous_op(
-                hierarchical=self.hierarchical_reduce,
+                hierarchical=self.hierarchical,
                 average=True,
                 scattergather=True,
                 compression="MinMaxUInt8",
