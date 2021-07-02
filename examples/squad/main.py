@@ -143,10 +143,10 @@ def train(args, train_dataset, model, tokenizer):
     elif args.algorithm == "bytegrad":
         from bagua.torch_api.algorithms import bytegrad
         algorithm = bytegrad.ByteGradAlgorithm()
-    elif args.algorithm == "onebit_adam":
-        from bagua.torch_api.algorithms import onebit_adam
-        optimizer = onebit_adam.OnebitAdamOptimizer(model.parameters())
-        algorithm = onebit_adam.OnebitAdamAlgorithm(optimizer, 10)
+    elif args.algorithm == "qadam":
+        from bagua.torch_api.algorithms import q_adam
+        optimizer = q_adam.QAdamOptimizer(model.parameters())
+        algorithm = q_adam.QAdamAlgorithm(optimizer, 10)
     else:
         raise NotImplementedError
 
@@ -888,7 +888,7 @@ def main():
         "--algorithm",
         type=str,
         default="gradient_allreduce",
-        help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, onebit_adam}",
+        help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, qadam}",
     )
     args = parser.parse_args()
 
