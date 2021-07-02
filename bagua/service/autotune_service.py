@@ -381,7 +381,7 @@ class AutotuneService:
                     )
                 )
                 bagua_hp = BaguaHyperparameter(**hyperparameters)
-                score = denoised_iter_per_seconds
+                score = speed
                 bucket_size_2p = int(math.log(session["bucket_size"], 2))
                 (
                     recommended_bagua_hp,

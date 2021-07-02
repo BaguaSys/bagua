@@ -1,7 +1,6 @@
 import logging
 import multiprocessing
 import bagua_core as B
-from flask import Flask
 import bagua.torch_api.globals
 from bagua.service import AutotuneService
 from . import env
@@ -18,7 +17,6 @@ from .globals import _get_global_state, is_initialized
 from ..service.autotune_service import AutotuneClient
 from .exceptions import RepeatedInitializationError
 from .utils import flatten, unflatten, to_bagua_reduce_op
-from ..bagua_define import BaguaHyperparameter
 import torch
 import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
