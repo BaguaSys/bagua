@@ -27,13 +27,11 @@ class QAdamOptimizer(Optimizer):
         Args:
             params (iterable): iterable of parameters to optimize or dicts defining
                 parameter groups
-            lr: learning rate (default: 1e-3)
+            lr: learning rate
             warmup_steps: number of steps to do warm up in the begining of training.
-            betas: coefficients used for computing
-                running averages of gradient and its square (default: (0.9, 0.999))
-            eps: term added to the denominator to improve
-                numerical stability (default: 1e-8)
-            weight_decay: weight decay (L2 penalty) (default: 0.)
+            betas: coefficients used for computing running averages of gradient and its square
+            eps: term added to the denominator to improve numerical stability
+            weight_decay: weight decay (L2 penalty)
         """
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
