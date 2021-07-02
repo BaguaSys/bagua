@@ -8,152 +8,32 @@ from bagua.torch_api.algorithms import Algorithm
 from torch.optim.optimizer import Optimizer
 import torch
 import math
-from typing import List
-
-
-class QAdamAlgorithm(Algorithm):
-    def __init__(self, onebit_optimizer: Optimizer, hierarchical_reduce: bool = True):
-        """
-        Create an instance of the
-        `QAdam Algorithm <https://baguasys.github.io/tutorials/algorithms/q-adam.html>`_
-        .
-
-        Args:
-            q_adam_optimizer (QAdamOptimizer): A QAdam optimizer initialized with model parameters.
-            hierarchical (bool): Enable hierarchical communication.
-
-        """
-        self.hierarchical_reduce = hierarchical_reduce
-        self.optimizer = onebit_optimizer
-        self.warmup_steps = self.optimizer.warmup_steps
-
-    def need_reset(self):
-
-        if self.optimizer.step_id == self.warmup_steps:
-            print(
-                "Onebit Adam starts to compress from step {}".format(
-                    self.optimizer.step_id
-                )
-            )
-            return True
-        else:
-            return False
-
-    def init_tensors(self, bagua_module: BaguaModule):
-
-        parameters = bagua_module.bagua_build_params()
-
-        for name, param in parameters:
-            param._one_bit_name = name
-
-        tensor_groups = []
-        for param_group, m_group in zip(
-            self.optimizer.params_in_group, self.optimizer.exp_avgs_in_group
-        ):
-            for param, exp_avgs in zip(param_group, m_group):
-                if self.optimizer.step_id < self.warmup_steps:
-                    registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._one_bit_name
-                    )
-                else:
-                    registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._one_bit_name
-                    )
-                    registered_tensor._one_bit_grad = param.bagua_ensure_grad()
-                    param._one_bit_momentum = registered_tensor
-                tensor_groups.append(registered_tensor)
-
-        return tensor_groups
-
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
-        """
-        Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
-        The default implementation follows the suggestion to do the bucketing.
-
-        Args:
-            tensors: Bagua tensors grouped in different
-                lists, representing Bagua's suggestion on how to bucketing the
-                tensors.
-
-        Returns:
-            A list of Bagua buckets.
-        """
-        bagua_buckets = []
-        for idx, bucket in enumerate(tensors):
-            bagua_bucket = BaguaBucket(
-                bucket, flatten=True, name=str(idx), alignment=get_world_size()
-            )
-            bagua_buckets.append(bagua_bucket)
-        return bagua_buckets
-
-    def init_operations(
-        self,
-        bagua_module: BaguaModule,
-        bucket: BaguaBucket,
-    ):
-        bucket.clear_ops()
-        if self.optimizer.step_id < self.warmup_steps:
-            bucket.append_centralized_synchronous_op(
-                hierarchical=False,
-                average=True,
-            )
-        else:
-
-            def calculate_momentum(*args):
-                # FIXME: with global communication stream?
-                with torch.cuda.stream(_get_global_state().get_communication_stream()):
-                    beta1, beta2 = self.optimizer.param_groups[0]["betas"]
-                    for tensor in bucket.tensors:
-                        tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
-
-            bucket.append_python_op(calculate_momentum)
-            bucket.append_centralized_synchronous_op(
-                hierarchical=self.hierarchical_reduce,
-                average=True,
-                scattergather=True,
-                compression="MinMaxUInt8",
-            )
-
-    def init_backward_hook(self, bagua_module: BaguaModule):
-        def hook_momentum(parameter_name, parameter):
-            parameter._one_bit_momentum.bagua_mark_communication_ready()
-
-        def hook_grad(parameter_name, parameter):
-            parameter.grad.bagua_mark_communication_ready()
-
-        return (
-            hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
-        )
+from typing import List, Tuple
 
 
 class QAdamOptimizer(Optimizer):
     def __init__(
         self,
         params,
-        lr=1e-3,
-        warmup_steps=100,
-        betas=(0.9, 0.999),
-        eps=1e-8,
-        weight_decay=0,
+        lr: float=1e-3,
+        warmup_steps: int=100,
+        betas: Tuple[float, float]=(0.9, 0.999),
+        eps: float=1e-8,
+        weight_decay: float=0.,
     ):
-
         """
-        Create an instance of the
-        `QAdamOptimizer`_
-        .
+        Create a dedicated optimizer used for QAdam algorithm.
 
         Args:
             params (iterable): iterable of parameters to optimize or dicts defining
                 parameter groups
-            lr (float, optional): learning rate (default: 1e-3)
-            warmup_steps (int): number of steps to do warm up in the begining of training.
-            betas (Tuple[float, float], optional): coefficients used for computing
+            lr: learning rate (default: 1e-3)
+            warmup_steps: number of steps to do warm up in the begining of training.
+            betas: coefficients used for computing
                 running averages of gradient and its square (default: (0.9, 0.999))
-            eps (float, optional): term added to the denominator to improve
+            eps: term added to the denominator to improve
                 numerical stability (default: 1e-8)
-            weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
-
-
+            weight_decay: weight decay (L2 penalty) (default: 0.)
         """
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
@@ -219,3 +99,104 @@ class QAdamOptimizer(Optimizer):
                 step_size = lr / bias_correction1
                 update = state["exp_avg"] / denom
                 param.data.add_(-step_size * update)
+
+
+class QAdamAlgorithm(Algorithm):
+    def __init__(self, q_adam_optimizer: QAdamOptimizer, hierarchical_reduce: bool = True):
+        """
+        Create an instance of the
+        `QAdam Algorithm <https://baguasys.github.io/tutorials/algorithms/q-adam.html>`_
+        .
+
+        Args:
+            q_adam_optimizer: A QAdamOptimizer initialized with model parameters.
+            hierarchical: Enable hierarchical communication.
+
+        """
+        self.hierarchical_reduce = hierarchical_reduce
+        self.optimizer = onebit_optimizer
+        self.warmup_steps = self.optimizer.warmup_steps
+
+    def need_reset(self):
+        if self.optimizer.step_id == self.warmup_steps:
+            print(
+                "Onebit Adam starts to compress from step {}".format(
+                    self.optimizer.step_id
+                )
+            )
+            return True
+        else:
+            return False
+
+    def init_tensors(self, bagua_module: BaguaModule):
+        parameters = bagua_module.bagua_build_params()
+
+        for name, param in parameters:
+            param._one_bit_name = name
+
+        tensor_groups = []
+        for param_group, m_group in zip(
+            self.optimizer.params_in_group, self.optimizer.exp_avgs_in_group
+        ):
+            for param, exp_avgs in zip(param_group, m_group):
+                if self.optimizer.step_id < self.warmup_steps:
+                    registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
+                        param._one_bit_name
+                    )
+                else:
+                    registered_tensor = exp_avgs.ensure_bagua_tensor(
+                        param._one_bit_name
+                    )
+                    registered_tensor._one_bit_grad = param.bagua_ensure_grad()
+                    param._one_bit_momentum = registered_tensor
+                tensor_groups.append(registered_tensor)
+
+        return tensor_groups
+
+    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+        bagua_buckets = []
+        for idx, bucket in enumerate(tensors):
+            bagua_bucket = BaguaBucket(
+                bucket, flatten=True, name=str(idx), alignment=get_world_size()
+            )
+            bagua_buckets.append(bagua_bucket)
+        return bagua_buckets
+
+    def init_operations(
+        self,
+        bagua_module: BaguaModule,
+        bucket: BaguaBucket,
+    ):
+        bucket.clear_ops()
+        if self.optimizer.step_id < self.warmup_steps:
+            bucket.append_centralized_synchronous_op(
+                hierarchical=False,
+                average=True,
+            )
+        else:
+
+            def calculate_momentum(*args):
+                # FIXME: with global communication stream?
+                with torch.cuda.stream(_get_global_state().get_communication_stream()):
+                    beta1, beta2 = self.optimizer.param_groups[0]["betas"]
+                    for tensor in bucket.tensors:
+                        tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
+
+            bucket.append_python_op(calculate_momentum)
+            bucket.append_centralized_synchronous_op(
+                hierarchical=self.hierarchical_reduce,
+                average=True,
+                scattergather=True,
+                compression="MinMaxUInt8",
+            )
+
+    def init_backward_hook(self, bagua_module: BaguaModule):
+        def hook_momentum(parameter_name, parameter):
+            parameter._one_bit_momentum.bagua_mark_communication_ready()
+
+        def hook_grad(parameter_name, parameter):
+            parameter.grad.bagua_mark_communication_ready()
+
+        return (
+            hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
+        )
