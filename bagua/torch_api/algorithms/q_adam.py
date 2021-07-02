@@ -11,7 +11,6 @@ import math
 from typing import List
 
 
-
 class QAdamAlgorithm(Algorithm):
     def __init__(self, onebit_optimizer: Optimizer, hierarchical_reduce: bool = True):
         """
