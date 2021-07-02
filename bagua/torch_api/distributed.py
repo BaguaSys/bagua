@@ -236,7 +236,7 @@ class BaguaModule:
         def algorithm_forward_pre_hook(self, input):
             self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
-        def insert_speed_metrics_event(self):
+        def record_speed_metrics_event(self, _):
             if not self._speed_metrics_switch_on:
                 return
 
@@ -266,7 +266,7 @@ class BaguaModule:
                 self.register_forward_pre_hook(num_iteration_step_hook),
                 self.register_forward_pre_hook(algorithm_reset_hook),
                 self.register_forward_pre_hook(algorithm_forward_pre_hook),
-                self.register_forward_pre_hook(insert_speed_metrics_event),
+                self.register_forward_pre_hook(record_speed_metrics_event),
                 self.register_forward_pre_hook(autotune_hook),
                 self.register_forward_pre_hook(
                     clear_post_backward_callback_queued_hook
