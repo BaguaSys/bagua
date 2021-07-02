@@ -111,7 +111,7 @@ def parse_args():
         help="Bagua automatic super parameter search level. The higher the level, the better the theoretical effect, and the longer it takes",
     )
     parser.add_argument(
-        "--autotune_log_file", type=str, default="/tmp/bagua.autotune.log"
+        "--autotune_logfile", type=str, default="/tmp/bagua_autotune.log"
     )
     parser.add_argument(
         "--report_metrics",
@@ -147,6 +147,12 @@ def set_bagua_env(args, current_env):
     current_env["BAGUA_SERVICE_PORT"] = str(args.bagua_service_port)
     current_env["BAGUA_DEFAULT_BUCKET_SIZE"] = str(args.default_bucket_size)
     current_env["BAGUA_AUTOTUNE"] = str(args.autotune_level)
+    current_env["BAGUA_AUTOTUNE_MAX_SAMPLES"] = str(args.autotune_max_samples)
+    current_env["BAGUA_AUTOTUNE_SAMPLING_CONFIDENCE_TIME_S"] = str(
+        args.autotune_sampling_confidence_time
+    )
+    current_env["BAGUA_AUTOTUNE_WARMUP_TIME_S"] = str(args.autotune_warmup_time)
+    current_env["BAGUA_AUTOTUNE_LOGFILE_PATH"] = args.autotune_logfile
 
 
 def main():

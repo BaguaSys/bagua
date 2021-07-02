@@ -47,7 +47,11 @@ class BaguaBucket:
                     padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device
                 ).to_bagua_tensor("bagua_padding_tensor_bucket_" + name)
 
-        self._all_tensors = self.tensors + [self.padding_tensor] if self.padding_tensor is not None else self.tensors
+        self._all_tensors = (
+            self.tensors + [self.padding_tensor]
+            if self.padding_tensor is not None
+            else self.tensors
+        )
 
         self.backend_tensor = None
         self.flatten = flatten
@@ -55,8 +59,7 @@ class BaguaBucket:
             self._flatten_()
 
         self.backend_bucket = B.BaguaBucketPy(
-            name,
-            [tensor._bagua_backend_tensor for tensor in self._all_tensors]
+            name, [tensor._bagua_backend_tensor for tensor in self._all_tensors]
         )
 
         for tensor in self._all_tensors:
@@ -111,10 +114,12 @@ class BaguaBucket:
         Returns:
             The bucket itself.
         """
+
         def wrapper_function_factory(pyop):
             def wrapped_pyop(name):
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
                     return pyop(name)
+
             return wrapped_pyop
 
         self.backend_bucket.append_python_op(wrapper_function_factory(python_function))
@@ -205,3 +210,11 @@ class BaguaBucket:
         """
         self.backend_bucket.clear_ops()
         return self
+
+    def bytes(self) -> int:
+        """Returns the total number of bytes occupied by the bucket.
+
+        Returns:
+            int: number of bucket bytes
+        """
+        return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)

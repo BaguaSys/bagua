@@ -43,11 +43,13 @@ class DecentralizedAlgorithm(Algorithm):
         def hook(input):
             for tensor in self.tensors:
                 tensor.bagua_mark_communication_ready()
+
         return hook
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook(parameter_name, parameter):
             return
+
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):

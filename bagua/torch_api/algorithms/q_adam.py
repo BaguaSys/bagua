@@ -193,7 +193,9 @@ class QAdamAlgorithm(Algorithm):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
-            assert parameter.grad.data_ptr() == parameter._one_bit_grad.data_ptr(), "gradient data_ptr should match _one_bit_grad data_ptr"
+            assert (
+                parameter.grad.data_ptr() == parameter._one_bit_grad.data_ptr()
+            ), "gradient data_ptr should match _one_bit_grad data_ptr"
             parameter._one_bit_grad.bagua_mark_communication_ready()
 
         return (
