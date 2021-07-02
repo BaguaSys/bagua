@@ -448,8 +448,8 @@ class AutotuneService:
                     {
                         "recommended_hyperparameters": self.recommended_hyperparameters.dict(),
                         "recommended_from_iter": self.recommended_from_iter,
-                        "is_autotune_completed": self.sampling_counter
-                        > self.max_samples,
+                        "is_autotune_completed":
+                            self.sampling_counter > self.max_samples,
                     },
                 )
 
