@@ -15,11 +15,11 @@ class QAdamOptimizer(Optimizer):
     def __init__(
         self,
         params,
-        lr: float=1e-3,
-        warmup_steps: int=100,
-        betas: Tuple[float, float]=(0.9, 0.999),
-        eps: float=1e-8,
-        weight_decay: float=0.,
+        lr: float = 1e-3,
+        warmup_steps: int = 100,
+        betas: Tuple[float, float] = (0.9, 0.999),
+        eps: float = 1e-8,
+        weight_decay: float = 0.0,
     ):
         """
         Create a dedicated optimizer used for QAdam algorithm.
@@ -113,7 +113,7 @@ class QAdamAlgorithm(Algorithm):
             hierarchical: Enable hierarchical communication.
         """
         self.hierarchical = hierarchical
-        self.optimizer = onebit_optimizer
+        self.optimizer = q_adam_optimizer
         self.warmup_steps = self.optimizer.warmup_steps
 
     def need_reset(self):
