@@ -119,7 +119,6 @@ class QAdamAlgorithm(Algorithm):
         def hook_momentum(parameter_name, parameter):
             parameter._one_bit_momentum.bagua_mark_communication_ready()
 
-
         def hook_grad(parameter_name, parameter):
             parameter.grad.bagua_mark_communication_ready()
 
