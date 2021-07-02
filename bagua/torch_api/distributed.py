@@ -198,12 +198,8 @@ class BaguaModule:
             ...    )
         """
 
-        self.bagua_optimizers = (
-            optimizers
-        )
-        self.bagua_algorithm = (
-            algorithm
-        )
+        self.bagua_optimizers = optimizers
+        self.bagua_algorithm = algorithm
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
