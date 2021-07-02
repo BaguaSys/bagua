@@ -112,8 +112,19 @@ def pssh_bagua_launch(
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Distributed bagua launch")
-    parser.add_argument("--host_list", default=None)
-    parser.add_argument("--ssh_port", type=int, default=None)
+    parser.add_argument(
+        "--host_list", default=None,
+        help="List of target nodes, baguarun logs in to `host` via ssh. "
+        "Specify a list of nodes through host_list, which is a "
+        "comma-separated dns or ip. If the ssh port of the node is the "
+        "same, you can specify it by --ssh_port, if it is different, you "
+        "need to add: SSH_PORT after dns or ip.\n"
+        "If host_list is not set, it will try to configure with the "
+        "environment variable BAGUA_NODE_DOMAIN_NAMES")
+    parser.add_argument(
+        "--ssh_port", type=int, default=None,
+        help="Node ssh port, if it is not set, it will try to get it "
+        "from the environment variable BAGUA_SSH_PORT")
     parser.add_argument("--master_port", type=int, default=None)
     parser.add_argument("--nproc_per_node", type=int, required=True)
     parser.add_argument(
