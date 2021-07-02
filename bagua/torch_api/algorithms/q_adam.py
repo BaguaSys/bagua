@@ -100,7 +100,6 @@ class QAdamAlgorithm(Algorithm):
             )
         else:
 
-
             def calculate_momentum(*args):
                 # FIXME: with global communication stream?
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
