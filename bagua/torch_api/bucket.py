@@ -39,8 +39,7 @@ class BaguaBucket:
         self.padding_tensor = None
 
         if alignment > 1:
-            padding = sum(tensor.numel()
-                          for tensor in self.tensors) % alignment
+            padding = sum(tensor.numel() for tensor in self.tensors) % alignment
             if padding > 0:
                 padding = alignment - padding
                 # padding tensor must be of name bagua_padding_tensor, so that they are always marked as ready for communication in the backend
@@ -84,7 +83,7 @@ class BaguaBucket:
         offset = 0
         for tensor in self._all_tensors:
             # copy data
-            flatten_tensor[offset: offset + tensor.numel()] = tensor.data.reshape(-1)
+            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
             tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.numel()
         # check
@@ -120,8 +119,7 @@ class BaguaBucket:
 
             return wrapped_pyop
 
-        self.backend_bucket.append_python_op(
-            wrapper_function_factory(python_function))
+        self.backend_bucket.append_python_op(wrapper_function_factory(python_function))
         return self
 
     def append_centralized_synchronous_op(
@@ -216,5 +214,4 @@ class BaguaBucket:
         Returns:
             int: number of bucket bytes
         """
-        return sum(tensor.numel() * tensor.element_size()
-                   for tensor in self.tensors)
+        return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)
