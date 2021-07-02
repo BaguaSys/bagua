@@ -79,10 +79,8 @@ class Algorithm:
         Returns:
             A function that takes the model's input.
         """
-
         def hook(input):
             pass
-
         return hook
 
     def init_backward_hook(self, bagua_module: BaguaModule):
@@ -97,14 +95,12 @@ class Algorithm:
             A function that takes the name of a parameter (as in
             torch.nn.Module.named_parameters()) and the parameter itself.
         """
-
         def hook(parameter_name, parameter):
             if parameter_name in self._communication_tensor_names:
                 assert (
-                    parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr()
+                        parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr()
                 ), "bagua grad data_ptr should match parameter grad"
                 parameter._bagua_grad.bagua_mark_communication_ready()
-
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
@@ -118,10 +114,8 @@ class Algorithm:
         Returns:
             A function that takes no argument.
         """
-
         def hook():
             bagua_module._bagua_backend.wait_pending_comm_ops()
-
         return hook
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
@@ -135,16 +129,14 @@ class Algorithm:
         Returns:
             A function that takes the optimizer that is called step().
         """
-
         def hook(optimizer: torch.optim.Optimizer):
             pass
-
         return hook
 
     def init_operations(
-        self,
-        bagua_module: BaguaModule,
-        bucket: BaguaBucket,
+            self,
+            bagua_module: BaguaModule,
+            bucket: BaguaBucket,
     ):
         """Given a `BaguaModule`, and a Bagua bucket, register operations to be
         executed on the bucket.
