@@ -118,7 +118,7 @@ class BaguaModule:
         ):
             # get speed metrics
             time_since_last_update = time.time() - \
-                    self._bagua_autotune_last_report_time
+                self._bagua_autotune_last_report_time
             speed = self._speed_metrics.get(time_since_last_update)
 
             # report metrics
@@ -196,7 +196,8 @@ class BaguaModule:
         if hasattr(
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
-            self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
+            self.parameters_to_ignore.extend(
+                self._ddp_params_and_buffers_to_ignore)
         self.bagua_train_step_counter = 0
         """
         Number of iterations in training mode.
@@ -247,7 +248,7 @@ class BaguaModule:
                         bucket.bytes() for bucket in self.bagua_buckets)
                     total_gbytes = total_bytes / 1024. ** 3
                     speed = total_gbytes / elapsed_time_s
-                    self.speed_metric.record(speed)
+                    self._speed_metric.record(speed)
                 except RuntimeError as err:
                     logging.debug("Ignore cuda err={}".format(err))
 
@@ -255,8 +256,9 @@ class BaguaModule:
             self._speed_metrics_end_event = \
                 torch.cuda.Event(enable_timing=True)
             torch.cuda.current_stream().record_event(start_event)
-            self._last_event_pair = (start_event,
-                                        self._speed_metrics_end_event)
+            self._last_event_pair = (
+                start_event,
+                self._speed_metrics_end_event)
 
         self._bagua_framework_hooks.extend(
             [
