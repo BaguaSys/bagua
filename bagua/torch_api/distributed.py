@@ -248,7 +248,7 @@ class BaguaModule:
                         bucket.bytes() for bucket in self.bagua_buckets)
                     total_gbytes = total_bytes / 1024. ** 3
                     speed = total_gbytes / elapsed_time_s
-                    self._speed_metric.record(speed)
+                    self._speed_metrics.record(speed)
                 except RuntimeError as err:
                     logging.debug("Ignore cuda err={}".format(err))
 
