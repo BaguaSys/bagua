@@ -117,9 +117,7 @@ class QAdamAlgorithm(Algorithm):
     def need_reset(self):
         if self.optimizer.step_id == self.warmup_steps:
             print(
-                "Onebit Adam starts to compress from step {}".format(
-                    self.optimizer.step_id
-                )
+                "QAdam starts to compress from step {}".format(self.optimizer.step_id)
             )
             return True
         else:
@@ -128,8 +126,9 @@ class QAdamAlgorithm(Algorithm):
     def init_tensors(self, bagua_module: BaguaModule):
         parameters = bagua_module.bagua_build_params()
 
-        for name, param in parameters:
-            param._one_bit_name = name
+        for idx, (name, param) in enumerate(parameters.__reversed__()):
+            param._q_adam_name = name
+            param._q_adam_idx = idx
 
         tensor_groups = []
         for param_group, m_group in zip(
@@ -138,17 +137,19 @@ class QAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._one_bit_name
+                        param._q_adam_name
                     )
-                    param._one_bit_grad = registered_tensor
+                    param._q_adam_grad = registered_tensor
+                    registered_tensor._q_adam_idx = param._q_adam_idx
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._one_bit_name
+                        param._q_adam_name
                     )
-                    registered_tensor._one_bit_grad = param.bagua_ensure_grad()
-                    param._one_bit_momentum = registered_tensor
+                    registered_tensor._q_adam_grad = param.bagua_ensure_grad()
+                    param._q_adam_momentum = registered_tensor
+                    registered_tensor._q_adam_idx = param._q_adam_idx
                 tensor_groups.append(registered_tensor)
-
+        tensor_groups.sort(key=lambda x: x._q_adam_idx)
         return tensor_groups
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
@@ -178,7 +179,7 @@ class QAdamAlgorithm(Algorithm):
                 with torch.cuda.stream(_get_global_state().get_communication_stream()):
                     beta1, beta2 = self.optimizer.param_groups[0]["betas"]
                     for tensor in bucket.tensors:
-                        tensor.mul_(beta1).add_(tensor._one_bit_grad, alpha=1 - beta1)
+                        tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
 
             bucket.append_python_op(calculate_momentum)
             bucket.append_centralized_synchronous_op(
@@ -190,13 +191,13 @@ class QAdamAlgorithm(Algorithm):
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
-            parameter._one_bit_momentum.bagua_mark_communication_ready()
+            parameter._q_adam_momentum.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
             assert (
-                parameter.grad.data_ptr() == parameter._one_bit_grad.data_ptr()
-            ), "gradient data_ptr should match _one_bit_grad data_ptr"
-            parameter._one_bit_grad.bagua_mark_communication_ready()
+                parameter.grad.data_ptr() == parameter._q_adam_grad.data_ptr()
+            ), "gradient data_ptr should match _q_adam_grad data_ptr"
+            parameter._q_adam_grad.bagua_mark_communication_ready()
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
