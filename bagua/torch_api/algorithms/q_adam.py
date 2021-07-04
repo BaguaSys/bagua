@@ -117,9 +117,7 @@ class QAdamAlgorithm(Algorithm):
     def need_reset(self):
         if self.optimizer.step_id == self.warmup_steps:
             print(
-                "QAdam starts to compress from step {}".format(
-                    self.optimizer.step_id
-                )
+                "QAdam starts to compress from step {}".format(self.optimizer.step_id)
             )
             return True
         else:
