@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Callable, Optional
+from collections import defaultdict
 
 import bagua_core as B
 import torch
@@ -35,6 +36,10 @@ class BaguaBucket:
         self.name = name
         """
         The bucket's name.
+        """
+        self.states = defaultdict(dict)
+        """
+        The states contained within the bucket.
         """
         self.padding_tensor = None
 
@@ -125,6 +130,15 @@ class BaguaBucket:
         self.backend_bucket.append_python_op(wrapper_function_factory(python_function))
         return self
 
+    def set_state(self, name: str, tensor: torch.Tensor):
+        self.states[name] = tensor
+        self.backend_bucket.set_state(
+            name, tensor.to_bagua_tensor(name).bagua_backend_tensor()
+        )
+
+    def _backend_states(self):
+        return self.backend_bucket.states()
+
     def append_centralized_synchronous_op(
         self,
         hierarchical: bool = False,
@@ -176,6 +190,7 @@ class BaguaBucket:
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
         communication_interval: int = 1,
+        compression: Optional[str] = None,
     ) -> BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
@@ -194,14 +209,25 @@ class BaguaBucket:
         Returns:
             The bucket itself.
         """
-        self.backend_bucket.append_decentralized_synchronous_op(
-            _get_global_state().get_internode_communicator(),
-            _get_global_state().get_intranode_communicator(),
-            hierarchical=hierarchical,
-            compression=None,
-            peer_selection_mode=peer_selection_mode,
-            communication_interval=communication_interval,
-        )
+        if hierarchical:
+            self.backend_bucket.append_decentralized_synchronous_op(
+                _get_global_state().get_internode_communicator(),
+                _get_global_state().get_intranode_communicator(),
+                hierarchical=hierarchical,
+                peer_selection_mode=peer_selection_mode,
+                communication_interval=communication_interval,
+                compression=compression,
+            )
+        else:
+            self.backend_bucket.append_decentralized_synchronous_op(
+                _get_global_state().get_global_communicator(),
+                None,
+                hierarchical=hierarchical,
+                peer_selection_mode=peer_selection_mode,
+                communication_interval=communication_interval,
+                compression=compression,
+            )
+
         return self
 
     def clear_ops(self) -> BaguaBucket:
@@ -213,7 +239,6 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket.
-
         Returns:
             int: number of bucket bytes
         """
