@@ -148,7 +148,6 @@ class QAdamAlgorithm(Algorithm):
                     registered_tensor._q_adam_grad = param.bagua_ensure_grad()
                     param._q_adam_momentum = registered_tensor
                     registered_tensor._q_adam_idx = param._q_adam_idx
-                    
                 tensor_groups.append(registered_tensor)
         tensor_groups.sort(key=lambda x: x._q_adam_idx)
         return tensor_groups
