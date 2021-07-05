@@ -39,7 +39,7 @@ class BaguaBucket:
         """
         self.states = defaultdict(dict)
         """
-        The states contained within the bucket.
+        The state of the bucket as a :class:`dict`.
         """
         self.padding_tensor = None
 
@@ -70,6 +70,30 @@ class BaguaBucket:
         for tensor in self._all_tensors:
             tensor._bagua_bucket = self
 
+    def flattened_tensor(self):
+        """
+        Returns a tensor contiguous in memory which contains the same data as `self` tensors and padding tensor (if exists).
+        If `self` tensors and padding tensor are already flattened, this function returns a tensor corresponding to their
+        underlying storage.
+        """
+        if self.flatten:
+            return self.backend_tensor
+
+        total_size = 0
+        for tensor in self._all_tensors:
+            total_size += tensor.numel()
+
+        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
+            self._all_tensors[0].device
+        )
+
+        offset = 0
+        for tensor in self._all_tensors:
+            # copy data
+            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
+            offset += tensor.numel()
+        return flatten_tensor
+
     def _flatten_(self):
         """
         Flatten inner tensors in place.
@@ -94,6 +118,9 @@ class BaguaBucket:
             flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
             tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.numel()
+
+        # set backend tensor
+        self.backend_tensor = flatten_tensor
         # check
         assert self.check_flatten()
 
@@ -131,13 +158,19 @@ class BaguaBucket:
         return self
 
     def set_state(self, name: str, tensor: torch.Tensor):
+        """
+        Set a state to the bucket.
+
+        This operation will create a Bagua tensor from `tensor`. The original tensor is not changed.
+
+        Args:
+            name: the key of the state
+            tensor: the value of the state
+        """
         self.states[name] = tensor
         self.backend_bucket.set_state(
             name, tensor.to_bagua_tensor(name).bagua_backend_tensor()
         )
-
-    def _backend_states(self):
-        return self.backend_bucket.states()
 
     def append_centralized_synchronous_op(
         self,

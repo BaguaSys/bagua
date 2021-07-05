@@ -76,6 +76,14 @@ class DecentralizedAlgorithm(Algorithm):
 
 class LowPrecisionDecentralizedAlgorithm(Algorithm):
     def __init__(self, hierarchical: bool = True):
+        """
+        Create an instance of the
+        `Difference Compression Decentralized <https://arxiv.org/pdf/1803.06443.pdf>`_
+        algorithm.
+
+        Args:
+            hierarchical (bool): Enable hierarchical communication.
+        """
         self.hierarchical = hierarchical
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
@@ -109,30 +117,11 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         return hook
 
     def _init_states(self, bucket: BaguaBucket):
-        total_numel_allocated = sum(
-            [
-                tensor._bagua_backend_tensor.num_elements_allocated()
-                for tensor in bucket.tensors
-            ]
-        )
+        bucket_flattened_tensor = bucket.flattened_tensor()
 
-        weight_tensor = torch.zeros(
-            total_numel_allocated,
-            dtype=bucket.tensors[0].dtype,
-            device=bucket.tensors[0].device,
-        )
-        offset = 0
-        for tensor in bucket.tensors:
-            numel = tensor._bagua_backend_tensor.num_elements()
-            numel_allocated = tensor._bagua_backend_tensor.num_elements_allocated()
+        left_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
+        right_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
 
-            weight_tensor[offset : offset + numel] = tensor.reshape(-1)
-            offset += numel_allocated
-
-        left_peer_weight_tensor = weight_tensor.detach().clone()
-        right_peer_weight_tensor = weight_tensor.detach().clone()
-
-        bucket.set_state("weight", weight_tensor)
         bucket.set_state("left_peer_weight", left_peer_weight_tensor)
         bucket.set_state("right_peer_weight", right_peer_weight_tensor)
 
