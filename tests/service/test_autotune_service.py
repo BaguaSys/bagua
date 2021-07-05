@@ -12,6 +12,7 @@ from bagua.service import (
     AutotuneClient,
     BaguaHyperparameter,
 )
+from bagua.bagua_define import BaguaHyperparameter
 import socket
 
 
