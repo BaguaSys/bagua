@@ -23,9 +23,9 @@ class BaguaBucket:
             tensors: A list of Bagua tensors to be put in the
                 bucket.
             name: The unique name of the bucket.
-            flatten: If True, flatten the input tensors so that they are
+            flatten: If ``True``, flatten the input tensors so that they are
                 contiguous in memory.
-            alignment: If alignment > 1, Bagua will create a padding tensor to
+            alignment: If `alignment > 1`, Bagua will create a padding tensor to
                 the bucket so that the total number of elements in the bucket divides
                 the given alignment.
         """
@@ -164,8 +164,8 @@ class BaguaBucket:
         This operation will create a Bagua tensor from `tensor`. The original tensor is not changed.
 
         Args:
-            name: the key of the state
-            tensor: the value of the state
+            name: the key of the state.
+            tensor: the value of the state.
         """
         self.states[name] = tensor
         self.backend_bucket.set_state(
@@ -190,11 +190,12 @@ class BaguaBucket:
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            average (bool): If True, the gradients on each worker are averaged. Otherwise, they are summed.
-            scattergather (bool): If true, the communication between workers are done with scatter gather instead
+            average (bool): If ``True``, the gradients on each worker are averaged. Otherwise, they are summed.
+            scattergather (bool): If ``True``, the communication between workers are done with scatter gather instead
                 of allreduce. This is required for using compression.
-            compression: If not None, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
+            compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
                 supported.
+
         Returns:
             The bucket itself.
         """
@@ -235,10 +236,13 @@ class BaguaBucket:
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): Can be "all" or "shift_one". "all" means all workers'
+            peer_selection_mode (str): Can be "all" or "shift_one" or "ring". "all" means all workers'
                 weights are averaged in each communication step. "shift_one" means each worker
                 selects a different peer to do weights average in each communication step.
+                "ring" means all workers are connected into a ring, and each worker communicate with its neighbors.
             communication_interval (int): Number of iterations between two communication steps.
+            compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
+                supported.
         Returns:
             The bucket itself.
         """
@@ -272,6 +276,7 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket.
+
         Returns:
             int: number of bucket bytes
         """
