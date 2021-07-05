@@ -330,10 +330,11 @@ class AutotuneService:
             whether_to_bucket: bool = req["whether_to_bucket"]
 
             if model_name not in self.model_dict:
-                self.model_dict[model_name] = AutotuneServiceHyperparameterManager(
-                    world_size=self.world_size,
-                    autotune_logfile_path=self.autotune_logfile_path,
-                )
+                self.model_dict[model_name] = \
+                    AutotuneServiceHyperparameterManager(
+                        world_size=self.world_size,
+                        autotune_logfile_path=self.autotune_logfile_path,
+                    )
 
             hp_manager = self.model_dict[model_name]
             bucket_size = self.default_bucket_size
