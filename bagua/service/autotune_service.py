@@ -371,7 +371,8 @@ class AutotuneService:
 
             # Only consider the rank of the first report metrics now.
             with hp_manager.lock:
-                if train_iter <= hp_manager.train_iter:
+                (last_report_train_iter, _, _) = hp_manager.inner.tail_record()
+                if train_iter <= last_report_train_iter:
                     return json.dumps({})
 
                 logging.debug(
