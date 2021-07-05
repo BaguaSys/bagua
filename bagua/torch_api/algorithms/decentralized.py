@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-from bagua.torch_api.globals import _get_global_state
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
-from collections import defaultdict
 from typing import List
 import torch
 
