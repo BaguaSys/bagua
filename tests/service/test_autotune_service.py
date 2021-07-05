@@ -7,11 +7,7 @@ import multiprocessing
 import numpy as np
 from flask import Flask
 from bagua.bagua_define import TensorDeclaration
-from bagua.service import (
-    AutotuneService,
-    AutotuneClient,
-    BaguaHyperparameter,
-)
+from bagua.service import AutotuneService, AutotuneClient
 from bagua.bagua_define import BaguaHyperparameter
 import socket
 
