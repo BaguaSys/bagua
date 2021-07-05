@@ -2,16 +2,36 @@ import unittest
 import logging
 import requests
 import time
+import copy
 import multiprocessing
 import numpy as np
 from flask import Flask
-from bagua.autotune import AutoTuneHyperParams
-from bagua.service import AutotuneService, BaguaHyperparameter, pick_n_free_ports
+from bagua.bagua_define import TensorDeclaration
+from bagua.service import (
+    AutotuneService,
+    AutotuneClient,
+    BaguaHyperparameter,
+)
+import socket
+
+
+def pick_n_free_ports(n: int):
+    socks = []
+    for i in range(n):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("localhost", 0))
+        socks.append(sock)
+
+    n_free_ports = [sock.getsockname()[1] for sock in socks]
+    for sock in socks:
+        sock.close()
+
+    return n_free_ports
 
 
 def metrics(buckets, is_hierarchical_reduce):
     # score = sum(-abs(bucket_sum_size - 5M))
-    # 峰在 bucket_size=5M 的凸函数
+    # convex function with peak at bucket_size=5M
     score = 0.0
     for bucket in buckets:
         score += -abs(sum([td["num_elements"] for td in bucket]) - 5 * 1024 ** 2)
@@ -22,158 +42,40 @@ def metrics(buckets, is_hierarchical_reduce):
     return score
 
 
-class AutotuneClient:
-    def __init__(self, autotune_service_addr):
-        self.autotune_service_addr = autotune_service_addr
-
-    def report_metrics(
-        self,
-        rank,
-        unix_timestamp,
-        train_iter,
-        iter_per_seconds,
-        denoised_iter_per_seconds,
-        hyperparameters,
-    ):
-        try:
-            rsp = requests.post(
-                "http://{}/api/v1/report_metrics".format(self.autotune_service_addr),
-                json={
-                    "rank": rank,
-                    "unix_timestamp": unix_timestamp,
-                    "train_iter": train_iter,
-                    "iter_per_seconds": iter_per_seconds,
-                    "denoised_iter_per_seconds": denoised_iter_per_seconds,
-                    "hyperparameters": hyperparameters,
-                },
-            )
-            return rsp.status_code
-        except Exception as ex:
-            logging.warning(
-                "rank={}, train_iter={}, ex={}".format(rank, train_iter, ex)
-            )
-            return -1
-
-    def request_checkboard(self):
-        while True:
-            try:
-                rsp = requests.get(
-                    "http://{}/api/v1/checkboard".format(self.autotune_service_addr)
-                )
-                return rsp
-            except Exception as ex:
-                logging.warning("ex={}".format(ex))
-                continue
-
-    def wait_for_all_process_parameters_updated(self, my_train_iter):
-        while True:
-            rsp = self.request_checkboard()
-            assert rsp.status_code == 200, "rsp={}".format(rsp)
-            check_board = rsp.json()["check_board"]
-            if all([train_iter >= my_train_iter for train_iter in check_board]):
-                break
-            time.sleep(0)
-
-    def ask_hyperparameters(self, rank, train_iter):
-        while True:
-            try:
-                rsp = requests.post(
-                    "http://{}/api/v1/ask_hyperparameters".format(
-                        self.autotune_service_addr
-                    ),
-                    json={
-                        "rank": rank,
-                        "train_iter": train_iter,
-                    },
-                )
-                return rsp
-            except Exception as ex:
-                logging.warning("rank={}, exception={}".format(rank, ex))
-                time.sleep(1)
-                continue
-
-
 class MockBaguaProcess:
-    def __init__(self, rank, autotune_service_addr):
+    def __init__(
+        self, rank, autotune_service_addr,
+        model_name, tensor_list,
+    ) -> None:
         self.rank = rank
-        self.iter_per_seconds = 0.0
-        self.denoised_iter_per_seconds = 0.0
-        self.hyperparameters = BaguaHyperparameter(
-            buckets=[
-                [
-                    {
-                        "name": "A",
-                        "num_elements": 1 * 1024 ** 2,
-                        "dtype": "F32",
-                    }
-                ],
-                [
-                    {
-                        "name": "B",
-                        "num_elements": 3 * 1024 ** 2,
-                        "dtype": "F32",
-                    }
-                ],
-                [
-                    {
-                        "name": "C",
-                        "num_elements": 5 * 1024 ** 2,
-                        "dtype": "F32",
-                    }
-                ],
-                [
-                    {
-                        "name": "D",
-                        "num_elements": 7 * 1024 ** 2,
-                        "dtype": "F32",
-                    }
-                ],
-                [
-                    {
-                        "name": "E",
-                        "num_elements": 11 * 1024 ** 2,
-                        "dtype": "F32",
-                    }
-                ],
-            ],
-            is_hierarchical_reduce=False,
-        )
+        self.model_name = model_name
+        self.tensor_list = tensor_list
         self.client = AutotuneClient(autotune_service_addr)
 
     def run(self, total_iters=1200):
-        for i in range(total_iters):
-            if i != 0 and i % 10 == 0:
-                rsp = self.client.ask_hyperparameters(self.rank, i)
-                assert rsp.status_code == 200, "rsp={}".format(rsp)
-                self.hyperparameters.update(rsp.json()["recommended_hyperparameters"])
-                self.client.wait_for_all_process_parameters_updated(i)
+        rsp = self.client.register_tensors(
+            self.model_name, self.tensor_list)
+        assert rsp.status_code == 200, \
+            "register_tensors failed, rsp={}".format(rsp)
+        hp = BaguaHyperparameter().update(
+            rsp.json()["recommended_hyperparameters"])
 
-            score = metrics(
-                self.hyperparameters.buckets,
-                self.hyperparameters.is_hierarchical_reduce,
-            )
-            logging.info(
-                "train_iter={}, score={}, hyperparameters={}".format(
-                    i, score, self.hyperparameters.dict()
-                )
-            )
-            ret = self.client.report_metrics(
-                self.rank, time.time(), i, score, score, self.hyperparameters.dict()
-            )
-            assert ret == 200, "ret={}".format(ret)
+        for train_iter in range(total_iters):
+            score = metrics(hp.buckets, hp.is_hierarchical_reduce)
+            rsp = self.client.report_metrics(
+                self.model_name, self.rank, train_iter, hp.dict(), score)
+            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(rsp)
+            rsp = self.client.ask_hyperparameters(
+                self.model_name, self.rank, train_iter)
+            assert rsp.status_code == 200, "ask_hyperparameters failed, rsp={}".format(rsp)
+            hp.update(rsp["recommended_hyperparameters"])
+            hp.update(rsp)
 
-        score = metrics(
-            self.hyperparameters.buckets,
-            self.hyperparameters.is_hierarchical_reduce,
-        )
-        logging.info(
-            "best score={}, best hyperparameters={}".format(
-                score, self.hyperparameters.dict()
-            )
-        )
-        assert score == -8493465.6, "score={}".format(score)
+            if rsp["is_autotune_completed"]:
+                logging.info("train_iter={}".format(train_iter))
+                break
 
-        return score
+        return hp
 
 
 class TestAutotuneService(unittest.TestCase):
@@ -183,9 +85,7 @@ class TestAutotuneService(unittest.TestCase):
         autotune_service_addr = "{}:{}".format(master_addr, master_port)
         nprocs = 2
 
-        autotune_service = AutotuneService(
-            nprocs, max_samples=100, sampling_confidence_time_s=0
-        )
+        autotune_service = AutotuneService(nprocs, autotune_level=1)
         app = Flask(__name__)
         app = autotune_service.setup_app(app)
 
@@ -200,17 +100,76 @@ class TestAutotuneService(unittest.TestCase):
         server.daemon = True
         server.start()
 
+        model_dict = {
+            "m1": [
+                TensorDeclaration({
+                    "name": "A",
+                    "num_elements": 1 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "B",
+                    "num_elements": 2 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "C",
+                    "num_elements": 3 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "D",
+                    "num_elements": 4 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "E",
+                    "num_elements": 5 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+            ],
+            "m2": [
+                TensorDeclaration({
+                    "name": "A",
+                    "num_elements": 1 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "B",
+                    "num_elements": 3 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "C",
+                    "num_elements": 5 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "D",
+                    "num_elements": 7 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+                TensorDeclaration({
+                    "name": "E",
+                    "num_elements": 11 * 1024 ** 2,
+                    "dtype": "F32",
+                }),
+            ],
+        }
+
         mock_objs = []
-        with multiprocessing.pool.ThreadPool(nprocs) as pool:
+        with multiprocessing.pool.ThreadPool(nprocs * len(model_dict)) as pool:
             results = []
             for i in range(nprocs):
-                mock = MockBaguaProcess(i, autotune_service_addr)
-                mock_objs.append(mock)
-                ret = pool.apply_async(mock.run)
-                results.append(ret)
+                for (model_name, tensor_list) in model_dict.items():
+                    mock = MockBaguaProcess(
+                        i, autotune_service_addr, model_name, tensor_list)
+                    mock_objs.append(mock)
+                    ret = pool.apply_async(mock.run)
+                    results.append(ret)
             for ret in results:
-                score = ret.get()
-                self.assertEqual(score, -8493465.6)
+                hp = ret.get()
+                print('hp={}'.format(hp))
 
         server.terminate()
         server.join()
