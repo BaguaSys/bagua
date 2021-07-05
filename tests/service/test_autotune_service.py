@@ -41,13 +41,13 @@ def metrics(buckets, is_hierarchical_reduce):
 
 class MockBaguaProcess:
     def __init__(
-        self, rank, autotune_service_addr,
+        self, rank, service_addr, service_port,
         model_name, tensor_list,
     ) -> None:
         self.rank = rank
         self.model_name = model_name
         self.tensor_list = tensor_list
-        self.client = AutotuneClient(autotune_service_addr)
+        self.client = AutotuneClient(service_addr, service_port)
 
     def run(self, total_iters=1200):
         rsp = self.client.register_tensors(
@@ -77,9 +77,8 @@ class MockBaguaProcess:
 
 class TestAutotuneService(unittest.TestCase):
     def test_autotune_service(self):
-        master_addr = "127.0.0.1"
-        master_port = pick_n_free_ports(1)[0]
-        autotune_service_addr = "{}:{}".format(master_addr, master_port)
+        service_addr = "127.0.0.1"
+        service_port = pick_n_free_ports(1)[0]
         nprocs = 2
 
         autotune_service = AutotuneService(nprocs, autotune_level=1)
@@ -90,7 +89,7 @@ class TestAutotuneService(unittest.TestCase):
             target=app.run,
             kwargs={
                 "host": "0.0.0.0",
-                "port": master_port,
+                "port": service_port,
                 "debug": False,
             },
         )
@@ -160,7 +159,9 @@ class TestAutotuneService(unittest.TestCase):
             for i in range(nprocs):
                 for (model_name, tensor_list) in model_dict.items():
                     mock = MockBaguaProcess(
-                        i, autotune_service_addr, model_name, tensor_list)
+                        i, service_addr, service_port,
+                        model_name, tensor_list
+                    )
                     mock_objs.append(mock)
                     ret = pool.apply_async(mock.run)
                     results.append(ret)
