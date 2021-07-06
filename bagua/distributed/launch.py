@@ -112,7 +112,6 @@ def parse_args():
     )
     parser.add_argument(
         "--is_output_autotune_log",
-        type=bool,
         action="store_true",
         default=False,
     )
