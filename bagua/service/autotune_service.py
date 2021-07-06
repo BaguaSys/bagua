@@ -396,19 +396,19 @@ class AutotuneService:
                 # 2. The bagua process is not in the process of hyperparameter update. (self.check_board.count(self.check_board[0])
                 #   == len(self.check_board))
                 # 3. Only execute autotune at most once in an iteration. (self.check_board[rank] < train_iter)
-                if (  # noqa: E501,E503
+                if (
                     self.autotune_level >= 1
                     and hp_manager.check_board.count(hp_manager.check_board[0])
                     == len(hp_manager.check_board)
                     and hp_manager.check_board[rank] < train_iter
-                ):  # noqa: E501
+                ):  # noqa: W503
                     self.autotune(hp_manager, rank, train_iter)
 
                 return json.dumps(
                     {
                         "recommended_hyperparameters": hp_manager.hyperparameter.dict(),
                         "is_autotune_completed": hp_manager.sampling_count
-                        > self.max_samples,  # noqa: E501,E503
+                        > self.max_samples,  # noqa: W503
                     }
                 )
 
