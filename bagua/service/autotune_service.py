@@ -104,7 +104,7 @@ class HyperparameterManager:
 
     def __init__(
         self,
-        output_autotune_log: bool,
+        is_output_autotune_log: bool,
     ) -> None:
         self.record_deque = collections.deque([
             (
@@ -113,7 +113,7 @@ class HyperparameterManager:
                 float('-inf'),
             )
         ])
-        if output_autotune_log:
+        if is_output_autotune_log:
             self.autotune_logfile_path = tempfile.NamedTemporaryFile(
                 prefix="bagua_autotune_", suffix=".log", delete=False)
         else:
@@ -193,8 +193,8 @@ class HyperparameterManager:
 
 
 class AutotuneServiceHyperparameterManager:
-    def __init__(self, world_size: int, output_autotune_log: bool) -> None:
-        self.inner = HyperparameterManager(output_autotune_log)
+    def __init__(self, world_size: int, is_output_autotune_log: bool) -> None:
+        self.inner = HyperparameterManager(is_output_autotune_log)
         self.warmup_pass_count = 0
         self.sampling_count = 0
         self.lock = threading.Lock()
@@ -211,7 +211,7 @@ class AutotuneService:
         max_samples=60,
         sampling_confidence_time_s=5,
         warmup_time_s=30,
-        output_autotune_log=False,
+        is_output_autotune_log=False,
         default_bucket_size=10 * 1024 ** 2,
     ):
         self.autotune_level = autotune_level
@@ -220,7 +220,7 @@ class AutotuneService:
         self.sampling_confidence_time_s = sampling_confidence_time_s
         self.warmup_time_s = warmup_time_s
         self.is_initialized = False
-        self.autotune_logfile_path = autotune_logfile_path
+        self.is_output_autotune_log = is_output_autotune_log
         if self.autotune_level >= 1:
             try:
                 os.remove(self.autotune_logfile_path)
@@ -348,7 +348,7 @@ class AutotuneService:
                 self.model_dict[model_name] = \
                     AutotuneServiceHyperparameterManager(
                         world_size=self.world_size,
-                        autotune_logfile_path=self.autotune_logfile_path,
+                        is_output_autotune_log=self.is_output_autotune_log,
                     )
 
             hp_manager = self.model_dict[model_name]
