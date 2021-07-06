@@ -167,8 +167,7 @@ class TestAutotuneService(unittest.TestCase):
             for i in range(nprocs):
                 for (model_name, tensor_list) in model_dict.items():
                     mock = MockBaguaProcess(
-                        i, service_addr, service_port,
-                        model_name, tensor_list
+                        i, service_addr, service_port, model_name, tensor_list
                     )
                     mock_objs.append(mock)
                     ret = pool.apply_async(mock.run)
