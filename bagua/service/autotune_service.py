@@ -106,16 +106,19 @@ class HyperparameterManager:
         self,
         is_output_autotune_log: bool,
     ) -> None:
-        self.record_deque = collections.deque([
-            (
-                -1,
-                BaguaHyperparameter(),
-                float('-inf'),
-            )
-        ])
+        self.record_deque = collections.deque(
+            [
+                (
+                    -1,
+                    BaguaHyperparameter(),
+                    float("-inf"),
+                )
+            ]
+        )
         if is_output_autotune_log:
             self.autotune_logfile_path = tempfile.NamedTemporaryFile(
-                prefix="bagua_autotune_", suffix=".log", delete=False)
+                prefix="bagua_autotune_", suffix=".log", delete=False
+            )
         else:
             self.autotune_logfile_path = None
 
@@ -173,7 +176,10 @@ class HyperparameterManager:
 
         if self.autotune_logfile_path:
             record_autotune_log(
-                self.autotune_logfile_path, optimizer_params, train_iter, system_efficiency_score
+                self.autotune_logfile_path,
+                optimizer_params,
+                train_iter,
+                system_efficiency_score,
             )
         tensor_list = [
             tensor_declar for bucket in hp.buckets for tensor_declar in bucket
@@ -316,8 +322,7 @@ class AutotuneService:
                 autotune_hp, train_iter, score
             )
         )
-        record_autotune_log(
-            self.autotune_logfile_path, autotune_hp, train_iter, score)
+        record_autotune_log(self.autotune_logfile_path, autotune_hp, train_iter, score)
 
         tensor_list = [
             tensor_declar for bucket in bagua_hp.buckets for tensor_declar in bucket
@@ -345,11 +350,10 @@ class AutotuneService:
             whether_to_bucket: bool = req["whether_to_bucket"]
 
             if model_name not in self.model_dict:
-                self.model_dict[model_name] = \
-                    AutotuneServiceHyperparameterManager(
-                        world_size=self.world_size,
-                        is_output_autotune_log=self.is_output_autotune_log,
-                    )
+                self.model_dict[model_name] = AutotuneServiceHyperparameterManager(
+                    world_size=self.world_size,
+                    is_output_autotune_log=self.is_output_autotune_log,
+                )
 
             hp_manager = self.model_dict[model_name]
             bucket_size = self.default_bucket_size
@@ -366,9 +370,11 @@ class AutotuneService:
                 )
                 hp_manager.time_hp_last_granted = time.time()
                 hp_manager.hyperparameter = hp
-                return json.dumps({
-                    "recommended_hyperparameters": hp.dict(),
-                })
+                return json.dumps(
+                    {
+                        "recommended_hyperparameters": hp.dict(),
+                    }
+                )
 
         @app.route("/api/v1/report_metrics", methods=["POST"])
         def report_metrics():
@@ -431,9 +437,9 @@ class AutotuneService:
                 if (
                     self.autotune_level >= 1
                     and hp_manager.check_board.count(hp_manager.check_board[0])
-                    == len(hp_manager.check_board)  # noqa: E501
+                    == len(hp_manager.check_board)
                     and hp_manager.check_board[rank] < train_iter
-                ):
+                ):  # noqa: E501
                     self.autotune(hp_manager, rank, train_iter)
 
                 return json.dumps(

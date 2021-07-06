@@ -188,8 +188,7 @@ class BaguaModule:
             self.name = name
         else:
             self.name = "{}_{}".format(
-                self.__class__.__name__,
-                next(BaguaModule.__id_iter)
+                self.__class__.__name__, next(BaguaModule.__id_iter)
             )
 
         self.bagua_optimizers = optimizers
@@ -308,14 +307,15 @@ class BaguaModule:
         ]
 
         rsp = self._bagua_autotune_client.register_tensors(
-            model_name=self.name,
-            tensor_list=autotune_tensor_list)
+            model_name=self.name, tensor_list=autotune_tensor_list
+        )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
     def _bagua_autotune_get_buckets(self):
         rsp = self._bagua_autotune_client.ask_hyperparameters(
             model_name=self.name,
-            rank=get_rank(), train_iter=self.bagua_train_step_counter
+            rank=get_rank(),
+            train_iter=self.bagua_train_step_counter,
         )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
         recommended_hyperparameters = rsp.json()["recommended_hyperparameters"]

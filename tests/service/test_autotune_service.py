@@ -45,7 +45,7 @@ class MockBaguaProcess:
         self.tensor_list = tensor_list
         self.client = AutotuneClient(service_addr, service_port)
 
-    def run(self, total_iters=1200):
+    def run(self, total_iters=5000):
         rsp = self.client.register_tensors(
             self.model_name, self.tensor_list)
         assert rsp.status_code == 200, \
@@ -80,9 +80,9 @@ class TestAutotuneService(unittest.TestCase):
         autotune_service = AutotuneService(
             nprocs,
             autotune_level=1,
-            sampling_confidence_time_s=1.,
+            sampling_confidence_time_s=0.1,
             warmup_time_s=1.,
-            max_samples=30,
+            max_samples=60,
         )
         app = Flask(__name__)
         app = autotune_service.setup_app(app)
