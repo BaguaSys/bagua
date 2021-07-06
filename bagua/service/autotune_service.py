@@ -105,7 +105,13 @@ class HyperparameterManager:
         self,
         autotune_logfile_path: str,
     ) -> None:
-        self.record_deque = collections.deque()
+        self.record_deque = collections.deque([
+            (
+                -1,
+                BaguaHyperparameter(),
+                -1.,
+            )
+        ])
         self.autotune_logfile_path = autotune_logfile_path
         self.bayesian_optimizer = BayesianOptimizer(
             {
