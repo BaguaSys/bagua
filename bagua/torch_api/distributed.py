@@ -13,7 +13,7 @@ import logging
 import torch
 import torch.nn
 import itertools
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
