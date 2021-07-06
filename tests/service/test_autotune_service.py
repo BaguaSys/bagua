@@ -184,7 +184,7 @@ class TestAutotuneService(unittest.TestCase):
 
 if __name__ == "__main__":
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.WARN,
         format="%(filename)s: %(levelname)s: %(funcName)s(): %(lineno)d:\t%(message)s",
     )
     unittest.main()
