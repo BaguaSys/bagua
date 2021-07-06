@@ -188,6 +188,7 @@ class HyperparameterManager:
 class AutotuneServiceHyperparameterManager:
     def __init__(self, world_size: int, autotune_logfile_path: str) -> None:
         self.inner = HyperparameterManager(autotune_logfile_path)
+        self.warmup_pass_count = 0
         self.sampling_count = 0
         self.lock = threading.Lock()
         self.check_board = [-1] * world_size
@@ -308,7 +309,8 @@ class AutotuneService:
                 autotune_hp, train_iter, score
             )
         )
-        record_autotune_log(self.autotune_logfile_path, autotune_hp, train_iter, score)
+        record_autotune_log(
+            self.autotune_logfile_path, autotune_hp, train_iter, score)
 
         tensor_list = [
             tensor_declar for bucket in bagua_hp.buckets for tensor_declar in bucket
