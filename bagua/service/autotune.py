@@ -46,7 +46,7 @@ class BayesianOptimizer:
     def __init__(
         self,
         param_declaration: dict,
-        n_initial_points: int = 10,
+        n_initial_points: int = 20,
         initial_point_generator: str = "sobol",
     ):
         self.param_declaration = collections.OrderedDict(param_declaration)

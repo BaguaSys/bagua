@@ -136,7 +136,6 @@ class HyperparameterManager:
                 ),
                 "is_hierarchical_reduce": BoolParam(False),
             },
-            n_initial_points=10,
         )
 
     def tail_record(self) -> Tuple[int, BaguaHyperparameter, float]:
