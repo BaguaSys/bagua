@@ -37,6 +37,6 @@ make html
 
 ## Links
 
-* [Bagua Main Repo](https://github.com/BaguaSys/bagua)
-* [Bagua Tutorials](https://baguasys.github.io/tutorials)
+* [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
+* [Bagua Tutorials and Benchmark Results](https://baguasys.github.io/tutorials)
 * [Bagua API Documentation](https://bagua.readthedocs.io/)
