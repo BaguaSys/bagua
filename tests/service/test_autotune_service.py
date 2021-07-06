@@ -60,8 +60,11 @@ class MockBaguaProcess:
                 self.model_name, self.rank, train_iter, hp.dict(), score)
             assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(rsp)
             rsp = self.client.ask_hyperparameters(
-                self.model_name, self.rank, train_iter)
-            assert rsp.status_code == 200, "ask_hyperparameters failed, rsp={}".format(rsp)
+                self.model_name, self.rank, train_iter
+            )
+            assert rsp.status_code == 200, "ask_hyperparameters failed, rsp={}".format(
+                rsp
+            )
             rsp = rsp.json()
             hp.update(rsp["recommended_hyperparameters"])
 
