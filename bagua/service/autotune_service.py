@@ -283,7 +283,7 @@ class AutotuneService:
                 rank, train_iter, hp_manager.sampling_count, self.max_samples
             )
         )
-        recommended_bagua_hp = hp_manager.ask_hyperparmeter(train_iter)
+        recommended_bagua_hp = hp_manager.inner.ask_hyperparmeter(train_iter)
         if hp_manager.sampling_count < self.max_samples:
             hp_manager.hyperparameter = recommended_bagua_hp
         else:
