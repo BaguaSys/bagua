@@ -38,6 +38,7 @@ class BaguaModule:
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
     """
+
     __id_iter = itertools.count()
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
