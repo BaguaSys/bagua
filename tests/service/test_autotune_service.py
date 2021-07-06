@@ -144,31 +144,41 @@ class TestAutotuneService(unittest.TestCase):
                 ),
             ],
             "m2": [
-                TensorDeclaration({
-                    "name": "A",
-                    "num_elements": 1 * 1024 ** 2,
-                    "dtype": "f32",
-                }),
-                TensorDeclaration({
-                    "name": "B",
-                    "num_elements": 3 * 1024 ** 2,
-                    "dtype": "f32",
-                }),
-                TensorDeclaration({
-                    "name": "C",
-                    "num_elements": 5 * 1024 ** 2,
-                    "dtype": "f32",
-                }),
-                TensorDeclaration({
-                    "name": "D",
-                    "num_elements": 7 * 1024 ** 2,
-                    "dtype": "f32",
-                }),
-                TensorDeclaration({
-                    "name": "E",
-                    "num_elements": 11 * 1024 ** 2,
-                    "dtype": "f32",
-                }),
+                TensorDeclaration(
+                    {
+                        "name": "A",
+                        "num_elements": 1 * 1024 ** 2,
+                        "dtype": "f32",
+                    }
+                ),
+                TensorDeclaration(
+                    {
+                        "name": "B",
+                        "num_elements": 3 * 1024 ** 2,
+                        "dtype": "f32",
+                    }
+                ),
+                TensorDeclaration(
+                    {
+                        "name": "C",
+                        "num_elements": 5 * 1024 ** 2,
+                        "dtype": "f32",
+                    }
+                ),
+                TensorDeclaration(
+                    {
+                        "name": "D",
+                        "num_elements": 7 * 1024 ** 2,
+                        "dtype": "f32",
+                    }
+                ),
+                TensorDeclaration(
+                    {
+                        "name": "E",
+                        "num_elements": 11 * 1024 ** 2,
+                        "dtype": "f32",
+                    }
+                ),
             ],
         }
 
