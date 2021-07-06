@@ -87,6 +87,7 @@ class TestAutotuneService(unittest.TestCase):
             autotune_level=1,
             sampling_confidence_time_s=0.1,
             warmup_time_s=1.0,
+            is_output_autotune_log=True,
         )
         app = Flask(__name__)
         app = autotune_service.setup_app(app)

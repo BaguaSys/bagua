@@ -43,7 +43,12 @@ class BayesianOptimizer:
     Simple package of beyasian optimizer
     """
 
-    def __init__(self, param_declaration: dict, n_initial_points: int = 10):
+    def __init__(
+        self,
+        param_declaration: dict,
+        n_initial_points: int = 10,
+        initial_point_generator: str = "sobol",
+    ):
         self.param_declaration = collections.OrderedDict(param_declaration)
         search_space = [
             declar.space_dimension for _, declar in self.param_declaration.items()
@@ -51,8 +56,8 @@ class BayesianOptimizer:
 
         self.bayesian_optimizer = skopt.Optimizer(
             dimensions=search_space,
-            base_estimator="GP",
             n_initial_points=n_initial_points,
+            initial_point_generator=initial_point_generator,
             n_jobs=-1,
         )
 

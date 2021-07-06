@@ -232,6 +232,7 @@ class AutotuneService:
         self.is_output_autotune_log = is_output_autotune_log
         self.default_bucket_size: int = default_bucket_size
         self.model_dict: Dict[str, AutotuneServiceHyperparameterManager] = {}
+        self.model_dict_mutex = threading.Lock()
 
     def autotune(
         self,
@@ -310,11 +311,12 @@ class AutotuneService:
             tensor_list: List[TensorDeclaration] = req["tensor_list"]
             whether_to_bucket: bool = req["whether_to_bucket"]
 
-            if model_name not in self.model_dict:
-                self.model_dict[model_name] = AutotuneServiceHyperparameterManager(
-                    world_size=self.world_size,
-                    is_output_autotune_log=self.is_output_autotune_log,
-                )
+            with self.model_dict_mutex:
+                if model_name not in self.model_dict:
+                    self.model_dict[model_name] = AutotuneServiceHyperparameterManager(
+                        world_size=self.world_size,
+                        is_output_autotune_log=self.is_output_autotune_log,
+                    )
 
             hp_manager = self.model_dict[model_name]
             bucket_size = self.default_bucket_size
