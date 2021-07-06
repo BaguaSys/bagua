@@ -45,11 +45,12 @@ class MockBaguaProcess:
         self.tensor_list = tensor_list
         self.client = AutotuneClient(service_addr, service_port)
 
-    def run(self, total_iters=1200):
+    def run(self, total_iters=1):
         rsp = self.client.register_tensors(
             self.model_name, self.tensor_list)
         assert rsp.status_code == 200, \
             "register_tensors failed, rsp={}".format(rsp)
+        print("rsp={}".format(rsp.json()))
         hp = BaguaHyperparameter().update(
             rsp.json()["recommended_hyperparameters"])
 
