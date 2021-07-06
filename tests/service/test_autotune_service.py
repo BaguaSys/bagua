@@ -61,8 +61,8 @@ class MockBaguaProcess:
             rsp = self.client.ask_hyperparameters(
                 self.model_name, self.rank, train_iter)
             assert rsp.status_code == 200, "ask_hyperparameters failed, rsp={}".format(rsp)
+            rsp = rsp.json()
             hp.update(rsp["recommended_hyperparameters"])
-            hp.update(rsp)
 
             if rsp["is_autotune_completed"]:
                 logging.info("train_iter={}".format(train_iter))
