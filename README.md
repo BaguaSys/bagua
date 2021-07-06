@@ -60,12 +60,22 @@ make html
 
 ```bibtex
 @misc{gan2021bagua,
-      title={BAGUA: Scaling up Distributed Learning with System Relaxations}, 
-      author={Shaoduo Gan and Xiangru Lian and Rui Wang and Jianbin Chang and Chengjun Liu and Hongmei Shi and Shengzhuo Zhang and Xianghong Li and Tengxu Sun and Jiawei Jiang and Binhang Yuan and Sen Yang and Ji Liu and Ce Zhang},
-      year={2021},
-      eprint={2107.01499},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
+  title={BAGUA: Scaling up Distributed Learning with System Relaxations}, 
+  author={Shaoduo Gan and Xiangru Lian and Rui Wang and Jianbin Chang and Chengjun Liu and Hongmei Shi and Shengzhuo Zhang and Xianghong Li and Tengxu Sun and Jiawei Jiang and Binhang Yuan and Sen Yang and Ji Liu and Ce Zhang},
+  year={2021},
+  eprint={2107.01499},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+@book{liu2020distributed,
+  title={Distributed Learning Systems with First-Order Methods: An Instruction},
+  author={Liu, J. and Zhang, C.},
+  isbn={9781680837018},
+  series={Foundations and trends in databases},
+  url={https://books.google.com/books?id=vzQmzgEACAAJ},
+  year={2020},
+  publisher={now publishers}
 }
 ```
 
