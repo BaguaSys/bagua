@@ -73,7 +73,10 @@ def split_bucket_by_bucket_size(
 
 
 def record_autotune_log(
-    autotune_logfile_path: str, autotune_hp: dict, train_iter: int, score: float
+    autotune_logfile_path: str,
+    autotune_hp: dict,
+    train_iter: int,
+    score: float,
 ):
     with open(autotune_logfile_path, "a") as autotune_log:
         csv_writer = csv.DictWriter(
@@ -107,7 +110,7 @@ class HyperparameterManager:
             (
                 -1,
                 BaguaHyperparameter(),
-                -1.,
+                float('-inf'),
             )
         ])
         self.autotune_logfile_path = autotune_logfile_path
