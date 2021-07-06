@@ -4,6 +4,7 @@ import requests
 import os
 import time
 import threading
+import tempfile
 import json
 import logging
 import collections
@@ -73,30 +74,29 @@ def split_bucket_by_bucket_size(
 
 
 def record_autotune_log(
-    autotune_logfile_path: str,
+    autotune_logfile,
     autotune_hp: dict,
     train_iter: int,
     score: float,
 ):
-    with open(autotune_logfile_path, "a") as autotune_log:
-        csv_writer = csv.DictWriter(
-            autotune_log,
-            fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
-        )
-        first_line = open(autotune_logfile_path).readline()
-        if not first_line:
-            csv_writer.writeheader()
+    csv_writer = csv.DictWriter(
+        autotune_logfile,
+        fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
+    )
+    first_line = open(autotune_logfile.name).readline()
+    if not first_line:
+        csv_writer.writeheader()
 
-        cols = copy.deepcopy(autotune_hp)
-        cols.update(
-            {
-                "train_iter": train_iter,
-                "score": score,
-            }
-        )
-        cols = OrderedDict(cols)
-        logging.info("cols={}".format(cols))
-        csv_writer.writerow(cols)
+    cols = copy.deepcopy(autotune_hp)
+    cols.update(
+        {
+            "train_iter": train_iter,
+            "score": score,
+        }
+    )
+    cols = OrderedDict(cols)
+    logging.info("cols={}".format(cols))
+    csv_writer.writerow(cols)
 
 
 class HyperparameterManager:
@@ -104,7 +104,7 @@ class HyperparameterManager:
 
     def __init__(
         self,
-        autotune_logfile_path: str,
+        output_autotune_log: bool,
     ) -> None:
         self.record_deque = collections.deque([
             (
@@ -113,7 +113,12 @@ class HyperparameterManager:
                 float('-inf'),
             )
         ])
-        self.autotune_logfile_path = autotune_logfile_path
+        if output_autotune_log:
+            self.autotune_logfile_path = tempfile.NamedTemporaryFile(
+                prefix="bagua_autotune_", suffix=".log", delete=False)
+        else:
+            self.autotune_logfile_path = None
+
         self.bayesian_optimizer = BayesianOptimizer(
             {
                 "bucket_size_2p": IntParam(  # bucket_size = 2 ^ bucket_size_2p
@@ -166,9 +171,10 @@ class HyperparameterManager:
         recommend_param = self.bayesian_optimizer.ask()
         recommend_bucket_size = 2 ** recommend_param["bucket_size_2p"]
 
-        record_autotune_log(
-            self.autotune_logfile_path, optimizer_params, train_iter, system_efficiency_score
-        )
+        if self.autotune_logfile_path:
+            record_autotune_log(
+                self.autotune_logfile_path, optimizer_params, train_iter, system_efficiency_score
+            )
         tensor_list = [
             tensor_declar for bucket in hp.buckets for tensor_declar in bucket
         ]
@@ -187,8 +193,8 @@ class HyperparameterManager:
 
 
 class AutotuneServiceHyperparameterManager:
-    def __init__(self, world_size: int, autotune_logfile_path: str) -> None:
-        self.inner = HyperparameterManager(autotune_logfile_path)
+    def __init__(self, world_size: int, output_autotune_log: bool) -> None:
+        self.inner = HyperparameterManager(output_autotune_log)
         self.warmup_pass_count = 0
         self.sampling_count = 0
         self.lock = threading.Lock()
@@ -205,7 +211,7 @@ class AutotuneService:
         max_samples=60,
         sampling_confidence_time_s=5,
         warmup_time_s=30,
-        autotune_logfile_path="/tmp/bagua_autotune.log",
+        output_autotune_log=False,
         default_bucket_size=10 * 1024 ** 2,
     ):
         self.autotune_level = autotune_level

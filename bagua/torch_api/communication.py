@@ -33,7 +33,7 @@ def run_flask_app():
         max_samples=env.get_autotune_max_samples(),
         sampling_confidence_time_s=env.get_autotune_sampling_confidence_time_s(),
         warmup_time_s=env.get_autotune_warmup_time_s(),
-        autotune_logfile_path=env.get_autotune_logfile_path(),
+        output_autotune_log=env.get_is_output_autotune_log(),
         default_bucket_size=get_default_bucket_size(),
     )
     app = Flask(__name__)
