@@ -60,4 +60,5 @@ make html
 
 * [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
 * [Bagua Tutorials](https://baguasys.github.io/tutorials)
+* [Bagua Examples](https://github.com/BaguaSys/examples)
 * [Bagua API Documentation](https://bagua.readthedocs.io/)
