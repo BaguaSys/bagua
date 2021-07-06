@@ -348,7 +348,6 @@ class AutotuneService:
                 bucket_size = 10 * 1024 ** 5
 
             with hp_manager.lock:
-                print("tensor_list={}".format(tensor_list))
                 hp = BaguaHyperparameter(
                     buckets=split_bucket_by_bucket_size(
                         tensor_list,
@@ -356,7 +355,6 @@ class AutotuneService:
                     ),
                     bucket_size=bucket_size,
                 )
-                print("hp={}".format(hp.dict()))
                 hp_manager.time_hp_last_granted = time.time()
                 hp_manager.hyperparameter = hp
                 return json.dumps({

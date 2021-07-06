@@ -45,12 +45,11 @@ class MockBaguaProcess:
         self.tensor_list = tensor_list
         self.client = AutotuneClient(service_addr, service_port)
 
-    def run(self, total_iters=1):
+    def run(self, total_iters=1200):
         rsp = self.client.register_tensors(
             self.model_name, self.tensor_list)
         assert rsp.status_code == 200, \
             "register_tensors failed, rsp={}".format(rsp)
-        print("rsp={}".format(rsp.json()))
         hp = BaguaHyperparameter().update(
             rsp.json()["recommended_hyperparameters"])
 
@@ -164,7 +163,6 @@ class TestAutotuneService(unittest.TestCase):
                     results.append(ret)
             for ret in results:
                 hp = ret.get()
-                print('hp={}'.format(hp))
 
         server.terminate()
         server.join()
@@ -172,7 +170,7 @@ class TestAutotuneService(unittest.TestCase):
 
 if __name__ == "__main__":
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(filename)s: %(levelname)s: %(funcName)s(): %(lineno)d:\t%(message)s",
     )
     unittest.main()
