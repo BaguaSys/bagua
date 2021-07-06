@@ -37,8 +37,12 @@ def metrics(buckets, is_hierarchical_reduce):
 
 class MockBaguaProcess:
     def __init__(
-        self, rank, service_addr, service_port,
-        model_name, tensor_list,
+        self,
+        rank,
+        service_addr,
+        service_port,
+        model_name,
+        tensor_list,
     ) -> None:
         self.rank = rank
         self.model_name = model_name
