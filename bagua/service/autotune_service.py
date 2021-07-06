@@ -264,7 +264,7 @@ class AutotuneService:
             return
 
         if hp_manager.sampling_count == 0:
-            sampling_time -= hp_manager.warmup_time_s
+            sampling_time -= self.warmup_time_s
 
         if sampling_time < self.sampling_confidence_time_s:
             logging.debug(
