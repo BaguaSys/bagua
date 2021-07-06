@@ -227,14 +227,7 @@ class AutotuneService:
         self.warmup_time_s = warmup_time_s
         self.is_initialized = False
         self.is_output_autotune_log = is_output_autotune_log
-        if self.autotune_level >= 1:
-            try:
-                os.remove(self.autotune_logfile_path)
-            except OSError:
-                pass
-
         self.default_bucket_size: int = default_bucket_size
-
         self.model_dict: Dict[str, AutotuneServiceHyperparameterManager] = {}
 
     def autotune(
@@ -434,7 +427,7 @@ class AutotuneService:
                 # 2. The bagua process is not in the process of hyperparameter update. (self.check_board.count(self.check_board[0])
                 #   == len(self.check_board))
                 # 3. Only execute autotune at most once in an iteration. (self.check_board[rank] < train_iter)
-                if (
+                if (  # noqa: E501,E503
                     self.autotune_level >= 1
                     and hp_manager.check_board.count(hp_manager.check_board[0])
                     == len(hp_manager.check_board)
@@ -446,7 +439,7 @@ class AutotuneService:
                     {
                         "recommended_hyperparameters": hp_manager.hyperparameter.dict(),
                         "is_autotune_completed": hp_manager.sampling_count
-                        > self.max_samples,  # noqa: E501
+                        > self.max_samples,  # noqa: E501,E503
                     }
                 )
 
