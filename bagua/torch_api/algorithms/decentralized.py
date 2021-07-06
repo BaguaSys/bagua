@@ -73,7 +73,7 @@ class DecentralizedAlgorithm(Algorithm):
 
 
 class LowPrecisionDecentralizedAlgorithm(Algorithm):
-    def __init__(self, hierarchical: bool = True):
+    def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
         Create an instance of the
         `Difference Compression Decentralized <https://arxiv.org/pdf/1803.06443.pdf>`_
@@ -81,8 +81,10 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
         Args:
             hierarchical (bool): Enable hierarchical communication.
+            communication_interval (int): Number of iterations between two communication steps.
         """
         self.hierarchical = hierarchical
+        self.communication_interval = communication_interval
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -99,7 +101,14 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
         def hook():
+            pass
+
+        return hook
+
+    def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
+        def hook(optimizer: torch.optim.Optimizer):
             for bucket in bagua_module.bagua_buckets:
+
                 for tensor in bucket.tensors:
                     tensor.bagua_mark_communication_ready()
 
@@ -107,19 +116,14 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
         return hook
 
-    def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
-        def hook(optimizer: torch.optim.Optimizer):
-            bagua_module._bagua_backend.execute_post_optimizer_step_comm_ops()
-            bagua_module._bagua_backend.wait_pending_post_optimizer_step_comm_ops()
-
-        return hook
-
     def _init_states(self, bucket: BaguaBucket):
         bucket_flattened_tensor = bucket.flattened_tensor()
 
+        weight_tensor = bucket_flattened_tensor.detach().clone()
         left_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
         right_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
 
+        bucket.set_state("weight", weight_tensor)
         bucket.set_state("left_peer_weight", left_peer_weight_tensor)
         bucket.set_state("right_peer_weight", right_peer_weight_tensor)
 
@@ -134,5 +138,9 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         bucket.append_decentralized_synchronous_op(
             hierarchical=self.hierarchical,
             peer_selection_mode="ring",
+            communication_interval=self.communication_interval,
             compression="MinMaxUInt8",
+            weight=bucket.states["weight"],
+            left_peer_weight=bucket.states["left_peer_weight"],
+            right_peer_weight=bucket.states["right_peer_weight"],
         )

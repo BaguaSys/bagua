@@ -167,10 +167,8 @@ class BaguaBucket:
             name: the key of the state.
             tensor: the value of the state.
         """
-        self.states[name] = tensor
-        self.backend_bucket.set_state(
-            name, tensor.to_bagua_tensor(name).bagua_backend_tensor()
-        )
+
+        self.states[name] = tensor.to_bagua_tensor(name)
 
     def append_centralized_synchronous_op(
         self,
@@ -225,6 +223,9 @@ class BaguaBucket:
         peer_selection_mode: str = "all",
         communication_interval: int = 1,
         compression: Optional[str] = None,
+        weight: Optional[torch.Tensor] = None,
+        left_peer_weight: Optional[torch.Tensor] = None,
+        right_peer_weight: Optional[torch.Tensor] = None,
     ) -> BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
@@ -243,6 +244,11 @@ class BaguaBucket:
             communication_interval (int): Number of iterations between two communication steps.
             compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
                 supported.
+            weight (torch.Tensor): Local model of current worker, required for low precision decentralized algorithm.
+            left_peer_weight (torch.Tensor): Model replica of current worker's connected left peer, required for low
+                precision decentralized algorithm.
+            right_peer_weight (torch.Tensor): Model replica of current worker's connected right peer, required for
+                low precision decentralizd algorithm.
         Returns:
             The bucket itself.
         """
@@ -254,6 +260,13 @@ class BaguaBucket:
                 peer_selection_mode=peer_selection_mode,
                 communication_interval=communication_interval,
                 compression=compression,
+                weight=weight._bagua_backend_tensor if weight is not None else None,
+                left_peer_weight=left_peer_weight._bagua_backend_tensor
+                if left_peer_weight is not None
+                else None,
+                right_peer_weight=right_peer_weight._bagua_backend_tensor
+                if right_peer_weight is not None
+                else None,
             )
         else:
             self.backend_bucket.append_decentralized_synchronous_op(
@@ -263,6 +276,13 @@ class BaguaBucket:
                 peer_selection_mode=peer_selection_mode,
                 communication_interval=communication_interval,
                 compression=compression,
+                weight=weight._bagua_backend_tensor if weight is not None else None,
+                left_peer_weight=left_peer_weight._bagua_backend_tensor
+                if left_peer_weight is not None
+                else None,
+                right_peer_weight=right_peer_weight._bagua_backend_tensor
+                if right_peer_weight is not None
+                else None,
             )
 
         return self
