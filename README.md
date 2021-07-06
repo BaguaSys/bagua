@@ -69,6 +69,21 @@ make html
 }
 ```
 
+```bibtex
+@article{DBS-062,
+url = {http://dx.doi.org/10.1561/1900000062},
+year = {2020},
+volume = {9},
+journal = {Foundations and Trends® in Databases},
+title = {Distributed Learning Systems with First-Order Methods},
+doi = {10.1561/1900000062},
+issn = {1931-7883},
+number = {1},
+pages = {1-100},
+author = {Ji Liu and Ce Zhang}
+}
+```
+
 ## Links
 
 * [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
