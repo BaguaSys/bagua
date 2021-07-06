@@ -14,6 +14,27 @@ Its effectiveness has been verified in various scenarios, including VGG and ResN
 
 The underlying communication execution engine is in [bagua-core](https://github.com/BaguaSys/bagua-core), a library written in Rust.
 
+## Performance
+
+<p align="center">
+    <img src="https://baguasys.github.io/tutorials/benchmark/figures/scalability_vgg16.png" width="350"/>
+</p>
+<p align="center">
+    The scalability of different systems on VGG16 with up to 128 GPUs.
+</p>
+
+<br/>
+<br/>
+
+<p align="center">
+    <img src="https://baguasys.github.io/tutorials/benchmark/figures/tradeoff_network_bert-large-bandwidth.png" width="350"/><img src="https://baguasys.github.io/tutorials/benchmark/figures/tradeoff_network_bert-large-latency.png" width="330"/>
+</p>
+<p align="center">
+    Epoch time of BERT-Large Finetune under different network conditions for different systems.
+</p>
+
+For more comprehensive and up to date results, refer to [Bagua benchmark page](https://baguasys.github.io/tutorials/benchmark/index.html).
+
 ## Installation
 
 Develop version:
@@ -38,5 +59,5 @@ make html
 ## Links
 
 * [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
-* [Bagua Tutorials and Benchmark Results](https://baguasys.github.io/tutorials)
+* [Bagua Tutorials](https://baguasys.github.io/tutorials)
 * [Bagua API Documentation](https://bagua.readthedocs.io/)
