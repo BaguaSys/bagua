@@ -77,7 +77,13 @@ class TestAutotuneService(unittest.TestCase):
         service_port = pick_n_free_ports(1)[0]
         nprocs = 2
 
-        autotune_service = AutotuneService(nprocs, autotune_level=1)
+        autotune_service = AutotuneService(
+            nprocs,
+            autotune_level=1,
+            sampling_confidence_time_s=1.,
+            warmup_time_s=1.,
+            max_samples=15,
+        )
         app = Flask(__name__)
         app = autotune_service.setup_app(app)
         log = logging.getLogger("werkzeug")
