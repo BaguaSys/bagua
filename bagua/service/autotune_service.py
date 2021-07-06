@@ -122,7 +122,7 @@ class HyperparameterManager:
         )
 
     def tail_record(self) -> Tuple[int, BaguaHyperparameter, float]:
-        return self.record_deque.index(-1)
+        return self.record_deque[-1]
 
     def best_hyperparameter(self) -> BaguaHyperparameter:
         return sorted(
