@@ -164,7 +164,7 @@ class HyperparameterManager:
         recommend_bucket_size = 2 ** recommend_param["bucket_size_2p"]
 
         record_autotune_log(
-            self.autotune_logfile_path, hp, train_iter, system_efficiency_score
+            self.autotune_logfile_path, optimizer_params, train_iter, system_efficiency_score
         )
         tensor_list = [
             tensor_declar for bucket in hp.buckets for tensor_declar in bucket
