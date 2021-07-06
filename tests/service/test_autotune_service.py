@@ -80,6 +80,8 @@ class TestAutotuneService(unittest.TestCase):
         autotune_service = AutotuneService(nprocs, autotune_level=1)
         app = Flask(__name__)
         app = autotune_service.setup_app(app)
+        log = logging.getLogger("werkzeug")
+        log.setLevel(logging.ERROR)
 
         server = multiprocessing.Process(
             target=app.run,
@@ -163,6 +165,7 @@ class TestAutotuneService(unittest.TestCase):
                     results.append(ret)
             for ret in results:
                 hp = ret.get()
+                print("hp={}".format(hp.dict()))
 
         server.terminate()
         server.join()
