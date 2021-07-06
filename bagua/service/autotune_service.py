@@ -431,7 +431,7 @@ class AutotuneService:
 
                 return json.dumps(
                     {
-                        "recommended_hyperparameters": hp_manager.inner.dict(),
+                        "recommended_hyperparameters": hp_manager.hyperparameter.dict(),
                         "is_autotune_completed": hp_manager.sampling_count
                         > self.max_samples,  # noqa: E501
                     }
