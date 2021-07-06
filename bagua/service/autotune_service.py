@@ -271,7 +271,7 @@ class AutotuneService:
                 "The sampling time is not up, time={}, last={}, "
                 "sampling_confidence_time_s={}".format(
                     time.time(),
-                    self.time_hp_last_granted,
+                    hp_manager.time_hp_last_granted,
                     self.sampling_confidence_time_s,
                 )
             )
