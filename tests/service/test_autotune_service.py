@@ -159,7 +159,7 @@ class TestAutotuneService(unittest.TestCase):
 
         mock_objs = []
         with multiprocessing.pool.ThreadPool(nprocs * len(model_dict)) as pool:
-            results = []
+            results = dict([(key, []) for key in model_dict.keys()])
             for i in range(nprocs):
                 for (model_name, tensor_list) in model_dict.items():
                     mock = MockBaguaProcess(
@@ -168,10 +168,15 @@ class TestAutotuneService(unittest.TestCase):
                     )
                     mock_objs.append(mock)
                     ret = pool.apply_async(mock.run)
-                    results.append(ret)
-            for ret in results:
+                    results[model_name].append(ret)
+            for ret in results["m1"]:
                 hp = ret.get()
-                print("hp={}".format(hp.dict()))
+                bucket_size = [len(bucket) for bucket in hp.buckets]
+                self.assertEqual(bucket_size, [3, 1, 1])
+            for ret in results["m2"]:
+                hp = ret.get()
+                bucket_size = [len(bucket) for bucket in hp.buckets]
+                self.assertEqual(bucket_size, [2, 1, 1, 1])
 
         server.terminate()
         server.join()
