@@ -74,29 +74,30 @@ def split_bucket_by_bucket_size(
 
 
 def record_autotune_log(
-    autotune_logfile,
+    autotune_logfile_path: str,
     autotune_hp: dict,
     train_iter: int,
-    score: float,
+    score: float
 ):
-    csv_writer = csv.DictWriter(
-        autotune_logfile,
-        fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
-    )
-    first_line = open(autotune_logfile.name).readline()
-    if not first_line:
-        csv_writer.writeheader()
+    with open(autotune_logfile_path, "a") as autotune_log:
+        csv_writer = csv.DictWriter(
+            autotune_log,
+            fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
+        )
+        first_line = open(autotune_logfile_path).readline()
+        if not first_line:
+            csv_writer.writeheader()
 
-    cols = copy.deepcopy(autotune_hp)
-    cols.update(
-        {
-            "train_iter": train_iter,
-            "score": score,
-        }
-    )
-    cols = OrderedDict(cols)
-    logging.info("cols={}".format(cols))
-    csv_writer.writerow(cols)
+        cols = copy.deepcopy(autotune_hp)
+        cols.update(
+            {
+                "train_iter": train_iter,
+                "score": score,
+            }
+        )
+        cols = OrderedDict(cols)
+        logging.info("cols={}".format(cols))
+        csv_writer.writerow(cols)
 
 
 class HyperparameterManager:
@@ -116,9 +117,11 @@ class HyperparameterManager:
             ]
         )
         if is_output_autotune_log:
-            self.autotune_logfile_path = tempfile.NamedTemporaryFile(
+            tmpfile = tempfile.NamedTemporaryFile(
                 prefix="bagua_autotune_", mode='w', suffix=".log", delete=False
             )
+            self.autotune_logfile_path = tmpfile.name
+            tmpfile.close()
         else:
             self.autotune_logfile_path = None
 
@@ -298,41 +301,6 @@ class AutotuneService:
             hp_manager.hyperparameter = hp_manager.inner.best_hyperparameter()
 
         hp_manager.sampling_count += 1
-
-    def tell_and_ask_bayesian_recommended_hyperparameters(
-        self, bagua_hp, score, train_iter, bucket_size_2p
-    ) -> Tuple[BaguaHyperparameter, Dict]:
-        autotune_hp = {
-            "bucket_size_2p": bucket_size_2p,
-            "is_hierarchical_reduce": bagua_hp.is_hierarchical_reduce,
-        }
-        self.bayesian_optimizer.tell(autotune_hp, score)
-        recommended_autotune_hp = self.bayesian_optimizer.ask()
-        recommended_bucket_size = 2 ** recommended_autotune_hp["bucket_size_2p"]
-
-        logging.info(
-            "autotune_hp={}, train_iter={}, score={}".format(
-                autotune_hp, train_iter, score
-            )
-        )
-        record_autotune_log(self.autotune_logfile_path, autotune_hp, train_iter, score)
-
-        tensor_list = [
-            tensor_declar for bucket in bagua_hp.buckets for tensor_declar in bucket
-        ]
-        recommended_buckets = split_bucket_by_bucket_size(
-            tensor_list,
-            recommended_bucket_size,
-        )
-
-        recommended_bagua_hp = BaguaHyperparameter(
-            buckets=recommended_buckets,
-            is_hierarchical_reduce=bool(
-                recommended_autotune_hp["is_hierarchical_reduce"]
-            ),
-        )
-
-        return recommended_bagua_hp, recommended_autotune_hp
 
     def setup_app(self, app):
         @app.route("/api/v1/register_tensors", methods=["POST"])
