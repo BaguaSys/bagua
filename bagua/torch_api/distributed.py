@@ -188,7 +188,9 @@ class BaguaModule:
             self.name = name
         else:
             self.name = "{}_{}".format(
-                self.__class__.__name__, next(BaguaModule.__new_id.__id_iter))
+                self.__class__.__name__,
+                next(BaguaModule.__id_iter)
+            )
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
