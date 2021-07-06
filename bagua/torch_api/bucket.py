@@ -70,7 +70,7 @@ class BaguaBucket:
         for tensor in self._all_tensors:
             tensor._bagua_bucket = self
 
-    def flattened_tensor(self):
+    def flattened_tensor(self) -> torch.Tensor:
         """
         Returns a tensor contiguous in memory which contains the same data as `self` tensors and padding tensor (if exists).
         If `self` tensors and padding tensor are already flattened, this function returns a tensor corresponding to their
