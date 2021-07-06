@@ -57,7 +57,8 @@ class MockBaguaProcess:
         for train_iter in range(total_iters):
             score = metrics(hp.buckets, hp.is_hierarchical_reduce)
             rsp = self.client.report_metrics(
-                self.model_name, self.rank, train_iter, hp.dict(), score)
+                self.model_name, self.rank, train_iter, hp.dict(), score
+            )
             assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(rsp)
             rsp = self.client.ask_hyperparameters(
                 self.model_name, self.rank, train_iter
