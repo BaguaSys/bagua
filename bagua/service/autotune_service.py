@@ -117,7 +117,7 @@ class HyperparameterManager:
         )
         if is_output_autotune_log:
             self.autotune_logfile_path = tempfile.NamedTemporaryFile(
-                prefix="bagua_autotune_", suffix=".log", delete=False
+                prefix="bagua_autotune_", mode='w', suffix=".log", delete=False
             )
         else:
             self.autotune_logfile_path = None
