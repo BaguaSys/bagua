@@ -9,9 +9,7 @@ import logging
 import collections
 import math
 import multiprocessing
-from flask import Flask, request, session
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
-import prometheus_client
+from flask import Flask, request
 from .autotune import BayesianOptimizer, IntParam, BoolParam
 from bagua.bagua_define import (
     TensorDtype,

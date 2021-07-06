@@ -1,10 +1,6 @@
 import unittest
 import logging
-import requests
-import time
-import copy
 import multiprocessing
-import numpy as np
 from flask import Flask
 from bagua.bagua_define import TensorDeclaration
 from bagua.service import AutotuneService, AutotuneClient

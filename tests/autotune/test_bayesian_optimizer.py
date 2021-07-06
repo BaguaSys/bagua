@@ -1,10 +1,8 @@
 import unittest
-import math
 import numpy as np
 from bagua.autotune import (
     BayesianOptimizer,
     IntParam,
-    FloatParam,
     autotune_system_hyperparameters,
 )
 
