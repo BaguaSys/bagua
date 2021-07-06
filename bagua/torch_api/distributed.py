@@ -38,7 +38,7 @@ class BaguaModule:
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
     """
-    __new_id = itertools.count().next
+    __id_iter = itertools.count()
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
@@ -188,7 +188,7 @@ class BaguaModule:
             self.name = name
         else:
             self.name = "{}_{}".format(
-                self.__class__.__name__, self.__new_id.newid())
+                self.__class__.__name__, next(self.__new_id.__id_iter))
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
