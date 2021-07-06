@@ -154,7 +154,7 @@ def set_bagua_env(args, current_env):
         args.autotune_sampling_confidence_time
     )
     current_env["BAGUA_AUTOTUNE_WARMUP_TIME_S"] = str(args.autotune_warmup_time)
-    current_env["BAGUA_IS_OUTPUT_AUTOTUNE_LOG"] = args.is_output_autotune_log
+    current_env["BAGUA_IS_OUTPUT_AUTOTUNE_LOG"] = str(int(args.is_output_autotune_log))
 
 
 def main():
