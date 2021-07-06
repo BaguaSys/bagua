@@ -118,7 +118,7 @@ class HyperparameterManager:
         )
         if is_output_autotune_log:
             tmpfile = tempfile.NamedTemporaryFile(
-                prefix="bagua_autotune_", mode='w', suffix=".log", delete=False
+                prefix="bagua_autotune_", mode="w", suffix=".log", delete=False
             )
             self.autotune_logfile_path = tmpfile.name
             tmpfile.close()
