@@ -4,14 +4,13 @@ import requests
 import os
 import time
 import threading
+import tempfile
 import json
 import logging
+import collections
 import math
 import multiprocessing
-from flask import Flask, request, session
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
-import prometheus_client
-from prometheus_client import make_wsgi_app
+from flask import Flask, request
 from .autotune import BayesianOptimizer, IntParam, BoolParam
 from bagua.bagua_define import (
     TensorDtype,
@@ -74,69 +73,54 @@ def split_bucket_by_bucket_size(
     return buckets
 
 
-try:
-    rank0_hyperparameters = prometheus_client.Info(
-        "rank0_hyperparameters", "The newly reported rank0 hyperparameter."
-    )
-    rank0_train_iter = prometheus_client.Gauge(
-        "rank0_train_iter", "The iteration when parameters reporting."
-    )
-    rank0_speed = prometheus_client.Gauge(
-        "rank0_speed",
-        "Data used for hyperparameters evaluation.",
-    )
-except ValueError:
-    pass
-
-
 def record_autotune_log(
-    autotune_logfile_path: str, autotune_hp: dict, train_iter: int, score: float
+    autotune_logfile,
+    autotune_hp: dict,
+    train_iter: int,
+    score: float,
 ):
-    with open(autotune_logfile_path, "a") as autotune_log:
-        csv_writer = csv.DictWriter(
-            autotune_log,
-            fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
-        )
-        first_line = open(autotune_logfile_path).readline()
-        if not first_line:
-            csv_writer.writeheader()
+    csv_writer = csv.DictWriter(
+        autotune_logfile,
+        fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
+    )
+    first_line = open(autotune_logfile.name).readline()
+    if not first_line:
+        csv_writer.writeheader()
 
-        cols = copy.deepcopy(autotune_hp)
-        cols.update(
-            {
-                "train_iter": train_iter,
-                "score": score,
-            }
-        )
-        cols = OrderedDict(cols)
-        logging.info("cols={}".format(cols))
-        csv_writer.writerow(cols)
+    cols = copy.deepcopy(autotune_hp)
+    cols.update(
+        {
+            "train_iter": train_iter,
+            "score": score,
+        }
+    )
+    cols = OrderedDict(cols)
+    logging.info("cols={}".format(cols))
+    csv_writer.writerow(cols)
 
 
-class AutotuneService:
+class HyperparameterManager:
+    RECORD_MAX_NUM = 1000
+
     def __init__(
         self,
-        world_size,
-        autotune_level=0,
-        max_samples=60,
-        sampling_confidence_time_s=5,
-        warmup_time_s=30,
-        autotune_logfile_path="/tmp/bagua_autotune.log",
-        default_bucket_size=10 * 1024 ** 2,
-    ):
-        self.autotune_level = autotune_level
-        self.world_size = world_size
-        self.max_samples = max_samples
-        self.sampling_confidence_time_s = sampling_confidence_time_s
-        self.warmup_time_s = warmup_time_s
-        self.warmup_flag = False
-        self.is_initialized = False
-        self.autotune_logfile_path = autotune_logfile_path
-        if self.autotune_level >= 1:
-            try:
-                os.remove(self.autotune_logfile_path)
-            except OSError:
-                pass
+        is_output_autotune_log: bool,
+    ) -> None:
+        self.record_deque = collections.deque(
+            [
+                (
+                    -1,
+                    BaguaHyperparameter(),
+                    float("-inf"),
+                )
+            ]
+        )
+        if is_output_autotune_log:
+            self.autotune_logfile_path = tempfile.NamedTemporaryFile(
+                prefix="bagua_autotune_", suffix=".log", delete=False
+            )
+        else:
+            self.autotune_logfile_path = None
 
         self.bayesian_optimizer = BayesianOptimizer(
             {
@@ -151,24 +135,176 @@ class AutotuneService:
             },
             n_initial_points=10,
         )
-        self.hyperparameters_and_score_list: list = []
-        self.sampling_counter: int = 0  # 采样计数器
-        self.check_board = [-1] * self.world_size
-        self.last_time_the_hyperparameters_was_granted = (
-            time.time()
-        )  # 记录上次超参授予bagua进程的时刻，用于衡量采样时间
 
-        self.ask_hyperparameters_mutex = threading.Lock()
-        self.recommended_hyperparameters: BaguaHyperparameter = BaguaHyperparameter()
-        self.recommended_from_iter = 0
+    def tail_record(self) -> Tuple[int, BaguaHyperparameter, float]:
+        return self.record_deque[-1]
+
+    def best_hyperparameter(self) -> BaguaHyperparameter:
+        return sorted(
+            [(score, hp) for (_, hp, score) in self.record_deque],
+            key=lambda pair: pair[0],
+        )[-1][1]
+
+    def report_metrics(
+        self,
+        train_iter: int,
+        hyperparameter: BaguaHyperparameter,
+        system_efficiency_score: float,
+    ) -> None:
+        while len(self.record_deque) > self.RECORD_MAX_NUM:
+            self.record_deque.pop()
+        self.record_deque.append(
+            (
+                train_iter,
+                hyperparameter,
+                system_efficiency_score,
+            )
+        )
+
+    def ask_hyperparmeter(
+        self,
+        train_iter: int,
+    ) -> BaguaHyperparameter:
+        (_, hp, system_efficiency_score) = self.tail_record()
+        optimizer_params = {
+            "bucket_size_2p": int(math.log(hp.bucket_size, 2)),
+            "is_hierarchical_reduce": hp.is_hierarchical_reduce,
+        }
+        self.bayesian_optimizer.tell(optimizer_params, system_efficiency_score)
+        recommend_param = self.bayesian_optimizer.ask()
+        recommend_bucket_size = 2 ** recommend_param["bucket_size_2p"]
+
+        if self.autotune_logfile_path:
+            record_autotune_log(
+                self.autotune_logfile_path,
+                optimizer_params,
+                train_iter,
+                system_efficiency_score,
+            )
+        tensor_list = [
+            tensor_declar for bucket in hp.buckets for tensor_declar in bucket
+        ]
+        recommend_buckets = split_bucket_by_bucket_size(
+            tensor_list,
+            recommend_bucket_size,
+        )
+
+        recommend_hp = BaguaHyperparameter(
+            buckets=recommend_buckets,
+            bucket_size=recommend_bucket_size,
+            is_hierarchical_reduce=bool(recommend_param["is_hierarchical_reduce"]),
+        )
+
+        return recommend_hp
+
+
+class AutotuneServiceHyperparameterManager:
+    def __init__(self, world_size: int, is_output_autotune_log: bool) -> None:
+        self.inner = HyperparameterManager(is_output_autotune_log)
+        self.warmup_pass_count = 0
+        self.sampling_count = 0
+        self.lock = threading.Lock()
+        self.check_board = [-1] * world_size
+        self.time_hp_last_granted = time.time()
+        self.hyperparameter = BaguaHyperparameter()
+
+
+class AutotuneService:
+    def __init__(
+        self,
+        world_size,
+        autotune_level=0,
+        max_samples=60,
+        sampling_confidence_time_s=5,
+        warmup_time_s=30,
+        is_output_autotune_log=False,
+        default_bucket_size=10 * 1024 ** 2,
+    ):
+        self.autotune_level = autotune_level
+        self.world_size = world_size
+        self.max_samples = max_samples
+        self.sampling_confidence_time_s = sampling_confidence_time_s
+        self.warmup_time_s = warmup_time_s
+        self.is_initialized = False
+        self.is_output_autotune_log = is_output_autotune_log
+        if self.autotune_level >= 1:
+            try:
+                os.remove(self.autotune_logfile_path)
+            except OSError:
+                pass
+
         self.default_bucket_size: int = default_bucket_size
-        self.forerunner_bucket_size: int = -1
 
-        # metrics to autotune
-        self.metrics_mutex = threading.Lock()
-        rank0_hyperparameters.info(self.recommended_hyperparameters.dict())
-        rank0_train_iter.set(-1)
-        rank0_speed.set(-1)
+        self.model_dict: Dict[str, AutotuneServiceHyperparameterManager] = {}
+
+    def autotune(
+        self,
+        hp_manager: AutotuneServiceHyperparameterManager,
+        rank: int,
+        train_iter: int,
+    ):
+        if hp_manager.sampling_count > self.max_samples:
+            return
+
+        (
+            recommended_train_iter,
+            hp,
+            system_efficiency_score,
+        ) = hp_manager.inner.tail_record()
+
+        logging.info(
+            "recommended_train_iter={}, hyperparameters={}, speed={}".format(
+                recommended_train_iter,
+                hp,
+                system_efficiency_score,
+            )
+        )
+
+        sampling_time = time.time() - hp_manager.time_hp_last_granted
+
+        # Skip at least once during warmup
+        if (
+            sampling_time < self.warmup_time_s
+            or hp_manager.warmup_pass_count == 0  # noqa: W503
+        ):
+            logging.info(
+                "warmup pass, time.time={}, time_hp_last_granted={}, "
+                "warmup_time_s={}".format(
+                    time.time(),
+                    hp_manager.time_hp_last_granted,
+                    self.warmup_time_s,
+                )
+            )
+            hp_manager.warmup_pass_count += 1
+            return
+
+        if hp_manager.sampling_count == 0:
+            sampling_time -= self.warmup_time_s
+
+        if sampling_time < self.sampling_confidence_time_s:
+            logging.debug(
+                "The sampling time is not up, time={}, last={}, "
+                "sampling_confidence_time_s={}".format(
+                    time.time(),
+                    hp_manager.time_hp_last_granted,
+                    self.sampling_confidence_time_s,
+                )
+            )
+            return
+
+        logging.info(
+            "rank={}, train_iter={}, sampling_count={}, "
+            "max_samples={}".format(
+                rank, train_iter, hp_manager.sampling_count, self.max_samples
+            )
+        )
+        recommended_bagua_hp = hp_manager.inner.ask_hyperparmeter(train_iter)
+        if hp_manager.sampling_count < self.max_samples:
+            hp_manager.hyperparameter = recommended_bagua_hp
+        else:
+            hp_manager.hyperparameter = hp_manager.inner.best_hyperparameter()
+
+        hp_manager.sampling_count += 1
 
     def tell_and_ask_bayesian_recommended_hyperparameters(
         self, bagua_hp, score, train_iter, bucket_size_2p
@@ -206,67 +342,58 @@ class AutotuneService:
         return recommended_bagua_hp, recommended_autotune_hp
 
     def setup_app(self, app):
-        @app.route("/api/v1/bagua_backend_metrics", methods=["POST"])
-        def report_bagua_backend_metrics():
-            req: dict = request.get_json(force=True)  # TODO: @shjwudp
-            tensor_ready_order: list = req["tensor_ready_order"]
-            communication_time_ms: float = req["communication_time_ms"]
-            hyperparameters: dict = req["hyperparameters"]
-
         @app.route("/api/v1/register_tensors", methods=["POST"])
         def register_tensors():
             req: dict = request.get_json(force=True)
-            tensor_list: list[TensorDeclaration] = req["tensor_list"]
+            model_name: str = req["model_name"]
+            tensor_list: List[TensorDeclaration] = req["tensor_list"]
             whether_to_bucket: bool = req["whether_to_bucket"]
 
-            session["bucket_size"] = self.default_bucket_size
-            if whether_to_bucket is False:
-                session["bucket_size"] = (
-                    10 * 1024 ** 5
-                )  # if you don't divide buckets, set big bucket as 10PB.
+            if model_name not in self.model_dict:
+                self.model_dict[model_name] = AutotuneServiceHyperparameterManager(
+                    world_size=self.world_size,
+                    is_output_autotune_log=self.is_output_autotune_log,
+                )
 
-            with self.ask_hyperparameters_mutex:
-                default_hyperparameters = BaguaHyperparameter(
+            hp_manager = self.model_dict[model_name]
+            bucket_size = self.default_bucket_size
+            if whether_to_bucket is False:
+                bucket_size = 10 * 1024 ** 5
+
+            with hp_manager.lock:
+                hp = BaguaHyperparameter(
                     buckets=split_bucket_by_bucket_size(
                         tensor_list,
-                        session["bucket_size"],
+                        bucket_size,
                     ),
+                    bucket_size=bucket_size,
                 )
-                if self.is_initialized:
-                    return json.dumps(
-                        {
-                            "message": "Autotune service has been initialized, and the current operation does not take effect.",
-                            "recommended_hyperparameters": default_hyperparameters.dict(),
-                        },
-                    )
-
-                self.recommended_hyperparameters = default_hyperparameters
-                self.last_time_the_hyperparameters_was_granted = time.time()
-
-                logging.info(
-                    "default_hyperparameters={}".format(default_hyperparameters.dict())
-                )
-                self.is_initialized = True
+                hp_manager.time_hp_last_granted = time.time()
+                hp_manager.hyperparameter = hp
                 return json.dumps(
                     {
-                        "recommended_hyperparameters": default_hyperparameters.dict(),
+                        "recommended_hyperparameters": hp.dict(),
                     }
                 )
 
         @app.route("/api/v1/report_metrics", methods=["POST"])
         def report_metrics():
             req: dict = request.get_json(force=True)
+            model_name: str = req["model_name"]
             rank: int = req["rank"]
             train_iter: int = req["train_iter"]
             speed: float = req["speed"]
             hyperparameters = req["hyperparameters"]
 
-            if not self.is_initialized:
-                return "Service not ready for ask_hyperparameters!", 405
+            if model_name not in self.model_dict:
+                return "Service not ready for report_metrics!", 405
+
+            hp_manager = self.model_dict[model_name]
 
             # Only consider the rank of the first report metrics now.
-            with self.metrics_mutex:
-                if train_iter <= rank0_train_iter.collect()[-1].samples[-1].value:
+            with hp_manager.lock:
+                (last_report_train_iter, _, _) = hp_manager.inner.tail_record()
+                if train_iter <= last_report_train_iter:
                     return json.dumps({})
 
                 logging.debug(
@@ -278,19 +405,13 @@ class AutotuneService:
                         hyperparameters,
                     )
                 )
-                rank0_hyperparameters.info(hyperparameters)
-                rank0_train_iter.set(train_iter)
-                rank0_speed.set(speed)
+                hp_manager.inner.report_metrics(
+                    train_iter=train_iter,
+                    hyperparameter=BaguaHyperparameter().update(hyperparameters),
+                    system_efficiency_score=speed,
+                )
 
             return json.dumps({})
-
-        @app.route("/api/v1/checkboard", methods=["GET"])
-        def request_checkboard():
-            return json.dumps(
-                {
-                    "check_board": self.check_board,
-                }
-            )
 
         @app.route("/api/v1/ask_hyperparameters", methods=["POST"])
         def ask_hyperparameters():
@@ -299,130 +420,15 @@ class AutotuneService:
             """
             req: dict = request.get_json(force=True)
             rank: int = req["rank"]
+            model_name: str = req["model_name"]
             train_iter: int = req["train_iter"]
 
-            if not self.is_initialized:
-                return "Service not ready for ask_hyperparameters!", 405
+            if model_name not in self.model_dict:
+                return "Service not ready for report_metrics!", 405
 
-            # # The bucket parameters requires at least one metrics report
-            # while len(rank0_hyperparameters.collect()) == 0:
-            #     time.sleep(0)
+            hp_manager = self.model_dict[model_name]
 
-            def autotune():
-                if self.sampling_counter > self.max_samples:
-                    return
-
-                with self.metrics_mutex:
-                    recommended_train_iter = int(
-                        rank0_train_iter.collect()[-1].samples[-1].value
-                    )
-                    speed = rank0_speed.collect()[-1].samples[-1].value
-                    hyperparameters = (
-                        rank0_hyperparameters.collect()[-1].samples[-1].labels
-                    )
-                    self.hyperparameters_and_score_list.append(
-                        [
-                            BaguaHyperparameter(**hyperparameters),
-                            speed,
-                        ]
-                    )
-                    hyperparameters_and_score_list = copy.deepcopy(
-                        self.hyperparameters_and_score_list
-                    )
-
-                    logging.info(
-                        "recommended_train_iter={}, hyperparameters={}, speed={}".format(
-                            recommended_train_iter,
-                            hyperparameters,
-                            speed,
-                        )
-                    )
-
-                sampling_time = (
-                    time.time() - self.last_time_the_hyperparameters_was_granted
-                )
-
-                # warmup pass
-                if self.warmup_flag:
-                    # At last pass one time
-                    if (
-                        sampling_time < self.warmup_time_s
-                        or self.warmup_pass_count == 0  # noqa: W503
-                    ):
-                        logging.info(
-                            "warmup pass, time.time={}, last={}, "
-                            "warmup_time_s={}".format(
-                                time.time(),
-                                self.last_time_the_hyperparameters_was_granted,
-                                self.warmup_time_s,
-                            )
-                        )
-                        self.warmup_pass_count += 1
-                        return
-                    self.last_time_the_hyperparameters_was_granted = time.time()
-                    self.warmup_flag = False
-
-                # Skip if the sampling time is insufficient
-                if sampling_time < self.sampling_confidence_time_s:
-                    logging.debug(
-                        "Insufficient sampling time, time={}, last={}, "
-                        "sampling_confidence_time_s={}".format(
-                            time.time(),
-                            self.last_time_the_hyperparameters_was_granted,
-                            self.sampling_confidence_time_s,
-                        )
-                    )
-                    return
-
-                logging.info(
-                    "rank={}, train_iter={}, sampling_counter={}, "
-                    "max_samples={}".format(
-                        rank, train_iter, self.sampling_counter, self.max_samples
-                    )
-                )
-                bagua_hp = BaguaHyperparameter(**hyperparameters)
-                score = speed
-                bucket_size_2p = int(math.log(session["bucket_size"], 2))
-                (
-                    recommended_bagua_hp,
-                    recommended_autotune_hp,
-                ) = self.tell_and_ask_bayesian_recommended_hyperparameters(
-                    bagua_hp,
-                    score,
-                    recommended_train_iter,
-                    bucket_size_2p,
-                )
-
-                if self.sampling_counter < self.max_samples:
-                    self.recommended_hyperparameters = recommended_bagua_hp
-                    self.recommended_from_iter = recommended_train_iter
-                    self.forerunner_bucket_size = int(
-                        2 ** recommended_autotune_hp["bucket_size_2p"]
-                    )
-                else:
-                    # get best hyperparameters
-                    sorted_score_hp = sorted(
-                        [
-                            (s, copy.deepcopy(p))
-                            for p, s in hyperparameters_and_score_list
-                        ],
-                        key=lambda score_hp: score_hp[0],
-                        reverse=True,
-                    )
-                    logging.info(
-                        "sorted_score_hp={}".format(
-                            [(s, p.dict()) for s, p in sorted_score_hp]
-                        )
-                    )
-                    self.recommended_hyperparameters = sorted_score_hp[0][1]
-                    self.recommended_from_iter = recommended_train_iter
-
-                # The hyperparameters has been granted, update the time
-                # NOTE: The accuracy depends on the client calling ask_hyperparameters at the right time and success
-                self.last_time_the_hyperparameters_was_granted = time.time()
-                self.sampling_counter += 1
-
-            with self.ask_hyperparameters_mutex:
+            with hp_manager.lock:
                 # Autotune conditions:
                 # 1. autotune_level >= 1.
                 # 2. The bagua process is not in the process of hyperparameter update. (self.check_board.count(self.check_board[0])
@@ -430,46 +436,19 @@ class AutotuneService:
                 # 3. Only execute autotune at most once in an iteration. (self.check_board[rank] < train_iter)
                 if (
                     self.autotune_level >= 1
-                    and self.check_board.count(self.check_board[0])
-                    == len(self.check_board)
-                    and self.check_board[rank] < train_iter
-                ):
-                    self.forerunner_bucket_size: int = session["bucket_size"]
-                    autotune()
-
-                session["bucket_size"] = self.forerunner_bucket_size
-                logging.debug(
-                    "bucket_size={}, tarin_iter={}, rank={}".format(
-                        session["bucket_size"], train_iter, rank
-                    )
-                )
-                self.check_board[rank] = train_iter
+                    and hp_manager.check_board.count(hp_manager.check_board[0])
+                    == len(hp_manager.check_board)
+                    and hp_manager.check_board[rank] < train_iter
+                ):  # noqa: E501
+                    self.autotune(hp_manager, rank, train_iter)
 
                 return json.dumps(
                     {
-                        "recommended_hyperparameters": self.recommended_hyperparameters.dict(),
-                        "recommended_from_iter": self.recommended_from_iter,
-                        # fmt: off
-                        "is_autotune_completed":
-                            self.sampling_counter > self.max_samples,
-                    },
+                        "recommended_hyperparameters": hp_manager.hyperparameter.dict(),
+                        "is_autotune_completed": hp_manager.sampling_count
+                        > self.max_samples,  # noqa: E501
+                    }
                 )
-
-        @app.route("/api/v1/reset", methods=["POST"])
-        def reset():
-            with self.ask_hyperparameters_mutex:
-                if self.is_initialized:
-                    self.__init__(
-                        world_size=self.world_size,
-                        autotune_level=self.autotune_level,
-                        max_samples=self.max_samples,
-                        sampling_confidence_time_s=self.sampling_confidence_time_s,
-                    )
-
-            return json.dumps({})
-
-        # Add prometheus wsgi middleware to route /metrics requests
-        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {"/metrics": make_wsgi_app()})
 
         # set secret-key
         app.config.update(SECRET_KEY=os.urandom(24))
@@ -493,8 +472,8 @@ class AutotuneClient:
 
     def report_metrics(
         self,
+        model_name: str,
         rank: int,
-        unix_timestamp: float,
         train_iter: int,
         hyperparameters: dict,
         speed: float,
@@ -502,8 +481,8 @@ class AutotuneClient:
         rsp = self.session.post(
             "http://{}/api/v1/report_metrics".format(self.autotune_service_addr),
             json={
+                "model_name": model_name,
                 "rank": rank,
-                "unix_timestamp": unix_timestamp,
                 "train_iter": train_iter,
                 "hyperparameters": hyperparameters,
                 "speed": speed,
@@ -514,12 +493,14 @@ class AutotuneClient:
 
     def register_tensors(
         self,
+        model_name: str,
         tensor_list: List[TensorDeclaration],
         whether_to_bucket: bool = True,
     ) -> requests.Response:
         rsp = self.session.post(
             "http://{}/api/v1/register_tensors".format(self.autotune_service_addr),
             json={
+                "model_name": model_name,
                 "tensor_list": tensor_list,
                 "whether_to_bucket": whether_to_bucket,
             },
@@ -529,12 +510,14 @@ class AutotuneClient:
 
     def ask_hyperparameters(
         self,
+        model_name: str,
         rank: int,
         train_iter: int,
     ) -> requests.Response:
         rsp = self.session.post(
             "http://{}/api/v1/ask_hyperparameters".format(self.autotune_service_addr),
             json={
+                "model_name": model_name,
                 "rank": rank,
                 "train_iter": train_iter,
             },

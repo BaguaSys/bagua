@@ -95,5 +95,5 @@ def get_autotune_warmup_time_s() -> float:
     return float(os.environ.get("BAGUA_AUTOTUNE_WARMUP_TIME_S", 30.0))
 
 
-def get_autotune_logfile_path() -> str:
-    return os.environ.get("BAGUA_AUTOTUNE_LOGFILE_PATH", "/tmp/bagua_autotune.log")
+def get_is_output_autotune_log() -> bool:
+    return bool(os.environ.get("BAGUA_IS_OUTPUT_AUTOTUNE_LOG", 0))

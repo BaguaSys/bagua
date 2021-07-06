@@ -12,7 +12,8 @@ import time
 import logging
 import torch
 import torch.nn
-from typing import List, Tuple
+import itertools
+from typing import List, Optional, Tuple
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -37,6 +38,7 @@ class BaguaModule:
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
     """
+    __id_iter = itertools.count()
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
@@ -125,6 +127,7 @@ class BaguaModule:
             # so that the autotune service does not rely on tensor registration
             # order
             rsp = self._bagua_autotune_client.report_metrics(
+                model_name=self.name,
                 rank=get_rank(),
                 unix_timestamp=time.time(),
                 train_iter=self.bagua_train_step_counter,
@@ -143,6 +146,7 @@ class BaguaModule:
         self,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
+        name: Optional[str] = None,
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         ``torch.nn.Module``.
@@ -179,6 +183,13 @@ class BaguaModule:
             ...      GradientAllReduce()
             ...    )
         """
+
+        if name:
+            self.name = name
+        else:
+            self.name = "{}_{}".format(
+                self.__class__.__name__, next(BaguaModule.__id_iter)
+            )
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
@@ -295,12 +306,16 @@ class BaguaModule:
             for tensor in self._bagua_tensors
         ]
 
-        rsp = self._bagua_autotune_client.register_tensors(autotune_tensor_list)
+        rsp = self._bagua_autotune_client.register_tensors(
+            model_name=self.name, tensor_list=autotune_tensor_list
+        )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
     def _bagua_autotune_get_buckets(self):
         rsp = self._bagua_autotune_client.ask_hyperparameters(
-            rank=get_rank(), train_iter=self.bagua_train_step_counter
+            model_name=self.name,
+            rank=get_rank(),
+            train_iter=self.bagua_train_step_counter,
         )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
         recommended_hyperparameters = rsp.json()["recommended_hyperparameters"]
