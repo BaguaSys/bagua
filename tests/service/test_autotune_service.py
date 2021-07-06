@@ -86,7 +86,7 @@ class TestAutotuneService(unittest.TestCase):
             nprocs,
             autotune_level=1,
             sampling_confidence_time_s=0.1,
-            warmup_time_s=1.,
+            warmup_time_s=1.0,
             max_samples=60,
         )
         app = Flask(__name__)
