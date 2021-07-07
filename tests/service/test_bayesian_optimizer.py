@@ -3,7 +3,6 @@ import numpy as np
 from bagua.service.autotune import (
     BayesianOptimizer,
     IntParam,
-    autotune_system_hyperparameters,
 )
 
 
