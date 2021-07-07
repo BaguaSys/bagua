@@ -37,10 +37,6 @@ class BaguaBucket:
         """
         The bucket's name.
         """
-        self.states = defaultdict(dict)
-        """
-        The state of the bucket as a :class:`dict`.
-        """
         self.padding_tensor = None
 
         if alignment > 1:
@@ -157,19 +153,6 @@ class BaguaBucket:
         self.backend_bucket.append_python_op(wrapper_function_factory(python_function))
         return self
 
-    def set_state(self, name: str, tensor: torch.Tensor):
-        """
-        Set a state to the bucket.
-
-        This operation will create a Bagua tensor from `tensor`. The original tensor is not changed.
-
-        Args:
-            name: the key of the state.
-            tensor: the value of the state.
-        """
-
-        self.states[name] = tensor.to_bagua_tensor(name)
-
     def append_centralized_synchronous_op(
         self,
         hierarchical: bool = False,
@@ -237,18 +220,18 @@ class BaguaBucket:
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): Can be "all" or "shift_one" or "ring". "all" means all workers'
-                weights are averaged in each communication step. "shift_one" means each worker
-                selects a different peer to do weights average in each communication step.
+            peer_selection_mode (str): Can be "all" or "shift_one" for full precision decentralized operation, while "ring" for
+                low precision decentralized operation. "all" means all workers' weights are averaged in each communication step.
+                "shift_one" means each worker selects a different peer to do weights average in each communication step.
                 "ring" means all workers are connected into a ring, and each worker communicate with its neighbors.
             communication_interval (int): Number of iterations between two communication steps.
             compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
                 supported.
-            weight (torch.Tensor): Local model of current worker, required for low precision decentralized algorithm.
+            weight (torch.Tensor): Local model of current worker, required for low precision decentralized operation.
             left_peer_weight (torch.Tensor): Model replica of current worker's connected left peer, required for low
-                precision decentralized algorithm.
+                precision decentralized operation.
             right_peer_weight (torch.Tensor): Model replica of current worker's connected right peer, required for
-                low precision decentralizd algorithm.
+                low precision decentralized operation.
         Returns:
             The bucket itself.
         """

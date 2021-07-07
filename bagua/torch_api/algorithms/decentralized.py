@@ -85,6 +85,7 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         """
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
+        self.optimizer_step_count = 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -107,12 +108,16 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         def hook(optimizer: torch.optim.Optimizer):
-            for bucket in bagua_module.bagua_buckets:
+            self.optimizer_step_count += 1
 
-                for tensor in bucket.tensors:
-                    tensor.bagua_mark_communication_ready()
+            if self.optimizer_step_count == len(bagua_module.bagua_optimizers):
+                for bucket in bagua_module.bagua_buckets:
 
-            bagua_module._bagua_backend.wait_pending_comm_ops()
+                    for tensor in bucket.tensors:
+                        tensor.bagua_mark_communication_ready()
+
+                bagua_module._bagua_backend.wait_pending_comm_ops()
+                self.optimizer_step_count = 0
 
         return hook
 
@@ -123,9 +128,13 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         left_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
         right_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
 
-        bucket.set_state("weight", weight_tensor)
-        bucket.set_state("left_peer_weight", left_peer_weight_tensor)
-        bucket.set_state("right_peer_weight", right_peer_weight_tensor)
+        bucket._weight = weight_tensor.to_bagua_tensor("weight")
+        bucket._left_peer_weight = left_peer_weight_tensor.to_bagua_tensor(
+            "left_peer_weight"
+        )
+        bucket._right_peer_weight = right_peer_weight_tensor.to_bagua_tensor(
+            "right_peer_weight"
+        )
 
     def init_operations(
         self,
@@ -140,7 +149,7 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
             peer_selection_mode="ring",
             communication_interval=self.communication_interval,
             compression="MinMaxUInt8",
-            weight=bucket.states["weight"],
-            left_peer_weight=bucket.states["left_peer_weight"],
-            right_peer_weight=bucket.states["right_peer_weight"],
+            weight=bucket._weight,
+            left_peer_weight=bucket._left_peer_weight,
+            right_peer_weight=bucket._right_peer_weight,
         )
