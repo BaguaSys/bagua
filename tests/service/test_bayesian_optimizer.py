@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from bagua.autotune import (
+from bagua.service.autotune import (
     BayesianOptimizer,
     IntParam,
     autotune_system_hyperparameters,
