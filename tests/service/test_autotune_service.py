@@ -28,7 +28,7 @@ def metrics(buckets, is_hierarchical_reduce):
     score = 0.0
     for bucket in buckets:
         score += -abs(sum([get_tensor_declaration_bytes(td)
-                      for td in bucket]) - 5 * 1024 ** 2)
+                      for td in bucket]) - 20 * 1024 ** 2)
 
     if not is_hierarchical_reduce:
         score += abs(score) * 0.1
@@ -215,8 +215,6 @@ class TestAutotuneService(unittest.TestCase):
                     [['C', 'D'], ['A', 'B'], ['E']],
                     "hp={}".format(hp.dict())
                 )
-                self.assertEqual(
-                    bucket_size, [2, 2, 1], "hp={}".format(hp.dict()))
 
         server.terminate()
         server.join()
