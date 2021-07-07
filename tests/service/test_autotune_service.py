@@ -201,12 +201,12 @@ class TestAutotuneService(unittest.TestCase):
                 hp = ret.get()
                 bucket_size = [len(bucket) for bucket in hp.buckets]
                 self.assertEqual(
-                    bucket_size, [3, 1, 1], "hp.buckets={}".format(hp.buckets))
+                    bucket_size, [3, 1, 1], "hp={}".format(hp.dict()))
             for ret in results["m2"]:
                 hp = ret.get()
                 bucket_size = [len(bucket) for bucket in hp.buckets]
                 self.assertEqual(
-                    bucket_size, [2, 2, 1], "hp.buckets={}".format(hp.buckets))
+                    bucket_size, [2, 2, 1], "hp={}".format(hp.dict()))
 
         server.terminate()
         server.join()
