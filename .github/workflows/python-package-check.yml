@@ -25,4 +25,4 @@ jobs:
         python -m pip install pytest
     - name: Test with pytest
       run: |
-        pytest
+        pytest tests/torch_api tests/service
