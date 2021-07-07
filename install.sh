@@ -67,8 +67,11 @@ elif [ "$OS_NAME" == "CentOS Linux" ]; then
 fi
 
 # install rust
-curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
-export PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v cargo &> /dev/null
+then
+    curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
 
 # install bagua
-python3 -m pip install bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
+python3 -m pip install --upgrade bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/

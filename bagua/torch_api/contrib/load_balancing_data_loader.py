@@ -61,7 +61,7 @@ class LoadBalancingDistributedSampler(Sampler):
 
         Below is the usage of :class:`LoadBalancingDistributedSampler` and :class:`DataLoader`:
 
-        >>> sampler = bagua.torch_api.contrib.data.LoadBalancingDistributedSampler(
+        >>> sampler = bagua.torch_api.contrib.LoadBalancingDistributedSampler(
         ...     dataset,
         ...     complexity_fn=complexity_fn) if is_distributed else None
         >>> loader = torch.utils.data.DataLoader(dataset,
@@ -245,7 +245,7 @@ class LoadBalancingDistributedBatchSampler(Sampler):
 
     Example::
 
-        >>> from bagua.torch_api.contrib.data import LoadBalancingDistributedSampler, \
+        >>> from bagua.torch_api.contrib import LoadBalancingDistributedSampler, \
         ...     LoadBalancingDistributedBatchSampler
         >>>
         >>> sampler = LoadBalancingDistributedSampler(dataset, complexity_fn=complexity_fn)
