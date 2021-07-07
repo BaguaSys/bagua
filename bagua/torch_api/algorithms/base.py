@@ -103,7 +103,9 @@ class Algorithm:
                 assert (
                     parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr()
                 ), "bagua grad data_ptr should match parameter grad"
-                parameter._bagua_grad.bagua_mark_communication_ready(bagua_module.bagua_module_name)
+                parameter._bagua_grad.bagua_mark_communication_ready(
+                    bagua_module.bagua_module_name
+                )
 
         return hook
 
