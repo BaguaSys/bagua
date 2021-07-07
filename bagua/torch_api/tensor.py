@@ -21,7 +21,9 @@ class BaguaTensor:
     def is_bagua_tensor(self) -> bool:
         return hasattr(self, "_bagua_backend_tensor")
 
-    def ensure_bagua_tensor(self, name: Optional[str] = None, module_name: Optional[str] = None):
+    def ensure_bagua_tensor(
+        self, name: Optional[str] = None, module_name: Optional[str] = None
+    ):
         """
         Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
         A Bagua tensor is required to use Bagua's communication algorithms.
@@ -43,7 +45,11 @@ class BaguaTensor:
             return
         self.bagua_tensor_name = name if name is not None else ""
         self.bagua_module_name = module_name
-        self.bagua_backend = _get_global_state().get_backend(self.bagua_module_name) if self.bagua_module_name is not None else None
+        self.bagua_backend = (
+            _get_global_state().get_backend(self.bagua_module_name)
+            if self.bagua_module_name is not None
+            else None
+        )
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
             torch_tensor=self,
@@ -53,7 +59,9 @@ class BaguaTensor:
         self._bagua_bucket = None
         return self
 
-    def to_bagua_tensor(self, name: Optional[str] = None, module_name: Optional[str] = None):
+    def to_bagua_tensor(
+        self, name: Optional[str] = None, module_name: Optional[str] = None
+    ):
         """
         Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
         The original tensor is not changed. A Bagua tensor is required to use
@@ -98,7 +106,9 @@ class BaguaTensor:
         Mark a Bagua tensor ready for scheduled operations execution.
         """
         torch.cuda.current_stream().record_event(self._bagua_ready_event)
-        assert self.bagua_backend is not None, "tensor must be initialized with module name to call mark ready"
+        assert (
+            self.bagua_backend is not None
+        ), "tensor must be initialized with module name to call mark ready"
         self.bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
             self._bagua_ready_event.cuda_event,
@@ -108,7 +118,9 @@ class BaguaTensor:
         """
         Mark a Bagua tensor ready immediately, without CUDA event synchronization.
         """
-        assert self.bagua_backend is not None, "tensor must be initialized with module name to call mark ready"
+        assert (
+            self.bagua_backend is not None
+        ), "tensor must be initialized with module name to call mark ready"
         self.bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
             0,
