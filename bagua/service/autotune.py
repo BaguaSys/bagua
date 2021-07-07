@@ -47,7 +47,7 @@ class BayesianOptimizer:
         self,
         param_declaration: dict,
         n_initial_points: int = 20,
-        initial_point_generator: str = "sobol",
+        initial_point_generator: str = "random",
     ):
         self.param_declaration = collections.OrderedDict(param_declaration)
         search_space = [
