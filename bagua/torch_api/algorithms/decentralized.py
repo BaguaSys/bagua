@@ -85,7 +85,6 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         """
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
-        self.optimizer_step_count = 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -108,16 +107,12 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         def hook(optimizer: torch.optim.Optimizer):
-            self.optimizer_step_count += 1
+            for group in optimizer.param_groups:
+                for param in group["params"]:
+                    if param.is_bagua_tensor():
+                        param.bagua_mark_communication_ready()
 
-            if self.optimizer_step_count == len(bagua_module.bagua_optimizers):
-                for bucket in bagua_module.bagua_buckets:
-
-                    for tensor in bucket.tensors:
-                        tensor.bagua_mark_communication_ready()
-
-                bagua_module._bagua_backend.wait_pending_comm_ops()
-                self.optimizer_step_count = 0
+            bagua_module._bagua_backend.wait_pending_comm_ops()
 
         return hook
 

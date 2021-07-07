@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from typing import List, Callable, Optional
-from collections import defaultdict
 
 import bagua_core as B
 import torch
