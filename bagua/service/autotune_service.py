@@ -174,7 +174,6 @@ class HyperparameterManager:
         }
         self.bayesian_optimizer.tell(optimizer_params, system_efficiency_score)
         recommend_param = self.bayesian_optimizer.ask()
-        print("recommend_param={}".format(recommend_param))
         recommend_bucket_size = 2 ** recommend_param["bucket_size_2p"]
 
         if self.autotune_logfile_path:
@@ -397,16 +396,15 @@ class AutotuneService:
                 # 2. The bagua process is not in the process of hyperparameter update. (self.check_board.count(self.check_board[0])
                 #   == len(self.check_board))
                 # 3. Only execute autotune at most once in an iteration. (self.check_board[rank] < train_iter)
+                check_board = hp_manager.check_board
                 if (
                     self.autotune_level >= 1
-                    and hp_manager.check_board.count(hp_manager.check_board[0])  # noqa: W503
-                    == len(hp_manager.check_board)  # noqa: W503
-                    and hp_manager.check_board[rank] < train_iter  # noqa: W503
+                    and check_board.count(check_board[0]) == len(check_board)  # noqa: W503
+                    and check_board[rank] < train_iter  # noqa: W503
                 ):
-                    print("train_iter={}".format(train_iter))
                     self.autotune(hp_manager, rank, train_iter)
 
-                hp_manager.check_board[rank] = train_iter
+                check_board[rank] = train_iter
 
                 return json.dumps(
                     {
