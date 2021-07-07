@@ -387,6 +387,7 @@ def get_args_parser() -> ArgumentParser:
         type=bool,
         action="store_true",
         default=False,
+        help="Whether autotune output log or not. default is False",
     )
 
     #
