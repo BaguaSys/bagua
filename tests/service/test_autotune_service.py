@@ -4,7 +4,7 @@ import multiprocessing
 from flask import Flask
 from bagua.bagua_define import TensorDeclaration
 from bagua.service import AutotuneService, AutotuneClient
-from bagua.bagua_define import BaguaHyperparameter
+from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 import socket
 
 
@@ -23,11 +23,11 @@ def pick_n_free_ports(n: int):
 
 
 def metrics(buckets, is_hierarchical_reduce):
-    # score = sum(-abs(bucket_sum_size - 5M))
-    # convex function with peak at bucket_size=5M
+    # score = sum(-abs(bucket_sum_size - 20MB))
+    # convex function with peak at bucket_size=20MB
     score = 0.0
     for bucket in buckets:
-        score += -abs(sum([td["num_elements"]
+        score += -abs(sum([get_tensor_declaration_bytes(td)
                       for td in bucket]) - 5 * 1024 ** 2)
 
     if not is_hierarchical_reduce:
@@ -199,12 +199,22 @@ class TestAutotuneService(unittest.TestCase):
                     results[model_name].append(ret)
             for ret in results["m1"]:
                 hp = ret.get()
-                bucket_size = [len(bucket) for bucket in hp.buckets]
+                buckets = [[
+                    td["name"] for td in bucket] for bucket in hp.buckets]
                 self.assertEqual(
-                    bucket_size, [3, 1, 1], "hp={}".format(hp.dict()))
+                    buckets,
+                    [['A', 'B', 'C'], ['D'], ['E']],
+                    "hp={}".format(hp.dict())
+                )
             for ret in results["m2"]:
                 hp = ret.get()
-                bucket_size = [len(bucket) for bucket in hp.buckets]
+                buckets = [[
+                    td["name"] for td in bucket] for bucket in hp.buckets]
+                self.assertEqual(
+                    buckets,
+                    [['C', 'D'], ['A', 'B'], ['E']],
+                    "hp={}".format(hp.dict())
+                )
                 self.assertEqual(
                     bucket_size, [2, 2, 1], "hp={}".format(hp.dict()))
 
