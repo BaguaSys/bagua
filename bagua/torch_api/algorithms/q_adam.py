@@ -137,13 +137,13 @@ class QAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._q_adam_name
+                        param._q_adam_name, bagua_module.bagua_module_name
                     )
                     param._q_adam_grad = registered_tensor
                     registered_tensor._q_adam_idx = param._q_adam_idx
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._q_adam_name
+                        param._q_adam_name, bagua_module.bagua_module_name
                     )
                     registered_tensor._q_adam_grad = param.bagua_ensure_grad()
                     param._q_adam_momentum = registered_tensor

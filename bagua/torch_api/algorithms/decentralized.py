@@ -35,7 +35,8 @@ class DecentralizedAlgorithm(Algorithm):
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
         self.tensors = [
-            param.ensure_bagua_tensor(name) for name, param in parameters.__reversed__()
+            param.ensure_bagua_tensor(name, bagua_module.bagua_module_name)
+            for name, param in parameters.__reversed__()
         ]
         return self.tensors
 

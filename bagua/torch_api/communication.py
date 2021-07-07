@@ -3,6 +3,7 @@ import multiprocessing
 import bagua_core as B
 import bagua.torch_api.globals
 from bagua.service import AutotuneService
+from collections import defaultdict
 from . import env
 from .env import (
     get_world_size,
@@ -100,7 +101,9 @@ class BaguaGlobalState(object):
     def __init__(self, store=None, device_id=None):
         if device_id is None:
             device_id = get_local_rank()
-        self.backend = B.BaguaCommBackendPy(100, device_id=device_id)
+        self.backend = defaultdict(
+            lambda: B.BaguaCommBackendPy(100, device_id=device_id)
+        )
         self.stream = torch.cuda.Stream(priority=-1)
         self.store = store
         self.hyperparameters_service_client = AutotuneClient(
@@ -128,8 +131,8 @@ class BaguaGlobalState(object):
     def get_global_communicator(self):
         return self.global_communicator
 
-    def get_backend(self):
-        return self.backend
+    def get_backend(self, model_name: str):
+        return self.backend[model_name]
 
 
 def get_hyperparameters_service_client():
