@@ -162,14 +162,14 @@ class TestAutotuneService(unittest.TestCase):
                     {
                         "name": "C",
                         "num_elements": 5 * 1024 ** 2,
-                        "dtype": "f32",
+                        "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
                     {
                         "name": "D",
                         "num_elements": 7 * 1024 ** 2,
-                        "dtype": "f32",
+                        "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
@@ -200,7 +200,7 @@ class TestAutotuneService(unittest.TestCase):
             for ret in results["m2"]:
                 hp = ret.get()
                 bucket_size = [len(bucket) for bucket in hp.buckets]
-                self.assertEqual(bucket_size, [2, 1, 1, 1])
+                self.assertEqual(bucket_size, [2, 2, 1])
 
         server.terminate()
         server.join()
