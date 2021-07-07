@@ -38,7 +38,9 @@ class Algorithm:
         parameters = bagua_module.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
-            grad = param.bagua_ensure_grad().ensure_bagua_tensor(name, bagua_module.bagua_module_name)
+            grad = param.bagua_ensure_grad().ensure_bagua_tensor(
+                name, bagua_module.bagua_module_name
+            )
             param._bagua_grad = grad
             tensors.append(grad)
         self._communication_tensor_names = set(name for name, _ in parameters)
