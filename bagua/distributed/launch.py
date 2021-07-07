@@ -111,7 +111,10 @@ def parse_args():
         help="Bagua automatic super parameter search level. The higher the level, the better the theoretical effect, and the longer it takes",
     )
     parser.add_argument(
-        "--autotune_logfile", type=str, default="/tmp/bagua_autotune.log"
+        "--is_output_autotune_log",
+        action="store_true",
+        default=False,
+        help="Whether autotune output log or not. default is False",
     )
     parser.add_argument(
         "--report_metrics",
@@ -152,7 +155,7 @@ def set_bagua_env(args, current_env):
         args.autotune_sampling_confidence_time
     )
     current_env["BAGUA_AUTOTUNE_WARMUP_TIME_S"] = str(args.autotune_warmup_time)
-    current_env["BAGUA_AUTOTUNE_LOGFILE_PATH"] = args.autotune_logfile
+    current_env["BAGUA_IS_OUTPUT_AUTOTUNE_LOG"] = str(int(args.is_output_autotune_log))
 
 
 def main():
