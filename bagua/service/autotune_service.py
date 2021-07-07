@@ -403,7 +403,10 @@ class AutotuneService:
                     == len(hp_manager.check_board)  # noqa: W503
                     and hp_manager.check_board[rank] < train_iter  # noqa: W503
                 ):
+                    print("train_iter={}".format(train_iter))
                     self.autotune(hp_manager, rank, train_iter)
+
+                hp_manager.check_board[rank] = train_iter
 
                 return json.dumps(
                     {
