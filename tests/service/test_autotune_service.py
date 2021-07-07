@@ -27,7 +27,8 @@ def metrics(buckets, is_hierarchical_reduce):
     # convex function with peak at bucket_size=5M
     score = 0.0
     for bucket in buckets:
-        score += -abs(sum([td["num_elements"] for td in bucket]) - 5 * 1024 ** 2)
+        score += -abs(sum([td["num_elements"]
+                      for td in bucket]) - 5 * 1024 ** 2)
 
     if not is_hierarchical_reduce:
         score += abs(score) * 0.1
@@ -51,15 +52,18 @@ class MockBaguaProcess:
 
     def run(self, total_iters=5000):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
-        assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
-        hp = BaguaHyperparameter().update(rsp.json()["recommended_hyperparameters"])
+        assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(
+            rsp)
+        hp = BaguaHyperparameter().update(
+            rsp.json()["recommended_hyperparameters"])
 
         for train_iter in range(total_iters):
             score = metrics(hp.buckets, hp.is_hierarchical_reduce)
             rsp = self.client.report_metrics(
                 self.model_name, self.rank, train_iter, hp.dict(), score
             )
-            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(rsp)
+            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(
+                rsp)
             rsp = self.client.ask_hyperparameters(
                 self.model_name, self.rank, train_iter
             )
@@ -196,11 +200,13 @@ class TestAutotuneService(unittest.TestCase):
             for ret in results["m1"]:
                 hp = ret.get()
                 bucket_size = [len(bucket) for bucket in hp.buckets]
-                self.assertEqual(bucket_size, [3, 1, 1])
+                self.assertEqual(
+                    bucket_size, [3, 1, 1], "hp.buckets={}".format(hp.buckets))
             for ret in results["m2"]:
                 hp = ret.get()
                 bucket_size = [len(bucket) for bucket in hp.buckets]
-                self.assertEqual(bucket_size, [2, 2, 1])
+                self.assertEqual(
+                    bucket_size, [2, 2, 1], "hp.buckets={}".format(hp.buckets))
 
         server.terminate()
         server.join()
