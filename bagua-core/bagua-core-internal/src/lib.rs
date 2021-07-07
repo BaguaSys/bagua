@@ -205,6 +205,19 @@ impl BaguaCommBackend {
                     if let Err(e) = monitor_op_start_channel_sender.send(comm_op.bucket.clone()) {
                         tracing::error!("{:?}", e);
                     }
+                    tracing::debug!(
+                        "executing communication op `{}` on bucket `{}`, tensors [{}]",
+                        comm_op.name,
+                        comm_op.bucket.name,
+                        display_utils::join(
+                            comm_op.bucket.inner.lock().tensors.iter().map(|x| x
+                                .inner
+                                .read()
+                                .name
+                                .clone()),
+                            ","
+                        )
+                    );
                     for op in &comm_op.ops {
                         op.execute_background_communication(
                             comm_op.bucket.clone(),
@@ -214,7 +227,9 @@ impl BaguaCommBackend {
                     tracing::debug!("comm op executed: {}", comm_op.name);
                     comm_op.event_channel.finish();
                     tracing::debug!("comm op marked finished: {}", comm_op.name);
-                    monitor_op_finish_channel_sender.send(());
+                    monitor_op_finish_channel_sender
+                        .send(())
+                        .expect("cannot send op finish signal");
                 }
             }),
             comm_monitor: std::thread::spawn(move || loop {
