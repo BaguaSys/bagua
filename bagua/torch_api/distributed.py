@@ -128,7 +128,7 @@ class BaguaModule:
             # so that the autotune service does not rely on tensor registration
             # order
             rsp = self._bagua_autotune_client.report_metrics(
-                model_name=self.name,
+                model_name=self._bagua_module_name,
                 rank=get_rank(),
                 unix_timestamp=time.time(),
                 train_iter=self.bagua_train_step_counter,
@@ -184,7 +184,7 @@ class BaguaModule:
             ...    )
         """
 
-        self.name = "{}_{}".format(
+        self._bagua_module_name = "{}_{}".format(
             self.__class__.__name__, next(BaguaModule.__id_iter)
         )
 
@@ -304,13 +304,13 @@ class BaguaModule:
         ]
 
         rsp = self._bagua_autotune_client.register_tensors(
-            model_name=self.name, tensor_list=autotune_tensor_list
+            model_name=self._bagua_module_name, tensor_list=autotune_tensor_list
         )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
     def _bagua_autotune_get_buckets(self):
         rsp = self._bagua_autotune_client.ask_hyperparameters(
-            model_name=self.name,
+            model_name=self._bagua_module_name,
             rank=get_rank(),
             train_iter=self.bagua_train_step_counter,
         )
