@@ -9,7 +9,7 @@ class TestUtils(unittest.TestCase):
         m = StatisticalAverage(
             last_update_time=time.time(),
             records=[5.0, 4.5005175, 3.5034241850204078],
-            tail=(2.0166309999999985, 2.499061185570463),
+            record_tail=(2.0166309999999985, 2.499061185570463),
         )
         time.sleep(1)
 
