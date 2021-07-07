@@ -383,7 +383,11 @@ def get_args_parser() -> ArgumentParser:
     parser.add_argument("--autotune_sampling_confidence_time", type=float, default=5.0)
     parser.add_argument("--autotune_warmup_time", type=float, default=30.0)
     parser.add_argument(
-        "--autotune_logfile", type=str, default="/tmp/bagua_autotune.log"
+        "--is_output_autotune_log",
+        type=bool,
+        action="store_true",
+        default=False,
+        help="Whether autotune output log or not. default is False",
     )
 
     #
@@ -573,7 +577,7 @@ def set_bagua_env(args, current_env):
         args.autotune_sampling_confidence_time
     )
     current_env["BAGUA_AUTOTUNE_WARMUP_TIME_S"] = str(args.autotune_warmup_time)
-    current_env["BAGUA_AUTOTUNE_LOGFILE_PATH"] = args.autotune_logfile
+    current_env["BAGUA_IS_OUTPUT_AUTOTUNE_LOG"] = args.is_output_autotune_log
 
 
 def run(args):
