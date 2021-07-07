@@ -38,7 +38,7 @@ class Algorithm:
         parameters = bagua_module.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
-            grad = param.bagua_ensure_grad().ensure_bagua_tensor(name)
+            grad = param.bagua_ensure_grad().ensure_bagua_tensor(name, bagua_module.bagua_module_name)
             param._bagua_grad = grad
             tensors.append(grad)
         self._communication_tensor_names = set(name for name, _ in parameters)
@@ -103,7 +103,7 @@ class Algorithm:
                 assert (
                     parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr()
                 ), "bagua grad data_ptr should match parameter grad"
-                parameter._bagua_grad.bagua_mark_communication_ready(bagua_module.bagua_module_name)
+                parameter._bagua_grad.bagua_mark_communication_ready()
 
         return hook
 

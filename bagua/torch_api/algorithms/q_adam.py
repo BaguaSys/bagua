@@ -137,13 +137,13 @@ class QAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._q_adam_name
+                        param._q_adam_name, bagua_module.bagua_module_name
                     )
                     param._q_adam_grad = registered_tensor
                     registered_tensor._q_adam_idx = param._q_adam_idx
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._q_adam_name
+                        param._q_adam_name, bagua_module.bagua_module_name
                     )
                     registered_tensor._q_adam_grad = param.bagua_ensure_grad()
                     param._q_adam_momentum = registered_tensor
@@ -191,13 +191,13 @@ class QAdamAlgorithm(Algorithm):
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
-            parameter._q_adam_momentum.bagua_mark_communication_ready(bagua_module.bagua_module_name)
+            parameter._q_adam_momentum.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
             assert (
                 parameter.grad.data_ptr() == parameter._q_adam_grad.data_ptr()
             ), "gradient data_ptr should match _q_adam_grad data_ptr"
-            parameter._q_adam_grad.bagua_mark_communication_ready(bagua_module.bagua_module_name)
+            parameter._q_adam_grad.bagua_mark_communication_ready()
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
