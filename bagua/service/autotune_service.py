@@ -174,6 +174,7 @@ class HyperparameterManager:
         }
         self.bayesian_optimizer.tell(optimizer_params, system_efficiency_score)
         recommend_param = self.bayesian_optimizer.ask()
+        print("recommend_param={}".format(recommend_param))
         recommend_bucket_size = 2 ** recommend_param["bucket_size_2p"]
 
         if self.autotune_logfile_path:
