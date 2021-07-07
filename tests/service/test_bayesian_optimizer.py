@@ -8,9 +8,6 @@ from bagua.service.autotune import (
 
 
 class TestBayesianOptimizer(unittest.TestCase):
-    def test_autotune_system_hyperparameters(self):
-        autotune_system_hyperparameters(["localhost"], 8, 8123)
-
     def test_bayesian_optimization(self):
         def f(x, y):
             x /= 10000.0
