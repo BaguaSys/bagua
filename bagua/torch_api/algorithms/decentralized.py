@@ -42,7 +42,7 @@ class DecentralizedAlgorithm(Algorithm):
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
         def hook(input):
             for tensor in self.tensors:
-                tensor.bagua_mark_communication_ready()
+                tensor.bagua_mark_communication_ready(bagua_module.bagua_module_name)
 
         return hook
 

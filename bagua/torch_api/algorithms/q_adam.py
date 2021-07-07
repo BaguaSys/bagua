@@ -191,13 +191,13 @@ class QAdamAlgorithm(Algorithm):
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
-            parameter._q_adam_momentum.bagua_mark_communication_ready()
+            parameter._q_adam_momentum.bagua_mark_communication_ready(bagua_module.bagua_module_name)
 
         def hook_grad(parameter_name, parameter):
             assert (
                 parameter.grad.data_ptr() == parameter._q_adam_grad.data_ptr()
             ), "gradient data_ptr should match _q_adam_grad data_ptr"
-            parameter._q_adam_grad.bagua_mark_communication_ready()
+            parameter._q_adam_grad.bagua_mark_communication_ready(bagua_module.bagua_module_name)
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum

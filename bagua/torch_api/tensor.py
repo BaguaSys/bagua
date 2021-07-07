@@ -44,7 +44,6 @@ class BaguaTensor:
             torch_tensor=self,
         )
         self._bagua_sanity_check()
-        self._bagua_backend = _get_global_state().get_backend()
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
         return self
@@ -86,21 +85,31 @@ class BaguaTensor:
         else:
             raise NotImplementedError
 
-    def bagua_mark_communication_ready(self):
+    def bagua_mark_communication_ready(self, model_name: str):
         """
         Mark a Bagua tensor ready for scheduled operations execution.
+
+        Args:
+            model_name: The name of the model of which the tensor belongs to.
+              The model name can be acquired using ``model.bagua_module_name``
         """
         torch.cuda.current_stream().record_event(self._bagua_ready_event)
-        self._bagua_backend.mark_communication_ready(
+        bagua_backend = _get_global_state().get_backend(model_name)
+        bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
             self._bagua_ready_event.cuda_event,
         )
 
-    def bagua_mark_communication_ready_without_synchronization(self):
+    def bagua_mark_communication_ready_without_synchronization(self, model_name: str):
         """
         Mark a Bagua tensor ready immediately, without CUDA event synchronization.
+
+        Args:
+            model_name: The name of the model of which the tensor belongs to.
+              The model name can be acquired using ``model.bagua_module_name``
         """
-        self._bagua_backend.mark_communication_ready(
+        bagua_backend = _get_global_state().get_backend(model_name)
+        bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
             0,
         )
