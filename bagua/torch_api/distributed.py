@@ -1,4 +1,5 @@
 from __future__ import annotations
+from bagua.torch_api.communication import get_backend
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
@@ -6,7 +7,6 @@ from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
 )
-from bagua.torch_api.globals import _get_global_state
 import gorilla
 import time
 import logging
@@ -213,7 +213,7 @@ class BaguaModule:
             []
         )  # hooks for bagua framework logic, not cleared when changing algorithms
         self._bagua_algorithm_hooks = []
-        self._bagua_backend = _get_global_state().get_backend(self.bagua_module_name)
+        self._bagua_backend = get_backend(self.bagua_module_name)
         self._bagua_hyperparameters = BaguaHyperparameter()
         self._speed_metrics_switch_on = get_autotune_level() >= 1
         self._speed_metrics = StatisticalAverage()
@@ -272,13 +272,13 @@ class BaguaModule:
 
         # get communicators
         self._bagua_inter_node_communicator = (
-            _get_global_state().get_internode_communicator()
+            self._bagua_backend.internode_communicator
         )
         self._bagua_intra_node_communicator = (
-            _get_global_state().get_intranode_communicator()
+            self._bagua_backend.intranode_communicator
         )
-        self._bagua_global_communicator = _get_global_state().get_global_communicator()
-        self.bagua_communication_stream = _get_global_state().get_communication_stream()
+        self._bagua_global_communicator = self._bagua_backend.global_communicator
+        self.bagua_communication_stream = self._bagua_backend.stream
 
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+from bagua.torch_api.communication import get_backend
 from typing import Optional
 
-from bagua.torch_api.globals import _get_global_state
 import torch
 import bagua_core as B
 import gorilla
@@ -43,7 +43,7 @@ class BaguaTensor:
             return
         self.bagua_tensor_name = name if name is not None else ""
         self.bagua_module_name = module_name
-        self.bagua_backend = _get_global_state().get_backend(self.bagua_module_name) if self.bagua_module_name is not None else None
+        self.bagua_backend = get_backend(self.bagua_module_name) if self.bagua_module_name is not None else None
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
             torch_tensor=self,
