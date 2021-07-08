@@ -46,7 +46,6 @@ if __name__ == "__main__":
             "pydantic",
             "requests",
             "gorilla",
-            "functools",
         ],
         entry_points={
             "console_scripts": [
