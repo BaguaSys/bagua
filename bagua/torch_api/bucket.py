@@ -13,7 +13,7 @@ from bagua.torch_api.utils import check_contiguous
 
 class BaguaBucket:
     def __init__(
-            self, tensors: List[BaguaTensor], name: str, flatten: bool, alignment: int = 1
+        self, tensors: List[BaguaTensor], name: str, flatten: bool, alignment: int = 1
     ) -> None:
         """
         Create a Bagua bucket with a list of Bagua tensors.
@@ -34,7 +34,9 @@ class BaguaBucket:
         """
         self.bagua_module_name = tensors[0].bagua_module_name
         for tensor in self.tensors:
-            assert self.bagua_module_name == tensor.bagua_module_name, "every tensor in the same bucket should have the same model name"
+            assert (
+                self.bagua_module_name == tensor.bagua_module_name
+            ), "every tensor in the same bucket should have the same model name"
         self._bagua_backend = get_backend(self.bagua_module_name)
         self.name = name
         """

@@ -21,7 +21,6 @@ from bagua.service.autotune_service import AutotuneClient
 from functools import cache
 
 
-
 @cache
 def get_hyperparameters_service_client():
     hyperparameters_service_client = AutotuneClient(
@@ -37,13 +36,23 @@ def get_backend(model_name: str):
     backend.stream = torch.cuda.Stream(priority=-1)
     backend.store = c10d._get_default_store()
     backend.internode_communicator = init_bagua_inter_communicator(
-        model_name=model_name, stream=backend.stream, leader_rank=0, store=backend.store, device_id=backend.device_id
+        model_name=model_name,
+        stream=backend.stream,
+        leader_rank=0,
+        store=backend.store,
+        device_id=backend.device_id,
     )
     backend.intranode_communicator = init_bagua_intra_communicator(
-        model_name=model_name, stream=backend.stream, store=backend.store, device_id=backend.device_id
+        model_name=model_name,
+        stream=backend.stream,
+        store=backend.store,
+        device_id=backend.device_id,
     )
     backend.global_communicator = init_bagua_communicator(
-        model_name=model_name, stream=backend.stream, store=backend.store, device_id=backend.device_id
+        model_name=model_name,
+        stream=backend.stream,
+        store=backend.store,
+        device_id=backend.device_id,
     )
     return backend
 
@@ -73,6 +82,7 @@ def run_flask_app():
 
 
 _autotune_server = None
+
 
 def start_autotune_server():
     """Start autotune server in background."""
@@ -114,6 +124,7 @@ def init_process_group():
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server()
 
+
 def gen_nccl_unique_id(comm_type: str, root=0, store=None):
     key = f"{comm_type}-{root}-unique_id"
 
@@ -130,7 +141,9 @@ def gen_nccl_unique_id(comm_type: str, root=0, store=None):
     return idstr
 
 
-def init_bagua_inter_communicator(model_name: str, stream, leader_rank=0, store=None, device_id=None):
+def init_bagua_inter_communicator(
+    model_name: str, stream, leader_rank=0, store=None, device_id=None
+):
     if device_id is None:
         device_id = get_local_rank()
     nccl_unique_id = gen_nccl_unique_id(
@@ -181,7 +194,7 @@ def init_bagua_intra_communicator(model_name: str, stream, store=None, device_id
     return comm
 
 
-def init_bagua_communicator(model_name:str, stream, store=None, device_id=None):
+def init_bagua_communicator(model_name: str, stream, store=None, device_id=None):
     if device_id is None:
         device_id = get_local_rank()
     nccl_unique_id = gen_nccl_unique_id(f"bagua_global_comm_{model_name}", store=store)
