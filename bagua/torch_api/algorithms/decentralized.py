@@ -101,8 +101,9 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         for name, param in parameters:
             if id(param) not in optimizer_param_ids:
                 raise RuntimeError(
-                    f"Parameter {name} is not used by the optimizer, need to include it "
-                    "to your module attribute `_bagua_params_and_buffers_to_ignore` to ignore it."
+                    f"Module parameter {name} is not used by your optimizer(s), need to exclude it "
+                    "by adding the parameter name to the `List` attribute `_bagua_params_and_buffers_to_ignore` "
+                    "of your module."
                 )
         return self.tensors
 
