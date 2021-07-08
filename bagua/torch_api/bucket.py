@@ -242,8 +242,8 @@ class BaguaBucket:
         """
         if hierarchical:
             self.backend_bucket.append_decentralized_synchronous_op(
-                _get_global_state().get_internode_communicator(),
-                _get_global_state().get_intranode_communicator(),
+                self._bagua_backend.internode_communicator,
+                self._bagua_backend.intranode_communicator,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
                 communication_interval=communication_interval,
@@ -258,7 +258,7 @@ class BaguaBucket:
             )
         else:
             self.backend_bucket.append_decentralized_synchronous_op(
-                _get_global_state().get_global_communicator(),
+                self._bagua_backend.global_communicator,
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
