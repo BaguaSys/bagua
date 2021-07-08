@@ -79,7 +79,12 @@ class Result(object):
 
 
 class TestLowPrecisionDecentralized(unittest.TestCase):
-    def run_test_locally(self, nprocs, hierarchical, communication_interval):
+    def run_test_locally(self, hierarchical, communication_interval):
+        if not torch.cuda.is_available():
+            print("skip tests since cuda is not available")
+            return
+
+        nprocs = torch.cuda.device_count()
         os.environ["WORLD_SIZE"] = str(nprocs)
         os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
         os.environ["MASTER_ADDR"] = "127.0.0.1"
@@ -111,9 +116,9 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                 )
 
     def test_algorithm(self):
-        self.run_test_locally(nprocs=4, hierarchical=False, communication_interval=1)
-        self.run_test_locally(nprocs=4, hierarchical=False, communication_interval=2)
-        self.run_test_locally(nprocs=4, hierarchical=True, communication_interval=1)
+        self.run_test_locally(hierarchical=False, communication_interval=1)
+        self.run_test_locally(hierarchical=False, communication_interval=2)
+        self.run_test_locally(hierarchical=True, communication_interval=1)
 
 
 if __name__ == "__main__":
