@@ -4,7 +4,7 @@ import multiprocessing
 from flask import Flask
 from bagua.bagua_define import TensorDeclaration
 from bagua.service import AutotuneService, AutotuneClient
-from bagua.bagua_define import BaguaHyperparameter
+from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 import socket
 
 
@@ -23,11 +23,12 @@ def pick_n_free_ports(n: int):
 
 
 def metrics(buckets, is_hierarchical_reduce):
-    # score = sum(-abs(bucket_sum_size - 5M))
-    # convex function with peak at bucket_size=5M
+    # score = sum(-abs(bucket_sum_size - 20MB))
+    # convex function with peak at bucket_size=20MB
     score = 0.0
     for bucket in buckets:
-        score += -abs(sum([td["num_elements"] for td in bucket]) - 5 * 1024 ** 2)
+        score += -abs(sum([get_tensor_declaration_bytes(td)
+                      for td in bucket]) - 20 * 1024 ** 2)
 
     if not is_hierarchical_reduce:
         score += abs(score) * 0.1
@@ -51,15 +52,18 @@ class MockBaguaProcess:
 
     def run(self, total_iters=5000):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
-        assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
-        hp = BaguaHyperparameter().update(rsp.json()["recommended_hyperparameters"])
+        assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(
+            rsp)
+        hp = BaguaHyperparameter().update(
+            rsp.json()["recommended_hyperparameters"])
 
         for train_iter in range(total_iters):
             score = metrics(hp.buckets, hp.is_hierarchical_reduce)
             rsp = self.client.report_metrics(
                 self.model_name, self.rank, train_iter, hp.dict(), score
             )
-            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(rsp)
+            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(
+                rsp)
             rsp = self.client.ask_hyperparameters(
                 self.model_name, self.rank, train_iter
             )
@@ -162,14 +166,14 @@ class TestAutotuneService(unittest.TestCase):
                     {
                         "name": "C",
                         "num_elements": 5 * 1024 ** 2,
-                        "dtype": "f32",
+                        "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
                     {
                         "name": "D",
                         "num_elements": 7 * 1024 ** 2,
-                        "dtype": "f32",
+                        "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
@@ -195,12 +199,22 @@ class TestAutotuneService(unittest.TestCase):
                     results[model_name].append(ret)
             for ret in results["m1"]:
                 hp = ret.get()
-                bucket_size = [len(bucket) for bucket in hp.buckets]
-                self.assertEqual(bucket_size, [3, 1, 1])
+                buckets = [[
+                    td["name"] for td in bucket] for bucket in hp.buckets]
+                self.assertEqual(
+                    buckets,
+                    [['A', 'B', 'C'], ['D'], ['E']],
+                    "hp={}".format(hp.dict())
+                )
             for ret in results["m2"]:
                 hp = ret.get()
-                bucket_size = [len(bucket) for bucket in hp.buckets]
-                self.assertEqual(bucket_size, [2, 1, 1, 1])
+                buckets = [[
+                    td["name"] for td in bucket] for bucket in hp.buckets]
+                self.assertEqual(
+                    buckets,
+                    [['C', 'D'], ['A', 'B'], ['E']],
+                    "hp={}".format(hp.dict())
+                )
 
         server.terminate()
         server.join()
