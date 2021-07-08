@@ -91,6 +91,19 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self.tensors = [
             param.ensure_bagua_tensor(name) for name, param in parameters.__reversed__()
         ]
+        optimizer_param_ids = [
+            id(param)
+            for optimizer in bagua_module.bagua_optimizers
+            for group in optimizer.param_groups
+            for param in group["params"]
+        ]
+
+        for name, param in parameters:
+            if id(param) not in optimizer_param_ids:
+                raise RuntimeError(
+                    f"Parameter {name} is not used by the optimizer, need to include it "
+                    "to your module attribute `_bagua_params_and_buffers_to_ignore` to ignore it."
+                )
         return self.tensors
 
     def init_backward_hook(self, bagua_module: BaguaModule):
