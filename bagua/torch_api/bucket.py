@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from bagua.torch_api.communication import get_backend
 from typing import List, Callable, Optional
 
 import bagua_core as B
 import torch
-from bagua.torch_api.globals import _get_global_state
 
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.utils import check_contiguous
@@ -32,6 +32,12 @@ class BaguaBucket:
         """
         The tensors contained within the bucket.
         """
+        self.bagua_module_name = tensors[0].bagua_module_name
+        for tensor in self.tensors:
+            assert (
+                self.bagua_module_name == tensor.bagua_module_name
+            ), "every tensor in the same bucket should have the same model name"
+        self._bagua_backend = get_backend(self.bagua_module_name)
         self.name = name
         """
         The bucket's name.
@@ -117,7 +123,7 @@ class BaguaBucket:
 
         def wrapper_function_factory(pyop):
             def wrapped_pyop(name):
-                with torch.cuda.stream(_get_global_state().get_communication_stream()):
+                with torch.cuda.stream(self._bagua_backend.stream):
                     return pyop(name)
 
             return wrapped_pyop
@@ -153,8 +159,8 @@ class BaguaBucket:
         """
         if hierarchical:
             self.backend_bucket.append_centralized_synchronous_op(
-                _get_global_state().get_internode_communicator(),
-                _get_global_state().get_intranode_communicator(),
+                self._bagua_backend.internode_communicator,
+                self._bagua_backend.intranode_communicator,
                 hierarchical=hierarchical,
                 average=average,
                 scattergather=scattergather,
@@ -162,7 +168,7 @@ class BaguaBucket:
             )
         else:
             self.backend_bucket.append_centralized_synchronous_op(
-                _get_global_state().get_global_communicator(),
+                self._bagua_backend.global_communicator,
                 None,
                 hierarchical=hierarchical,
                 average=average,
@@ -195,8 +201,8 @@ class BaguaBucket:
             The bucket itself.
         """
         self.backend_bucket.append_decentralized_synchronous_op(
-            _get_global_state().get_internode_communicator(),
-            _get_global_state().get_intranode_communicator(),
+            self._bagua_backend.internode_communicator,
+            self._bagua_backend.intranode_communicator,
             hierarchical=hierarchical,
             compression=None,
             peer_selection_mode=peer_selection_mode,

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from bagua.torch_api.globals import _get_global_state
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api import get_world_size
@@ -175,11 +174,9 @@ class QAdamAlgorithm(Algorithm):
         else:
 
             def calculate_momentum(*args):
-                # FIXME: with global communication stream?
-                with torch.cuda.stream(_get_global_state().get_communication_stream()):
-                    beta1, beta2 = self.optimizer.param_groups[0]["betas"]
-                    for tensor in bucket.tensors:
-                        tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
+                beta1, beta2 = self.optimizer.param_groups[0]["betas"]
+                for tensor in bucket.tensors:
+                    tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
 
             bucket.append_python_op(calculate_momentum)
             bucket.append_centralized_synchronous_op(

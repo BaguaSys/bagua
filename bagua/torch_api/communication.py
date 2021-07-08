@@ -1,28 +1,60 @@
 import logging
 import multiprocessing
 import bagua_core as B
-import bagua.torch_api.globals
 from bagua.service import AutotuneService
 from collections import defaultdict
 from . import env
 from .env import (
+    get_master_addr,
     get_world_size,
     get_rank,
     get_local_rank,
     get_local_size,
-    get_master_addr,
     get_default_bucket_size,
     get_bagua_service_port,
 )
-from .globals import _get_global_state, is_initialized
-from ..service.autotune_service import AutotuneClient
-from .exceptions import RepeatedInitializationError
 from .utils import flatten, unflatten, to_bagua_reduce_op
 import torch
 import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
+from bagua.service.autotune_service import AutotuneClient
+from functools import lru_cache
 
-_autotune_server = None
+
+@lru_cache(maxsize=None)
+def get_hyperparameters_service_client():
+    hyperparameters_service_client = AutotuneClient(
+        get_master_addr(), get_bagua_service_port()
+    )
+    return hyperparameters_service_client
+
+
+@lru_cache(maxsize=None)
+def get_backend(model_name: str):
+    backend = B.BaguaCommBackendPy(100, device_id=get_local_rank())
+    backend.device_id = get_local_rank()
+    backend.stream = torch.cuda.Stream(priority=-1)
+    backend.store = c10d._get_default_store()
+    backend.internode_communicator = init_bagua_inter_communicator(
+        model_name=model_name,
+        stream=backend.stream,
+        leader_rank=0,
+        store=backend.store,
+        device_id=backend.device_id,
+    )
+    backend.intranode_communicator = init_bagua_intra_communicator(
+        model_name=model_name,
+        stream=backend.stream,
+        store=backend.store,
+        device_id=backend.device_id,
+    )
+    backend.global_communicator = init_bagua_communicator(
+        model_name=model_name,
+        stream=backend.stream,
+        store=backend.store,
+        device_id=backend.device_id,
+    )
+    return backend
 
 
 def run_flask_app():
@@ -47,6 +79,9 @@ def run_flask_app():
         port=get_bagua_service_port(),
         debug=False,
     )
+
+
+_autotune_server = None
 
 
 def start_autotune_server():
@@ -81,62 +116,13 @@ def init_process_group():
         ...    )
         >>> model, optimizer = bagua_init(model, optimizer)
     """
-    if is_initialized():
-        raise RepeatedInitializationError()
-
     if not dist.is_initialized():
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"
         )  # fmt: off
 
-    store = c10d._get_default_store()
-
-    if get_rank() == 0:
+    if get_rank() == 0 and _autotune_server is None:
         start_autotune_server()
-
-    bagua.torch_api.globals._set_global_state(BaguaGlobalState(store))
-
-
-class BaguaGlobalState(object):
-    def __init__(self, store=None, device_id=None):
-        if device_id is None:
-            device_id = get_local_rank()
-        self.backend = defaultdict(
-            lambda: B.BaguaCommBackendPy(100, device_id=device_id)
-        )
-        self.stream = torch.cuda.Stream(priority=-1)
-        self.store = store
-        self.hyperparameters_service_client = AutotuneClient(
-            get_master_addr(), get_bagua_service_port()
-        )
-        self.internode_communicator = init_bagua_inter_communicator(
-            stream=self.stream, leader_rank=0, store=self.store, device_id=device_id
-        )
-        self.intranode_communicator = init_bagua_intra_communicator(
-            stream=self.stream, store=self.store, device_id=device_id
-        )
-        self.global_communicator = init_bagua_communicator(
-            stream=self.stream, store=self.store, device_id=device_id
-        )
-
-    def get_communication_stream(self):
-        return self.stream
-
-    def get_internode_communicator(self):
-        return self.internode_communicator
-
-    def get_intranode_communicator(self):
-        return self.intranode_communicator
-
-    def get_global_communicator(self):
-        return self.global_communicator
-
-    def get_backend(self, model_name: str):
-        return self.backend[model_name]
-
-
-def get_hyperparameters_service_client():
-    return _get_global_state().hyperparameters_service_client
 
 
 def gen_nccl_unique_id(comm_type: str, root=0, store=None):
@@ -155,11 +141,13 @@ def gen_nccl_unique_id(comm_type: str, root=0, store=None):
     return idstr
 
 
-def init_bagua_inter_communicator(stream, leader_rank=0, store=None, device_id=None):
+def init_bagua_inter_communicator(
+    model_name: str, stream, leader_rank=0, store=None, device_id=None
+):
     if device_id is None:
         device_id = get_local_rank()
     nccl_unique_id = gen_nccl_unique_id(
-        "bagua_inter_comm", root=leader_rank, store=store
+        f"bagua_inter_comm_{model_name}", root=leader_rank, store=store
     )
 
     if get_rank() % get_local_size() != leader_rank:
@@ -181,11 +169,11 @@ def init_bagua_inter_communicator(stream, leader_rank=0, store=None, device_id=N
     return comm
 
 
-def init_bagua_intra_communicator(stream, store=None, device_id=None):
+def init_bagua_intra_communicator(model_name: str, stream, store=None, device_id=None):
     if device_id is None:
         device_id = get_local_rank()
     nccl_unique_id = gen_nccl_unique_id(
-        "bagua_intra_comm",
+        f"bagua_intra_comm_{model_name}",
         root=get_rank() // get_local_size() * get_local_size(),
         store=store,
     )
@@ -206,10 +194,10 @@ def init_bagua_intra_communicator(stream, store=None, device_id=None):
     return comm
 
 
-def init_bagua_communicator(stream, store=None, device_id=None):
+def init_bagua_communicator(model_name: str, stream, store=None, device_id=None):
     if device_id is None:
         device_id = get_local_rank()
-    nccl_unique_id = gen_nccl_unique_id("bagua_global_comm", store=store)
+    nccl_unique_id = gen_nccl_unique_id(f"bagua_global_comm_{model_name}", store=store)
 
     comm = B.BaguaSingleCommunicatorPy(
         rank=get_rank(),
@@ -234,7 +222,7 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
         ), "input tensors must be CUDA and dense"
 
     if comm is None:
-        comm = _get_global_state().get_global_communicator()
+        comm = get_backend("").global_communicator
 
     event = torch.cuda.current_stream().record_event()
     comm.cuda_stream.wait_event(event)
@@ -268,7 +256,7 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
     if comm is None:
-        comm = _get_global_state().get_global_communicator()
+        comm = get_backend("").global_communicator
 
     event = torch.cuda.current_stream().record_event()
     comm.cuda_stream.wait_event(event)
@@ -299,7 +287,7 @@ def reduce(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
     if comm is None:
-        comm = _get_global_state().get_global_communicator()
+        comm = get_backend("").global_communicator
 
     event = torch.cuda.current_stream().record_event()
     comm.cuda_stream.wait_event(event)
@@ -323,7 +311,7 @@ def allreduce_coalesced(
         ), "input tensors must be CUDA and dense"
 
     if comm is None:
-        comm = _get_global_state().get_global_communicator()
+        comm = get_backend("").global_communicator
 
     event = torch.cuda.current_stream().record_event()
     comm.cuda_stream.wait_event(event)
@@ -386,7 +374,7 @@ def allreduce(
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
     if comm is None:
-        comm = _get_global_state().get_global_communicator()
+        comm = get_backend("").global_communicator
 
     event = torch.cuda.current_stream().record_event()
     comm.cuda_stream.wait_event(event)
