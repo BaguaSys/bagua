@@ -42,7 +42,10 @@ def run_step(opt, flag_param, fuse, wrap, device):
         bagua.contrib.FusedOptimizer(optimizer, do_flatten=not wrap)
 
     if wrap:
-        model.with_bagua([optimizer], bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm())
+        model.with_bagua(
+            [optimizer],
+            bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
+        )
 
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
 
