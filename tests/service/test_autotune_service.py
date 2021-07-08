@@ -6,6 +6,7 @@ from bagua.bagua_define import TensorDeclaration
 from bagua.service import AutotuneService, AutotuneClient
 from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 import socket
+import numpy as np
 
 
 def pick_n_free_ports(n: int):
@@ -85,6 +86,7 @@ class TestAutotuneService(unittest.TestCase):
         service_addr = "127.0.0.1"
         service_port = pick_n_free_ports(1)[0]
         nprocs = 2
+        np.random.seed(123)
 
         autotune_service = AutotuneService(
             nprocs,
