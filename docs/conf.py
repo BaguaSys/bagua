@@ -137,7 +137,7 @@ _ignore_functions = [
     "bagua.torch_api.env.get_autotune_max_samples",
     "bagua.torch_api.env.get_autotune_sampling_confidence_time_s",
     "bagua.torch_api.env.get_autotune_warmup_time_s",
-    "bagua.torch_api.env.get_autotune_logfile_path",
+    "bagua.torch_api.env.get_is_output_autotune_log",
     "bagua.torch_api.globals.is_initialized",
     "bagua.torch_api.communication.get_bagua_hyperparameters",
     "bagua.torch_api.communication.get_hyperparameters_service_client",

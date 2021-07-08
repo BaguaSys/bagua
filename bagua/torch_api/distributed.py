@@ -1,4 +1,5 @@
 from __future__ import annotations
+from bagua.torch_api.communication import get_backend
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
@@ -6,12 +7,12 @@ from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
 )
-from bagua.torch_api.globals import _get_global_state
 import gorilla
 import time
 import logging
 import torch
 import torch.nn
+import itertools
 from typing import List, Tuple
 
 
@@ -37,6 +38,8 @@ class BaguaModule:
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
     """
+
+    __id_iter = itertools.count()
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
@@ -125,6 +128,7 @@ class BaguaModule:
             # so that the autotune service does not rely on tensor registration
             # order
             rsp = self._bagua_autotune_client.report_metrics(
+                model_name=self.bagua_module_name,
                 rank=get_rank(),
                 unix_timestamp=time.time(),
                 train_iter=self.bagua_train_step_counter,
@@ -180,6 +184,10 @@ class BaguaModule:
             ...    )
         """
 
+        self.bagua_module_name = "{}_{}".format(
+            self.__class__.__name__, next(BaguaModule.__id_iter)
+        )
+
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
         self.parameters_to_ignore = (
@@ -205,7 +213,7 @@ class BaguaModule:
             []
         )  # hooks for bagua framework logic, not cleared when changing algorithms
         self._bagua_algorithm_hooks = []
-        self._bagua_backend = _get_global_state().get_backend()
+        self._bagua_backend = get_backend(self.bagua_module_name)
         self._bagua_hyperparameters = BaguaHyperparameter()
         self._speed_metrics_switch_on = get_autotune_level() >= 1
         self._speed_metrics = StatisticalAverage()
@@ -265,13 +273,13 @@ class BaguaModule:
 
         # get communicators
         self._bagua_inter_node_communicator = (
-            _get_global_state().get_internode_communicator()
+            self._bagua_backend.internode_communicator
         )
         self._bagua_intra_node_communicator = (
-            _get_global_state().get_intranode_communicator()
+            self._bagua_backend.intranode_communicator
         )
-        self._bagua_global_communicator = _get_global_state().get_global_communicator()
-        self.bagua_communication_stream = _get_global_state().get_communication_stream()
+        self._bagua_global_communicator = self._bagua_backend.global_communicator
+        self.bagua_communication_stream = self._bagua_backend.stream
 
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client
@@ -296,12 +304,16 @@ class BaguaModule:
             for tensor in self._bagua_tensors
         ]
 
-        rsp = self._bagua_autotune_client.register_tensors(autotune_tensor_list)
+        rsp = self._bagua_autotune_client.register_tensors(
+            model_name=self.bagua_module_name, tensor_list=autotune_tensor_list
+        )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
     def _bagua_autotune_get_buckets(self):
         rsp = self._bagua_autotune_client.ask_hyperparameters(
-            rank=get_rank(), train_iter=self.bagua_train_step_counter
+            model_name=self.bagua_module_name,
+            rank=get_rank(),
+            train_iter=self.bagua_train_step_counter,
         )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
         recommended_hyperparameters = rsp.json()["recommended_hyperparameters"]

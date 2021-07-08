@@ -1,18 +1,12 @@
 import unittest
-import math
 import numpy as np
-from bagua.autotune import (
+from bagua.service.autotune import (
     BayesianOptimizer,
     IntParam,
-    FloatParam,
-    autotune_system_hyperparameters,
 )
 
 
 class TestBayesianOptimizer(unittest.TestCase):
-    def test_autotune_system_hyperparameters(self):
-        autotune_system_hyperparameters(["localhost"], 8, 8123)
-
     def test_bayesian_optimization(self):
         def f(x, y):
             x /= 10000.0

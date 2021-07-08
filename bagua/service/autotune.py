@@ -6,7 +6,7 @@ import os
 import re
 import skopt
 import time
-from typing import Tuple
+from typing import Tuple, Optional
 from pssh.clients import ParallelSSHClient
 from pssh.exceptions import Timeout
 
@@ -43,7 +43,13 @@ class BayesianOptimizer:
     Simple package of beyasian optimizer
     """
 
-    def __init__(self, param_declaration: dict, n_initial_points: int = 10):
+    def __init__(
+        self,
+        param_declaration: dict,
+        n_initial_points: int = 20,
+        initial_point_generator: str = "halton",
+        random_state: Optional[int] = 0,
+    ):
         self.param_declaration = collections.OrderedDict(param_declaration)
         search_space = [
             declar.space_dimension for _, declar in self.param_declaration.items()
@@ -51,9 +57,10 @@ class BayesianOptimizer:
 
         self.bayesian_optimizer = skopt.Optimizer(
             dimensions=search_space,
-            base_estimator="GP",
             n_initial_points=n_initial_points,
+            initial_point_generator=initial_point_generator,
             n_jobs=-1,
+            random_state=random_state,
         )
 
     def tell(self, param_dict: dict, score: float) -> None:
