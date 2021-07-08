@@ -2,6 +2,7 @@ import logging
 import multiprocessing
 import bagua_core as B
 from bagua.service import AutotuneService
+from collections import defaultdict
 from . import env
 from .env import (
     get_master_addr,
@@ -112,7 +113,6 @@ def init_process_group():
 
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server()
-
 
 def gen_nccl_unique_id(comm_type: str, root=0, store=None):
     key = f"{comm_type}-{root}-unique_id"
