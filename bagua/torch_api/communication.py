@@ -18,10 +18,10 @@ import torch
 import torch.distributed as dist
 import torch.distributed.distributed_c10d as c10d
 from bagua.service.autotune_service import AutotuneClient
-from functools import cache
+from functools import lru_cache
 
 
-@cache
+@lru_cache(maxsize=None)
 def get_hyperparameters_service_client():
     hyperparameters_service_client = AutotuneClient(
         get_master_addr(), get_bagua_service_port()
@@ -29,7 +29,7 @@ def get_hyperparameters_service_client():
     return hyperparameters_service_client
 
 
-@cache
+@lru_cache(maxsize=None)
 def get_backend(model_name: str):
     backend = B.BaguaCommBackendPy(100, device_id=get_local_rank())
     backend.device_id = get_local_rank()
