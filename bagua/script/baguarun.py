@@ -114,17 +114,19 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Distributed bagua launch")
     parser.add_argument(
         "--host_list", default=None,
-        help="List of target nodes, baguarun logs in to `host` via ssh. "
-        "Specify a list of nodes through host_list, which is a "
-        "comma-separated dns or ip. If the ssh port of the node is the "
-        "same, you can specify it by --ssh_port, if it is different, you "
-        "need to add: SSH_PORT after dns or ip.\n"
-        "If host_list is not set, it will try to configure with the "
-        "environment variable BAGUA_NODE_DOMAIN_NAMES")
+        help="Target node list, baguarun logs in to the node via ssh."
+        "`--host_list` has two forms. The first, comma-separated domain name "
+        "or IP, such as `--host_list 192.168.1.1,192.168.1.2`, ssh port is "
+        "specified by `--ssh_port`. The second, domain name or IP with ssh "
+        "port designation, such as `--host_list 192.168.1.1:80,192.168.1.2:82`."
+        "\nIf `--host_list` is None, the program will try to replace with the "
+        "environment variable BAGUA_NODE_DOMAIN_NAMES.")
     parser.add_argument(
         "--ssh_port", type=int, default=None,
-        help="Node ssh port, if it is not set, it will try to get it "
-        "from the environment variable BAGUA_SSH_PORT")
+        help="ssh port to log on nodes. you need to set it only when the ssh "
+        "port of all nodes are the same. Due to historical reasons, when "
+        "ssh_port is not set, the program will try to get it from the "
+        "environment variable BAGUA_SSH_PORT.")
     parser.add_argument("--master_port", type=int, default=None)
     parser.add_argument("--nproc_per_node", type=int, required=True)
     parser.add_argument(
