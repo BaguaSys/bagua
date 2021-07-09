@@ -295,7 +295,6 @@ impl BaguaCommBackendPy {
         py.allow_threads(|| self.inner.wait_pending_post_backward_comm_ops())
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
-    
 }
 
 #[pyclass(dict)]
@@ -365,7 +364,7 @@ impl BaguaBucketPy {
         compression: Option<String>,
         weight: Option<PyRef<BaguaTensorPy>>,
         left_peer_weight: Option<PyRef<BaguaTensorPy>>,
-        right_peer_weight: Option<PyRef<BaguaTensorPy>>
+        right_peer_weight: Option<PyRef<BaguaTensorPy>>,
     ) -> PyResult<()> {
         self.inner.append_decentralized_synchronous_op(
             communicator_internode.map(|x| &x.inner),

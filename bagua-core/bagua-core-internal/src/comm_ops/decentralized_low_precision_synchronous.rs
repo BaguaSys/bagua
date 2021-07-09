@@ -1,9 +1,11 @@
+use crate::comm_ops::decentralized_full_precision_synchronous::PeerSelectionMode;
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaHierarchicalCommunicator, NCCLGroupGuard};
-use crate::datatypes::{BaguaBucket, BaguaTensor, BaguaTensorRaw, RawBaguaTensor, TensorCompressionMethod};
-use crate::comm_ops::decentralized_full_precision_synchronous::PeerSelectionMode;
-use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
+use crate::datatypes::{
+    BaguaBucket, BaguaTensor, BaguaTensorRaw, RawBaguaTensor, TensorCompressionMethod,
+};
 use crate::events::BaguaEventChannel;
+use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
 use crate::{BaguaCommOpChannels, BaguaScheduledCommOp};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -21,7 +23,6 @@ pub struct DecentralizedLowPrecisionSynchronous {
 }
 
 impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
-
     fn execute_background_communication(
         &self,
         bucket: Arc<BaguaBucket>,
@@ -30,7 +31,8 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
         let bucket_guard = bucket.inner.lock();
         let stream_ptr = self.communicator.stream_ptr();
 
-        let mut communication_tensor = bucket_guard.get_communication_tensor(stream_ptr, false, false);
+        let mut communication_tensor =
+            bucket_guard.get_communication_tensor(stream_ptr, false, false);
 
         let peer_mode = &self.peer_selection_mode;
         let comm_interval = &self.communication_interval;
@@ -45,12 +47,21 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
                 if step % comm_interval == 0 {
                     tracing::debug!("start compress diff");
 
-                    t.raw.addmul_inplace(self.left_peer_weight.inner.read().raw.as_ref(), 1.0 / 3.0, c.stream_ptr);
-                    t.raw.addmul_inplace(self.right_peer_weight.inner.read().raw.as_ref(), 1.0 / 3.0, c.stream_ptr);
+                    t.raw.addmul_inplace(
+                        self.left_peer_weight.inner.read().raw.as_ref(),
+                        1.0 / 3.0,
+                        c.stream_ptr,
+                    );
+                    t.raw.addmul_inplace(
+                        self.right_peer_weight.inner.read().raw.as_ref(),
+                        1.0 / 3.0,
+                        c.stream_ptr,
+                    );
 
                     {
                         let weight_guard = self.weight.inner.read();
-                        t.raw.addmul_inplace(weight_guard.raw.as_ref(), -5.0 / 3.0, c.stream_ptr);
+                        t.raw
+                            .addmul_inplace(weight_guard.raw.as_ref(), -5.0 / 3.0, c.stream_ptr);
                     }
                     let compressed_tensor = t
                         .raw
@@ -90,60 +101,52 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
 
                     match peer_mode {
                         PeerSelectionMode::Ring => {
+                            let left_peer_rank = ((c.rank + c.nranks - 1) % c.nranks) as i32;
+                            let right_peer_rank = ((c.rank + 1) % c.nranks) as i32;
+
                             {
-                                let left_peer_rank = ((c.rank + c.nranks - 1) % c.nranks) as i32;
-                                let right_peer_rank = ((c.rank + 1)  % c.nranks) as i32;
+                                let _guard = NCCLGroupGuard::new();
 
-                                {
-                                    let _guard = NCCLGroupGuard::new();
-
-                                    tracing::debug!(
-                                        "rank: {} left peer: {} right peer: {}",
-                                        c.rank, left_peer_rank, right_peer_rank)
-                                    ;
-                                    c.send(compressed_tensor.as_ref(), left_peer_rank);
-                                    c.send(compressed_tensor.as_ref(), right_peer_rank);
-                                    c.recv(&mut lrecv_tensor, left_peer_rank);
-                                    c.recv(&mut rrecv_tensor, right_peer_rank);
-                                }
+                                tracing::debug!(
+                                    "rank: {} left peer: {} right peer: {}",
+                                    c.rank,
+                                    left_peer_rank,
+                                    right_peer_rank
+                                );
+                                c.send(compressed_tensor.as_ref(), left_peer_rank);
+                                c.send(compressed_tensor.as_ref(), right_peer_rank);
+                                c.recv(&mut lrecv_tensor, left_peer_rank);
+                                c.recv(&mut rrecv_tensor, right_peer_rank);
                             }
-                        },
+                        }
                         PeerSelectionMode::All => {
                             unimplemented!()
-                        },
+                        }
                         PeerSelectionMode::ShiftOne => {
                             unimplemented!()
                         }
                     };
 
                     tracing::debug!("start decompress diff and update weights");
-                    t.raw.decompress_from(
-                        &self.compression_method,
-                        1,
-                        &lrecv_tensor,
-                        c.stream_ptr,
-                    );
+                    t.raw
+                        .decompress_from(&self.compression_method, 1, &lrecv_tensor, c.stream_ptr);
                     {
                         let mut weight_guard = self.left_peer_weight.inner.write();
                         weight_guard.raw.add_inplace(&t.raw, c.stream_ptr);
                     }
 
-                    t.raw.decompress_from(
-                        &self.compression_method,
-                        1,
-                        &rrecv_tensor,
-                        c.stream_ptr,
-                    );
+                    t.raw
+                        .decompress_from(&self.compression_method, 1, &rrecv_tensor, c.stream_ptr);
                     {
                         let mut weight_guard = self.right_peer_weight.inner.write();
                         weight_guard.raw.add_inplace(&t.raw, c.stream_ptr);
                     }
 
                     t.raw.decompress_from(
-                         &self.compression_method,
-                         1,
-                         compressed_tensor.as_ref(),
-                         c.stream_ptr,
+                        &self.compression_method,
+                        1,
+                        compressed_tensor.as_ref(),
+                        c.stream_ptr,
                     );
 
                     {
@@ -154,7 +157,7 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
                 }
             },
         );
-        
+
         *self.step.lock() += 1;
     }
 }

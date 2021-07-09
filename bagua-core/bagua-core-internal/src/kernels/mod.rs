@@ -28,18 +28,8 @@ extern "C" {
         N: i32,
         stream: *const c_void,
     );
-    pub fn add_inplace_f32_host(
-        x: *mut c_void,
-        y: *const c_void,
-        N: i32,
-        stream: *const c_void,
-    );
-    pub fn add_inplace_f16_host(
-        x: *mut c_void,
-        y: *const c_void,
-        N: i32,
-        stream: *const c_void,
-    );
+    pub fn add_inplace_f32_host(x: *mut c_void, y: *const c_void, N: i32, stream: *const c_void);
+    pub fn add_inplace_f16_host(x: *mut c_void, y: *const c_void, N: i32, stream: *const c_void);
     pub fn addmul_inplace_f32_host(
         x: *mut c_void,
         y: *const c_void,
