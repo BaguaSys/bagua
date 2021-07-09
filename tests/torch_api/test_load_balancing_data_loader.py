@@ -9,7 +9,6 @@ from bagua.torch_api.contrib import (
 
 class TestLoadBalancingDataLoader(unittest.TestCase):
     def test_load_balancing_distributed_sampler(self):
-        return
         n = 10
         dataset = TensorDataset(torch.randn(n, 2), torch.randperm(n))
         sampler = LoadBalancingDistributedSampler(
@@ -27,7 +26,7 @@ class TestLoadBalancingDataLoader(unittest.TestCase):
             self.assertTrue(i == data[1].item())
 
     def test_load_balancing_distributed_batch_sampler(self):
-        num_replicas = 1
+        num_replicas = 4
         total_batch = 5
 
         n = sum([i + 1 for i in range(total_batch)]) * num_replicas
