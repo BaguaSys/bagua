@@ -2,15 +2,16 @@ Bagua
 ======
 [![tutorials](https://github.com/BaguaSys/tutorials/actions/workflows/tutorials.yml/badge.svg)](https://baguasys.github.io/tutorials/) [![Documentation Status](https://readthedocs.org/projects/bagua/badge/?version=latest)](http://bagua.readthedocs.io/?badge=latest) [![PyPI version](https://badge.fury.io/py/bagua.svg)](https://badge.fury.io/py/bagua) [![Docker](https://img.shields.io/badge/docker-pass-green)](https://hub.docker.com/r/baguasys/bagua) [![GitHub license](https://img.shields.io/github/license/BaguaSys/bagua)](https://github.com/BaguaSys/bagua/blob/master/LICENSE)
 
-Bagua is a distributed training utility developed by [Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Users can extend the training on a single GPU to multi-GPUs (may across multiple machines), with excellent speedup guarantee, by simply adding a few lines of code. Bagua also provides a flexible system abstraction that supports state-of-the-art system relaxation techniques of distributed training. Powered by the new system design, Bagua has a great ability to implement and extend various state-of-the-art distributed learning algorithms. Researchers can easily develop new distributed training algorithms based on bagua, without sacrificing system performance.
+Bagua is a distributed training utility developed by [Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Users can extend the training on a single GPU to multi-GPUs (may across multiple machines) by simply adding a few lines of code. One prominent feature of Bagua is to provide a flexible system abstraction that supports state-of-the-art system relaxation techniques of distributed training such. Powered by the new system design, Bagua has a great ability to implement and extend various state-of-the-art distributed learning algorithms. This in turns enables better scalability and efficiency of the end-to-end training process.
+Researchers can also easily develop new distributed training algorithms within the Bagua framework, without worrying about low-level optimizations.
 
-So far, Bagua has integrated primitives including
+So far, Bagua has integrated communication primitives including
 
 - Centralized Synchronous Communication (AllReduce)
 - Decentralized Synchronous Communication
 - Low Precision Communication
 
-Its effectiveness has been verified in various scenarios, including VGG and ResNet on ImageNet, Bert Large and many industrial applications at Kuaishou.
+Its effectiveness has been evaluated in various scenarios, including VGG and ResNet on ImageNet, BERT Large and many industrial applications at Kuaishou.
 
 The underlying communication execution engine is in [bagua-core](https://github.com/BaguaSys/bagua-core), a library written in Rust.
 
@@ -59,6 +60,7 @@ make html
 ## Cite Bagua
 
 ```bibtex
+% System Overview
 @misc{gan2021bagua,
   title={BAGUA: Scaling up Distributed Learning with System Relaxations}, 
   author={Shaoduo Gan and Xiangru Lian and Rui Wang and Jianbin Chang and Chengjun Liu and Hongmei Shi and Shengzhuo Zhang and Xianghong Li and Tengxu Sun and Jiawei Jiang and Binhang Yuan and Sen Yang and Ji Liu and Ce Zhang},
@@ -68,6 +70,7 @@ make html
   primaryClass={cs.LG}
 }
 
+% Theory on System Relaxation Techniques
 @book{liu2020distributed,
   title={Distributed Learning Systems with First-Order Methods: An Instruction},
   author={Liu, J. and Zhang, C.},
