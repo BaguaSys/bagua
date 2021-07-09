@@ -146,7 +146,7 @@ def main():
         "--algorithm",
         type=str,
         default="gradient_allreduce",
-        help="gradient_allreduce, bytegrad, decentralized, qadam",
+        help="gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam",
     )
     parser.add_argument(
         "--checkpoint_path",
@@ -210,15 +210,23 @@ def main():
 
     if args.algorithm == "gradient_allreduce":
         from bagua.torch_api.algorithms import gradient_allreduce
+
         algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
     elif args.algorithm == "decentralized":
         from bagua.torch_api.algorithms import decentralized
+
         algorithm = decentralized.DecentralizedAlgorithm()
+    elif args.algorithm == "low_precision_decentralized":
+        from bagua.torch_api.algorithms import decentralized
+
+        algorithm = decentralized.LowPrecisionDecentralizedAlgorithm()
     elif args.algorithm == "bytegrad":
         from bagua.torch_api.algorithms import bytegrad
+
         algorithm = bytegrad.ByteGradAlgorithm()
     elif args.algorithm == "qadam":
         from bagua.torch_api.algorithms import q_adam
+
         optimizer = q_adam.QAdamOptimizer(model.parameters())
         algorithm = q_adam.QAdamAlgorithm(optimizer, 10)
     else:
@@ -231,9 +239,7 @@ def main():
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"]
 
-    model = model.with_bagua(
-        [optimizer], algorithm
-    )
+    model = model.with_bagua([optimizer], algorithm)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(start_epoch, args.epochs + 1):
