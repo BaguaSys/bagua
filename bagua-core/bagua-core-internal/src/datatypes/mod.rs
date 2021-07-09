@@ -1,8 +1,9 @@
 use crate::comm_ops::centralized_full_precision_synchronous::CentralizedFullPrecisionSynchronous;
 use crate::comm_ops::centralized_low_precision_synchronous::CentralizedLowPrecisionSynchronous;
 use crate::comm_ops::decentralized_full_precision_synchronous::{
-    DecentralizedFullPrecisionSynchronous, PeerSelectionMode,
+    DecentralizedFullPrecisionSynchronous, PeerSelectionMode, 
 };
+use crate::comm_ops::decentralized_low_precision_synchronous::DecentralizedLowPrecisionSynchronous;
 use crate::comm_ops::python_ffi_op::PythonFFIOp;
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaSingleCommunicator};
@@ -138,11 +139,121 @@ pub trait RawBaguaTensor: Debug {
         }
     }
 
+    fn substract_inplace(&mut self, other: &dyn RawBaguaTensor, stream_ptr: u64) {
+        assert_eq!(self.dtype(), other.dtype());
+        assert_eq!(self.num_elements(), other.num_elements());
+        let tensor_ptr = self.data_ptr();
+        let total_num_elem = self.num_elements();
+        unsafe {
+            match self.dtype() {
+                BaguaTensorDtype::F32 => {
+                    kernels::substract_inplace_f32_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::F16 => {
+                    kernels::substract_inplace_f16_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::U8 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
+                    unimplemented!()
+                }
+            }
+        }
+    }
+
+    fn add_inplace(&mut self, other: &dyn RawBaguaTensor, stream_ptr: u64) {
+        assert_eq!(self.dtype(), other.dtype());
+        assert_eq!(self.num_elements(), other.num_elements());
+        let tensor_ptr = self.data_ptr();
+        let total_num_elem = self.num_elements();
+        unsafe {
+            match self.dtype() {
+                BaguaTensorDtype::F32 => {
+                    kernels::add_inplace_f32_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::F16 => {
+                    kernels::add_inplace_f16_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::U8 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
+                    unimplemented!()
+                }
+            }
+        }
+    }
+    fn addmul_inplace(&mut self, other: &dyn RawBaguaTensor, factor: f32, stream_ptr: u64) {
+        assert_eq!(self.dtype(), other.dtype());
+        assert_eq!(self.num_elements(), other.num_elements());
+        let tensor_ptr = self.data_ptr();
+        let total_num_elem = self.num_elements();
+        unsafe {
+            match self.dtype() {
+                BaguaTensorDtype::F32 => {
+                    kernels::addmul_inplace_f32_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        factor as _,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::F16 => {
+                    kernels::addmul_inplace_f16_host(
+                        tensor_ptr as _,
+                        other.data_ptr() as _,
+                        total_num_elem as i32,
+                        factor as _,
+                        stream_ptr as _,
+                    );
+                }
+                BaguaTensorDtype::U8 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::I64 => {
+                    unimplemented!()
+                }
+                BaguaTensorDtype::U64 => {
+                    unimplemented!()
+                }
+            }
+        }
+    }
+
     fn average_inplace(&mut self, other: &dyn RawBaguaTensor, stream_ptr: u64) {
         assert_eq!(self.dtype(), other.dtype());
         assert_eq!(self.num_elements(), other.num_elements());
         let tensor_ptr = self.data_ptr();
         let total_num_elem = self.num_elements();
+        
         unsafe {
             match self.dtype() {
                 BaguaTensorDtype::F32 => {
@@ -827,7 +938,7 @@ impl BaguaBucketInner {
     pub fn total_allocated_bytes(&self) -> usize {
         self.total_num_elements_allocated() * self.dtype.bytes()
     }
-
+    
     /// NOTE: this does not wait for memcpy finished
     // TODO: simplify args
     pub fn get_communication_tensor(
@@ -999,6 +1110,9 @@ impl BaguaBucket {
         peer_selection_mode: String,
         communication_interval: usize,
         compression: Option<String>,
+        weight: Option<BaguaTensor>,
+        left_peer_weight: Option<BaguaTensor>,
+        right_peer_weight: Option<BaguaTensor>
     ) {
         let communicator =
             BaguaCommunicator::new(communicator_internode, communicator_intranode, hierarchical)
@@ -1017,9 +1131,27 @@ impl BaguaBucket {
                 communication_interval,
             }),
             Some(x) => match x.as_str() {
+               "MinMaxUInt8" => Arc::new(DecentralizedLowPrecisionSynchronous {
+                     communicator,
+                     peer_selection_mode: match peer_selection_mode.as_str() {
+                         "ring" => PeerSelectionMode::Ring,
+                         &_ => {
+                             unimplemented!("unsupported peer_selection_mode for low precision decentralized algorithm (should be `ring`)")
+                         }
+                     },
+                     step: Default::default(),
+                     communication_interval,
+                     compression_method: TensorCompressionMethod::MinMaxUInt8(
+                         MinMaxUInt8CompressionParameters {},
+                     ),
+                    weight: weight.expect("missing parameter `weight` for low precision decentralized algorithm"), 
+                    left_peer_weight: left_peer_weight.expect("missing parameter `left_peer_weight` for low precision decentralized algorithm"),
+                    right_peer_weight: right_peer_weight.expect("missing parameter `right_peer_weight` for low precision decentralized algorithm"),
+                }),
                 _ => {
                     unimplemented!()
                 }
+
             },
         };
         self.inner.lock().comm_ops.push(comm_op);

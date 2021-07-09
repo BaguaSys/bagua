@@ -81,7 +81,7 @@ impl BaguaCommOpChannels {
         let (sender, receiver) = flume::bounded(cap);
         let (ev_sender, ev_receiver) = flume::unbounded();
         let (post_backward_channel_sender, post_backward_channel_receiver) = flume::bounded(cap);
-        let (post_backward_ev_sender, post_backwar_ev_receiver) = flume::unbounded();
+        let (post_backward_ev_sender, post_backward_ev_receiver) = flume::unbounded();
 
         Self {
             schedule_channel_sender: sender,
@@ -91,7 +91,7 @@ impl BaguaCommOpChannels {
             not_waited_post_backward_events_sender: post_backward_ev_sender,
             not_waited_events_sender: ev_sender,
             not_waited_events_receiver: ev_receiver,
-            not_waited_post_backward_events_receiver: post_backwar_ev_receiver,
+            not_waited_post_backward_events_receiver: post_backward_ev_receiver,
         }
     }
 }
@@ -373,4 +373,5 @@ impl BaguaCommBackend {
             }
         }
     }
+    
 }
