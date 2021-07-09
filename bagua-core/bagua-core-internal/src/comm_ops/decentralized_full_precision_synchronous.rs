@@ -11,7 +11,7 @@ use std::sync::Arc;
 pub enum PeerSelectionMode {
     All,
     ShiftOne,
-    Ring
+    Ring,
 }
 
 #[derive(Debug)]

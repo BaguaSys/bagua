@@ -1,7 +1,7 @@
 use crate::comm_ops::centralized_full_precision_synchronous::CentralizedFullPrecisionSynchronous;
 use crate::comm_ops::centralized_low_precision_synchronous::CentralizedLowPrecisionSynchronous;
 use crate::comm_ops::decentralized_full_precision_synchronous::{
-    DecentralizedFullPrecisionSynchronous, PeerSelectionMode, 
+    DecentralizedFullPrecisionSynchronous, PeerSelectionMode,
 };
 use crate::comm_ops::decentralized_low_precision_synchronous::DecentralizedLowPrecisionSynchronous;
 use crate::comm_ops::python_ffi_op::PythonFFIOp;
@@ -253,7 +253,7 @@ pub trait RawBaguaTensor: Debug {
         assert_eq!(self.num_elements(), other.num_elements());
         let tensor_ptr = self.data_ptr();
         let total_num_elem = self.num_elements();
-        
+
         unsafe {
             match self.dtype() {
                 BaguaTensorDtype::F32 => {
@@ -938,7 +938,7 @@ impl BaguaBucketInner {
     pub fn total_allocated_bytes(&self) -> usize {
         self.total_num_elements_allocated() * self.dtype.bytes()
     }
-    
+
     /// NOTE: this does not wait for memcpy finished
     // TODO: simplify args
     pub fn get_communication_tensor(
@@ -1112,7 +1112,7 @@ impl BaguaBucket {
         compression: Option<String>,
         weight: Option<BaguaTensor>,
         left_peer_weight: Option<BaguaTensor>,
-        right_peer_weight: Option<BaguaTensor>
+        right_peer_weight: Option<BaguaTensor>,
     ) {
         let communicator =
             BaguaCommunicator::new(communicator_internode, communicator_intranode, hierarchical)
