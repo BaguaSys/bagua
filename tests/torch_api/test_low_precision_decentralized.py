@@ -16,8 +16,6 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(50, 4, bias=False)
         self.relu = nn.ReLU()
 
-    #        self.no_grad_param = nn.Parameter(torch.tensor([2.0, 2.0]), requires_grad=False)
-
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
@@ -103,7 +101,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
             right_peer_rank = (rank + 1) % nprocs
 
             if hierarchical:
-                # all worker have the same bucket weight
+                # all workers have equal weights
                 self.assertTrue(
                     results[rank].bucket_weight == results[left_peer_rank].bucket_weight
                 )
