@@ -144,7 +144,7 @@ parser.add_argument(
     "--algorithm",
     type=str,
     default="gradient_allreduce",
-    help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, qadam}",
+    help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam}",
 )
 
 
@@ -209,15 +209,23 @@ def main_worker(args):
 
     if args.algorithm == "gradient_allreduce":
         from bagua.torch_api.algorithms import gradient_allreduce
+
         algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
     elif args.algorithm == "decentralized":
         from bagua.torch_api.algorithms import decentralized
+
         algorithm = decentralized.DecentralizedAlgorithm()
+    elif args.algorithm == "low_precision_decentralized":
+        from bagua.torch_api.algorithms import decentralized
+
+        algorithm = decentralized.LowPrecisionDecentralizedAlgorithm()
     elif args.algorithm == "bytegrad":
         from bagua.torch_api.algorithms import bytegrad
+
         algorithm = bytegrad.ByteGradAlgorithm()
     elif args.algorithm == "qadam":
         from bagua.torch_api.algorithms import q_adam
+
         optimizer = q_adam.QAdamOptimizer(model.parameters())
         algorithm = q_adam.QAdamAlgorithm(optimizer, 10)
     else:

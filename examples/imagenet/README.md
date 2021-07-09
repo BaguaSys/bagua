@@ -7,7 +7,7 @@ This implements training of popular model architectures, such as ResNet, AlexNet
 ### Single node, multiple GPUs
 
 ```bash
-python3 -m bagua.distributed.launch --nproc_per_node=8 main.py --arch resnet50 --algorithm allreduce [imagenet-folder with train and val folders]
+python3 -m bagua.distributed.launch --nproc_per_node=8 main.py --arch resnet50 --algorithm gradient_allreduce [imagenet-folder with train and val folders]
 ```
 
 ### Multiple nodes
@@ -16,12 +16,12 @@ The following scripts launch a distributed job on a 2-by-8 gpu cluster.
 
 Node 0:
 ```bash
-python3 -m bagua.distributed.launch --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=[master addr] --master_port [master port] main.py --arch resnet50 --algorithm allreduce [imagenet-folder with train and val folders]
+python3 -m bagua.distributed.launch --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=[master addr] --master_port [master port] main.py --arch resnet50 --algorithm gradient_allreduce [imagenet-folder with train and val folders]
 ```
 
 Node 1:
 ```bash
-python3 -m bagua.distributed.launch --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=[master addr] --master_port [master port] main.py --arch resnet50 --algorithm allreduce [imagenet-folder with train and val folders]
+python3 -m bagua.distributed.launch --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=[master addr] --master_port [master port] main.py --arch resnet50 --algorithm gradient_allreduce [imagenet-folder with train and val folders]
 ```
 
 ## Usage
