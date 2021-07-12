@@ -267,7 +267,8 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                     == results[left_peer_rank].right_peer_weight.item()
                 )
                 self.assertTrue(
-                    results[rank].weight.item() == results[right_peer_rank].left_peer_weight.item()
+                    results[rank].weight.item()
+                    == results[right_peer_rank].left_peer_weight.item()
                 )
 
     def run_diff_locally(self, hierarchical, communication_interval):
