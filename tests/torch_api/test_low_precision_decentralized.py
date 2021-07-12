@@ -263,12 +263,14 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                 )
             else:
                 self.assertTrue(
-                    results[rank].weight.item()
-                    == results[left_peer_rank].right_peer_weight.item()
+                    torch.equal(
+                        results[rank].weight, results[left_peer_rank].right_peer_weight
+                    )
                 )
                 self.assertTrue(
-                    results[rank].weight.item()
-                    == results[right_peer_rank].left_peer_weight.item()
+                    torch.equal(
+                        results[rank].weight, results[right_peer_rank].left_peer_weight
+                    )
                 )
 
     def run_diff_locally(self, hierarchical, communication_interval):
