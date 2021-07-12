@@ -3,11 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tests.internal.common_utils import find_free_port
 from tests.internal.compressor import MinMaxUInt8
-import bagua.torch_api as bagua
 import unittest
 import torch.multiprocessing as mp
 import os
 from bagua.torch_api.utils import apply_flattened_call, flatten
+from bagua.torch_api.communication import get_backend
+import bagua.torch_api as bagua
 
 
 class Net(nn.Module):
@@ -25,37 +26,27 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def _init_env(gpu):
+def _init_env(rank):
+    # set deterministic
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    torch.manual_seed(47)
+    torch.manual_seed(rank)
     # initialize subprocess env
-    os.environ["RANK"] = str(gpu)
-    os.environ["LOCAL_RANK"] = str(gpu)
+    os.environ["RANK"] = str(rank)
+    os.environ["LOCAL_RANK"] = str(rank)
 
 
-def run_model(gpu, nprocs, hierarchical, communication_interval, results):
-    _init_env(gpu)
-
-    # construct model and optimizer, etc.
-    model = Net()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-    loss_fn = nn.MSELoss()
-
-    ret = results[gpu]
-    ret.init_weight.copy_(
-        torch.norm(flatten([param.data for param in model.parameters()]))
-    )
+def run_model(rank, nprocs, hierarchical, communication_interval, results):
+    _init_env(rank)
 
     # init bagua distributed process group
-    torch.cuda.set_device(bagua.get_local_rank())
+    torch.cuda.set_device(rank)
     bagua.init_process_group()
 
-    print(
-        f"initialize bagua training process, rank: {bagua.get_rank()}, world_size: {bagua.get_world_size()}"
-    )
-
-    model.cuda()
+    # construct model and optimizer, etc.
+    model = Net().cuda()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    loss_fn = nn.MSELoss()
 
     # wrap model
     model = model.with_bagua(
@@ -65,7 +56,12 @@ def run_model(gpu, nprocs, hierarchical, communication_interval, results):
         ),
     )
 
-    for _ in range(10):
+    ret = results[rank]
+    bucket = model.bagua_buckets[0]
+
+    ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
+
+    for epoch in range(10):
         data = torch.randn(4, 2).cuda()
         target = torch.randn(4, 4).cuda()
 
@@ -76,45 +72,38 @@ def run_model(gpu, nprocs, hierarchical, communication_interval, results):
         loss.backward()
         optimizer.step()
 
-    ret = results[gpu]
-    bucket = model.bagua_buckets[0]
+    torch.cuda.synchronize()
     ret.bucket_weight.copy_(flatten([param.data for param in model.parameters()]))
     ret.weight.copy_(torch.norm(bucket._weight))
     ret.left_peer_weight.copy_(torch.norm(bucket._left_peer_weight))
     ret.right_peer_weight.copy_(torch.norm(bucket._right_peer_weight))
 
 
-def run_torch_model(gpu, nprocs, hierarchical, communication_interval, results):
-    _init_env(gpu)
-
-    # construct model and optimizer, etc.
-    model = Net()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-    loss_fn = nn.MSELoss()
-
-    ret = results[gpu]
-    ret.init_weight.copy_(
-        torch.norm(flatten([param.data for param in model.parameters()]))
-    )
+def run_torch_model(rank, nprocs, hierarchical, communication_interval, results):
+    _init_env(rank)
 
     # init torch distributed process group
     store = torch.distributed.FileStore("/tmp/filestore", nprocs)
     torch.distributed.init_process_group(
-        world_size=nprocs, rank=gpu, store=store, backend="gloo"
+        world_size=nprocs, rank=rank, store=store, backend="gloo"
     )
 
-    print(
-        f"initialize torch training process, rank: {bagua.get_rank()}, world_size: {bagua.get_world_size()}"
-    )
+    # construct model and optimizer, etc.
+    model = Net().cuda()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    loss_fn = nn.MSELoss()
 
     # wrap model
     model = LowPrecDecentralizedAlgor(
         model, optimizer, hierarchical, communication_interval
     )
 
-    for _ in range(10):
-        data = torch.randn(4, 2)
-        target = torch.randn(4, 4)
+    ret = results[rank]
+    ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
+
+    for epoch in range(10):
+        data = torch.randn(4, 2).cuda()
+        target = torch.randn(4, 4).cuda()
 
         optimizer.zero_grad()
         output = model(data)
@@ -129,13 +118,15 @@ def run_torch_model(gpu, nprocs, hierarchical, communication_interval, results):
 class Result(object):
     def __init__(self):
         model = Net()
-        self.init_weight = torch.Tensor([0.0]).share_memory_()
+        self.init_weight = flatten(
+            [torch.zeros_like(param.data) for param in model.parameters()]
+        )
         self.bucket_weight = flatten(
-            [param.data for param in model.parameters()]
-        ).share_memory_()
-        self.weight = torch.Tensor([0.0]).share_memory_()
-        self.left_peer_weight = torch.Tensor([0.0]).share_memory_()
-        self.right_peer_weight = torch.Tensor([0.0]).share_memory_()
+            [torch.zeros_like(param.data) for param in model.parameters()]
+        )
+        self.weight = torch.Tensor([0.0])
+        self.left_peer_weight = torch.Tensor([0.0])
+        self.right_peer_weight = torch.Tensor([0.0])
 
 
 class LowPrecDecentralizedAlgor(nn.Module):
@@ -145,20 +136,24 @@ class LowPrecDecentralizedAlgor(nn.Module):
         self.optimizer = optimizer
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
-        self.step_count = 0
         self.compressor = MinMaxUInt8()
+        self.step_count = 0
 
         assert torch.distributed.is_initialized()
 
         self.rank = torch.distributed.get_rank()
         self.world_size = torch.distributed.get_world_size()
 
-        weights = [param.data for param in self.module.parameters()]
-        apply_flattened_call(weights, lambda x: torch.distributed.broadcast(x, 0))
+        # broadcast parameters
+        for param in self.module.parameters():
+            torch.distributed.broadcast(param.data, src=0)
 
-        self.weight = flatten(weights)
+        self.weight = flatten(self._build_params())
         self.left_peer_weight = self.weight.detach().clone()
         self.right_peer_weight = self.weight.detach().clone()
+
+    def _build_params(self):
+        return [param.data for param in list(self.module.parameters()).__reversed__()]
 
     def forward(self, *inputs, **kwargs):
         result = self.module(*inputs, **kwargs)
@@ -168,28 +163,34 @@ class LowPrecDecentralizedAlgor(nn.Module):
         self.optimizer.step()
 
         def allreduce_fn(x):
-            torch.distributed.allreduce(x)
+            torch.distributed.all_reduce(x)
             x /= self.world_size
 
-        def communicate_with_peers(_buffer):
-            left_buffer = torch.zeros_like(_buffer, device=_buffer.device)
-            right_buffer = torch.zeros_like(_buffer, device=_buffer.device)
+        def communicate_with_peers(
+            tensor: torch.Tensor, comm_size: int
+        ) -> (torch.Tensor, torch.Tensor):
+            if comm_size == 1:
+                return tensor, tensor
 
-            left_peer_rank = (self.rank + self.world_size - 1) % self.world_size
-            right_peer_rank = (self.rank + 1) % self.world_size
+            tensor = tensor.cpu()
+            left_tensor = torch.zeros_like(tensor)
+            right_tensor = torch.zeros_like(tensor)
+
+            left_peer_rank = (self.rank + self.world_size - 1) % comm_size
+            right_peer_rank = (self.rank + 1) % comm_size
 
             requests = []
-            requests.append(torch.distributed.isend(_buffer, left_peer_rank))
-            requests.append(torch.distributed.isend(_buffer, right_peer_rank))
-            requests.append(torch.distributed.irecv(left_buffer, left_peer_rank))
-            requests.append(torch.distributed.irecv(right_buffer, right_peer_rank))
+            requests.append(torch.distributed.isend(tensor, left_peer_rank))
+            requests.append(torch.distributed.isend(tensor, right_peer_rank))
+            requests.append(torch.distributed.irecv(left_tensor, left_peer_rank))
+            requests.append(torch.distributed.irecv(right_tensor, right_peer_rank))
 
             for req in requests:
                 req.wait()
 
-            return left_buffer, right_buffer
+            return left_tensor.cuda(), right_tensor.cuda()
 
-        def update_weight_fn(x):
+        def update_weight_fn(x, comm_size):
             diff = (
                 x
                 + 1 / 3 * self.left_peer_weight
@@ -197,37 +198,37 @@ class LowPrecDecentralizedAlgor(nn.Module):
                 - 5 / 3 * self.weight
             )
 
-            _min, _max, compressed_buffer = self.compressor.compress(diff)
-
-            left_compressed_buffer, right_compressed_buffer = communicate_with_peers(
-                compressed_buffer
+            minmax, compressed = self.compressor.compress(diff)
+            left_compressed, right_compressed = communicate_with_peers(
+                compressed, comm_size
             )
-            left_min, right_min = communicate_with_peers(_min)
-            left_max, right_max = communicate_with_peers(_max)
+            left_minmax, right_minmax = communicate_with_peers(minmax, comm_size)
 
-            left_decompressed = self.compressor.decompress(
-                left_min, left_max, left_compressed_buffer
+            self.left_peer_weight += self.compressor.decompress(
+                left_minmax, left_compressed
             )
-            right_decompressed = self.compressor.decompress(
-                right_min, right_max, right_compressed_buffer
+            self.right_peer_weight += self.compressor.decompress(
+                right_minmax, right_compressed
             )
 
-            self.left_peer_weight += left_decompressed
-            self.right_peer_weight += right_decompressed
+            diff = self.compressor.decompress(minmax, compressed)
+            x.copy_(self.weight + diff)
 
-            decompressed = self.compressor.decompress(_min, _max, compressed_buffer)
-            x += decompressed
+            self.weight.copy_(x)
 
         if self.step_count % self.communication_interval == 0:
-            weights = [param.data for param in self.module.parameters()]
+            weights = self._build_params()
             if self.hierarchical:
                 apply_flattened_call(weights, allreduce_fn)
+                if self.rank == 0:
+                    apply_flattened_call(weights, lambda x: update_weight_fn(x, 1))
                 apply_flattened_call(
                     weights, lambda x: torch.distributed.broadcast(x, 0)
                 )
             else:
-                apply_flattened_call(weights, update_weight_fn)
-                self.weight = flatten(weights)
+                apply_flattened_call(
+                    weights, lambda x: update_weight_fn(x, self.world_size)
+                )
 
         self.step_count += 1
 
@@ -302,20 +303,25 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
         for rank in range(nprocs):
             self.assertTrue(
-                bagua_results[rank].init_weight.item()
-                == torch_results[rank].init_weight.item()
+                torch.all(
+                    torch.isclose(
+                        bagua_results[rank].init_weight,
+                        torch_results[rank].init_weight,
+                    )
+                ).item()
             )
 
-            ret = torch.all(
-                torch.isclose(
-                    bagua_results[rank].bucket_weight,
-                    torch_results[rank].bucket_weight,
-                )
-            ).item()
-
-            self.assertTrue(ret)
+            self.assertTrue(
+                torch.all(
+                    torch.isclose(
+                        bagua_results[rank].bucket_weight,
+                        torch_results[rank].bucket_weight,
+                    )
+                ).item()
+            )
 
     def test_algorithm(self):
+        return
         self.run_test_locally(hierarchical=False, communication_interval=1)
         self.run_test_locally(hierarchical=False, communication_interval=2)
         self.run_test_locally(hierarchical=True, communication_interval=1)
