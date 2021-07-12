@@ -7,7 +7,6 @@ import unittest
 import torch.multiprocessing as mp
 import os
 from bagua.torch_api.utils import apply_flattened_call, flatten
-from bagua.torch_api.communication import get_backend
 import bagua.torch_api as bagua
 
 
@@ -191,14 +190,11 @@ class LowPrecDecentralizedAlgor(nn.Module):
             return left_tensor.cuda(), right_tensor.cuda()
 
         def update_weight_fn(x, comm_size):
-            diff = (
-                x
-                + 1 / 3 * self.left_peer_weight
-                + 1 / 3 * self.right_peer_weight
-                - 5 / 3 * self.weight
-            )
+            x += 1 / 3 * self.left_peer_weight
+            x += 1 / 3 * self.right_peer_weight
+            x -= 5 / 3 * self.weight
 
-            minmax, compressed = self.compressor.compress(diff)
+            minmax, compressed = self.compressor.compress(x)
             left_compressed, right_compressed = communicate_with_peers(
                 compressed, comm_size
             )
@@ -267,12 +263,10 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                 )
             else:
                 self.assertTrue(
-                    results[rank].weight.item()
-                    == results[left_peer_rank].right_peer_weight.item()
+                    results[rank].weight.item() == results[left_peer_rank].right_peer_weight.item()
                 )
                 self.assertTrue(
-                    results[rank].weight.item()
-                    == results[right_peer_rank].left_peer_weight.item()
+                    results[rank].weight.item() == results[right_peer_rank].left_peer_weight.item()
                 )
 
     def run_diff_locally(self, hierarchical, communication_interval):
@@ -327,7 +321,9 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         self.run_test_locally(hierarchical=True, communication_interval=1)
 
     def test_compare(self):
+        #    self.run_diff_locally(hierarchical=True, communication_interval=1)
         self.run_diff_locally(hierarchical=False, communication_interval=1)
+        self.run_diff_locally(hierarchical=False, communication_interval=2)
 
 
 if __name__ == "__main__":
