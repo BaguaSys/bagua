@@ -71,20 +71,22 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results):
         loss.backward()
         optimizer.step()
 
-    torch.cuda.synchronize()
     ret.bucket_weight.copy_(flatten([param.data for param in model.parameters()]))
     ret.weight.copy_(torch.norm(bucket._weight))
     ret.left_peer_weight.copy_(torch.norm(bucket._left_peer_weight))
     ret.right_peer_weight.copy_(torch.norm(bucket._right_peer_weight))
 
 
-def run_torch_model(rank, nprocs, hierarchical, communication_interval, results):
+def run_torch_model(
+    rank, nprocs, hierarchical, communication_interval, results, backend
+):
     _init_env(rank)
 
     # init torch distributed process group
+    torch.cuda.set_device(rank)
     store = torch.distributed.FileStore("/tmp/filestore", nprocs)
     torch.distributed.init_process_group(
-        world_size=nprocs, rank=rank, store=store, backend="gloo"
+        world_size=nprocs, rank=rank, store=store, backend=backend
     )
 
     # construct model and optimizer, etc.
@@ -147,9 +149,9 @@ class LowPrecDecentralizedAlgor(nn.Module):
         for param in self.module.parameters():
             torch.distributed.broadcast(param.data, src=0)
 
-        self.weight = flatten(self._build_params())
-        self.left_peer_weight = self.weight.detach().clone()
-        self.right_peer_weight = self.weight.detach().clone()
+        self.weight = flatten(self._build_params()).cuda()
+        self.left_peer_weight = self.weight.detach().clone().cuda()
+        self.right_peer_weight = self.weight.detach().clone().cuda()
 
     def _build_params(self):
         return [param.data for param in list(self.module.parameters()).__reversed__()]
@@ -160,10 +162,6 @@ class LowPrecDecentralizedAlgor(nn.Module):
 
     def step(self):
         self.optimizer.step()
-
-        def allreduce_fn(x):
-            torch.distributed.all_reduce(x)
-            x /= self.world_size
 
         def communicate_with_peers(
             tensor: torch.Tensor, comm_size: int
@@ -209,18 +207,20 @@ class LowPrecDecentralizedAlgor(nn.Module):
 
             diff = self.compressor.decompress(minmax, compressed)
             x.copy_(self.weight + diff)
-
             self.weight.copy_(x)
+
+        def hierarchical_update_weight_fn(x):
+            torch.distributed.reduce(x, dst=0)
+            if self.rank == 0:
+                x /= self.world_size
+                update_weight_fn(x, comm_size=1)
+
+            torch.distributed.broadcast(x, 0)
 
         if self.step_count % self.communication_interval == 0:
             weights = self._build_params()
             if self.hierarchical:
-                apply_flattened_call(weights, allreduce_fn)
-                if self.rank == 0:
-                    apply_flattened_call(weights, lambda x: update_weight_fn(x, 1))
-                apply_flattened_call(
-                    weights, lambda x: torch.distributed.broadcast(x, 0)
-                )
+                apply_flattened_call(weights, hierarchical_update_weight_fn)
             else:
                 apply_flattened_call(
                     weights, lambda x: update_weight_fn(x, self.world_size)
@@ -273,7 +273,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                     )
                 )
 
-    def run_diff_locally(self, hierarchical, communication_interval):
+    def run_diff_locally(self, hierarchical, communication_interval, backend):
         if not torch.cuda.is_available():
             print("skip tests since cuda is not available")
             return
@@ -289,7 +289,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         mp.spawn(
             run_torch_model,
             nprocs=nprocs,
-            args=(nprocs, hierarchical, communication_interval, torch_results),
+            args=(nprocs, hierarchical, communication_interval, torch_results, backend),
         )
 
         bagua_results = [Result() for _ in range(nprocs)]
@@ -319,15 +319,20 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
             )
 
     def test_algorithm(self):
-        return
         self.run_test_locally(hierarchical=False, communication_interval=1)
         self.run_test_locally(hierarchical=False, communication_interval=2)
         self.run_test_locally(hierarchical=True, communication_interval=1)
 
     def test_compare(self):
-        #    self.run_diff_locally(hierarchical=True, communication_interval=1)
-        self.run_diff_locally(hierarchical=False, communication_interval=1)
-        self.run_diff_locally(hierarchical=False, communication_interval=2)
+        self.run_diff_locally(
+            hierarchical=False, communication_interval=1, backend="gloo"
+        )
+        self.run_diff_locally(
+            hierarchical=False, communication_interval=2, backend="gloo"
+        )
+        self.run_diff_locally(
+            hierarchical=True, communication_interval=1, backend="nccl"
+        )
 
 
 if __name__ == "__main__":
