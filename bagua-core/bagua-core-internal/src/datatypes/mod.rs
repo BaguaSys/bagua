@@ -795,7 +795,7 @@ impl BaguaTensor {
 
     pub fn compress(&self, method: &str, n_chunks: usize, target_chunk: i32) -> Self {
         match method {
-            "min_max_uint8" => Self {
+            "MinMaxUInt8" => Self {
                 inner: Arc::new(RwLock::new(BaguaTensorInner {
                     name: "compressed_tensor".to_string(),
                     raw: self
@@ -855,7 +855,7 @@ impl BaguaTensor {
     //
     pub fn decompress_from(&mut self, method: &str, n_chunks: usize, compressed_buffer: &Self) {
         match method {
-            "min_max_uint8" => {
+            "MinMaxUInt8" => {
                 self.inner.write().raw.decompress_from(
                     &TensorCompressionMethod::MinMaxUInt8(MinMaxUInt8CompressionParameters {}),
                     n_chunks,
