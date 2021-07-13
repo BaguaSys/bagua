@@ -207,9 +207,9 @@ class BaguaBucket:
         peer_selection_mode: str = "all",
         communication_interval: int = 1,
         compression: Optional[str] = None,
-        weight: Optional[torch.Tensor] = None,
-        left_peer_weight: Optional[torch.Tensor] = None,
-        right_peer_weight: Optional[torch.Tensor] = None,
+        weight: Optional[BaguaTensor] = None,
+        left_peer_weight: Optional[BaguaTensor] = None,
+        right_peer_weight: Optional[BaguaTensor] = None,
     ) -> BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
@@ -228,11 +228,11 @@ class BaguaBucket:
             communication_interval (int): Number of iterations between two communication steps.
             compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
                 supported.
-            weight (torch.Tensor): Local model of current worker, a flattened tensor containing the same data as the local model
+            weight (BaguaTensor): Local model of current worker, a flattened tensor containing the same data as the local model
                 weights of current worker, required for low precision decentralized operation.
-            left_peer_weight (torch.Tensor): Model replica of current worker's connected left peer, a flattened tensor containing
+            left_peer_weight (BaguaTensor): Model replica of current worker's connected left peer, a flattened tensor containing
                 the same data as model weights of left peer, required for low precision decentralized operation.
-            right_peer_weight (torch.Tensor): Model replica of current worker's connected right peer, similarly as `left_peer_weight`,
+            right_peer_weight (BaguaTensor): Model replica of current worker's connected right peer, similarly as `left_peer_weight`,
                 required for low precision decentralized operation.
         Returns:
             The bucket itself.
