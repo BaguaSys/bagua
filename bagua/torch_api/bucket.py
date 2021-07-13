@@ -71,14 +71,10 @@ class BaguaBucket:
         for tensor in self._all_tensors:
             tensor._bagua_bucket = self
 
-    def flattened_tensor(self) -> torch.Tensor:
+    def flattened_tensor(self) -> BaguaTensor:
         """
         Returns a tensor contiguous in memory which contains the same data as `self` tensors and padding tensor (if exists).
-        If `self` tensors and padding tensor are already flattened, this function returns a tensor corresponding to their
-        underlying storage.
         """
-        if self.flatten:
-            return self.backend_tensor
 
         total_size = 0
         for tensor in self._all_tensors:
@@ -225,18 +221,19 @@ class BaguaBucket:
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): Can be "all" or "shift_one" for full precision decentralized operation, while "ring" for
+            peer_selection_mode (str): Can be "all" or "shift_one" for full precision decentralized operation, "ring" for
                 low precision decentralized operation. "all" means all workers' weights are averaged in each communication step.
                 "shift_one" means each worker selects a different peer to do weights average in each communication step.
                 "ring" means all workers are connected into a ring, and each worker communicate with its neighbors.
             communication_interval (int): Number of iterations between two communication steps.
             compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
                 supported.
-            weight (torch.Tensor): Local model of current worker, required for low precision decentralized operation.
-            left_peer_weight (torch.Tensor): Model replica of current worker's connected left peer, required for low
-                precision decentralized operation.
-            right_peer_weight (torch.Tensor): Model replica of current worker's connected right peer, required for
-                low precision decentralized operation.
+            weight (torch.Tensor): Local model of current worker, a flattened tensor containing the same data as the local model
+                weights of current worker, required for low precision decentralized operation.
+            left_peer_weight (torch.Tensor): Model replica of current worker's connected left peer, a flattened tensor containing
+                the same data as model weights of left peer, required for low precision decentralized operation.
+            right_peer_weight (torch.Tensor): Model replica of current worker's connected right peer, similarly as `left_peer_weight`,
+                required for low precision decentralized operation.
         Returns:
             The bucket itself.
         """

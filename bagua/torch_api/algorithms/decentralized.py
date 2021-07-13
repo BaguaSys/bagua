@@ -133,11 +133,9 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         return hook
 
     def _init_states(self, bucket: BaguaBucket):
-        bucket_flattened_tensor = bucket.flattened_tensor()
-
-        weight_tensor = bucket_flattened_tensor.detach().clone()
-        left_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
-        right_peer_weight_tensor = bucket_flattened_tensor.detach().clone()
+        weight_tensor = bucket.flattened_tensor()
+        left_peer_weight_tensor = bucket.flattened_tensor()
+        right_peer_weight_tensor = bucket.flattened_tensor()
 
         bucket._weight = weight_tensor.to_bagua_tensor("weight")
         bucket._left_peer_weight = left_peer_weight_tensor.to_bagua_tensor(
