@@ -110,7 +110,6 @@ class TestAutotuneService(unittest.TestCase):
                 "app": app,
                 "host": "0.0.0.0",
                 "port": service_port,
-                "debug": False,
             },
         )
         server.daemon = True
