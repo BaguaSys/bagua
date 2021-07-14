@@ -81,12 +81,16 @@ class MockBaguaProcess:
         return hp
 
 
+def run_app(app, host: str, port: int):
+    np.random.seed(123)
+    app.run(host=host, port=port, debug=False)
+
+
 class TestAutotuneService(unittest.TestCase):
     def test_autotune_service(self):
         service_addr = "127.0.0.1"
         service_port = pick_n_free_ports(1)[0]
         nprocs = 2
-        np.random.seed(123)
 
         autotune_service = AutotuneService(
             nprocs,
@@ -101,8 +105,9 @@ class TestAutotuneService(unittest.TestCase):
         log.setLevel(logging.ERROR)
 
         server = multiprocessing.Process(
-            target=app.run,
+            target=run_app,
             kwargs={
+                "app": app,
                 "host": "0.0.0.0",
                 "port": service_port,
                 "debug": False,
