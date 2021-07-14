@@ -59,7 +59,6 @@ class BayesianOptimizer:
             dimensions=search_space,
             n_initial_points=n_initial_points,
             initial_point_generator=initial_point_generator,
-            n_jobs=-1,
             random_state=random_state,
         )
 
