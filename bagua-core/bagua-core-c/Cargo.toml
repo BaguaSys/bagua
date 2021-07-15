@@ -19,7 +19,7 @@ parking_lot = { version = "0.11", features = ["deadlock_detection"] }
 openssl-sys = { version = "*", features = ["vendored"] }
 
 [dependencies.pyo3]
-version = "0.13"
+version = "0.14.1"
 features = ["extension-module"]
 
 [build-dependencies]
