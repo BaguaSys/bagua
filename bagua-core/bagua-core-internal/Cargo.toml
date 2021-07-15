@@ -31,7 +31,7 @@ num-derive = "0.3"
 display_utils = "0.4.0"
 
 [dependencies.pyo3]
-version = "0.13.2"
+version = "0.14.1"
 features = ["auto-initialize"]
 
 [build-dependencies]

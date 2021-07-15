@@ -120,19 +120,6 @@ pub struct BaguaTensorPy {
 
 #[pymethods]
 impl BaguaTensorPy {
-    // #[new]
-    // pub fn new(
-    //     ptr: u64,
-    //     num_elem: usize,
-    //     num_elem_allocated: usize,
-    //     dtype: &str,
-    //     device_id: usize,
-    // ) -> Self {
-    //     Self {
-    //         inner: BaguaTensor::new(ptr, num_elem, num_elem_allocated, dtype, device_id),
-    //     }
-    // }
-
     #[new]
     pub fn new(torch_tensor: &PyAny, name: String) -> PyResult<Self> {
         // TODO: sanity check
