@@ -52,7 +52,7 @@ class MockBaguaProcess:
         self.tensor_list = tensor_list
         self.client = AutotuneClient(service_addr, service_port)
 
-    def run(self, total_iters=5000):
+    def run(self, total_iters=50000):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(
             rsp)
@@ -211,6 +211,7 @@ class TestAutotuneService(unittest.TestCase):
             for name in files:
                 if name.startswith("bagua_autotune_"):
                     autotune_logfile = os.path.join(root, name)
+                    print(autotune_logfile)
                     print(open(autotune_logfile).read())
 
         for ret in results["m1"]:

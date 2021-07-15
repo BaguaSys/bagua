@@ -47,8 +47,6 @@ class BayesianOptimizer:
         self,
         param_declaration: dict,
         n_initial_points: int = 20,
-        initial_point_generator: str = "halton",
-        acq_optimizer: str = "lbfgs",
         random_state: Optional[int] = 0,
     ):
         self.param_declaration = collections.OrderedDict(param_declaration)
@@ -59,9 +57,8 @@ class BayesianOptimizer:
         self.bayesian_optimizer = skopt.Optimizer(
             dimensions=search_space,
             n_initial_points=n_initial_points,
-            initial_point_generator=initial_point_generator,
             random_state=random_state,
-            acq_optimizer=acq_optimizer,
+            n_jobs=-1,
         )
 
     def tell(self, param_dict: dict, score: float) -> None:
