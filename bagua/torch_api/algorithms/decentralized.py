@@ -3,6 +3,8 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.communication import broadcast
+from bagua.torch_api.env import get_rank
 from typing import List
 import torch
 
@@ -54,22 +56,47 @@ class DecentralizedAlgorithm(Algorithm):
     def init_post_backward_hook(self, bagua_module: BaguaModule):
         def hook():
             bagua_module._bagua_backend.wait_pending_comm_ops()
-            torch.cuda.synchronize()
-            bagua_module._bagua_backend.execute_post_backward_comm_ops()
-            bagua_module._bagua_backend.wait_pending_post_backward_comm_ops()
+
+            intra_comm = bagua_module._bagua_backend.intranode_communicator
+
+            def copyback_leader_fn(*unused):
+                for bucket in bagua_module.bagua_buckets:
+                    bucket.backend_tensor.copy_(bucket._peer_weight)
+
+                    if self.hierarchical:
+                        broadcast(bucket.backend_tensor, 0, intra_comm)
+
+            def copyback_worker_fn(*unused):
+                for bucket in bagua_module.bagua_buckets:
+                    if self.hierarchical:
+                        broadcast(bucket.backend_tensor, 0, intra_comm)
+                    else:
+                        bucket.backend_tensor.copy_(bucket._peer_weight)
+
+            bagua_module._bagua_backend.schedule_python_op(
+                copyback_leader_fn if get_rank() == 0 else copyback_worker_fn
+            )
+            bagua_module._bagua_backend.wait_pending_comm_ops()
 
         return hook
+
+    def _init_states(self, bucket: BaguaBucket):
+        weight_tensor = bucket.flattened_tensor()
+        bucket._peer_weight = weight_tensor.to_bagua_tensor("peer_weight")
 
     def init_operations(
         self,
         bagua_module: BaguaModule,
         bucket: BaguaBucket,
     ):
+        self._init_states(bucket)
+        torch.cuda.synchronize()
         bucket.clear_ops()
         bucket.append_decentralized_synchronous_op(
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
             communication_interval=self.communication_interval,
+            left_peer_weight=bucket._peer_weight,
         )
 
 
