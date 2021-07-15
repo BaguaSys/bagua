@@ -29,32 +29,21 @@ impl CommOpTrait for CentralizedFullPrecisionSynchronous {
             true,
             &mut |c, t| {
                 tracing::debug!("internode communication started");
-                let temp_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id]
-                    .try_pull(t.raw.num_elem_allocated * t.raw.dtype.bytes())
-                    .expect("cannot allocate cuda memory");
-                let mut temp_tensor = BaguaTensorRaw {
-                    ptr: temp_buf.ptr,
-                    num_elem_allocated: t.raw.num_elem_allocated,
-                    dtype: t.raw.dtype.clone(),
-                    num_elem: t.raw.num_elem,
-                    device_id: t.raw.device_id,
-                    pool_allocations: vec![Arc::new(temp_buf)],
-                };
                 if self.scattergather {
                     tracing::debug!("start alltoall");
-                    c.alltoall(&t.raw, &mut temp_tensor);
+                    c.alltoall_inplace(&mut t.raw);
                     tracing::debug!("start reduce_sum");
                     if self.average {
-                        temp_tensor.reduce_mean_inplace(c.nranks, c.rank, c.stream_ptr);
+                        t.raw.reduce_mean_inplace(c.nranks, c.rank, c.stream_ptr);
                     } else {
-                        temp_tensor.reduce_sum_inplace(c.nranks, c.rank, c.stream_ptr);
+                        t.raw.reduce_sum_inplace(c.nranks, c.rank, c.stream_ptr);
                     }
                     tracing::debug!("start allgather");
-                    c.allgather(&temp_tensor, &mut t.raw);
+                    c.allgather_inplace(&mut t.raw);
                     tracing::debug!("internode communication done")
                 } else {
                     tracing::debug!("start allreduce");
-                    c.allreduce(&mut t.raw, BaguaReductionOp::SUM);
+                    c.allreduce_inplace(&mut t.raw, BaguaReductionOp::SUM);
                     tracing::debug!("internode communication done");
                     if self.average {
                         t.raw.divide_inplace(stream_ptr, c.nranks as f32);

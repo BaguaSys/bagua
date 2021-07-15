@@ -49,19 +49,42 @@ impl BaguaSingleCommunicatorPy {
         self.inner.device_id()
     }
 
-    pub fn allreduce(&self, tensor: &mut BaguaTensorPy, op: u8) {
+    pub fn allreduce(&self, send_tensor: &BaguaTensorPy, recv_tensor: &mut BaguaTensorPy, op: u8) {
+        self.inner.allreduce(
+            &send_tensor.inner,
+            &mut recv_tensor.inner,
+            BaguaReductionOp::from_u8(op).unwrap(),
+        )
+    }
+
+    pub fn allreduce_inplace(&self, tensor: &mut BaguaTensorPy, op: u8) {
         self.inner
-            .allreduce(&mut tensor.inner, BaguaReductionOp::from_u8(op).unwrap())
+            .allreduce_inplace(&mut tensor.inner, BaguaReductionOp::from_u8(op).unwrap())
     }
 
     pub fn broadcast(&self, tensor: &mut BaguaTensorPy, root_rank: i32) {
         self.inner.broadcast(&mut tensor.inner, root_rank)
     }
 
-    pub fn reduce(&self, tensor: &mut BaguaTensorPy, root_rank: i32, op: u8) {
+    pub fn reduce(
+        &self,
+        send_tensor: &BaguaTensorPy,
+        recv_tensor: &mut BaguaTensorPy,
+        dst: i32,
+        op: u8,
+    ) {
         self.inner.reduce(
+            &send_tensor.inner,
+            &mut recv_tensor.inner,
+            dst,
+            BaguaReductionOp::from_u8(op).unwrap(),
+        )
+    }
+
+    pub fn reduce_inplace(&self, tensor: &mut BaguaTensorPy, dst: i32, op: u8) {
+        self.inner.reduce_inplace(
             &mut tensor.inner,
-            root_rank,
+            dst,
             BaguaReductionOp::from_u8(op).unwrap(),
         )
     }
@@ -74,9 +97,13 @@ impl BaguaSingleCommunicatorPy {
         self.inner.recv(&mut tensor.inner, peer_rank)
     }
 
-    pub fn alltoall(&self, send_tensor: &mut BaguaTensorPy, recv_tensor: &mut BaguaTensorPy) {
+    pub fn alltoall(&self, send_tensor: &BaguaTensorPy, recv_tensor: &mut BaguaTensorPy) {
         self.inner
-            .alltoall(&mut send_tensor.inner, &mut recv_tensor.inner)
+            .alltoall(&send_tensor.inner, &mut recv_tensor.inner)
+    }
+
+    pub fn alltoall_inplace(&self, tensor: &mut BaguaTensorPy) {
+        self.inner.alltoall_inplace(&mut tensor.inner)
     }
 
     pub fn alltoall_v(
@@ -98,9 +125,54 @@ impl BaguaSingleCommunicatorPy {
         )
     }
 
-    pub fn allgather(&self, send_tensor: &mut BaguaTensorPy, recv_tensor: &mut BaguaTensorPy) {
+    pub fn allgather(&self, send_tensor: &BaguaTensorPy, recv_tensor: &mut BaguaTensorPy) {
         self.inner
-            .allgather(&mut send_tensor.inner, &mut recv_tensor.inner)
+            .allgather(&send_tensor.inner, &mut recv_tensor.inner)
+    }
+
+    pub fn allgather_inplace(&self, tensor: &mut BaguaTensorPy) {
+        self.inner.allgather_inplace(&mut tensor.inner)
+    }
+
+    pub fn gather(
+        &self,
+        send_tensor: &mut BaguaTensorPy,
+        recv_tensor: &mut BaguaTensorPy,
+        dst: i32,
+    ) {
+        self.inner
+            .gather(&mut send_tensor.inner, &mut recv_tensor.inner, dst)
+    }
+
+    pub fn gather_inplace(&self, tensor: &mut BaguaTensorPy, count: usize, dst: i32) {
+        self.inner.gather_inplace(&mut tensor.inner, count, dst)
+    }
+
+    pub fn scatter(&self, send_tensor: &BaguaTensorPy, recv_tensor: &mut BaguaTensorPy, src: i32) {
+        self.inner
+            .scatter(&send_tensor.inner, &mut recv_tensor.inner, src)
+    }
+
+    pub fn scatter_inplace(&self, tensor: &mut BaguaTensorPy, count: usize, src: i32) {
+        self.inner.scatter_inplace(&mut tensor.inner, count, src)
+    }
+
+    pub fn reduce_scatter(
+        &self,
+        send_tensor: &BaguaTensorPy,
+        recv_tensor: &mut BaguaTensorPy,
+        op: u8,
+    ) {
+        self.inner.reduce_scatter(
+            &send_tensor.inner,
+            &mut recv_tensor.inner,
+            BaguaReductionOp::from_u8(op).unwrap(),
+        )
+    }
+
+    pub fn reduce_scatter_inplace(&self, tensor: &mut BaguaTensorPy, op: u8) {
+        self.inner
+            .reduce_scatter_inplace(&mut tensor.inner, BaguaReductionOp::from_u8(op).unwrap())
     }
 
     pub fn barrier(&self) {

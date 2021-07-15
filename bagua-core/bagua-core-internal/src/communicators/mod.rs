@@ -68,8 +68,22 @@ impl BaguaSingleCommunicator {
         self.inner.device_id
     }
 
-    pub fn allreduce(&self, tensor: &mut BaguaTensor, op: BaguaReductionOp) {
-        self.inner.allreduce(tensor.inner.write().raw.as_mut(), op);
+    pub fn allreduce(
+        &self,
+        send_tensor: &BaguaTensor,
+        recv_tensor: &mut BaguaTensor,
+        op: BaguaReductionOp,
+    ) {
+        self.inner.allreduce(
+            send_tensor.inner.read().raw.as_ref(),
+            recv_tensor.inner.write().raw.as_mut(),
+            op,
+        );
+    }
+
+    pub fn allreduce_inplace(&self, tensor: &mut BaguaTensor, op: BaguaReductionOp) {
+        self.inner
+            .allreduce_inplace(tensor.inner.write().raw.as_mut(), op);
     }
 
     pub fn broadcast(&self, tensor: &mut BaguaTensor, root_rank: i32) {
@@ -77,9 +91,24 @@ impl BaguaSingleCommunicator {
             .broadcast(tensor.inner.write().raw.as_mut(), root_rank);
     }
 
-    pub fn reduce(&self, tensor: &mut BaguaTensor, root_rank: i32, op: BaguaReductionOp) {
+    pub fn reduce(
+        &self,
+        send_tensor: &BaguaTensor,
+        recv_tensor: &mut BaguaTensor,
+        dst: i32,
+        op: BaguaReductionOp,
+    ) {
+        self.inner.reduce(
+            send_tensor.inner.read().raw.as_ref(),
+            recv_tensor.inner.write().raw.as_mut(),
+            dst,
+            op,
+        );
+    }
+
+    pub fn reduce_inplace(&self, tensor: &mut BaguaTensor, root_rank: i32, op: BaguaReductionOp) {
         self.inner
-            .reduce(tensor.inner.write().raw.as_mut(), root_rank, op);
+            .reduce_inplace(tensor.inner.write().raw.as_mut(), root_rank, op);
     }
 
     pub fn send(&self, tensor: &mut BaguaTensor, peer_rank: i32) {
@@ -92,11 +121,16 @@ impl BaguaSingleCommunicator {
             .recv(tensor.inner.write().raw.as_mut(), peer_rank);
     }
 
-    pub fn alltoall(&self, send_tensor: &mut BaguaTensor, recv_tensor: &mut BaguaTensor) {
+    pub fn alltoall(&self, send_tensor: &BaguaTensor, recv_tensor: &mut BaguaTensor) {
         self.inner.alltoall(
-            send_tensor.inner.write().raw.as_mut(),
+            send_tensor.inner.read().raw.as_ref(),
             recv_tensor.inner.write().raw.as_mut(),
         );
+    }
+
+    pub fn alltoall_inplace(&self, tensor: &mut BaguaTensor) {
+        self.inner
+            .alltoall_inplace(tensor.inner.write().raw.as_mut());
     }
 
     pub fn alltoall_v(
@@ -118,11 +152,60 @@ impl BaguaSingleCommunicator {
         );
     }
 
-    pub fn allgather(&self, send_tensor: &mut BaguaTensor, recv_tensor: &mut BaguaTensor) {
+    pub fn allgather(&self, send_tensor: &BaguaTensor, recv_tensor: &mut BaguaTensor) {
         self.inner.allgather(
-            send_tensor.inner.write().raw.as_mut(),
+            send_tensor.inner.read().raw.as_ref(),
             recv_tensor.inner.write().raw.as_mut(),
         );
+    }
+
+    pub fn allgather_inplace(&self, tensor: &mut BaguaTensor) {
+        self.inner
+            .allgather_inplace(tensor.inner.write().raw.as_mut());
+    }
+
+    pub fn gather(&self, send_tensor: &mut BaguaTensor, recv_tensor: &mut BaguaTensor, dst: i32) {
+        self.inner.gather(
+            send_tensor.inner.write().raw.as_mut(),
+            recv_tensor.inner.write().raw.as_mut(),
+            dst,
+        );
+    }
+
+    pub fn gather_inplace(&self, tensor: &mut BaguaTensor, count: usize, dst: i32) {
+        self.inner
+            .gather_inplace(tensor.inner.write().raw.as_mut(), count, dst);
+    }
+
+    pub fn scatter(&self, send_tensor: &BaguaTensor, recv_tensor: &mut BaguaTensor, src: i32) {
+        self.inner.scatter(
+            send_tensor.inner.read().raw.as_ref(),
+            recv_tensor.inner.write().raw.as_mut(),
+            src,
+        );
+    }
+
+    pub fn scatter_inplace(&self, tensor: &mut BaguaTensor, count: usize, src: i32) {
+        self.inner
+            .scatter_inplace(tensor.inner.write().raw.as_mut(), count, src);
+    }
+
+    pub fn reduce_scatter(
+        &self,
+        send_tensor: &BaguaTensor,
+        recv_tensor: &mut BaguaTensor,
+        op: BaguaReductionOp,
+    ) {
+        self.inner.reduce_scatter(
+            send_tensor.inner.read().raw.as_ref(),
+            recv_tensor.inner.write().raw.as_mut(),
+            op,
+        );
+    }
+
+    pub fn reduce_scatter_inplace(&self, tensor: &mut BaguaTensor, op: BaguaReductionOp) {
+        self.inner
+            .reduce_scatter_inplace(tensor.inner.write().raw.as_mut(), op);
     }
 
     pub fn barrier(&self) {
@@ -176,7 +259,11 @@ impl BaguaHierarchicalCommunicatorLeader {
         let stream_ptr = intranode_communicator.stream_ptr;
         assert_eq!(communication_tensor.stream_ptr, stream_ptr);
         tracing::debug!("reduce start");
-        intranode_communicator.reduce(&mut communication_tensor.raw, 0, BaguaReductionOp::SUM);
+        intranode_communicator.reduce_inplace(
+            &mut communication_tensor.raw,
+            0,
+            BaguaReductionOp::SUM,
+        );
         tracing::debug!("reduce done");
         if average {
             communication_tensor
@@ -203,7 +290,11 @@ pub struct BaguaHierarchicalCommunicatorWorker {
 impl BaguaHierarchicalCommunicatorWorker {
     pub fn hierarchical_worker_pre(&self, communication_tensor: &mut BaguaCommunicationTensor) {
         let intranode_communicator = self.intranode.inner.clone();
-        intranode_communicator.reduce(&mut communication_tensor.raw, 0, BaguaReductionOp::SUM);
+        intranode_communicator.reduce_inplace(
+            &mut communication_tensor.raw,
+            0,
+            BaguaReductionOp::SUM,
+        );
     }
 
     pub fn hierarchical_worker_post(&self, communication_tensor: &mut BaguaCommunicationTensor) {
@@ -361,7 +452,49 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn reduce(&self, tensor: &mut dyn RawBaguaTensor, root_rank: i32, op: BaguaReductionOp) {
+    pub fn reduce(
+        &self,
+        send_tensor: &dyn RawBaguaTensor,
+        recv_tensor: &mut dyn RawBaguaTensor,
+        dst: i32,
+        op: BaguaReductionOp,
+    ) {
+        assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
+        assert_eq!(
+            send_tensor.num_elements_allocated(),
+            recv_tensor.num_elements_allocated(),
+        );
+        let communicator_ptr = self.comm_ptr;
+        let send_ptr = send_tensor.data_ptr();
+        let recv_ptr = recv_tensor.data_ptr();
+        let count = send_tensor.num_elements_allocated();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
+
+        unsafe {
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", dst as "int", count as "size_t", op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const float*>(send_ptr), static_cast<float*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const __half*>(send_ptr), static_cast<__half*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn reduce_inplace(
+        &self,
+        tensor: &mut dyn RawBaguaTensor,
+        root_rank: i32,
+        op: BaguaReductionOp,
+    ) {
         let communicator_ptr = self.comm_ptr;
         let tensor_ptr = tensor.data_ptr();
         let total_num_elem = tensor.num_elements_allocated();
@@ -388,11 +521,15 @@ impl BaguaCommunicatorInner {
 
     pub fn alltoall(&self, send_tensor: &dyn RawBaguaTensor, recv_tensor: &mut dyn RawBaguaTensor) {
         let communicator_ptr = self.comm_ptr;
-        // TODO: also check recv buf?
+        assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
         assert_eq!(
             send_tensor.num_elements_allocated() % self.nranks,
             0,
             "tensors must be aligned before using allscatter"
+        );
+        assert_eq!(
+            send_tensor.num_elements_allocated(),
+            recv_tensor.num_elements_allocated(),
         );
         let send_chunk_size = send_tensor.num_elements_allocated() / self.nranks;
         let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
@@ -411,6 +548,36 @@ impl BaguaCommunicatorInner {
                     Al::Alltoall<Al::NCCLBackend>(static_cast<unsigned char*>(send_buf_ptr), static_cast<unsigned char*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
                     Al::Alltoall<Al::NCCLBackend>(static_cast<long long int*>(send_buf_ptr), static_cast<long long int*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn alltoall_inplace(&self, tensor: &dyn RawBaguaTensor) {
+        let communicator_ptr = self.comm_ptr;
+        assert_eq!(
+            tensor.num_elements_allocated() % self.nranks,
+            0,
+            "tensors must be aligned before using allscatter"
+        );
+        let count = tensor.num_elements_allocated() / self.nranks;
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
+        let tensor_ptr = tensor.data_ptr();
+
+        unsafe {
+            cpp::cpp!([tensor_ptr as "void *", count as "size_t", communicator_ptr as "Al::NCCLCommunicator *",  nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Alltoall<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), count, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Alltoall<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), count, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Alltoall<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), count, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Alltoall<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), count, *communicator_ptr);
                 } else {
                     fputs("unsupport tensor data type.\n", stderr);
                     abort();
@@ -521,35 +688,237 @@ impl BaguaCommunicatorInner {
         recv_tensor: &mut dyn RawBaguaTensor,
     ) {
         let communicator_ptr = self.comm_ptr;
-        let send_tensor_ptr = send_tensor.data_ptr();
-        assert_eq!(
-            send_tensor.num_elements_allocated(),
-            recv_tensor.num_elements_allocated()
-        );
+        let send_ptr = send_tensor.data_ptr();
+        let recv_ptr = recv_tensor.data_ptr();
+        let count = send_tensor.num_elements_allocated();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
+        assert_eq!(count * self.nranks, recv_tensor.num_elements_allocated());
         assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
+
+        unsafe {
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", count as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Allgather<Al::NCCLBackend>(static_cast<float*>(send_ptr), static_cast<float*>(recv_ptr), count, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Allgather<Al::NCCLBackend>(static_cast<__half*>(send_ptr), static_cast<__half*>(recv_ptr), count, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Allgather<Al::NCCLBackend>(static_cast<unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Allgather<Al::NCCLBackend>(static_cast<long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn allgather_inplace(&self, tensor: &dyn RawBaguaTensor) {
         assert_eq!(
-            send_tensor.num_elements_allocated() % self.nranks,
+            tensor.num_elements_allocated() % self.nranks,
             0,
             "tensors must be aligned before using allgather"
         );
-        let send_chunk_size = send_tensor.num_elements_allocated() / self.nranks;
-        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
-
-        let send_buf_ptr = send_tensor_ptr
-            + self.rank as u64 * send_chunk_size as u64 * send_tensor.dtype().bytes() as u64;
-        let recv_buf_ptr = recv_tensor.data_ptr();
-
+        let communicator_ptr = self.comm_ptr;
+        let count = tensor.num_elements_allocated() / self.nranks;
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
+        let tensor_ptr = tensor.data_ptr();
         unsafe {
-            cpp::cpp!([recv_buf_ptr as "void *", send_buf_ptr as "void *", send_chunk_size as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            cpp::cpp!([tensor_ptr as "void *", count as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
             {
                 if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
-                    Al::Allgather<Al::NCCLBackend>(static_cast<float*>(send_buf_ptr), static_cast<float*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
+                    Al::Allgather<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), count, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
-                    Al::Allgather<Al::NCCLBackend>(static_cast<__half*>(send_buf_ptr), static_cast<__half*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
+                    Al::Allgather<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), count, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
-                    Al::Allgather<Al::NCCLBackend>(static_cast<unsigned char*>(send_buf_ptr), static_cast<unsigned char*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
+                    Al::Allgather<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), count, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
-                    Al::Allgather<Al::NCCLBackend>(static_cast<long long int*>(send_buf_ptr), static_cast<long long int*>(recv_buf_ptr), send_chunk_size, *communicator_ptr);
+                    Al::Allgather<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), count, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn gather(
+        &self,
+        send_tensor: &dyn RawBaguaTensor,
+        recv_tensor: &mut dyn RawBaguaTensor,
+        dst: i32,
+    ) {
+        let communicator_ptr = self.comm_ptr;
+        let send_ptr = send_tensor.data_ptr();
+        let recv_ptr = recv_tensor.data_ptr();
+        let count = send_tensor.num_elements_allocated();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
+        assert_eq!(count * self.nranks, recv_tensor.num_elements_allocated());
+        assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
+        unsafe {
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", count as "size_t", dst as "int", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<float*>(send_ptr), static_cast<float*>(recv_ptr), count, dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<__half*>(send_ptr), static_cast<__half*>(recv_ptr), count, dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, dst, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn gather_inplace(&self, tensor: &mut dyn RawBaguaTensor, count: usize, dst: i32) {
+        let communicator_ptr = self.comm_ptr;
+        let tensor_ptr = tensor.data_ptr();
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
+        if dst == self.rank as i32 {
+            assert_eq!(count * self.nranks, tensor.num_elements_allocated());
+        } else {
+            assert_eq!(count, tensor.num_elements_allocated());
+        }
+        unsafe {
+            cpp::cpp!([tensor_ptr as "void *", count as "size_t", dst as "int", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), count, dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), count, dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), count, dst, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), count, dst, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn scatter(
+        &self,
+        send_tensor: &dyn RawBaguaTensor,
+        recv_tensor: &mut dyn RawBaguaTensor,
+        src: i32,
+    ) {
+        let communicator_ptr = self.comm_ptr;
+        let send_ptr = send_tensor.data_ptr();
+        let recv_ptr = recv_tensor.data_ptr();
+        let count = recv_tensor.num_elements_allocated();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
+        assert_eq!(count * self.nranks, send_tensor.num_elements_allocated());
+        assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
+        unsafe {
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", count as "size_t", src as "int", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<float*>(send_ptr), static_cast<float*>(recv_ptr), count, src, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<__half*>(send_ptr), static_cast<__half*>(recv_ptr), count, src, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, src, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Gather<Al::NCCLBackend>(static_cast<long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, src, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn scatter_inplace(&self, tensor: &mut dyn RawBaguaTensor, count: usize, src: i32) {
+        let communicator_ptr = self.comm_ptr;
+        let tensor_ptr = tensor.data_ptr();
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
+        if src == self.rank as i32 {
+            assert_eq!(
+                count as usize * self.nranks,
+                tensor.num_elements_allocated()
+            );
+        } else {
+            assert_eq!(count, tensor.num_elements_allocated());
+        }
+        unsafe {
+            cpp::cpp!([tensor_ptr as "void *", count as "size_t", src as "int", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Scatter<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), count, src, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Scatter<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), count, src, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Scatter<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), count, src, *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Scatter<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), count, src, *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn reduce_scatter(
+        &self,
+        send_tensor: &dyn RawBaguaTensor,
+        recv_tensor: &mut dyn RawBaguaTensor,
+        op: BaguaReductionOp,
+    ) {
+        let communicator_ptr = self.comm_ptr;
+        let send_ptr = send_tensor.data_ptr();
+        let recv_ptr = recv_tensor.data_ptr();
+        let count = recv_tensor.num_elements_allocated();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
+        assert_eq!(count * self.nranks, send_tensor.num_elements_allocated());
+        assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
+        unsafe {
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", count as "size_t", op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const float*>(send_ptr), static_cast<float*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const __half*>(send_ptr), static_cast<__half*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn reduce_scatter_inplace(&self, tensor: &mut dyn RawBaguaTensor, op: BaguaReductionOp) {
+        assert_eq!(
+            tensor.num_elements_allocated() % self.nranks,
+            0,
+            "tensors must be aligned before using reduce_scatter"
+        );
+        let communicator_ptr = self.comm_ptr;
+        let tensor_ptr = tensor.data_ptr();
+        let count = tensor.num_elements_allocated();
+        let nccl_tensor_type = tensor.dtype().to_nccl_datatype();
+        unsafe {
+            cpp::cpp!([tensor_ptr as "void *", count as "size_t", op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
                 } else {
                     fputs("unsupport tensor data type.\n", stderr);
                     abort();
@@ -569,7 +938,43 @@ impl BaguaCommunicatorInner {
         }
     }
 
-    pub fn allreduce(&self, tensor: &mut dyn RawBaguaTensor, op: BaguaReductionOp) {
+    pub fn allreduce(
+        &self,
+        send_tensor: &dyn RawBaguaTensor,
+        recv_tensor: &mut dyn RawBaguaTensor,
+        op: BaguaReductionOp,
+    ) {
+        assert_eq!(
+            send_tensor.num_elements_allocated(),
+            recv_tensor.num_elements_allocated()
+        );
+        assert_eq!(send_tensor.dtype(), recv_tensor.dtype());
+        let communicator_ptr = self.comm_ptr;
+        let send_ptr = send_tensor.data_ptr();
+        let recv_ptr = recv_tensor.data_ptr();
+        let count = send_tensor.num_elements_allocated();
+        let nccl_tensor_type = send_tensor.dtype().to_nccl_datatype();
+
+        unsafe {
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", count as "size_t", op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            {
+                if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
+                    Al::Allreduce<Al::NCCLBackend>(static_cast<const float*>(send_ptr), static_cast<float*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
+                    Al::Allreduce<Al::NCCLBackend>(static_cast<const __half*>(send_ptr), static_cast<__half*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
+                    Al::Allreduce<Al::NCCLBackend>(static_cast<const unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
+                    Al::Allreduce<Al::NCCLBackend>(static_cast<const long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                } else {
+                    fputs("unsupport tensor data type.\n", stderr);
+                    abort();
+                }
+            });
+        }
+    }
+
+    pub fn allreduce_inplace(&self, tensor: &mut dyn RawBaguaTensor, op: BaguaReductionOp) {
         let communicator_ptr = self.comm_ptr;
         let tensor_ptr = tensor.data_ptr();
         let total_num_elem = tensor.num_elements_allocated();
