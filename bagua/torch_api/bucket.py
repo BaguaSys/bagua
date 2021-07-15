@@ -203,13 +203,10 @@ class BaguaBucket:
 
     def append_decentralized_synchronous_op(
         self,
+        peer_weight: BaguaTensor,
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
         communication_interval: int = 1,
-        compression: Optional[str] = None,
-        weight: Optional[BaguaTensor] = None,
-        left_peer_weight: Optional[BaguaTensor] = None,
-        right_peer_weight: Optional[BaguaTensor] = None,
     ) -> BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
@@ -218,25 +215,20 @@ class BaguaBucket:
         when all the tensors within the bucket are marked ready.
 
         Args:
+            peer_weight (BaguaTensor): A tensor used for averaging model with peers, same size with `self` tensors and
+                padding tensor (if exists).
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): Can be "all" or "shift_one" for full precision decentralized operation, "ring" for
-                low precision decentralized operation. "all" means all workers' weights are averaged in each communication step.
-                "shift_one" means each worker selects a different peer to do weights average in each communication step.
-                "ring" means all workers are connected into a ring, and each worker communicate with its neighbors.
+            peer_selection_mode (str): Can be "all", "shift_one" or "ring". "all" means all workers' weights are averaged
+                in each communication step. "shift_one" means each worker selects a different peer to do weights average
+                in each communication step. "ring" means all workers are connected into a ring, and each worker communicate
+                with one of its neighbors in each communication step.
             communication_interval (int): Number of iterations between two communication steps.
-            compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
-                supported.
-            weight (BaguaTensor): Local model of current worker, a flattened tensor containing the same data as the local model
-                weights of current worker, required for low precision decentralized operation.
-            left_peer_weight (BaguaTensor): Model replica of current worker's connected left peer, a flattened tensor containing
-                the same data as model weights of left peer, required for low precision decentralized operation.
-            right_peer_weight (BaguaTensor): Model replica of current worker's connected right peer, similarly as `left_peer_weight`,
-                required for low precision decentralized operation.
         Returns:
             The bucket itself.
         """
+
         if hierarchical:
             self.backend_bucket.append_decentralized_synchronous_op(
                 self._bagua_backend.internode_communicator,
@@ -244,14 +236,7 @@ class BaguaBucket:
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
                 communication_interval=communication_interval,
-                compression=compression,
-                weight=weight._bagua_backend_tensor if weight is not None else None,
-                left_peer_weight=left_peer_weight._bagua_backend_tensor
-                if left_peer_weight is not None
-                else None,
-                right_peer_weight=right_peer_weight._bagua_backend_tensor
-                if right_peer_weight is not None
-                else None,
+                peer_weight=peer_weight._bagua_backend_tensor,
             )
         else:
             self.backend_bucket.append_decentralized_synchronous_op(
@@ -260,14 +245,66 @@ class BaguaBucket:
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
                 communication_interval=communication_interval,
+                peer_weight=peer_weight._bagua_backend_tensor,
+            )
+
+    def append_low_precision_decentralized_synchronous_op(
+        self,
+        weight: BaguaTensor,
+        left_peer_weight: BaguaTensor,
+        right_peer_weight: BaguaTensor,
+        hierarchical: bool = True,
+        peer_selection_mode: str = "ring",
+        compression: str = "MinMaxUInt8",
+        communication_interval: int = 1,
+    ) -> BaguaBucket:
+        """
+        Append a low precision decentralized synchronous operation to a bucket. It will do gossipy style model difference
+        compression among workers.
+
+        The operations will be executed by the Bagua backend in the order they are appended
+        when all the tensors within the bucket are marked ready.
+
+        Args:
+            weight (BaguaTensor): Local model of current worker, a flattened tensor containing the same data as the local model
+                weights of current worker.
+            left_peer_weight (BaguaTensor): Model replica of current worker's connected left peer, a flattened tensor containing
+                the same data as model weights of left peer.
+            right_peer_weight (BaguaTensor): Model replica of current worker's connected right peer, similarly as `left_peer_weight`.
+            hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
+                will communicate will each other first. After that, machines do inter-node communication. This can
+                boost performance when the inter-node communication cost is high.
+            peer_selection_mode (str): The way how workers are connected. Currently "ring" is supported, "ring" means all workers
+                are connected into a ring, and each worker communicate with its two neighbors.
+            communication_interval (int): Number of iterations between two communication steps.
+            compression: The way how tensors are compressed for communication. Currently "MinMaxUInt8" is supported.
+        Returns:
+            The bucket itself.
+        """
+
+        if hierarchical:
+            self.backend_bucket.append_low_precision_decentralized_synchronous_op(
+                self._bagua_backend.internode_communicator,
+                self._bagua_backend.intranode_communicator,
+                hierarchical=hierarchical,
+                peer_selection_mode=peer_selection_mode,
+                communication_interval=communication_interval,
                 compression=compression,
-                weight=weight._bagua_backend_tensor if weight is not None else None,
-                left_peer_weight=left_peer_weight._bagua_backend_tensor
-                if left_peer_weight is not None
-                else None,
-                right_peer_weight=right_peer_weight._bagua_backend_tensor
-                if right_peer_weight is not None
-                else None,
+                weight=weight._bagua_backend_tensor,
+                left_peer_weight=left_peer_weight._bagua_backend_tensor,
+                right_peer_weight=right_peer_weight._bagua_backend_tensor,
+            )
+        else:
+            self.backend_bucket.append_low_precision_decentralized_synchronous_op(
+                self._bagua_backend.global_communicator,
+                None,
+                hierarchical=hierarchical,
+                peer_selection_mode=peer_selection_mode,
+                communication_interval=communication_interval,
+                compression=compression,
+                weight=weight._bagua_backend_tensor,
+                left_peer_weight=left_peer_weight._bagua_backend_tensor,
+                right_peer_weight=right_peer_weight._bagua_backend_tensor,
             )
 
         return self

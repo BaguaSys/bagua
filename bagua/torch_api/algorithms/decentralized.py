@@ -4,7 +4,6 @@ from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
 from bagua.torch_api.communication import broadcast
-from bagua.torch_api.env import get_rank
 from typing import List
 import torch
 
@@ -31,6 +30,7 @@ class DecentralizedAlgorithm(Algorithm):
         self.hierarchical = hierarchical
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
+        self.step = 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -55,28 +55,20 @@ class DecentralizedAlgorithm(Algorithm):
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
         def hook():
-            bagua_module._bagua_backend.wait_pending_comm_ops()
+            if self.step % self.communication_interval == 0:
+                bagua_module._bagua_backend.wait_pending_comm_ops()
 
-            intra_comm = bagua_module._bagua_backend.intranode_communicator
+                intra_comm = bagua_module._bagua_backend.intranode_communicator
+                inter_comm = bagua_module._bagua_backend.internode_communicator
 
-            def copyback_leader_fn(*unused):
                 for bucket in bagua_module.bagua_buckets:
-                    bucket.backend_tensor.copy_(bucket._peer_weight)
-
-                    if self.hierarchical:
-                        broadcast(bucket.backend_tensor, 0, intra_comm)
-
-            def copyback_worker_fn(*unused):
-                for bucket in bagua_module.bagua_buckets:
-                    if self.hierarchical:
-                        broadcast(bucket.backend_tensor, 0, intra_comm)
-                    else:
+                    if not self.hierarchical or (inter_comm is not None):
                         bucket.backend_tensor.copy_(bucket._peer_weight)
 
-            bagua_module._bagua_backend.schedule_python_op(
-                copyback_leader_fn if get_rank() == 0 else copyback_worker_fn
-            )
-            bagua_module._bagua_backend.wait_pending_comm_ops()
+                    if self.hierarchical:
+                        broadcast(bucket.backend_tensor, 0, intra_comm)
+
+            self.step += 1
 
         return hook
 
@@ -96,7 +88,7 @@ class DecentralizedAlgorithm(Algorithm):
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
             communication_interval=self.communication_interval,
-            left_peer_weight=bucket._peer_weight,
+            peer_weight=bucket._peer_weight,
         )
 
 
@@ -180,7 +172,7 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self._init_states(bucket)
         torch.cuda.synchronize()
         bucket.clear_ops()
-        bucket.append_decentralized_synchronous_op(
+        bucket.append_low_precision_decentralized_synchronous_op(
             hierarchical=self.hierarchical,
             peer_selection_mode="ring",
             communication_interval=self.communication_interval,
