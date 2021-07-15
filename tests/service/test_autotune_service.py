@@ -52,7 +52,7 @@ class MockBaguaProcess:
         self.tensor_list = tensor_list
         self.client = AutotuneClient(service_addr, service_port)
 
-    def run(self, total_iters=50000):
+    def run(self, total_iters=500000):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(
             rsp)
@@ -82,11 +82,6 @@ class MockBaguaProcess:
         return hp
 
 
-def run_app(app, host: str, port: int):
-    np.random.seed(123)
-    app.run(host=host, port=port, debug=False)
-
-
 class TestAutotuneService(unittest.TestCase):
     def test_autotune_service(self):
         service_addr = "127.0.0.1"
@@ -106,11 +101,11 @@ class TestAutotuneService(unittest.TestCase):
         log.setLevel(logging.ERROR)
 
         server = multiprocessing.Process(
-            target=run_app,
+            target=app.run,
             kwargs={
-                "app": app,
                 "host": "0.0.0.0",
                 "port": service_port,
+                "debug": False,
             },
         )
         server.daemon = True
