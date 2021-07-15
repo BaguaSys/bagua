@@ -74,7 +74,7 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                             if step % comm_interval == 0 {
                                 peer_tensor.clone_from(&t.raw, c.stream_ptr);
                                 let _guard = NCCLGroupGuard::new();
-                                c.allreduce(&mut peer_tensor, BaguaReductionOp::SUM);
+                                c.allreduce_inplace(&mut peer_tensor, BaguaReductionOp::SUM);
                                 peer_tensor.divide_inplace(stream_ptr, c.nranks as f32);
                             }
                         }
