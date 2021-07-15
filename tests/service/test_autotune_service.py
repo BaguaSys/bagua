@@ -7,6 +7,7 @@ from bagua.service import AutotuneService, AutotuneClient
 from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 import socket
 import numpy as np
+import os
 
 
 def pick_n_free_ports(n: int):
@@ -203,6 +204,14 @@ class TestAutotuneService(unittest.TestCase):
                     mock_objs.append(mock)
                     ret = pool.apply_async(mock.run)
                     results[model_name].append(ret)
+            pool.join()
+
+            for root, _, files in os.walk("/tmp", topdown=False):
+                for name in files:
+                    if name.startswith("bagua_autotune_"):
+                        autotune_logfile = os.path.join(root, name)
+                        print(open(autotune_logfile).read())
+
             for ret in results["m1"]:
                 hp = ret.get()
                 buckets = [[
