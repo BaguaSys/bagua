@@ -194,42 +194,43 @@ class TestAutotuneService(unittest.TestCase):
         }
 
         mock_objs = []
-        with multiprocessing.pool.ThreadPool(nprocs * len(model_dict)) as pool:
-            results = dict([(key, []) for key in model_dict.keys()])
-            for i in range(nprocs):
-                for (model_name, tensor_list) in model_dict.items():
-                    mock = MockBaguaProcess(
-                        i, service_addr, service_port, model_name, tensor_list
-                    )
-                    mock_objs.append(mock)
-                    ret = pool.apply_async(mock.run)
-                    results[model_name].append(ret)
-            pool.join()
-
-            for root, _, files in os.walk("/tmp", topdown=False):
-                for name in files:
-                    if name.startswith("bagua_autotune_"):
-                        autotune_logfile = os.path.join(root, name)
-                        print(open(autotune_logfile).read())
-
-            for ret in results["m1"]:
-                hp = ret.get()
-                buckets = [[
-                    td["name"] for td in bucket] for bucket in hp.buckets]
-                self.assertEqual(
-                    buckets,
-                    [['A', 'B', 'C'], ['D'], ['E']],
-                    "hp={}".format(hp.dict())
+        pool = multiprocessing.pool.ThreadPool(nprocs * len(model_dict))
+        results = dict([(key, []) for key in model_dict.keys()])
+        for i in range(nprocs):
+            for (model_name, tensor_list) in model_dict.items():
+                mock = MockBaguaProcess(
+                    i, service_addr, service_port, model_name, tensor_list
                 )
-            for ret in results["m2"]:
-                hp = ret.get()
-                buckets = [[
-                    td["name"] for td in bucket] for bucket in hp.buckets]
-                self.assertEqual(
-                    buckets,
-                    [['C', 'D'], ['A', 'B'], ['E']],
-                    "hp={}".format(hp.dict())
-                )
+                mock_objs.append(mock)
+                ret = pool.apply_async(mock.run)
+                results[model_name].append(ret)
+
+        pool.close()
+        pool.join()
+        for root, _, files in os.walk("/tmp", topdown=False):
+            for name in files:
+                if name.startswith("bagua_autotune_"):
+                    autotune_logfile = os.path.join(root, name)
+                    print(open(autotune_logfile).read())
+
+        for ret in results["m1"]:
+            hp = ret.get()
+            buckets = [[
+                td["name"] for td in bucket] for bucket in hp.buckets]
+            self.assertEqual(
+                buckets,
+                [['A', 'B', 'C'], ['D'], ['E']],
+                "hp={}".format(hp.dict())
+            )
+        for ret in results["m2"]:
+            hp = ret.get()
+            buckets = [[
+                td["name"] for td in bucket] for bucket in hp.buckets]
+            self.assertEqual(
+                buckets,
+                [['C', 'D'], ['A', 'B'], ['E']],
+                "hp={}".format(hp.dict())
+            )
 
         server.terminate()
         server.join()
