@@ -52,14 +52,15 @@ class MockBaguaProcess:
         self.tensor_list = tensor_list
         self.client = AutotuneClient(service_addr, service_port)
 
-    def run(self, total_iters=500000):
+    def run(self):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(
             rsp)
         hp = BaguaHyperparameter().update(
             rsp.json()["recommended_hyperparameters"])
 
-        for train_iter in range(total_iters):
+        train_iter = 0
+        while True:
             score = metrics(hp.buckets, hp.is_hierarchical_reduce)
             rsp = self.client.report_metrics(
                 self.model_name, self.rank, train_iter, hp.dict(), score
@@ -78,6 +79,8 @@ class MockBaguaProcess:
             if rsp["is_autotune_completed"]:
                 logging.info("train_iter={}".format(train_iter))
                 break
+
+            train_iter += 1
 
         return hp
 
