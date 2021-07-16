@@ -589,7 +589,9 @@ def gather(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.gather(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), dst
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            dst,
         )
 
     torch.cuda.synchronize()
