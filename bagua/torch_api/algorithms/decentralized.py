@@ -174,7 +174,6 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         bucket.clear_ops()
         bucket.append_low_precision_decentralized_synchronous_op(
             hierarchical=self.hierarchical,
-            peer_selection_mode="ring",
             communication_interval=self.communication_interval,
             compression="MinMaxUInt8",
             weight=bucket._weight,

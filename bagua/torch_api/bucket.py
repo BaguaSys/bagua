@@ -215,15 +215,14 @@ class BaguaBucket:
         when all the tensors within the bucket are marked ready.
 
         Args:
-            peer_weight (BaguaTensor): A tensor used for averaging model with peers, same size with `self` tensors and
-                padding tensor (if exists).
+            peer_weight (BaguaTensor): A tensor used for receiving and averaging model with peers, should be the same size
+                with local model weights (i.e. `self` tensors) and padding tensor (if exists).
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): Can be "all", "shift_one" or "ring". "all" means all workers' weights are averaged
+            peer_selection_mode (str): Can be "all" or "shift_one". "all" means all workers' weights are averaged
                 in each communication step. "shift_one" means each worker selects a different peer to do weights average
-                in each communication step. "ring" means all workers are connected into a ring, and each worker communicate
-                with one of its neighbors in each communication step.
+                in each communication step.
             communication_interval (int): Number of iterations between two communication steps.
         Returns:
             The bucket itself.
@@ -254,13 +253,12 @@ class BaguaBucket:
         left_peer_weight: BaguaTensor,
         right_peer_weight: BaguaTensor,
         hierarchical: bool = True,
-        peer_selection_mode: str = "ring",
         compression: str = "MinMaxUInt8",
         communication_interval: int = 1,
     ) -> BaguaBucket:
         """
-        Append a low precision decentralized synchronous operation to a bucket. It will do gossipy style model difference
-        compression among workers.
+        Append a low precision decentralized synchronous operation to a bucket. It will do a difference based model compression,
+        and exchange information among workers.
 
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
@@ -274,8 +272,6 @@ class BaguaBucket:
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): The way how workers are connected. Currently "ring" is supported, "ring" means all workers
-                are connected into a ring, and each worker communicate with its two neighbors.
             communication_interval (int): Number of iterations between two communication steps.
             compression: The way how tensors are compressed for communication. Currently "MinMaxUInt8" is supported.
         Returns:
@@ -287,7 +283,7 @@ class BaguaBucket:
                 self._bagua_backend.internode_communicator,
                 self._bagua_backend.intranode_communicator,
                 hierarchical=hierarchical,
-                peer_selection_mode=peer_selection_mode,
+                peer_selection_mode="ring",
                 communication_interval=communication_interval,
                 compression=compression,
                 weight=weight._bagua_backend_tensor,
@@ -299,7 +295,7 @@ class BaguaBucket:
                 self._bagua_backend.global_communicator,
                 None,
                 hierarchical=hierarchical,
-                peer_selection_mode=peer_selection_mode,
+                peer_selection_mode="ring",
                 communication_interval=communication_interval,
                 compression=compression,
                 weight=weight._bagua_backend_tensor,
