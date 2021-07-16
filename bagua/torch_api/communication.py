@@ -793,7 +793,8 @@ def alltoall(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.alltoall(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor()
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
         )
 
     torch.cuda.synchronize()
