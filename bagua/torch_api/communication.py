@@ -362,9 +362,10 @@ def reduce(
     torch.cuda.synchronize()
 
 
-def reduce_inplace(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
-    r"""The inplace version of reduce.
-    """
+def reduce_inplace(
+    tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
+):
+    r"""The inplace version of reduce."""
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
