@@ -215,7 +215,7 @@ def init_bagua_communicator(model_name: str, stream, store=None, device_id=None)
     return comm
 
 
-def send(tensor, dst, comm: B.BaguaSingleCommunicatorPy=None):
+def send(tensor, dst, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Sends a tensor to dst synchronously.
 
     Args:
@@ -239,7 +239,7 @@ def send(tensor, dst, comm: B.BaguaSingleCommunicatorPy=None):
     torch.cuda.synchronize()
 
 
-def recv(tensor, src, comm: B.BaguaSingleCommunicatorPy=None):
+def recv(tensor, src, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Receives a tensor synchronously.
 
     Args:
@@ -316,7 +316,13 @@ def broadcast(tensor, src=0, comm: B.BaguaSingleCommunicatorPy = None):
     torch.cuda.synchronize()
 
 
-def reduce(send_tensor, recv_tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
+def reduce(
+    send_tensor,
+    recv_tensor,
+    dst,
+    op=dist.ReduceOp.SUM,
+    comm: B.BaguaSingleCommunicatorPy = None
+):
     r"""Reduces the tensor across all processes.
 
     Only the process whit rank `dst` is going to receive the final result.
@@ -332,8 +338,12 @@ def reduce(send_tensor, recv_tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSin
             Defaults to None.
     """  # noqa: W293
 
-    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
-    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+    assert send_tensor.device != torch.device(
+        "cpu"
+    ), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device(
+        "cpu"
+    ), "recv tensor must be CUDA and dense"
 
     if comm is None:
         comm = get_backend("").global_communicator
@@ -343,7 +353,10 @@ def reduce(send_tensor, recv_tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSin
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.reduce(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op)
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            dst,
+            to_bagua_reduce_op(op)
         )
 
     torch.cuda.synchronize()
