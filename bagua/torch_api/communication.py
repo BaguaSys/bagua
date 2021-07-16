@@ -504,7 +504,6 @@ def allreduce_inplace(
     torch.cuda.synchronize()
 
 
-
 def allgather(
     send_tensor,
     recv_tensor,
