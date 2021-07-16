@@ -472,7 +472,9 @@ def allreduce(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.allreduce(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op)
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            to_bagua_reduce_op(op),
         )
 
     # TODO: remove
