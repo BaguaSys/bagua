@@ -356,7 +356,7 @@ def reduce(
             send_tensor.to_bagua_tensor().bagua_backend_tensor(),
             recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
             dst,
-            to_bagua_reduce_op(op)
+            to_bagua_reduce_op(op),
         )
 
     torch.cuda.synchronize()
