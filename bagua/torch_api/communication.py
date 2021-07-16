@@ -545,8 +545,7 @@ def allgather_inplace(
     tensor,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of allgather.
-    """
+    """The inplace version of allgather."""
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
