@@ -4,8 +4,23 @@ The Bagua communication library PyTorch interface.
 """
 from .communication import (  # noqa: F401
     init_process_group,
-    allreduce,
+    send,
+    recv,
     broadcast,
+    reduce,
+    reduce_inplace,
+    gather,
+    gather_inplace,
+    scatter,
+    scatter_inplace,
+    allreduce,
+    allreduce_inplace,
+    allgather,
+    allgather_inplace,
+    alltoall,
+    alltoall_inplace,
+    reduce_scatter,
+    reduce_scatter_inplace,
 )
 from .distributed import BaguaModule  # noqa: F401
 from .tensor import BaguaTensor  # noqa: F401
