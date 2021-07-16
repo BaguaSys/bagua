@@ -486,8 +486,7 @@ def allreduce_inplace(
     op=dist.ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of allreduce.
-    """
+    """The inplace version of allreduce."""
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
