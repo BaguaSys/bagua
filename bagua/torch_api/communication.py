@@ -321,7 +321,7 @@ def reduce(
     recv_tensor,
     dst,
     op=dist.ReduceOp.SUM,
-    comm: B.BaguaSingleCommunicatorPy = None
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     r"""Reduces the tensor across all processes.
 
