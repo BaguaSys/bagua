@@ -709,8 +709,12 @@ def reduce_scatter(
             Defaults to None.
     """
 
-    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
-    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+    assert send_tensor.device != torch.device(
+        "cpu"
+    ), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device(
+        "cpu"
+    ), "recv tensor must be CUDA and dense"
 
     if comm is None:
         comm = get_backend("").global_communicator
