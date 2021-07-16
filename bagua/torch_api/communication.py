@@ -625,9 +625,7 @@ def gather_inplace(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.gather_inplace(
-            tensor.to_bagua_tensor().bagua_backend_tensor(), count, dst
-        )
+        comm.gather_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), count, dst)
 
     torch.cuda.synchronize()
 
