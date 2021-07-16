@@ -101,7 +101,7 @@ class BaguaModule:
 
         module_states = self.bagua_build_params()
         for name, state in module_states:
-            broadcast(state, root=0)
+            broadcast(state, src=0)
         for optimizer in self.bagua_optimizers:
             optimizer_state_dict = optimizer.state_dict()["state"]
             for state in optimizer_state_dict.values():
@@ -109,7 +109,7 @@ class BaguaModule:
                     if isinstance(
                         inner_state, torch.Tensor
                     ):  # TODO: consider the case where this is a scalar
-                        broadcast(inner_state, root=0)
+                        broadcast(inner_state, src=0)
 
     def _bagua_autotune_step(self):
         CYCLE_STEP = 100

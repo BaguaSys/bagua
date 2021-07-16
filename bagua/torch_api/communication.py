@@ -215,7 +215,55 @@ def init_bagua_communicator(model_name: str, stream, store=None, device_id=None)
     return comm
 
 
-def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = None):
+def send(tensor, dst, comm: B.BaguaSingleCommunicatorPy=None):
+    r"""Sends a tensor to dst synchronously.
+
+    Args:
+        tensor (torch.Tensor): Data to be sent.
+        dst (int): Destination rank.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
+            to work on. If None, the global bagua communicator will be used.
+    """
+
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.send(tensor.to_bagua_tensor().bagua_backend_tensor(), dst)
+
+    torch.cuda.synchronize()
+
+
+def recv(tensor, src, comm: B.BaguaSingleCommunicatorPy=None):
+    r"""Receives a tensor synchronously.
+
+    Args:
+        tensor (torch.Tensor): Tensor to fill with received data.
+        src (int): Source rank.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
+            to work on. If None, the global bagua communicator will be used.
+    """
+
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.recv(tensor.to_bagua_tensor().bagua_backend_tensor(), src)
+
+    torch.cuda.synchronize()
+
+
+def broadcast_coalesced(tensors, src=0, comm: B.BaguaSingleCommunicatorPy = None):
     for tensor in tensors:
         assert tensor.device != torch.device(
             "cpu"
@@ -229,7 +277,7 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        comm.broadcast(coalesced.to_bagua_tensor().bagua_backend_tensor(), root)
+        comm.broadcast(coalesced.to_bagua_tensor().bagua_backend_tensor(), src)
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
 
@@ -237,7 +285,7 @@ def broadcast_coalesced(tensors, root=0, comm: B.BaguaSingleCommunicatorPy = Non
     torch.cuda.synchronize()
 
 
-def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
+def broadcast(tensor, src=0, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Broadcasts the tensor to the whole communicator.
 
     `tensor` must have the same number of elements in all processes
@@ -247,7 +295,7 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
         tensor (torch.Tensor): Data to be sent if `root` is the rank of
             current process, and tensor to be used to save received data
             otherwise.
-        root (int, optional): Source rank. Defaults to 0.
+        src (int, optional): Source rank. Defaults to 0.
         comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
             to work on. If None, the global bagua communicator will be used.
             Defaults to None.
@@ -262,27 +310,48 @@ def broadcast(tensor, root=0, comm: B.BaguaSingleCommunicatorPy = None):
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.broadcast(tensor.to_bagua_tensor().bagua_backend_tensor(), root)
+        comm.broadcast(tensor.to_bagua_tensor().bagua_backend_tensor(), src)
 
     # TODO: remove
     torch.cuda.synchronize()
 
 
-def reduce(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
+def reduce(send_tensor, recv_tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Reduces the tensor across all processes.
 
     Only the process whit rank `dst` is going to receive the final result.
 
     Args:
-        tensor (torch.Tensor): Input and output of the collective. The
-            function operates in-place.
-        dst (int): Destination rank
+        send_tensor (torch.Tensor): Input of the collective.
+        recv_tensor (torch.Tensor): Output of the collective, must have the same size of send_tensor.
+        dst (int): Destination rank.
         op (optional): one of the values from `torch.distributed.ReduceOp`
             enum. Specifies an operation used for element-wise reductions.
         comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
             work on. If None the global bagua communicator will be used.
             Defaults to None.
     """  # noqa: W293
+
+    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.reduce(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op)
+        )
+
+    torch.cuda.synchronize()
+
+
+def reduce_inplace(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None):
+    r"""The inplace version of reduce.
+    """
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
@@ -293,14 +362,14 @@ def reduce(tensor, dst, op=dist.ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy 
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.reduce(
+        comm.reduce_inplace(
             tensor.to_bagua_tensor().bagua_backend_tensor(), dst, to_bagua_reduce_op(op)
         )
 
     torch.cuda.synchronize()
 
 
-def allreduce_coalesced(
+def allreduce_coalesced_inplace(
     tensors,
     op=dist.ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
@@ -318,7 +387,7 @@ def allreduce_coalesced(
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        comm.allreduce(
+        comm.allreduce_inplace(
             coalesced.to_bagua_tensor("allreduce_coalesced"), to_bagua_reduce_op(op)
         )
 
@@ -330,17 +399,18 @@ def allreduce_coalesced(
 
 
 def allreduce(
-    tensor,
+    send_tensor,
+    recv_tensor,
     op=dist.ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Reduces the tensor data across all machines in such a way that all get
-    the final result. After the call tensor is going to be bitwise identical
+    the final result. After the call recv_tensor is going to be bitwise identical
     in all processes.
 
     Args:
-        tensor (torch.Tensor): Input and output of the collective. The
-            function operates in-place.
+        send_tensor (torch.Tensor): Input of the collective.
+        recv_tensor (torch.Tensor): Output of the collective, must have the same size of send_tensor.
         op (optional): one of the values from `torch.distributed.ReduceOp` enum. Specifies an operation used for element-wise reductions.
         comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
             work on. If None the global bagua communicator will be used.
@@ -350,26 +420,54 @@ def allreduce(
         >>> from bagua.torch_api import allreduce
         >>> # All tensors below are of torch.int64 type.
         >>> # We have 2 process groups, 2 ranks.
-        >>> tensor = torch.arange(2, dtype=torch.int64) + 1 + 2 * rank
-        >>> tensor
+        >>> send_tensor = torch.arange(2, dtype=torch.int64) + 1 + 2 * rank
+        >>> recv_tensor = torch.zeros(2, dtype=torch.int64)
+        >>> send_tensor
         tensor([1, 2]) # Rank 0
         tensor([3, 4]) # Rank 1
-        >>> allreduce(tensor)
-        >>> tensor
+        >>> allreduce(send_tensor, recv_tensor)
+        >>> recv_tensor
         tensor([4, 6]) # Rank 0
         tensor([4, 6]) # Rank 1
 
         >>> # All tensors below are of torch.cfloat type.
         >>> # We have 2 process groups, 2 ranks.
-        >>> tensor = torch.tensor([1+1j, 2+2j], dtype=torch.cfloat) + 2 * rank * (1+1j)
-        >>> tensor
+        >>> send_tensor = torch.tensor([1+1j, 2+2j], dtype=torch.cfloat) + 2 * rank * (1+1j)
+        >>> recv_tensor = torch.zeros(2, dtype=torch.cfloat)
+        >>> send_tensor
         tensor([1.+1.j, 2.+2.j]) # Rank 0
         tensor([3.+3.j, 4.+4.j]) # Rank 1
-        >>> allreduce(tensor)
-        >>> tensor
+        >>> allreduce(send_tensor, recv_tensor)
+        >>> recv_tensor
         tensor([4.+4.j, 6.+6.j]) # Rank 0
         tensor([4.+4.j, 6.+6.j]) # Rank 1
     """  # noqa: E501
+
+    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.allreduce(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op)
+        )
+
+    # TODO: remove
+    torch.cuda.synchronize()
+
+
+def allreduce_inplace(
+    tensor,
+    op=dist.ReduceOp.SUM,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """The inplace version of allreduce.
+    """
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
@@ -380,9 +478,320 @@ def allreduce(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.allreduce(
+        comm.allreduce_inplace(
             tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op)
         )
 
-    # TODO: remove
+    torch.cuda.synchronize()
+
+
+
+def allgather(
+    send_tensor,
+    recv_tensor,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """Gathers send_tensors from all machines to recv_tensor.
+
+    Args:
+        send_tensor (torch.Tensor): Input of the collective.
+        recv_tensor (torch.Tensor): Output of the collective, must have size send_tensor.size()*comm.nranks.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.allgather(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor()
+        )
+
+    torch.cuda.synchronize()
+
+
+def allgather_inplace(
+    tensor,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """The inplace version of allgather.
+    """
+
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.allgather_inplace(
+            tensor.to_bagua_tensor().bagua_backend_tensor()
+        )
+
+    torch.cuda.synchronize()
+
+
+def gather(
+    send_tensor,
+    recv_tensor,
+    dst,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """Gathers send_tensors from all machines to recv_tensor in a single process.
+
+    Args:
+        send_tensor (torch.Tensor): Input of the collective.
+        recv_tensor (torch.Tensor): Output of the collective, must have size send_tensor.size()*comm.nranks.
+        dst (int): Destination rank.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.gather(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), dst
+        )
+
+    torch.cuda.synchronize()
+
+
+def gather_inplace(
+    tensor,
+    count,
+    dst,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """The inplace version of gather.
+
+    Args:
+        tensor (torch.Tensor): Input and output of the collective, For dst process,
+            has size count*comm.nranks() and acts as recv_tensor above. For non-dst processes,
+            has size count and acts as send_tensor above.
+        count (int): The per-rank data count.
+        dst (int): Destination rank.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.gather_inplace(
+            tensor.to_bagua_tensor().bagua_backend_tensor(), count, dst
+        )
+
+    torch.cuda.synchronize()
+
+
+def scatter(
+    send_tensor,
+    recv_tensor,
+    src,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """Scatters send_tensor to all machines.
+
+    Args:
+        send_tensor (torch.Tensor): Input of the collective, must have size recv_tensor.size()*comm.nranks.
+        recv_tensor (torch.Tensor): Output of the collective.
+        src (int): Source rank.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.scatter(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), src
+        )
+
+    torch.cuda.synchronize()
+
+
+def scatter_inplace(
+    tensor,
+    count,
+    src,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """The inplace version of gather.
+
+    Args:
+        tensor (torch.Tensor): Input and output of the collective, For src process,
+            has size count*comm.nranks() and acts as send_tensor above. For non-src processes,
+            has size count and acts as recv_tensor above.
+        count (int): The per-rank data count.
+        src (int): Source rank.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.scatter_inplace(
+            tensor.to_bagua_tensor().bagua_backend_tensor(), count, src
+        )
+
+    torch.cuda.synchronize()
+
+
+def reduce_scatter(
+    send_tensor,
+    recv_tensor,
+    op=dist.ReduceOp.SUM,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """Reduces on send_tensor, then scatters send_tensor to all machines.
+
+    Args:
+        send_tensor (torch.Tensor): Input of the collective, must have size recv_tensor.size()*comm.nranks.
+        recv_tensor (torch.Tensor): Output of the collective.
+        op (optional): one of the values from `torch.distributed.ReduceOp` enum. Specifies an operation used for element-wise reductions.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.reduce_scatter(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op)
+        )
+
+    torch.cuda.synchronize()
+
+
+def reduce_scatter_inplace(
+    tensor,
+    op=dist.ReduceOp.SUM,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """The inplace version of reduce_scatter.
+
+    Args:
+        send_tensor (torch.Tensor): Input and output of the collective, must satisfy: `tensor.size() % comm.nranks == 0`.
+        op (optional): one of the values from `torch.distributed.ReduceOp` enum. Specifies an operation used for element-wise reductions.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.reduce_scatter_inplace(
+            tensor.to_bagua_tensor().bagua_backend_tensor(), to_bagua_reduce_op(op)
+        )
+
+    torch.cuda.synchronize()
+
+
+def alltoall(
+    send_tensor,
+    recv_tensor,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """All processes send data to all processes.
+
+    Args:
+        send_tensor (torch.Tensor): Input of the collective, must satisfy: `send_tensor.size() % comm.nranks == 0`.
+        recv_tensor (torch.Tensor): Output of the collective, must have the same size of send_tensor.
+        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
+            work on. If None the global bagua communicator will be used.
+            Defaults to None.
+    """
+
+    assert send_tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.alltoall(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(), recv_tensor.to_bagua_tensor().bagua_backend_tensor()
+        )
+
+    torch.cuda.synchronize()
+
+
+def alltoall_inplace(
+    tensor,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """The inplace version of alltoall.
+    """
+
+    assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.alltoall_inplace(tensor.to_bagua_tensor().bagua_backend_tensor())
+
     torch.cuda.synchronize()
