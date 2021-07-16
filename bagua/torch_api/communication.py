@@ -804,8 +804,7 @@ def alltoall_inplace(
     tensor,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of alltoall.
-    """
+    """The inplace version of alltoall."""
 
     assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
 
