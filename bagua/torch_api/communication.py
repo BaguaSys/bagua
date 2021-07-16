@@ -556,9 +556,7 @@ def allgather_inplace(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.allgather_inplace(
-            tensor.to_bagua_tensor().bagua_backend_tensor()
-        )
+        comm.allgather_inplace(tensor.to_bagua_tensor().bagua_backend_tensor())
 
     torch.cuda.synchronize()
 
