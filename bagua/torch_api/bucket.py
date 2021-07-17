@@ -211,11 +211,18 @@ class BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
-        The operations will be executed by the Bagua backend in the order they are appended
-        when all the tensors within the bucket are marked ready.
+        In this operation, local model weights are copied into `peer_weight`, and each worker sends `peer_weight` to its
+        peer and receives its peer's counterpart. Since the original local model weights remains unchanged during this
+        process, it is possible to overlap communication with the computation of `forward` and `backward`.
+
+        This function initiated the above mentioned process, which will be executed by the Bagua backend in
+        the order they are appended when all the tensors within the bucket are marked ready.
+
+        To complete this operation, it is needed to copy `peer_weight` back to local model weights once `backward` finishes.
+        It is done by another function, see :func:`decentralized_synchronous_op_copy_back_peer_weight`.
 
         Args:
-            peer_weight (BaguaTensor): A tensor used for receiving and averaging model with peers, should be the same size
+            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be the same size
                 with local model weights (i.e. `self` tensors) and padding tensor (if exists).
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
@@ -243,10 +250,22 @@ class BaguaBucket:
                 peer_selection_mode=peer_selection_mode,
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
+        return self
 
     def decentralized_synchronous_op_copy_back_peer_weight(
         self, peer_weight: BaguaTensor, hierarchical: bool = True
     ):
+        """
+        Copy `peer_weight` back to local model weights, the end process of a decentralized synchronous operation.
+        See :func:`append_decentralized_synchronous_op` for more information.
+
+        Args:
+            peer_weight (BaguaTensor): A tensor used for averaging model with peers, should be the same size
+                with local model weights (i.e. `self` tensors) and padding tensor (if exists).
+            hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
+                will communicate will each other first. After that, machines do inter-node communication. This can
+                boost performance when the inter-node communication cost is high.
+        """
         intra_comm = self._bagua_backend.intranode_communicator
         inter_comm = self._bagua_backend.internode_communicator
 
@@ -265,18 +284,19 @@ class BaguaBucket:
         compression: str = "MinMaxUInt8",
     ) -> BaguaBucket:
         """
-        Append a low precision decentralized synchronous operation to a bucket. It will do a difference based model compression,
-        and exchange information among workers.
+        Append a low precision decentralized synchronous operation to a bucket. It will do a difference based
+        model compression, and information are exchanged between each worker and its two peers.
 
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
 
         Args:
-            weight (BaguaTensor): Local model of current worker, a flattened tensor containing the same data as the local model
-                weights of current worker.
-            left_peer_weight (BaguaTensor): Model replica of current worker's connected left peer, a flattened tensor containing
-                the same data as model weights of left peer.
-            right_peer_weight (BaguaTensor): Model replica of current worker's connected right peer, similarly as `left_peer_weight`.
+            weight (BaguaTensor): Model replica of current workers local model, should contain the same data with the
+                initializing weights of current worker.
+            left_peer_weight (BaguaTensor): Model replica of current worker's connected left peer, should contain the
+                same data with initializing weights of current worker's left peer.
+            right_peer_weight (BaguaTensor): Model replica of current worker's connected right peer, should contain the
+                same data with initializing weights of current worker's right peer.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
