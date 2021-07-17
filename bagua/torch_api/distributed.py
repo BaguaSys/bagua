@@ -157,6 +157,7 @@ class BaguaModule:
                 module. It can contain one or more PyTorch optimizers.
             algorithm: Distributed algorithm
                 used to do the actual communication and update.
+            communication_interval: Number of iterations between two communication steps.
 
         Returns:
             The original module, with Bagua related environments initialized.

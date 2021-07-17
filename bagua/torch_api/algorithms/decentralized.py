@@ -71,9 +71,9 @@ class DecentralizedAlgorithm(Algorithm):
         torch.cuda.synchronize()
         bucket.clear_ops()
         bucket.append_decentralized_synchronous_op(
+            peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
-            peer_weight=bucket._peer_weight,
         )
 
 
@@ -156,10 +156,9 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         torch.cuda.synchronize()
         bucket.clear_ops()
         bucket.append_low_precision_decentralized_synchronous_op(
-            hierarchical=self.hierarchical,
-            peer_selection_mode="ring",
-            compression="MinMaxUInt8",
             weight=bucket._weight,
             left_peer_weight=bucket._left_peer_weight,
             right_peer_weight=bucket._right_peer_weight,
+            hierarchical=self.hierarchical,
+            compression="MinMaxUInt8",
         )
