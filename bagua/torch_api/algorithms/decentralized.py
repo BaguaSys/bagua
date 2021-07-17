@@ -3,7 +3,6 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
-from bagua.torch_api.communication import broadcast
 from typing import List
 import torch
 
@@ -13,7 +12,6 @@ class DecentralizedAlgorithm(Algorithm):
         self,
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
-        communication_interval: int = 1,
     ):
         """
         Create an instance of the
@@ -25,12 +23,9 @@ class DecentralizedAlgorithm(Algorithm):
             peer_selection_mode (str): Can be "all" or "shift_one". "all" means all workers'
                 weights are averaged in each communication step. "shift_one" means each worker
                 selects a different peer to do weights average in each communication step.
-            communication_interval (int): Number of iterations between two communication steps.
         """
         self.hierarchical = hierarchical
         self.peer_selection_mode = peer_selection_mode
-        self.communication_interval = communication_interval
-        self.step = 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -55,20 +50,11 @@ class DecentralizedAlgorithm(Algorithm):
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
         def hook():
-            if self.step % self.communication_interval == 0:
-                bagua_module._bagua_backend.wait_pending_comm_ops()
-
-                intra_comm = bagua_module._bagua_backend.intranode_communicator
-                inter_comm = bagua_module._bagua_backend.internode_communicator
-
-                for bucket in bagua_module.bagua_buckets:
-                    if not self.hierarchical or (inter_comm is not None):
-                        bucket.backend_tensor.copy_(bucket._peer_weight)
-
-                    if self.hierarchical:
-                        broadcast(bucket.backend_tensor, 0, intra_comm)
-
-            self.step += 1
+            bagua_module._bagua_backend.wait_pending_comm_ops()
+            for bucket in bagua_module.bagua_buckets:
+                bucket.decentralized_synchronous_op_copy_back_peer_weight(
+                    hierarchical=self.hierarchical, peer_weight=bucket._peer_weight
+                )
 
         return hook
 
@@ -87,13 +73,12 @@ class DecentralizedAlgorithm(Algorithm):
         bucket.append_decentralized_synchronous_op(
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
-            communication_interval=self.communication_interval,
             peer_weight=bucket._peer_weight,
         )
 
 
 class LowPrecisionDecentralizedAlgorithm(Algorithm):
-    def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
+    def __init__(self, hierarchical: bool = True):
         """
         Create an instance of the
         `Difference Compression Decentralized <https://arxiv.org/pdf/1803.06443.pdf>`_
@@ -101,10 +86,8 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
         Args:
             hierarchical (bool): Enable hierarchical communication.
-            communication_interval (int): Number of iterations between two communication steps.
         """
         self.hierarchical = hierarchical
-        self.communication_interval = communication_interval
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -175,7 +158,6 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         bucket.append_low_precision_decentralized_synchronous_op(
             hierarchical=self.hierarchical,
             peer_selection_mode="ring",
-            communication_interval=self.communication_interval,
             compression="MinMaxUInt8",
             weight=bucket._weight,
             left_peer_weight=bucket._left_peer_weight,

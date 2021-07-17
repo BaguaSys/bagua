@@ -9,6 +9,7 @@ import torch
 
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.utils import check_contiguous
+from bagua.torch_api.communication import broadcast
 
 
 class BaguaBucket:
@@ -206,7 +207,6 @@ class BaguaBucket:
         peer_weight: BaguaTensor,
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
-        communication_interval: int = 1,
     ) -> BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
@@ -224,7 +224,6 @@ class BaguaBucket:
                 in each communication step. "shift_one" means each worker selects a different peer to do weights average
                 in each communication step. "ring" means all workers are connected into a ring, and each worker communicate
                 with one of its neighbors in each communication step.
-            communication_interval (int): Number of iterations between two communication steps.
         Returns:
             The bucket itself.
         """
@@ -235,7 +234,6 @@ class BaguaBucket:
                 self._bagua_backend.intranode_communicator,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                communication_interval=communication_interval,
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
         else:
@@ -244,9 +242,20 @@ class BaguaBucket:
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                communication_interval=communication_interval,
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
+
+    def decentralized_synchronous_op_copy_back_peer_weight(
+        self, peer_weight: BaguaTensor, hierarchical: bool = True
+    ):
+        intra_comm = self._bagua_backend.intranode_communicator
+        inter_comm = self._bagua_backend.internode_communicator
+
+        if not hierarchical or (inter_comm is not None):
+            self.backend_tensor.copy_(peer_weight)
+
+        if hierarchical:
+            broadcast(self.backend_tensor, 0, intra_comm)
 
     def append_low_precision_decentralized_synchronous_op(
         self,
@@ -256,7 +265,6 @@ class BaguaBucket:
         hierarchical: bool = True,
         peer_selection_mode: str = "ring",
         compression: str = "MinMaxUInt8",
-        communication_interval: int = 1,
     ) -> BaguaBucket:
         """
         Append a low precision decentralized synchronous operation to a bucket. It will do gossipy style model difference
@@ -276,7 +284,6 @@ class BaguaBucket:
                 boost performance when the inter-node communication cost is high.
             peer_selection_mode (str): The way how workers are connected. Currently "ring" is supported, "ring" means all workers
                 are connected into a ring, and each worker communicate with its two neighbors.
-            communication_interval (int): Number of iterations between two communication steps.
             compression: The way how tensors are compressed for communication. Currently "MinMaxUInt8" is supported.
         Returns:
             The bucket itself.
@@ -288,7 +295,6 @@ class BaguaBucket:
                 self._bagua_backend.intranode_communicator,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                communication_interval=communication_interval,
                 compression=compression,
                 weight=weight._bagua_backend_tensor,
                 left_peer_weight=left_peer_weight._bagua_backend_tensor,
@@ -300,7 +306,6 @@ class BaguaBucket:
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                communication_interval=communication_interval,
                 compression=compression,
                 weight=weight._bagua_backend_tensor,
                 left_peer_weight=left_peer_weight._bagua_backend_tensor,

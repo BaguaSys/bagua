@@ -57,8 +57,8 @@ def run_model(
         bagua.algorithms.decentralized.DecentralizedAlgorithm(
             hierarchical=hierarchical,
             peer_selection_mode=peer_selection_mode,
-            communication_interval=communication_interval,
         ),
+        communication_interval=communication_interval,
     )
 
     ret = results[rank]
@@ -215,12 +215,12 @@ class DecentralizedAlgor(nn.Module):
 
 
 def get_peer_rank(peer_selection_mode, rank, nranks, step, communication_interval):
-    comm_step = (step // communication_interval) % ((nranks + 1) // 2)
+    comm_step = step // communication_interval
     if peer_selection_mode == "shift_one":
         if rank < nranks // 2:
             return ((comm_step + rank) % ((nranks + 1) // 2)) + (nranks // 2)
         else:
-            return (rank + (nranks // 2) - comm_step) % (nranks // 2)
+            return (rank - (nranks // 2) - comm_step) % (nranks // 2)
     else:
         ValueError("Unsupported `peer_selection_mode`")
 
