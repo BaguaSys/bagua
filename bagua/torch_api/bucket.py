@@ -212,14 +212,15 @@ class BaguaBucket:
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
         In this operation, local model weights are copied into `peer_weight`, and each worker sends `peer_weight` to its
-        peer and receives its peer's counterpart. Since the original local model weights remains unchanged during this
-        process, it is possible to overlap communication with the computation of `forward` and `backward`.
+        peer and receives its peer's counterpart, then average them. Since the original local model weights remains
+        unchanged during this process, it is possible to overlap communication with the computation of `forward` and
+        `backward` process.
 
         This function initiated the above mentioned process, which will be executed by the Bagua backend in
         the order they are appended when all the tensors within the bucket are marked ready.
 
         To complete this operation, it is needed to copy `peer_weight` back to local model weights once `backward` finishes.
-        It is done by another function, see :func:`decentralized_synchronous_op_copy_back_peer_weight`.
+        This is done by another function, see :func:`decentralized_synchronous_op_copy_back_peer_weight`.
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be the same size
@@ -256,7 +257,7 @@ class BaguaBucket:
         self, peer_weight: BaguaTensor, hierarchical: bool = True
     ):
         """
-        Copy `peer_weight` back to local model weights, the end process of a decentralized synchronous operation.
+        Copy `peer_weight` back to local model weights to end a decentralized synchronous operation.
         See :func:`append_decentralized_synchronous_op` for more information.
 
         Args:
@@ -284,19 +285,19 @@ class BaguaBucket:
         compression: str = "MinMaxUInt8",
     ) -> BaguaBucket:
         """
-        Append a low precision decentralized synchronous operation to a bucket. It will do a difference based
-        model compression, and information are exchanged between each worker and its two peers.
+        Append a low precision decentralized synchronous operation to a bucket. It will compress the difference
+        of local models in two successive iterations and exchange them between each worker and its two peers.
 
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
 
         Args:
-            weight (BaguaTensor): Model replica of current workers local model, should contain the same data with the
+            weight (BaguaTensor): Model replica of current worker's local model, should contain the same data as
                 initializing weights of current worker.
             left_peer_weight (BaguaTensor): Model replica of current worker's connected left peer, should contain the
-                same data with initializing weights of current worker's left peer.
+                same data as initializing weights of current worker's left peer.
             right_peer_weight (BaguaTensor): Model replica of current worker's connected right peer, should contain the
-                same data with initializing weights of current worker's right peer.
+                same data as initializing weights of current worker's right peer.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
