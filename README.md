@@ -82,6 +82,11 @@ make html
 }
 ```
 
+## Limitations
+
+* When communication is not a bottleneck in the training task, using Bagua communication algorithms will not provide significant performance improvement (unless you use other optimizations in Bagua such as fused optimizer).
+* Currently only tested on Linux and NVIDIA GPUs.
+
 ## Links
 
 * [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
