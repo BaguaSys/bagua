@@ -130,7 +130,6 @@ class BaguaModule:
             rsp = self._bagua_autotune_client.report_metrics(
                 model_name=self.bagua_module_name,
                 rank=get_rank(),
-                unix_timestamp=time.time(),
                 train_iter=self.bagua_train_step_counter,
                 hyperparameters=self._bagua_hyperparameters.dict(),
                 speed=speed,
