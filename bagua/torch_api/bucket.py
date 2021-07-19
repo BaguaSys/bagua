@@ -216,7 +216,7 @@ class BaguaBucket:
         unchanged during this process, it is possible to overlap communication with the computation of `forward` and
         `backward` process.
 
-        This function initiated the above mentioned process, which will be executed by the Bagua backend in
+        This function initiates the above mentioned process, which will be executed by the Bagua backend in
         the order they are appended when all the tensors within the bucket are marked ready.
 
         To complete this operation, it is needed to copy `peer_weight` back to local model weights once `backward` finishes.
@@ -286,7 +286,7 @@ class BaguaBucket:
     ) -> BaguaBucket:
         """
         Append a low precision decentralized synchronous operation to a bucket. It will compress the difference
-        of local models in two successive iterations and exchange them between each worker and its two peers.
+        of local models between two successive iterations and exchange them among workers.
 
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
