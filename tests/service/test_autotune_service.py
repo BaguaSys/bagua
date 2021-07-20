@@ -6,6 +6,7 @@ from bagua.bagua_define import TensorDeclaration
 from bagua.service import AutotuneService, AutotuneClient
 from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 import socket
+import time
 import numpy as np
 import os
 
@@ -80,6 +81,7 @@ class MockBaguaProcess:
                 logging.info("train_iter={}".format(train_iter))
                 break
 
+            time.sleep(0.1)
             train_iter += 1
 
         return hp
