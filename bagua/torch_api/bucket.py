@@ -211,8 +211,8 @@ class BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
-        This operation is not inplace, which means the bucket weights is first copied to `peer_weight`, and the result of 
-        decentralized averaging will be in `peer_weight`. To copy `peer_weight` back to self, call 
+        This operation is not inplace, which means the bucket weights is first copied to `peer_weight`, and the result of
+        decentralized averaging will be in `peer_weight`. To copy `peer_weight` back to self, call
         :func:`decentralized_synchronous_op_copy_back_peer_weight`.
 
         This operation will be executed by the Bagua backend in
