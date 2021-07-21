@@ -220,7 +220,7 @@ class BaguaBucket:
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be the same size
-                with bucket weights, i.e. `self` tensors and padding tensor (if exists). 
+                with bucket weights, i.e. `self` tensors and padding tensor (if exists).
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
@@ -294,7 +294,7 @@ class BaguaBucket:
                 with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
                 should contain the same data as initializing weights of current worker's left peer.
             right_peer_weight (BaguaTensor): Model replica of current worker's right peer, It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor. 
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
                 should contain the same data as initializing weights of current worker's right peer.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
