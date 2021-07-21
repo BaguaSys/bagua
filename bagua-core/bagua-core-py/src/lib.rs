@@ -344,7 +344,6 @@ impl BaguaCommBackendPy {
         py.allow_threads(|| self.inner.start_upload_telemetry(skip))
             .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))
     }
-    
 }
 
 #[pyclass(dict)]
@@ -421,7 +420,7 @@ impl BaguaBucketPy {
         );
         Ok(())
     }
-    
+
     #[args(hierarchical = "false", communication_interval = "1")]
     pub fn append_low_precision_decentralized_synchronous_op(
         &mut self,
@@ -434,16 +433,17 @@ impl BaguaBucketPy {
         left_peer_weight: PyRef<BaguaTensorPy>,
         right_peer_weight: PyRef<BaguaTensorPy>,
     ) -> PyResult<()> {
-        self.inner.append_low_precision_decentralized_synchronous_op(
-            communicator_internode.map(|x| &x.inner),
-            communicator_intranode.map(|x| &x.inner),
-            hierarchical,
-            peer_selection_mode,
-            compression,
-            (*weight).inner.clone(),
-            (*left_peer_weight).inner.clone(),
-            (*right_peer_weight).inner.clone(),
-        );
+        self.inner
+            .append_low_precision_decentralized_synchronous_op(
+                communicator_internode.map(|x| &x.inner),
+                communicator_intranode.map(|x| &x.inner),
+                hierarchical,
+                peer_selection_mode,
+                compression,
+                (*weight).inner.clone(),
+                (*left_peer_weight).inner.clone(),
+                (*right_peer_weight).inner.clone(),
+            );
         Ok(())
     }
 
