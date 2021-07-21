@@ -31,7 +31,7 @@ class DecentralizedAlgorithm(Algorithm):
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
 
-    def should_communicate(self, bagua_module: BaguaModule) -> bool:
+    def _should_communicate(self, bagua_module: BaguaModule) -> bool:
         return (
             bagua_module.bagua_train_step_counter == 1
             or bagua_module.bagua_train_step_counter % self.communication_interval == 0
@@ -61,7 +61,7 @@ class DecentralizedAlgorithm(Algorithm):
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
         def hook():
-            if self.should_communicate(bagua_module):
+            if self._should_communicate(bagua_module):
                 bagua_module._bagua_backend.wait_pending_comm_ops()
                 for bucket in bagua_module.bagua_buckets:
                     bucket.decentralized_synchronous_op_copy_back_peer_weight(
@@ -103,7 +103,7 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
-    def should_communicate(self, bagua_module: BaguaModule) -> bool:
+    def _should_communicate(self, bagua_module: BaguaModule) -> bool:
         return (
             bagua_module.bagua_train_step_counter == 1
             or bagua_module.bagua_train_step_counter % self.communication_interval == 0
@@ -145,7 +145,7 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         def hook(optimizer: torch.optim.Optimizer):
-            if self.should_communicate(bagua_module):
+            if self._should_communicate(bagua_module):
                 for group in optimizer.param_groups:
                     for param in group["params"]:
                         if param.is_bagua_tensor():
