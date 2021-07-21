@@ -1,6 +1,8 @@
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaHierarchicalCommunicator, NCCLGroupGuard};
-use crate::datatypes::{BaguaBucket, BaguaTensor, BaguaReductionOp, BaguaTensorRaw, RawBaguaTensor};
+use crate::datatypes::{
+    BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorRaw, RawBaguaTensor,
+};
 use crate::events::BaguaEventChannel;
 use crate::resource_pool::CUDA_DEVICE_MEMORY_POOL;
 use crate::{BaguaCommOpChannels, BaguaScheduledCommOp};
@@ -96,7 +98,5 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
         );
 
         *self.step.lock() += 1;
-
     }
 }
-
