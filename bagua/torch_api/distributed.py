@@ -200,7 +200,7 @@ class BaguaModule:
         ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
 
-        self.bagua_train_step_counter = -1
+        self.bagua_train_step_counter = 0
         """
         Number of iterations in training mode.
         """
