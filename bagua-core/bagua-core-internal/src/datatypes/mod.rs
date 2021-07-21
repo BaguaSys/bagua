@@ -1108,60 +1108,65 @@ impl BaguaBucket {
         communicator_intranode: Option<&BaguaSingleCommunicator>,
         hierarchical: bool,
         peer_selection_mode: String,
-        communication_interval: usize,
-        compression: Option<String>,
-        weight: Option<BaguaTensor>,
-        left_peer_weight: Option<BaguaTensor>,
-        right_peer_weight: Option<BaguaTensor>,
+        peer_weight: BaguaTensor,
     ) {
         let communicator =
             BaguaCommunicator::new(communicator_internode, communicator_intranode, hierarchical)
                 .expect("cannot create communicator");
-        let comm_op: Arc<dyn CommOpTrait + Send + Sync> = match compression {
-            None => Arc::new(DecentralizedFullPrecisionSynchronous {
-                communicator,
-                peer_selection_mode: match peer_selection_mode.as_str() {
-                    "all" => PeerSelectionMode::All,
-                    "shift_one" => PeerSelectionMode::ShiftOne,
-                    &_ => {
-                        unimplemented!("unsupported peer_selection_mode for decentralized algorithm (should be `all` or `shift_one`)")
-                    }
-                },
-                step: Default::default(),
-                communication_interval,
-            }),
-            Some(x) => match x.as_str() {
-               "MinMaxUInt8" => Arc::new(DecentralizedLowPrecisionSynchronous {
-                     communicator,
-                     peer_selection_mode: match peer_selection_mode.as_str() {
-                         "ring" => PeerSelectionMode::Ring,
-                         &_ => {
-                             unimplemented!("unsupported peer_selection_mode for low precision decentralized algorithm (should be `ring`)")
-                         }
-                     },
-                     step: Default::default(),
-                     communication_interval,
-                     compression_method: TensorCompressionMethod::MinMaxUInt8(
-                         MinMaxUInt8CompressionParameters {},
-                     ),
-                    weight: weight.expect("missing parameter `weight` for low precision decentralized algorithm"), 
-                    left_peer_weight: left_peer_weight.expect("missing parameter `left_peer_weight` for low precision decentralized algorithm"),
-                    right_peer_weight: right_peer_weight.expect("missing parameter `right_peer_weight` for low precision decentralized algorithm"),
-                }),
-                _ => {
-                    unimplemented!()
+        let comm_op: Arc<dyn CommOpTrait + Send + Sync> = Arc::new(DecentralizedFullPrecisionSynchronous {
+            communicator,
+            peer_selection_mode: match peer_selection_mode.as_str() {
+                "all" => PeerSelectionMode::All,
+                "shift_one" => PeerSelectionMode::ShiftOne,
+                &_ => {
+                     unimplemented!("unsupported peer_selection_mode for decentralized algorithm (should be `all` or `shift_one`)")
                 }
-
             },
-        };
+            step: Default::default(),
+            peer_weight,
+        });
+
         self.inner.lock().comm_ops.push(comm_op);
     }
-
+    
+    pub fn append_low_precision_decentralized_synchronous_op(
+        &mut self,
+        communicator_internode: Option<&BaguaSingleCommunicator>,
+        communicator_intranode: Option<&BaguaSingleCommunicator>,
+        hierarchical: bool,
+        peer_selection_mode: String,
+        compression: String,
+        weight: BaguaTensor,
+        left_peer_weight: BaguaTensor,
+        right_peer_weight: BaguaTensor,
+    ) {
+        let communicator =
+            BaguaCommunicator::new(communicator_internode, communicator_intranode, hierarchical)
+                .expect("cannot create communicator");
+        let comm_op: Arc<dyn CommOpTrait + Send + Sync> = Arc::new(DecentralizedLowPrecisionSynchronous {
+             communicator,
+             peer_selection_mode: match peer_selection_mode.as_str() {
+                 "ring" => PeerSelectionMode::Ring,
+                 &_ => {
+                     unimplemented!("unsupported peer_selection_mode for low precision decentralized algorithm (should be `ring`)")
+                 }
+             },
+             compression_method: TensorCompressionMethod::MinMaxUInt8(
+                 MinMaxUInt8CompressionParameters {},
+             ),
+             weight,
+             left_peer_weight,
+             right_peer_weight,
+        });
+        
+        self.inner.lock().comm_ops.push(comm_op);
+    }
+    
     pub fn append_python_op(&mut self, op: pyo3::Py<pyo3::PyAny>) {
         let comm_op: Arc<dyn CommOpTrait + Send + Sync> = Arc::new(PythonFFIOp { py_callable: op });
         self.inner.lock().comm_ops.push(comm_op);
     }
-
+    
     /// this function will use communicator_internode to communicate.
     /// if hierarchical = True, it will do hierarchical communicator, this requires intranode communicator on each node and inter node communicator on leader GPU. leader GPU will be the GPU whose communicator_intranode rank is 0
     pub fn append_centralized_synchronous_op(
