@@ -220,7 +220,7 @@ class BaguaBucket:
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be the same size
-                with bucket weights, i.e. `self` tensors and padding tensor (if exists).
+                with bucket weights, i.e. `self` tensors and padding tensor (if exists). 
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
@@ -257,8 +257,8 @@ class BaguaBucket:
         See :func:`append_decentralized_synchronous_op` for more information.
 
         Args:
-            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be the same size
-                with bucket weights, i.e. `self` tensors and padding tensor (if exists).
+            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
+                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
@@ -288,12 +288,14 @@ class BaguaBucket:
         when all the tensors within the bucket are marked ready.
 
         Args:
-            weight (BaguaTensor): Model replica of current worker's local model, should contain the same data as
-                initializing weights of current worker.
-            left_peer_weight (BaguaTensor): Model replica of current worker's connected left peer, should contain the
-                same data as initializing weights of current worker's left peer.
-            right_peer_weight (BaguaTensor): Model replica of current worker's connected right peer, should contain the
-                same data as initializing weights of current worker's right peer.
+            weight (BaguaTensor): Model replica of current worker's local model. It should be of the same size
+                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor.
+            left_peer_weight (BaguaTensor): Model replica of current worker's left peer. It should be of the same size
+                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor.
+                should contain the same data as initializing weights of current worker's left peer.
+            right_peer_weight (BaguaTensor): Model replica of current worker's right peer, It should be of the same size
+                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor. 
+                should contain the same data as initializing weights of current worker's right peer.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
