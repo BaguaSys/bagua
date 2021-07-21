@@ -258,7 +258,7 @@ class BaguaBucket:
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
@@ -289,12 +289,12 @@ class BaguaBucket:
 
         Args:
             weight (BaguaTensor): Model replica of current worker's local model. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             left_peer_weight (BaguaTensor): Model replica of current worker's left peer. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
                 should contain the same data as initializing weights of current worker's left peer.
             right_peer_weight (BaguaTensor): Model replica of current worker's right peer, It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor`` to create such a tensor. 
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor. 
                 should contain the same data as initializing weights of current worker's right peer.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
