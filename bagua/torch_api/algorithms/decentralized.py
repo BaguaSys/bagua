@@ -32,10 +32,8 @@ class DecentralizedAlgorithm(Algorithm):
         self.communication_interval = communication_interval
 
     def _should_communicate(self, bagua_module: BaguaModule) -> bool:
-        return (
-            bagua_module.bagua_train_step_counter == 1
-            or bagua_module.bagua_train_step_counter % self.communication_interval == 0
-        )
+        cur_step = bagua_module.bagua_train_step_counter
+        return cur_step == 1 or cur_step % self.communication_interval == 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -47,7 +45,7 @@ class DecentralizedAlgorithm(Algorithm):
 
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
         def hook(input):
-            if bagua_module.bagua_train_step_counter % self.communication_interval == 0:
+            if self._should_communicate(bagua_module):
                 for tensor in self.tensors:
                     tensor.bagua_mark_communication_ready()
 
@@ -104,10 +102,8 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self.communication_interval = communication_interval
 
     def _should_communicate(self, bagua_module: BaguaModule) -> bool:
-        return (
-            bagua_module.bagua_train_step_counter == 1
-            or bagua_module.bagua_train_step_counter % self.communication_interval == 0
-        )
+        cur_step = bagua_module.bagua_train_step_counter
+        return cur_step == 1 or cur_step % self.communication_interval == 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
