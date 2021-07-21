@@ -14,8 +14,6 @@ use std::sync::Arc;
 pub struct DecentralizedLowPrecisionSynchronous {
     pub communicator: BaguaCommunicator,
     pub peer_selection_mode: PeerSelectionMode,
-    pub step: Mutex<usize>,
-    pub communication_interval: usize,
     pub compression_method: TensorCompressionMethod,
     pub weight: BaguaTensor,
     pub left_peer_weight: BaguaTensor,
@@ -35,8 +33,6 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
             bucket_guard.get_communication_tensor(stream_ptr, false, false);
 
         let peer_mode = &self.peer_selection_mode;
-        let comm_interval = &self.communication_interval;
-        let step = { *self.step.lock() };
 
         self.communicator.execute_communication(
             &mut communication_tensor,
@@ -44,120 +40,116 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
             true,
             true,
             &mut |c, t| {
-                if step % comm_interval == 0 {
-                    tracing::debug!("start compress diff");
+                tracing::debug!("start compress diff");
 
-                    t.raw.addmul_inplace(
-                        self.left_peer_weight.inner.read().raw.as_ref(),
-                        1.0 / 3.0,
-                        c.stream_ptr,
-                    );
-                    t.raw.addmul_inplace(
-                        self.right_peer_weight.inner.read().raw.as_ref(),
-                        1.0 / 3.0,
-                        c.stream_ptr,
-                    );
+                t.raw.addmul_inplace(
+                    self.left_peer_weight.inner.read().raw.as_ref(),
+                    1.0 / 3.0,
+                    c.stream_ptr,
+                );
+                t.raw.addmul_inplace(
+                    self.right_peer_weight.inner.read().raw.as_ref(),
+                    1.0 / 3.0,
+                    c.stream_ptr,
+                );
 
-                    {
-                        let weight_guard = self.weight.inner.read();
-                        t.raw
-                            .addmul_inplace(weight_guard.raw.as_ref(), -5.0 / 3.0, c.stream_ptr);
-                    }
-                    let compressed_tensor = t
-                        .raw
-                        .compress(&self.compression_method, 1, c.stream_ptr, -1)
-                        .expect("cannot compress tensor");
-
-                    tracing::debug!("start communicate with peers");
-                    let lrecv_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id]
-                        .try_pull(
-                            compressed_tensor.num_elements_allocated()
-                                * compressed_tensor.dtype().bytes(),
-                        )
-                        .expect("cannot allocate cuda memory");
-                    let mut lrecv_tensor = BaguaTensorRaw {
-                        ptr: lrecv_buf.ptr,
-                        num_elem_allocated: compressed_tensor.num_elements_allocated(),
-                        dtype: compressed_tensor.dtype().clone(),
-                        num_elem: compressed_tensor.num_elements(),
-                        device_id: compressed_tensor.device_id(),
-                        pool_allocations: vec![Arc::new(lrecv_buf)],
-                    };
-
-                    let rrecv_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id]
-                        .try_pull(
-                            compressed_tensor.num_elements_allocated()
-                                * compressed_tensor.dtype().bytes(),
-                        )
-                        .expect("cannot allocate cuda memory");
-                    let mut rrecv_tensor = BaguaTensorRaw {
-                        ptr: rrecv_buf.ptr,
-                        num_elem_allocated: compressed_tensor.num_elements_allocated(),
-                        dtype: compressed_tensor.dtype().clone(),
-                        num_elem: compressed_tensor.num_elements(),
-                        device_id: compressed_tensor.device_id(),
-                        pool_allocations: vec![Arc::new(rrecv_buf)],
-                    };
-
-                    match peer_mode {
-                        PeerSelectionMode::Ring => {
-                            let left_peer_rank = ((c.rank + c.nranks - 1) % c.nranks) as i32;
-                            let right_peer_rank = ((c.rank + 1) % c.nranks) as i32;
-
-                            {
-                                let _guard = NCCLGroupGuard::new();
-
-                                tracing::debug!(
-                                    "rank: {} left peer: {} right peer: {}",
-                                    c.rank,
-                                    left_peer_rank,
-                                    right_peer_rank
-                                );
-                                c.send(compressed_tensor.as_ref(), left_peer_rank);
-                                c.send(compressed_tensor.as_ref(), right_peer_rank);
-                                c.recv(&mut lrecv_tensor, left_peer_rank);
-                                c.recv(&mut rrecv_tensor, right_peer_rank);
-                            }
-                        }
-                        PeerSelectionMode::All => {
-                            unimplemented!()
-                        }
-                        PeerSelectionMode::ShiftOne => {
-                            unimplemented!()
-                        }
-                    };
-
-                    tracing::debug!("start decompress diff and update weights");
+                {
+                    let weight_guard = self.weight.inner.read();
                     t.raw
-                        .decompress_from(&self.compression_method, 1, &lrecv_tensor, c.stream_ptr);
-                    {
-                        let mut weight_guard = self.left_peer_weight.inner.write();
-                        weight_guard.raw.add_inplace(&t.raw, c.stream_ptr);
-                    }
+                        .addmul_inplace(weight_guard.raw.as_ref(), -5.0 / 3.0, c.stream_ptr);
+                }
+                let compressed_tensor = t
+                    .raw
+                    .compress(&self.compression_method, 1, c.stream_ptr, -1)
+                    .expect("cannot compress tensor");
 
-                    t.raw
-                        .decompress_from(&self.compression_method, 1, &rrecv_tensor, c.stream_ptr);
-                    {
-                        let mut weight_guard = self.right_peer_weight.inner.write();
-                        weight_guard.raw.add_inplace(&t.raw, c.stream_ptr);
-                    }
+                tracing::debug!("start communicate with peers");
+                let lrecv_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id]
+                    .try_pull(
+                        compressed_tensor.num_elements_allocated()
+                            * compressed_tensor.dtype().bytes(),
+                    )
+                    .expect("cannot allocate cuda memory");
+                let mut lrecv_tensor = BaguaTensorRaw {
+                    ptr: lrecv_buf.ptr,
+                    num_elem_allocated: compressed_tensor.num_elements_allocated(),
+                    dtype: compressed_tensor.dtype().clone(),
+                    num_elem: compressed_tensor.num_elements(),
+                    device_id: compressed_tensor.device_id(),
+                    pool_allocations: vec![Arc::new(lrecv_buf)],
+                };
 
-                    t.raw.decompress_from(
-                        &self.compression_method,
-                        1,
-                        compressed_tensor.as_ref(),
-                        c.stream_ptr,
-                    );
+                let rrecv_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id]
+                    .try_pull(
+                        compressed_tensor.num_elements_allocated()
+                            * compressed_tensor.dtype().bytes(),
+                    )
+                    .expect("cannot allocate cuda memory");
+                let mut rrecv_tensor = BaguaTensorRaw {
+                    ptr: rrecv_buf.ptr,
+                    num_elem_allocated: compressed_tensor.num_elements_allocated(),
+                    dtype: compressed_tensor.dtype().clone(),
+                    num_elem: compressed_tensor.num_elements(),
+                    device_id: compressed_tensor.device_id(),
+                    pool_allocations: vec![Arc::new(rrecv_buf)],
+                };
 
-                    {
-                        let mut weight_guard = self.weight.inner.write();
-                        t.raw.add_inplace(weight_guard.raw.as_ref(), c.stream_ptr);
-                        weight_guard.raw.clone_from(&t.raw, c.stream_ptr);
+                match peer_mode {
+                    PeerSelectionMode::Ring => {
+                        let left_peer_rank = ((c.rank + c.nranks - 1) % c.nranks) as i32;
+                        let right_peer_rank = ((c.rank + 1) % c.nranks) as i32;
+
+                        {
+                            let _guard = NCCLGroupGuard::new();
+
+                            tracing::debug!(
+                                "rank: {} left peer: {} right peer: {}",
+                                c.rank,
+                                left_peer_rank,
+                                right_peer_rank
+                            );
+                            c.send(compressed_tensor.as_ref(), left_peer_rank);
+                            c.send(compressed_tensor.as_ref(), right_peer_rank);
+                            c.recv(&mut lrecv_tensor, left_peer_rank);
+                            c.recv(&mut rrecv_tensor, right_peer_rank);
+                        }
                     }
+                    PeerSelectionMode::All => {
+                        unimplemented!()
+                    }
+                    PeerSelectionMode::ShiftOne => {
+                        unimplemented!()
+                    }
+                };
+
+                tracing::debug!("start decompress diff and update weights");
+                t.raw
+                    .decompress_from(&self.compression_method, 1, &lrecv_tensor, c.stream_ptr);
+                {
+                    let mut weight_guard = self.left_peer_weight.inner.write();
+                    weight_guard.raw.add_inplace(&t.raw, c.stream_ptr);
+                }
+
+                t.raw
+                    .decompress_from(&self.compression_method, 1, &rrecv_tensor, c.stream_ptr);
+                {
+                    let mut weight_guard = self.right_peer_weight.inner.write();
+                    weight_guard.raw.add_inplace(&t.raw, c.stream_ptr);
+                }
+
+                t.raw.decompress_from(
+                    &self.compression_method,
+                    1,
+                    compressed_tensor.as_ref(),
+                    c.stream_ptr,
+                );
+
+                {
+                    let mut weight_guard = self.weight.inner.write();
+                    t.raw.add_inplace(weight_guard.raw.as_ref(), c.stream_ptr);
+                    weight_guard.raw.clone_from(&t.raw, c.stream_ptr);
                 }
             },
         );
-
-        *self.step.lock() += 1;
     }
 }

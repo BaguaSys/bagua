@@ -334,43 +334,4 @@ impl BaguaCommBackend {
         });
         Ok(())
     }
-
-    pub fn execute_post_backward_comm_ops(&self) -> Result<usize, BaguaCoreError> {
-        let mut num_ev = 0;
-        loop {
-            let comm_op = self.channels.post_backward_channel_receiver.try_recv();
-            match comm_op {
-                Ok(comm_op) => {
-                    tracing::debug!("received post step communication operation {:?}", comm_op);
-                    for op in &comm_op.ops {
-                        op.execute_background_communication(comm_op.bucket.clone(), &self.channels);
-                    }
-                    tracing::debug!("comm op executed: {:?}", comm_op);
-                    comm_op.event_channel.finish();
-                    tracing::debug!("comm op marked finished: {:?}", comm_op);
-                    num_ev += 1;
-                }
-                Err(_) => return Ok(num_ev),
-            }
-        }
-    }
-
-    pub fn wait_pending_post_backward_comm_ops(&self) -> Result<usize, BaguaCoreError> {
-        let mut num_ev = 0;
-        loop {
-            let ev = self
-                .channels
-                .not_waited_post_backward_events_receiver
-                .try_recv();
-            match ev {
-                Ok(x) => {
-                    tracing::debug!("waiting for comm ops event {:?}", x);
-                    x.wait();
-                    tracing::debug!("comm ops event {:?} finished", x);
-                    num_ev += 1;
-                }
-                Err(_) => return Ok(num_ev),
-            }
-        }
-    }
 }
