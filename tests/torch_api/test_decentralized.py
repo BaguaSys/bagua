@@ -195,9 +195,11 @@ class DecentralizedAlgor(nn.Module):
         else:
             raise ValueError("Unsupported `peer_selection_mode`")
 
+    def _should_communicate(self):
+        return self.step_count % self.communication_interval == 0
+
     def forward(self, *inputs, **kwargs):
-        self.step_count += 1
-        if self.step_counter == 1 or self.step_count % self.communication_interval == 0:
+        if self._should_communicate():
             self.weight = flatten(self._build_params())
             self.peer_weight = flatten(self._build_params())
             self.communicate_with_peer()
@@ -206,12 +208,13 @@ class DecentralizedAlgor(nn.Module):
         return result
 
     def step(self):
-        if self.step_count % self.communication_interval == 0:
+        if self._should_communicate():
             params = self._build_params()
             for buf, synced in zip(params, unflatten(self.peer_weight, params)):
                 buf.copy_(synced)
 
         self.optimizer.step()
+        self.step_count += 1
 
 
 def get_peer_rank(peer_selection_mode, rank, nranks, step, communication_interval):

@@ -32,8 +32,8 @@ class DecentralizedAlgorithm(Algorithm):
         self.communication_interval = communication_interval
 
     def _should_communicate(self, bagua_module: BaguaModule) -> bool:
-        cur_step = bagua_module.bagua_train_step_counter
-        return cur_step == 1 or cur_step % self.communication_interval == 0
+        cur_step = bagua_module.bagua_train_step_counter - 1
+        return cur_step % self.communication_interval == 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -102,8 +102,8 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self.communication_interval = communication_interval
 
     def _should_communicate(self, bagua_module: BaguaModule) -> bool:
-        cur_step = bagua_module.bagua_train_step_counter
-        return cur_step == 1 or cur_step % self.communication_interval == 0
+        cur_step = bagua_module.bagua_train_step_counter - 1
+        return cur_step % self.communication_interval == 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
