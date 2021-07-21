@@ -212,15 +212,15 @@ class BaguaBucket:
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
         This operation is not inplace, which means the bucket weights is first copied to `peer_weight`, and the result of
-        decentralized averaging will be in `peer_weight`. To copy `peer_weight` back to self, call
+        decentralized averaging will be in `peer_weight`. To copy `peer_weight` back to `self`, call
         :func:`decentralized_synchronous_op_copy_back_peer_weight`.
 
         This operation will be executed by the Bagua backend in
         the order they are appended when all the tensors within the bucket are marked ready.
 
         Args:
-            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be the same size
-                with bucket weights, i.e. `self` tensors and padding tensor (if exists).
+            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
@@ -261,7 +261,8 @@ class BaguaBucket:
                 with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
-                boost performance when the inter-node communication cost is high.
+                boost performance when the inter-node communication cost is high. Must be the same with `hierarchical` argument in
+                :func:`append_decentralized_synchronous_op`.
         """
         intra_comm = self._bagua_backend.intranode_communicator
         inter_comm = self._bagua_backend.internode_communicator
@@ -291,15 +292,15 @@ class BaguaBucket:
             weight (BaguaTensor): Model replica of current worker's local model. It should be of the same size
                 with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             left_peer_weight (BaguaTensor): Model replica of current worker's left peer. It should be of the same size
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor,
+                then copy the initializing weights of current worker's left peer to the tensor.
+            right_peer_weight (BaguaTensor): Model replica of current worker's right peer. It should be of the same size
                 with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
-                should contain the same data as initializing weights of current worker's left peer.
-            right_peer_weight (BaguaTensor): Model replica of current worker's right peer, It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
-                should contain the same data as initializing weights of current worker's right peer.
+                then copy the initializing weights of current worker's right peer to the tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            compression: The way how tensors are compressed for communication. Currently "MinMaxUInt8" is supported.
+            compression (str): The way how tensors are compressed for communication. Currently "MinMaxUInt8" is supported.
         Returns:
             The bucket itself.
         """
