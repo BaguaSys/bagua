@@ -51,9 +51,9 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results):
     model = model.with_bagua(
         [optimizer],
         bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(
-            hierarchical=hierarchical
+            hierarchical=hierarchical,
+            communication_interval=communication_interval,
         ),
-        communication_interval=communication_interval,
     )
 
     ret = results[rank]

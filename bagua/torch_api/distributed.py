@@ -147,7 +147,6 @@ class BaguaModule:
         self,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
-        communication_interval: int = 1,
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         ``torch.nn.Module``.
@@ -157,7 +156,6 @@ class BaguaModule:
                 module. It can contain one or more PyTorch optimizers.
             algorithm: Distributed algorithm
                 used to do the actual communication and update.
-            communication_interval: Number of iterations between two communication steps.
 
         Returns:
             The original module, with Bagua related environments initialized.
@@ -202,7 +200,6 @@ class BaguaModule:
         ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
 
-        self.communication_interval = communication_interval
         self.bagua_train_step_counter = -1
         """
         Number of iterations in training mode.
@@ -239,7 +236,7 @@ class BaguaModule:
                 self._bagua_init_algorithm()
 
         def algorithm_forward_pre_hook(self, input):
-            if self.training and self._bagua_not_skip_this_step():
+            if self.training:
                 self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
         def record_speed_metrics_event(self, _):
@@ -344,9 +341,6 @@ class BaguaModule:
         self._bagua_algorithm_hooks.clear()
         self.bagua_buckets.clear()
 
-    def _bagua_not_skip_this_step(self):
-        return self.bagua_train_step_counter % self.communication_interval == 0
-
     def _bagua_reset_algorithm_buckets(self):
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
@@ -356,18 +350,15 @@ class BaguaModule:
 
             def real_hook_factory(param_name, parameter):
                 def real_hook(*unused):
-                    if self._bagua_not_skip_this_step():
-                        self.bagua_algorithm.init_backward_hook(self)(
-                            param_name, parameter
-                        )
+                    self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
 
                     def real_post_backward_hook(*unused):
                         if self._speed_metrics_switch_on:
                             torch.cuda.current_stream().record_event(
                                 self._speed_metrics_end_event
                             )
-                        if self._bagua_not_skip_this_step():
-                            self.bagua_algorithm.init_post_backward_hook(self)()
+
+                        self.bagua_algorithm.init_post_backward_hook(self)()
 
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(
@@ -392,15 +383,11 @@ class BaguaModule:
             if not hasattr(optimizer, "_bagua_original_step"):
                 optimizer._bagua_original_step = optimizer.step
 
-            if not hasattr(optimizer, "_bagua_module"):
-                optimizer._bagua_module = self
-
             def new_step_factory(optimizer):
                 def new_step(self, *args, **kwargs):
                     result = self._bagua_original_step(*args, **kwargs)
 
-                    if optimizer._bagua_module._bagua_not_skip_this_step():
-                        optimizer_hook(self)
+                    optimizer_hook(self)
                     return result
 
                 return MethodType(new_step, optimizer)

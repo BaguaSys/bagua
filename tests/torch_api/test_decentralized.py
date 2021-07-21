@@ -57,8 +57,8 @@ def run_model(
         bagua.algorithms.decentralized.DecentralizedAlgorithm(
             hierarchical=hierarchical,
             peer_selection_mode=peer_selection_mode,
+            communication_interval=communication_interval,
         ),
-        communication_interval=communication_interval,
     )
 
     ret = results[rank]
