@@ -158,6 +158,7 @@ class LowPrecDecentralizedAlgor(nn.Module):
         return [param.data for param in list(self.module.parameters()).__reversed__()]
 
     def forward(self, *inputs, **kwargs):
+        self.step_count += 1
         result = self.module(*inputs, **kwargs)
         return result
 
@@ -218,7 +219,7 @@ class LowPrecDecentralizedAlgor(nn.Module):
 
             torch.distributed.broadcast(x, 0)
 
-        if self.step_count % self.communication_interval == 0:
+        if self.step_count == 1 or self.step_count % self.communication_interval == 0:
             weights = self._build_params()
             if self.hierarchical:
                 apply_flattened_call(weights, hierarchical_update_weight_fn)
@@ -226,8 +227,6 @@ class LowPrecDecentralizedAlgor(nn.Module):
                 apply_flattened_call(
                     weights, lambda x: update_weight_fn(x, self.world_size)
                 )
-
-        self.step_count += 1
 
 
 class TestLowPrecisionDecentralized(unittest.TestCase):
