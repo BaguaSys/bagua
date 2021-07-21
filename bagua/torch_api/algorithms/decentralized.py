@@ -25,10 +25,15 @@ class DecentralizedAlgorithm(Algorithm):
                 weights are averaged in each communication step. "shift_one" means each worker
                 selects a different peer to do weights average in each communication step.
             communication_interval (int): Number of iterations between two communication steps.
+
         """
         self.hierarchical = hierarchical
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
+
+    def _should_communicate(self, bagua_module: BaguaModule) -> bool:
+        cur_step = bagua_module.bagua_train_step_counter - 1
+        return cur_step % self.communication_interval == 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -40,8 +45,9 @@ class DecentralizedAlgorithm(Algorithm):
 
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
         def hook(input):
-            for tensor in self.tensors:
-                tensor.bagua_mark_communication_ready()
+            if self._should_communicate(bagua_module):
+                for tensor in self.tensors:
+                    tensor.bagua_mark_communication_ready()
 
         return hook
 
@@ -53,23 +59,31 @@ class DecentralizedAlgorithm(Algorithm):
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
         def hook():
-            bagua_module._bagua_backend.wait_pending_comm_ops()
-            torch.cuda.synchronize()
-            bagua_module._bagua_backend.execute_post_backward_comm_ops()
-            bagua_module._bagua_backend.wait_pending_post_backward_comm_ops()
+            if self._should_communicate(bagua_module):
+                bagua_module._bagua_backend.wait_pending_comm_ops()
+                for bucket in bagua_module.bagua_buckets:
+                    bucket.decentralized_synchronous_op_copy_back_peer_weight(
+                        hierarchical=self.hierarchical, peer_weight=bucket._peer_weight
+                    )
 
         return hook
+
+    def _init_states(self, bucket: BaguaBucket):
+        weight_tensor = bucket.flattened_tensor()
+        bucket._peer_weight = weight_tensor.to_bagua_tensor("peer_weight")
 
     def init_operations(
         self,
         bagua_module: BaguaModule,
         bucket: BaguaBucket,
     ):
+        self._init_states(bucket)
+        torch.cuda.synchronize()
         bucket.clear_ops()
         bucket.append_decentralized_synchronous_op(
+            peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
-            communication_interval=self.communication_interval,
         )
 
 
@@ -86,6 +100,10 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         """
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
+
+    def _should_communicate(self, bagua_module: BaguaModule) -> bool:
+        cur_step = bagua_module.bagua_train_step_counter - 1
+        return cur_step % self.communication_interval == 0
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -123,12 +141,13 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         def hook(optimizer: torch.optim.Optimizer):
-            for group in optimizer.param_groups:
-                for param in group["params"]:
-                    if param.is_bagua_tensor():
-                        param.bagua_mark_communication_ready()
+            if self._should_communicate(bagua_module):
+                for group in optimizer.param_groups:
+                    for param in group["params"]:
+                        if param.is_bagua_tensor():
+                            param.bagua_mark_communication_ready()
 
-            bagua_module._bagua_backend.wait_pending_comm_ops()
+                bagua_module._bagua_backend.wait_pending_comm_ops()
 
         return hook
 
@@ -153,12 +172,10 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self._init_states(bucket)
         torch.cuda.synchronize()
         bucket.clear_ops()
-        bucket.append_decentralized_synchronous_op(
-            hierarchical=self.hierarchical,
-            peer_selection_mode="ring",
-            communication_interval=self.communication_interval,
-            compression="MinMaxUInt8",
+        bucket.append_low_precision_decentralized_synchronous_op(
             weight=bucket._weight,
             left_peer_weight=bucket._left_peer_weight,
             right_peer_weight=bucket._right_peer_weight,
+            hierarchical=self.hierarchical,
+            compression="MinMaxUInt8",
         )

@@ -2,12 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tests.internal.common_utils import find_free_port
-from tests.internal.compressor import MinMaxUInt8
 import unittest
 import torch.multiprocessing as mp
 import os
-from bagua.torch_api.utils import apply_flattened_call, flatten
+from bagua.torch_api.utils import flatten, unflatten
 import bagua.torch_api as bagua
+
+
+N_EPOCHS = 10
 
 
 class Net(nn.Module):
@@ -35,7 +37,9 @@ def _init_env(rank):
     os.environ["LOCAL_RANK"] = str(rank)
 
 
-def run_model(rank, nprocs, hierarchical, communication_interval, results):
+def run_model(
+    rank, nprocs, hierarchical, peer_selection_mode, communication_interval, results
+):
     _init_env(rank)
 
     # init bagua distributed process group
@@ -50,18 +54,18 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results):
     # wrap model
     model = model.with_bagua(
         [optimizer],
-        bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(
+        bagua.algorithms.decentralized.DecentralizedAlgorithm(
             hierarchical=hierarchical,
+            peer_selection_mode=peer_selection_mode,
             communication_interval=communication_interval,
         ),
     )
 
     ret = results[rank]
-    bucket = model.bagua_buckets[0]
 
     ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
 
-    for epoch in range(10):
+    for epoch in range(N_EPOCHS):
         data = torch.randn(4, 2).cuda()
         target = torch.randn(4, 4).cuda()
 
@@ -72,14 +76,17 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results):
         loss.backward()
         optimizer.step()
 
-    ret.bucket_weight.copy_(flatten([param.data for param in model.parameters()]))
-    ret.weight.copy_(torch.norm(bucket._weight))
-    ret.left_peer_weight.copy_(torch.norm(bucket._left_peer_weight))
-    ret.right_peer_weight.copy_(torch.norm(bucket._right_peer_weight))
+    ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
 
 
 def run_torch_model(
-    rank, nprocs, hierarchical, communication_interval, results, backend
+    rank,
+    nprocs,
+    hierarchical,
+    peer_selection_mode,
+    communication_interval,
+    results,
+    backend,
 ):
     _init_env(rank)
 
@@ -96,14 +103,14 @@ def run_torch_model(
     loss_fn = nn.MSELoss()
 
     # wrap model
-    model = LowPrecDecentralizedAlgor(
-        model, optimizer, hierarchical, communication_interval
+    model = DecentralizedAlgor(
+        model, optimizer, hierarchical, peer_selection_mode, communication_interval
     )
 
     ret = results[rank]
     ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
 
-    for epoch in range(10):
+    for epoch in range(N_EPOCHS):
         data = torch.randn(4, 2).cuda()
         target = torch.randn(4, 4).cuda()
 
@@ -114,7 +121,7 @@ def run_torch_model(
         loss.backward()
         model.step()
 
-    ret.bucket_weight.copy_(flatten([param.data for param in model.parameters()]))
+    ret.bucket_weight.copy_(model.peer_weight)
 
 
 class Result(object):
@@ -126,19 +133,23 @@ class Result(object):
         self.bucket_weight = flatten(
             [torch.zeros_like(param.data) for param in model.parameters()]
         )
-        self.weight = torch.Tensor([0.0])
-        self.left_peer_weight = torch.Tensor([0.0])
-        self.right_peer_weight = torch.Tensor([0.0])
 
 
-class LowPrecDecentralizedAlgor(nn.Module):
-    def __init__(self, module, optimizer, hierarchical, communication_interval):
-        super(LowPrecDecentralizedAlgor, self).__init__()
+class DecentralizedAlgor(nn.Module):
+    def __init__(
+        self,
+        module,
+        optimizer,
+        hierarchical,
+        peer_selection_mode,
+        communication_interval,
+    ):
+        super(DecentralizedAlgor, self).__init__()
         self.module = module
         self.optimizer = optimizer
         self.hierarchical = hierarchical
+        self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
-        self.compressor = MinMaxUInt8()
         self.step_count = 0
 
         assert torch.distributed.is_initialized()
@@ -150,90 +161,77 @@ class LowPrecDecentralizedAlgor(nn.Module):
         for param in self.module.parameters():
             torch.distributed.broadcast(param.data, src=0)
 
-        self.weight = flatten(self._build_params()).cuda()
-        self.left_peer_weight = self.weight.detach().clone().cuda()
-        self.right_peer_weight = self.weight.detach().clone().cuda()
-
     def _build_params(self):
         return [param.data for param in list(self.module.parameters()).__reversed__()]
+
+    def communicate_with_peer(self):
+        if self.peer_selection_mode == "all":
+            torch.distributed.all_reduce(self.peer_weight)
+            self.peer_weight /= self.world_size
+        elif self.peer_selection_mode == "shift_one":
+            peer_rank = get_peer_rank(
+                self.peer_selection_mode,
+                self.rank,
+                self.world_size,
+                self.step_count,
+                self.communication_interval,
+            )
+
+            weight = self.weight.cpu()
+            peer_weight = self.peer_weight.cpu()
+
+            requests = []
+            requests.append(torch.distributed.isend(weight, peer_rank))
+            requests.append(torch.distributed.irecv(peer_weight, peer_rank))
+
+            for req in requests:
+                req.wait()
+
+            self.peer_weight = peer_weight.cuda()
+            self.weight = weight.cuda()
+
+            self.peer_weight += self.weight
+            self.peer_weight /= 2
+        else:
+            raise ValueError("Unsupported `peer_selection_mode`")
 
     def _should_communicate(self):
         return self.step_count % self.communication_interval == 0
 
     def forward(self, *inputs, **kwargs):
+        if self._should_communicate():
+            self.weight = flatten(self._build_params())
+            self.peer_weight = flatten(self._build_params())
+            self.communicate_with_peer()
+
         result = self.module(*inputs, **kwargs)
         return result
 
     def step(self):
-        self.optimizer.step()
-
-        def communicate_with_peers(
-            tensor: torch.Tensor, comm_size: int
-        ) -> (torch.Tensor, torch.Tensor):
-            if comm_size == 1:
-                return tensor, tensor
-
-            tensor = tensor.cpu()
-            left_tensor = torch.zeros_like(tensor)
-            right_tensor = torch.zeros_like(tensor)
-
-            left_peer_rank = (self.rank + self.world_size - 1) % comm_size
-            right_peer_rank = (self.rank + 1) % comm_size
-
-            requests = []
-            requests.append(torch.distributed.isend(tensor, left_peer_rank))
-            requests.append(torch.distributed.isend(tensor, right_peer_rank))
-            requests.append(torch.distributed.irecv(left_tensor, left_peer_rank))
-            requests.append(torch.distributed.irecv(right_tensor, right_peer_rank))
-
-            for req in requests:
-                req.wait()
-
-            return left_tensor.cuda(), right_tensor.cuda()
-
-        def update_weight_fn(x, comm_size):
-            x += 1 / 3 * self.left_peer_weight
-            x += 1 / 3 * self.right_peer_weight
-            x -= 5 / 3 * self.weight
-
-            minmax, compressed = self.compressor.compress(x)
-            left_compressed, right_compressed = communicate_with_peers(
-                compressed, comm_size
-            )
-            left_minmax, right_minmax = communicate_with_peers(minmax, comm_size)
-
-            self.left_peer_weight += self.compressor.decompress(
-                left_minmax, left_compressed
-            )
-            self.right_peer_weight += self.compressor.decompress(
-                right_minmax, right_compressed
-            )
-
-            diff = self.compressor.decompress(minmax, compressed)
-            x.copy_(self.weight + diff)
-            self.weight.copy_(x)
-
-        def hierarchical_update_weight_fn(x):
-            torch.distributed.reduce(x, dst=0)
-            if self.rank == 0:
-                x /= self.world_size
-                update_weight_fn(x, comm_size=1)
-
-            torch.distributed.broadcast(x, 0)
-
         if self._should_communicate():
-            weights = self._build_params()
-            if self.hierarchical:
-                apply_flattened_call(weights, hierarchical_update_weight_fn)
-            else:
-                apply_flattened_call(
-                    weights, lambda x: update_weight_fn(x, self.world_size)
-                )
+            params = self._build_params()
+            for buf, synced in zip(params, unflatten(self.peer_weight, params)):
+                buf.copy_(synced)
+
+        self.optimizer.step()
         self.step_count += 1
 
 
+def get_peer_rank(peer_selection_mode, rank, nranks, step, communication_interval):
+    comm_step = step // communication_interval
+    if peer_selection_mode == "shift_one":
+        if rank < nranks // 2:
+            return ((comm_step + rank) % ((nranks + 1) // 2)) + (nranks // 2)
+        else:
+            return (rank - (nranks // 2) - comm_step) % (nranks // 2)
+    else:
+        ValueError("Unsupported `peer_selection_mode`")
+
+
 class TestLowPrecisionDecentralized(unittest.TestCase):
-    def run_test_locally(self, hierarchical, communication_interval):
+    def run_test_locally(
+        self, nprocs, hierarchical, peer_selection_mode, communication_interval
+    ):
         if not torch.cuda.is_available():
             print("skip tests since cuda is not available")
             return
@@ -249,39 +247,49 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         mp.spawn(
             run_model,
             nprocs=nprocs,
-            args=(nprocs, hierarchical, communication_interval, results),
+            args=(
+                nprocs,
+                hierarchical,
+                peer_selection_mode,
+                communication_interval,
+                results,
+            ),
         )
 
         for rank in range(nprocs):
-            left_peer_rank = (rank + nprocs - 1) % nprocs
-            right_peer_rank = (rank + 1) % nprocs
-
-            if hierarchical:
+            if peer_selection_mode == "all":
+                peer_rank = (rank + 1) % nprocs
                 # all workers have equal weights
                 self.assertTrue(
                     torch.equal(
                         results[rank].bucket_weight,
-                        results[left_peer_rank].bucket_weight,
+                        results[peer_rank].bucket_weight,
+                    )
+                )
+            elif peer_selection_mode == "shift_one":
+                peer_rank = get_peer_rank(
+                    peer_selection_mode,
+                    rank,
+                    nprocs,
+                    N_EPOCHS - 1,
+                    communication_interval,
+                )
+
+                self.assertTrue(
+                    torch.equal(
+                        results[rank].bucket_weight, results[peer_rank].bucket_weight
                     )
                 )
             else:
-                self.assertTrue(
-                    torch.equal(
-                        results[rank].weight, results[left_peer_rank].right_peer_weight
-                    )
-                )
-                self.assertTrue(
-                    torch.equal(
-                        results[rank].weight, results[right_peer_rank].left_peer_weight
-                    )
-                )
+                raise ValueError("illegal `peer_selection_mode`!")
 
-    def run_diff_locally(self, hierarchical, communication_interval, backend):
+    def run_diff_locally(
+        self, nprocs, hierarchical, peer_selection_mode, communication_interval, backend
+    ):
         if not torch.cuda.is_available():
             print("skip tests since cuda is not available")
             return
 
-        nprocs = torch.cuda.device_count()
         os.environ["WORLD_SIZE"] = str(nprocs)
         os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
         os.environ["MASTER_ADDR"] = "127.0.0.1"
@@ -292,14 +300,27 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         mp.spawn(
             run_torch_model,
             nprocs=nprocs,
-            args=(nprocs, hierarchical, communication_interval, torch_results, backend),
+            args=(
+                nprocs,
+                hierarchical,
+                peer_selection_mode,
+                communication_interval,
+                torch_results,
+                backend,
+            ),
         )
 
         bagua_results = [Result() for _ in range(nprocs)]
         mp.spawn(
             run_model,
             nprocs=nprocs,
-            args=(nprocs, hierarchical, communication_interval, bagua_results),
+            args=(
+                nprocs,
+                hierarchical,
+                peer_selection_mode,
+                communication_interval,
+                bagua_results,
+            ),
         )
 
         for rank in range(nprocs):
@@ -322,19 +343,46 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
             )
 
     def test_algorithm(self):
-        self.run_test_locally(hierarchical=False, communication_interval=1)
-        self.run_test_locally(hierarchical=False, communication_interval=2)
-        self.run_test_locally(hierarchical=True, communication_interval=1)
+        self.run_test_locally(
+            nprocs=8,
+            hierarchical=False,
+            peer_selection_mode="all",
+            communication_interval=1,
+        )
+        self.run_test_locally(
+            nprocs=8,
+            hierarchical=False,
+            peer_selection_mode="shift_one",
+            communication_interval=1,
+        )
+        self.run_test_locally(
+            nprocs=8,
+            hierarchical=False,
+            peer_selection_mode="shift_one",
+            communication_interval=2,
+        )
 
     def test_compare(self):
         self.run_diff_locally(
-            hierarchical=False, communication_interval=1, backend="gloo"
+            nprocs=8,
+            hierarchical=False,
+            peer_selection_mode="all",
+            communication_interval=1,
+            backend="gloo",
         )
         self.run_diff_locally(
-            hierarchical=False, communication_interval=2, backend="gloo"
+            nprocs=8,
+            hierarchical=False,
+            peer_selection_mode="shift_one",
+            communication_interval=1,
+            backend="gloo",
         )
         self.run_diff_locally(
-            hierarchical=True, communication_interval=1, backend="nccl"
+            nprocs=8,
+            hierarchical=False,
+            peer_selection_mode="shift_one",
+            communication_interval=2,
+            backend="gloo",
         )
 
 

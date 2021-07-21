@@ -198,6 +198,7 @@ class BaguaModule:
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
+
         self.bagua_train_step_counter = 0
         """
         Number of iterations in training mode.
@@ -271,12 +272,8 @@ class BaguaModule:
         )
 
         # get communicators
-        self._bagua_inter_node_communicator = (
-            self._bagua_backend.internode_communicator
-        )
-        self._bagua_intra_node_communicator = (
-            self._bagua_backend.intranode_communicator
-        )
+        self._bagua_inter_node_communicator = self._bagua_backend.internode_communicator
+        self._bagua_intra_node_communicator = self._bagua_backend.intranode_communicator
         self._bagua_global_communicator = self._bagua_backend.global_communicator
         self.bagua_communication_stream = self._bagua_backend.stream
 
@@ -388,6 +385,7 @@ class BaguaModule:
             def new_step_factory(optimizer):
                 def new_step(self, *args, **kwargs):
                     result = self._bagua_original_step(*args, **kwargs)
+
                     optimizer_hook(self)
                     return result
 
