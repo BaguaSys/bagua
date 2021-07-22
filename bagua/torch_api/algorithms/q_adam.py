@@ -21,7 +21,8 @@ class QAdamOptimizer(Optimizer):
         weight_decay: float = 0.0,
     ):
         """
-        Create a dedicated optimizer used for QAdam algorithm.
+        Create a dedicated optimizer used for the
+        `QAdam <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_ algorithm.
 
         Args:
             params (iterable): iterable of parameters to optimize or dicts defining

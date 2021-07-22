@@ -9,7 +9,7 @@ class GradientAllReduceAlgorithm(Algorithm):
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
         Create an instance of the
-        `GradientAllReduce <https://baguasys.github.io/tutorials/algorithms/gradient-allreduce.html>`_
+        `GradientAllReduce <https://bagua-tutorials.kwai-seattle.com/algorithms/gradient-allreduce>`_
         algorithm.
 
         Args:
