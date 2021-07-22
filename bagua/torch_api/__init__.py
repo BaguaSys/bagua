@@ -3,6 +3,7 @@
 The Bagua communication library PyTorch interface.
 """
 from .communication import (  # noqa: F401
+    get_backend,
     init_process_group,
     send,
     recv,

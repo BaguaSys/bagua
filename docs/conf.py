@@ -146,7 +146,8 @@ _ignore_functions = [
     "bagua.torch_api.communication.init_bagua_intra_communicator",
     "bagua.torch_api.communication.init_bagua_communicator",
     "bagua.torch_api.communication.broadcast_coalesced",
-    "bagua.torch_api.communication.allreduce_coalesced",
+    "bagua.torch_api.communication.allreduce_coalesced_inplace",
+    "bagua.torch_api.communication.get_backend",
     "bagua.torch_api.communication.start_autotune_server",
     "bagua.torch_api.communication.run_flask_app",
 ]
