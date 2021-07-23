@@ -59,6 +59,7 @@ def get_backend(model_name: str):
 
 def run_flask_app():
     from flask import Flask
+    from gevent.pywsgi import WSGIServer
 
     autotune_service = AutotuneService(
         world_size=get_world_size(),
@@ -74,11 +75,8 @@ def run_flask_app():
     log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
-    app.run(
-        host="0.0.0.0",
-        port=get_bagua_service_port(),
-        debug=False,
-    )
+    http_server = WSGIServer(('', get_bagua_service_port()), app)
+    http_server.serve_forever()
 
 
 _autotune_server = None
