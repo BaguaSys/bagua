@@ -34,7 +34,7 @@ The underlying communication execution engine is in [bagua-core](https://github.
     Epoch time of BERT-Large Finetune under different network conditions for different systems.
 </p>
 
-For more comprehensive and up to date results, refer to [Bagua benchmark page](https://baguasys.github.io/tutorials/benchmark/index.html).
+For more comprehensive and up to date results, refer to [Bagua benchmark page](https://bagua-tutorials.kwai-seattle.com/benchmark/index.html).
 
 ## Installation
 
