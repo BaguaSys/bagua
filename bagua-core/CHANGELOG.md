@@ -1,3 +1,22 @@
+## v0.4.0
+
+### ⚠ BREAKING CHANGE
+
+* `BaguaBucketPy::append_decentralized_synchronous_op` now only supports full precision decentralized communication.
+
+### Features
+
+* make full precision decentralized op stateless (#36) 98319c9
+* add (scatter, gather, scatter_reduce) and all inplace version communication primitives (#37) f931473
+* add native low precision decentralized operator (#26) 50295e8
+* better debug log including tensor info when executing ops 1bd6e0b
+
+### Fixes
+
+* substract overflow error for decentralized op (#39) 30cdb67
+* fix scatter and reduce_scatter implementation (#40) ee90376
+* make compress/decompress of BaguaTensor `method` string consistent (#33) ee929df
+
 ## v0.3.1
 
 ### Fixes
