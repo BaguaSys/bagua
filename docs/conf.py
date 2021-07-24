@@ -137,7 +137,7 @@ _ignore_functions = [
     "bagua.torch_api.env.get_autotune_max_samples",
     "bagua.torch_api.env.get_autotune_sampling_confidence_time_s",
     "bagua.torch_api.env.get_autotune_warmup_time_s",
-    "bagua.torch_api.env.get_autotune_logfile_path",
+    "bagua.torch_api.env.get_is_output_autotune_log",
     "bagua.torch_api.globals.is_initialized",
     "bagua.torch_api.communication.get_bagua_hyperparameters",
     "bagua.torch_api.communication.get_hyperparameters_service_client",
@@ -146,7 +146,8 @@ _ignore_functions = [
     "bagua.torch_api.communication.init_bagua_intra_communicator",
     "bagua.torch_api.communication.init_bagua_communicator",
     "bagua.torch_api.communication.broadcast_coalesced",
-    "bagua.torch_api.communication.allreduce_coalesced",
+    "bagua.torch_api.communication.allreduce_coalesced_inplace",
+    "bagua.torch_api.communication.get_backend",
     "bagua.torch_api.communication.start_autotune_server",
     "bagua.torch_api.communication.run_flask_app",
 ]

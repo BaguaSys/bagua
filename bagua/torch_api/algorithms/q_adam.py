@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from bagua.torch_api.globals import _get_global_state
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api import get_world_size
@@ -22,7 +21,8 @@ class QAdamOptimizer(Optimizer):
         weight_decay: float = 0.0,
     ):
         """
-        Create a dedicated optimizer used for QAdam algorithm.
+        Create a dedicated optimizer used for
+        `QAdam <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_ algorithm.
 
         Args:
             params (iterable): iterable of parameters to optimize or dicts defining
@@ -103,7 +103,7 @@ class QAdamAlgorithm(Algorithm):
     def __init__(self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True):
         """
         Create an instance of the
-        `QAdam Algorithm <https://baguasys.github.io/tutorials/algorithms/q-adam.html>`_
+        `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
         .
 
         Args:
@@ -137,13 +137,13 @@ class QAdamAlgorithm(Algorithm):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._q_adam_name
+                        param._q_adam_name, bagua_module.bagua_module_name
                     )
                     param._q_adam_grad = registered_tensor
                     registered_tensor._q_adam_idx = param._q_adam_idx
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._q_adam_name
+                        param._q_adam_name, bagua_module.bagua_module_name
                     )
                     registered_tensor._q_adam_grad = param.bagua_ensure_grad()
                     param._q_adam_momentum = registered_tensor
@@ -175,11 +175,9 @@ class QAdamAlgorithm(Algorithm):
         else:
 
             def calculate_momentum(*args):
-                # FIXME: with global communication stream?
-                with torch.cuda.stream(_get_global_state().get_communication_stream()):
-                    beta1, beta2 = self.optimizer.param_groups[0]["betas"]
-                    for tensor in bucket.tensors:
-                        tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
+                beta1, beta2 = self.optimizer.param_groups[0]["betas"]
+                for tensor in bucket.tensors:
+                    tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
 
             bucket.append_python_op(calculate_momentum)
             bucket.append_centralized_synchronous_op(

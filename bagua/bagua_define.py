@@ -37,6 +37,7 @@ class BaguaHyperparameter(BaseModel):
     """
 
     buckets: List[List[TensorDeclaration]] = []
+    bucket_size: int = 0
     is_hierarchical_reduce: bool = False
 
     def update(self, param_dict: dict):

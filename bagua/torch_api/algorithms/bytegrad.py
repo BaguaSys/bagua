@@ -12,7 +12,7 @@ class ByteGradAlgorithm(Algorithm):
     def __init__(self, average: bool = True):
         """
         Create an instance of the
-        `ByteGrad <https://baguasys.github.io/tutorials/algorithms/bytegrad.html>`_
+        `ByteGrad <https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad>`_
         algorithm.
 
         Args:

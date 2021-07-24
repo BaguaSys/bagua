@@ -1,3 +1,21 @@
+## v0.6.3
+
+### Features
+
+* support different ssh port on different nodes (#93) 6810245
+* support multiple models in one training script (#113) 312bcc0 (#107) 0aec789
+
+### Fixes
+
+* autotune service defaults with a fixed random seed (#117) a58c2de
+
+### Others
+
+* sort q_adam variables for better performance (#102) f277549
+* improve autotune speed metrics measurement for better accuracy (#86) e4ee5ee
+* install.sh upgrades existing bagua package bc69890
+* install.sh will not install Rust if already exist on the system 67e1efe
+
 ## v0.6.2
 
 ### Fixes

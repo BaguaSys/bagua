@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+from bagua.torch_api.communication import get_backend
 from typing import Optional
 
-from bagua.torch_api.globals import _get_global_state
 import torch
 import bagua_core as B
 import gorilla
@@ -21,13 +21,18 @@ class BaguaTensor:
     def is_bagua_tensor(self) -> bool:
         return hasattr(self, "_bagua_backend_tensor")
 
-    def ensure_bagua_tensor(self, name: Optional[str] = None):
+    def ensure_bagua_tensor(
+        self, name: Optional[str] = None, module_name: Optional[str] = None
+    ):
         """
         Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
         A Bagua tensor is required to use Bagua's communication algorithms.
 
         Args:
             name: the unique name of the tensor
+            model_name: The name of the model of which the tensor belongs to.
+              The model name can be acquired using ``model.bagua_module_name``.
+              This is required to call ``bagua_mark_communication_ready`` related methods.
 
         Returns:
             The original tensor with Bagua tensor attributes initialized.
@@ -39,17 +44,20 @@ class BaguaTensor:
                 ), "assigning a different name to existing bagua tensor is forbidden"
             return
         self.bagua_tensor_name = name if name is not None else ""
+        self.bagua_module_name = module_name
+        self.bagua_backend = get_backend(self.bagua_module_name) if self.bagua_module_name is not None else None
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
             torch_tensor=self,
         )
         self._bagua_sanity_check()
-        self._bagua_backend = _get_global_state().get_backend()
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
         return self
 
-    def to_bagua_tensor(self, name: Optional[str] = None):
+    def to_bagua_tensor(
+        self, name: Optional[str] = None, module_name: Optional[str] = None
+    ):
         """
         Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
         The original tensor is not changed. A Bagua tensor is required to use
@@ -57,12 +65,15 @@ class BaguaTensor:
 
         Args:
             name: the unique name of the tensor
+            model_name: The name of the model of which the tensor belongs to.
+              The model name can be acquired using ``model.bagua_module_name``.
+              This is required to call ``bagua_mark_communication_ready`` related methods.
 
         Returns:
             The new Bagua tensor sharing the same storage with the original tensor.
         """
         new_tensor = torch.Tensor(cdata=self._cdata)
-        return new_tensor.ensure_bagua_tensor(name)
+        return new_tensor.ensure_bagua_tensor(name, module_name)
 
     def bagua_backend_tensor(self) -> B.BaguaTensorPy:
         """
@@ -91,7 +102,10 @@ class BaguaTensor:
         Mark a Bagua tensor ready for scheduled operations execution.
         """
         torch.cuda.current_stream().record_event(self._bagua_ready_event)
-        self._bagua_backend.mark_communication_ready(
+        assert (
+            self.bagua_backend is not None
+        ), "tensor must be initialized with module name to call mark ready"
+        self.bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
             self._bagua_ready_event.cuda_event,
         )
@@ -100,7 +114,10 @@ class BaguaTensor:
         """
         Mark a Bagua tensor ready immediately, without CUDA event synchronization.
         """
-        self._bagua_backend.mark_communication_ready(
+        assert (
+            self.bagua_backend is not None
+        ), "tensor must be initialized with module name to call mark ready"
+        self.bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
             0,
         )
