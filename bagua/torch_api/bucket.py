@@ -330,6 +330,16 @@ class BaguaBucket:
 
         return self
 
+    def append_decentralized_asynchronous_op(
+        self, peer_selection_mode, sync_interval_ms
+    ) -> B.BaguaAsyncCommOpPy:
+        return self.backend_bucket.append_decentralized_asynchronous_op(
+            self._bagua_backend.global_communicator,
+            None,
+            peer_selection_mode=peer_selection_mode,
+            sync_interval_ms=sync_interval_ms,
+        )
+
     def clear_ops(self) -> BaguaBucket:
         """
         Clear the previously appended operations.
