@@ -7,7 +7,7 @@ from operator import itemgetter
 
 class SamplerDataset(Dataset):
     r"""See the indexes from `Sampler` as an individual dataset.
-    
+
     Arguments:
         sampler: Pytorch sampler.
     """
@@ -33,7 +33,8 @@ class SamplerDataset(Dataset):
             Length of the dataset.
         """
         return len(self.sampler_dataset)
-    
+
+
 class DistributedSamplerWrapper(DistributedSampler):
     r"""
     A sampler wrapper attaches the original sampler with distributed feature.
