@@ -7,6 +7,8 @@ steps:
           propagate-environment: true
           runtime: nvidia
           network: host
+    agents:
+      queue: "master"
   - label: "example workers"
     parallelism: 1
     command: .buildkite/scripts/example.sh
