@@ -1,0 +1,3 @@
+steps:
+  - label: "example test"
+    command: nvidia-smi
