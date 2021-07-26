@@ -1,3 +1,4 @@
 steps:
   - label: "example test"
-    command: nvidia-smi
+    parallelism: 2
+    command: echo $BUILDKITE_PARALLEL_JOB && echo $BUILDKITE_PARALLEL_JOB_COUNT && nvidia-smi
