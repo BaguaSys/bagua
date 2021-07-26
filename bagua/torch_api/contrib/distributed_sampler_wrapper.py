@@ -1,8 +1,9 @@
 # This is based on https://github.com/catalyst-team/catalyst/blob/ce79bbecf0ceb09f972c7cc7ebb9974d1011f17b/catalyst/data/sampler.py.
 
 from torch.utils.data import Dataset, Sampler, DistributedSampler
-from typing import Iterator, List, Optional, Union
+from typing import Iterator, Optional
 from operator import itemgetter
+
 
 class SamplerDataset(Dataset):
     r"""See the indexes from `Sampler` as an individual dataset.
