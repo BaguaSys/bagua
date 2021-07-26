@@ -2,3 +2,9 @@ steps:
   - label: "example test"
     parallelism: 2
     command: .buildkite/scripts/example.sh
+    plugins:
+      - docker#v3.8.0:
+          image: "baguasys/bagua:latest"
+          propagate-environment: true
+          runtime: nvidia
+          network: host
