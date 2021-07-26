@@ -75,8 +75,11 @@ def run_flask_app():
     log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
-    http_server = WSGIServer(('', get_bagua_service_port()), app)
-    http_server.serve_forever()
+    app.run(host="0.0.0.0", port=get_bagua_service_port())
+
+    # http_server = WSGIServer(('', get_bagua_service_port()), app)
+    # print('listen on {}'.format(get_bagua_service_port()))
+    # http_server.serve_forever()
 
 
 _autotune_server = None

@@ -11,7 +11,7 @@ import collections
 import math
 import multiprocessing
 from flask import Flask, request
-from .autotune import BayesianOptimizer, IntParam, BoolParam
+from .autotune_task_manager import AutotuneTaskManager
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
@@ -36,173 +36,9 @@ class NpEncoder(json.JSONEncoder):
             return super(NpEncoder, self).default(obj)
 
 
-# TODO: There is only fusion logic, should the logic of splitting tensor be added?
-def split_bucket_by_bucket_size(
-    tensor_list: List[TensorDeclaration],
-    bucket_size: int,
-    param_group_info: Dict[str, int] = {},
-):
-    dtype_unit_size = {
-        TensorDtype.F32.value: 4,
-        TensorDtype.F16.value: 2,
-        TensorDtype.U8.value: 1,
-    }
-
-    buckets = []
-    tmp_bucket = []
-    tmp_bucket_size = 0
-    for (dtype, unit_size) in sorted(dtype_unit_size.items()):
-        for tensor_declar in [x for x in tensor_list if x["dtype"] == dtype]:
-            tensor_size = tensor_declar["num_elements"] * unit_size
-            tmp_bucket_size += tensor_size
-            tmp_bucket.append(tensor_declar)
-            if tmp_bucket_size >= bucket_size:
-                buckets.append(tmp_bucket)
-                tmp_bucket = []
-                tmp_bucket_size = 0
-
-    if len(tmp_bucket) != 0:
-        buckets.append(tmp_bucket)
-
-    # group params in bucket
-    for i, _ in enumerate(buckets):
-        buckets[i] = sorted(
-            buckets[i], key=lambda p: param_group_info.get(p["name"], -1)
-        )
-
-    return buckets
-
-
-def record_autotune_log(
-    autotune_logfile_path: str,
-    autotune_hp: dict,
-    train_iter: int,
-    score: float
-):
-    with open(autotune_logfile_path, "a") as autotune_log:
-        csv_writer = csv.DictWriter(
-            autotune_log,
-            fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
-        )
-        first_line = open(autotune_logfile_path).readline()
-        if not first_line:
-            csv_writer.writeheader()
-
-        cols = copy.deepcopy(autotune_hp)
-        cols.update(
-            {
-                "train_iter": train_iter,
-                "score": score,
-            }
-        )
-        cols = OrderedDict(cols)
-        logging.info("cols={}".format(cols))
-        csv_writer.writerow(cols)
-
-
-class HyperparameterManager:
-    RECORD_MAX_NUM = 1000
-
-    def __init__(
-        self,
-        is_output_autotune_log: bool,
-    ) -> None:
-        self.record_deque = collections.deque(
-            [
-                (
-                    -1,
-                    BaguaHyperparameter(),
-                    float("-inf"),
-                )
-            ]
-        )
-        if is_output_autotune_log:
-            tmpfile = tempfile.NamedTemporaryFile(
-                prefix="bagua_autotune_", mode="w", suffix=".log", delete=False
-            )
-            self.autotune_logfile_path = tmpfile.name
-            tmpfile.close()
-        else:
-            self.autotune_logfile_path = None
-
-        self.bayesian_optimizer = BayesianOptimizer(
-            {
-                "bucket_size_2p": IntParam(  # bucket_size = 2 ^ bucket_size_2p
-                    val=13,
-                    space_dimension=(  # 1KB ~ 2GB
-                        10,
-                        31,
-                    ),
-                ),
-                "is_hierarchical_reduce": BoolParam(False),
-            },
-        )
-
-    def tail_record(self) -> Tuple[int, BaguaHyperparameter, float]:
-        return self.record_deque[-1]
-
-    def best_hyperparameter(self) -> BaguaHyperparameter:
-        return sorted(
-            [(score, hp) for (_, hp, score) in self.record_deque],
-            key=lambda pair: pair[0],
-        )[-1][1]
-
-    def report_metrics(
-        self,
-        train_iter: int,
-        hyperparameter: BaguaHyperparameter,
-        system_efficiency_score: float,
-    ) -> None:
-        while len(self.record_deque) > self.RECORD_MAX_NUM:
-            self.record_deque.pop()
-        self.record_deque.append(
-            (
-                train_iter,
-                hyperparameter,
-                system_efficiency_score,
-            )
-        )
-
-    def ask_hyperparmeter(
-        self,
-        train_iter: int,
-    ) -> BaguaHyperparameter:
-        (_, hp, system_efficiency_score) = self.tail_record()
-        optimizer_params = {
-            "bucket_size_2p": int(math.log(hp.bucket_size, 2)),
-            "is_hierarchical_reduce": hp.is_hierarchical_reduce,
-        }
-        self.bayesian_optimizer.tell(optimizer_params, system_efficiency_score)
-        recommend_param = self.bayesian_optimizer.ask()
-        recommend_bucket_size = 2 ** recommend_param["bucket_size_2p"]
-
-        if self.autotune_logfile_path:
-            record_autotune_log(
-                self.autotune_logfile_path,
-                optimizer_params,
-                train_iter,
-                system_efficiency_score,
-            )
-        tensor_list = [
-            tensor_declar for bucket in hp.buckets for tensor_declar in bucket
-        ]
-        recommend_buckets = split_bucket_by_bucket_size(
-            tensor_list,
-            recommend_bucket_size,
-        )
-
-        recommend_hp = BaguaHyperparameter(
-            buckets=recommend_buckets,
-            bucket_size=recommend_bucket_size,
-            is_hierarchical_reduce=bool(recommend_param["is_hierarchical_reduce"]),
-        )
-
-        return recommend_hp
-
-
-class AutotuneServiceHyperparameterManager:
-    def __init__(self, world_size: int, is_output_autotune_log: bool) -> None:
-        self.inner = HyperparameterManager(is_output_autotune_log)
+class AutotuneServiceTaskManager:
+    def __init__(self, task_name: str, world_size: int, is_output_autotune_log: bool) -> None:
+        self.inner = AutotuneTaskManager(task_name, is_output_autotune_log)
         self.warmup_pass_count = 0
         self.sampling_count = 0
         self.lock = threading.Lock()
@@ -212,6 +48,8 @@ class AutotuneServiceHyperparameterManager:
 
 
 class AutotuneService:
+    MAX_TRACE_INFO = 1000
+
     def __init__(
         self,
         world_size,
@@ -230,14 +68,21 @@ class AutotuneService:
         self.is_initialized = False
         self.is_output_autotune_log = is_output_autotune_log
         self.default_bucket_size: int = default_bucket_size
-        self.model_dict: Dict[str, AutotuneServiceHyperparameterManager] = {}
+        self.model_dict: Dict[str, AutotuneServiceTaskManager] = {}
         self.model_dict_mutex = threading.Lock()
+
+        # bagua-core trace and obtain tensor calculation partial order
+        self.trace_info_dict = {}
+        self.tensor_partial_order = {}
+        self.tensor_partial_order_fixed = False
+        self.tensor_partial_order_lock = threading.Lock()
 
     def autotune(
         self,
-        hp_manager: AutotuneServiceHyperparameterManager,
+        hp_manager: AutotuneServiceTaskManager,
         rank: int,
         train_iter: int,
+        tensor_partial_order: Dict[str, int] = {},
     ):
         if hp_manager.sampling_count > self.max_samples:
             return
@@ -294,7 +139,8 @@ class AutotuneService:
                 rank, train_iter, hp_manager.sampling_count, self.max_samples
             )
         )
-        recommended_bagua_hp = hp_manager.inner.ask_hyperparmeter(train_iter)
+        recommended_bagua_hp = hp_manager.inner.ask_hyperparmeter(
+            train_iter, tensor_partial_order)
         if hp_manager.sampling_count < self.max_samples:
             hp_manager.hyperparameter = recommended_bagua_hp
         else:
@@ -312,7 +158,8 @@ class AutotuneService:
 
             with self.model_dict_mutex:
                 if model_name not in self.model_dict:
-                    self.model_dict[model_name] = AutotuneServiceHyperparameterManager(
+                    self.model_dict[model_name] = AutotuneServiceTaskManager(
+                        task_name=model_name,
                         world_size=self.world_size,
                         is_output_autotune_log=self.is_output_autotune_log,
                     )
@@ -324,7 +171,7 @@ class AutotuneService:
 
             with hp_manager.lock:
                 hp = BaguaHyperparameter(
-                    buckets=split_bucket_by_bucket_size(
+                    buckets=AutotuneTaskManager.split_bucket_by_bucket_size(
                         tensor_list,
                         bucket_size,
                     ),
@@ -390,6 +237,12 @@ class AutotuneService:
 
             hp_manager = self.model_dict[model_name]
 
+            tensor_partial_order = {}
+            with self.tensor_partial_order_lock:
+                tensor_partial_order = copy.deepcopy(self.tensor_partial_order)
+
+            logging.debug("tensor_partial_order={}".format(tensor_partial_order))
+
             with hp_manager.lock:
                 # Autotune conditions:
                 # 1. autotune_level >= 1.
@@ -402,7 +255,8 @@ class AutotuneService:
                     and check_board.count(check_board[0]) == len(check_board)  # noqa: W503
                     and check_board[rank] < train_iter  # noqa: W503
                 ):
-                    self.autotune(hp_manager, rank, train_iter)
+                    self.autotune(hp_manager, rank, train_iter,
+                                  tensor_partial_order)
 
                 check_board[rank] = train_iter
 
@@ -413,6 +267,24 @@ class AutotuneService:
                         > self.max_samples,  # noqa: W503
                     }
                 )
+
+        @app.route("/api/v1/report_tensor_execution_order", methods=["POST"])
+        def report_tensor_execution_order():
+            req: dict = request.get_json(force=True)
+            spans: List[Dict] = req["spans"]
+
+            with self.tensor_partial_order_lock:
+                spans = sorted(spans, key=lambda span: span["start_time"])
+                for span in spans:
+                    tensor_name = span["tensor_name"]
+                    action = span["action"]
+
+                    if (tensor_name, action) in self.trace_info_dict:
+                        continue
+
+                    self.trace_info_dict[(tensor_name, action)] = True
+                    if tensor_name not in self.tensor_partial_order:
+                        self.tensor_partial_order[tensor_name] = len(self.tensor_partial_order)
 
         # set secret-key
         app.config.update(SECRET_KEY=os.urandom(24))
@@ -443,7 +315,8 @@ class AutotuneClient:
         speed: float,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/report_metrics".format(self.autotune_service_addr),
+            "http://{}/api/v1/report_metrics".format(
+                self.autotune_service_addr),
             json={
                 "model_name": model_name,
                 "rank": rank,
@@ -462,7 +335,8 @@ class AutotuneClient:
         whether_to_bucket: bool = True,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/register_tensors".format(self.autotune_service_addr),
+            "http://{}/api/v1/register_tensors".format(
+                self.autotune_service_addr),
             json={
                 "model_name": model_name,
                 "tensor_list": tensor_list,
@@ -479,7 +353,8 @@ class AutotuneClient:
         train_iter: int,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/ask_hyperparameters".format(self.autotune_service_addr),
+            "http://{}/api/v1/ask_hyperparameters".format(
+                self.autotune_service_addr),
             json={
                 "model_name": model_name,
                 "rank": rank,
@@ -491,7 +366,15 @@ class AutotuneClient:
 
 
 if __name__ == "__main__":
-    autotune_service = AutotuneService(10)
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--nprocs", type=int, default=8)
+    parser.add_argument("--port", type=int, default=8123)
+
+    args = parser.parse_args()
+
+    autotune_service = AutotuneService(args.nproc)
     app = Flask(__name__)
     app = autotune_service.setup_app(app)
 
@@ -499,7 +382,7 @@ if __name__ == "__main__":
         target=app.run,
         kwargs={
             "host": "0.0.0.0",
-            "port": 8123,
+            "port": args.port,
         },
     )
     server.daemon = True
