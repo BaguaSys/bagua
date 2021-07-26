@@ -8,7 +8,7 @@ steps:
           runtime: nvidia
           network: host
   - label: "example workers"
-    parallelism: 2
+    parallelism: 1
     command: .buildkite/scripts/example.sh
     plugins:
       - docker#v3.8.0:
