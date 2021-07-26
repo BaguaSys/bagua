@@ -41,7 +41,7 @@ class DistributedSamplerWrapper(DistributedSampler):
     With this feature you can use any sampler in distributed mode.
     This is intended for the scenario where a dataset sampler need to be used in 
     distributed algorithm and usually appeared with `model.with_bagua()`.
-    
+
     Arguments:
         sampler: Sampler used for subsampling. It can be any other pytorch 
             sampler except for `DistributedSampler`.
@@ -51,7 +51,7 @@ class DistributedSamplerWrapper(DistributedSampler):
             within ``num_replicas``.
         shuffle (bool, optional): If true, sampler will shuffle the indices.
             default: `True`.
-              
+
     .. note::
         Sampler is assumed to be of constant size.
     """
