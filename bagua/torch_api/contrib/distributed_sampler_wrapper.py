@@ -39,11 +39,11 @@ class DistributedSamplerWrapper(DistributedSampler):
     r"""
     A sampler wrapper attaches the original sampler with distributed feature.
     With this feature you can use any sampler in distributed mode.
-    This is intended for the scenario where a dataset sampler need to be used in 
+    This is intended for the scenario where a dataset sampler need to be used in
     distributed algorithm and usually appeared with `model.with_bagua()`.
 
     Arguments:
-        sampler: Sampler used for subsampling. It can be any other pytorch 
+        sampler: Sampler used for subsampling. It can be any other pytorch
             sampler except for `DistributedSampler`.
         num_replicas (int, optional): Total number of processes in
             distributed training.
