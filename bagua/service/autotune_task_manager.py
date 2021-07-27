@@ -174,8 +174,6 @@ class AutotuneTaskManager:
         tensor_list = sorted(
             tensor_list,
             key=lambda td: tensor_partial_order.get(td["name"], -1))
-        if self.actual_tensor_execution_order is not None:
-            self.actual_tensor_execution_order = tensor_list
 
         recommend_buckets = AutotuneTaskManager.split_bucket_by_bucket_size(
             tensor_list,
