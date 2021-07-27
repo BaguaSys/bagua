@@ -286,6 +286,8 @@ class AutotuneService:
                     if tensor_name not in self.tensor_partial_order:
                         self.tensor_partial_order[tensor_name] = len(self.tensor_partial_order)
 
+            return json.dumps({})
+
         # set secret-key
         app.config.update(SECRET_KEY=os.urandom(24))
 
