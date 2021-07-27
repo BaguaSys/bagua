@@ -89,7 +89,7 @@ class DistributedSamplerWrapper(DistributedSampler):
             SamplerDataset(sampler),
             num_replicas=num_replicas,
             rank=rank,
-            shuffle=shuffle
+            shuffle=shuffle,
         )
         self.sampler = sampler
 
