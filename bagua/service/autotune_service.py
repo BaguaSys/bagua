@@ -33,7 +33,9 @@ class NpEncoder(json.JSONEncoder):
 
 
 class AutotuneServiceTaskManager:
-    def __init__(self, task_name: str, world_size: int, is_output_autotune_log: bool) -> None:
+    def __init__(
+        self, task_name: str, world_size: int, is_output_autotune_log: bool
+    ) -> None:
         self.inner = AutotuneTaskManager(task_name, is_output_autotune_log)
         self.warmup_pass_count = 0
         self.sampling_count = 0
@@ -136,7 +138,8 @@ class AutotuneService:
             )
         )
         recommended_bagua_hp = hp_manager.inner.ask_hyperparmeter(
-            train_iter, tensor_partial_order)
+            train_iter, tensor_partial_order
+        )
         if hp_manager.sampling_count < self.max_samples:
             hp_manager.hyperparameter = recommended_bagua_hp
         else:
@@ -248,11 +251,11 @@ class AutotuneService:
                 check_board = hp_manager.check_board
                 if (
                     self.autotune_level >= 1
-                    and check_board.count(check_board[0]) == len(check_board)  # noqa: W503
+                    and check_board.count(check_board[0])
+                    == len(check_board)  # noqa: W503
                     and check_board[rank] < train_iter  # noqa: W503
                 ):
-                    self.autotune(hp_manager, rank, train_iter,
-                                  tensor_partial_order)
+                    self.autotune(hp_manager, rank, train_iter, tensor_partial_order)
 
                 check_board[rank] = train_iter
 
@@ -280,7 +283,9 @@ class AutotuneService:
 
                     self.trace_info_dict[(tensor_name, action)] = True
                     if tensor_name not in self.tensor_partial_order:
-                        self.tensor_partial_order[tensor_name] = len(self.tensor_partial_order)
+                        self.tensor_partial_order[tensor_name] = len(
+                            self.tensor_partial_order
+                        )
 
             return json.dumps({})
 
@@ -313,8 +318,7 @@ class AutotuneClient:
         speed: float,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/report_metrics".format(
-                self.autotune_service_addr),
+            "http://{}/api/v1/report_metrics".format(self.autotune_service_addr),
             json={
                 "model_name": model_name,
                 "rank": rank,
@@ -333,8 +337,7 @@ class AutotuneClient:
         whether_to_bucket: bool = True,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/register_tensors".format(
-                self.autotune_service_addr),
+            "http://{}/api/v1/register_tensors".format(self.autotune_service_addr),
             json={
                 "model_name": model_name,
                 "tensor_list": tensor_list,
@@ -351,8 +354,7 @@ class AutotuneClient:
         train_iter: int,
     ) -> requests.Response:
         rsp = self.session.post(
-            "http://{}/api/v1/ask_hyperparameters".format(
-                self.autotune_service_addr),
+            "http://{}/api/v1/ask_hyperparameters".format(self.autotune_service_addr),
             json={
                 "model_name": model_name,
                 "rank": rank,
@@ -368,7 +370,8 @@ class AutotuneClient:
     ) -> requests.Response:
         rsp = self.session.post(
             "http://{}/api/v1/report_tensor_execution_order".format(
-                self.autotune_service_addr),
+                self.autotune_service_addr
+            ),
             json={
                 "spans": spans,
             },

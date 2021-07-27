@@ -4,7 +4,7 @@ import copy
 import math
 import logging
 import csv
-from typing import (OrderedDict, Tuple, List, Dict)
+from typing import OrderedDict, Tuple, List, Dict
 
 from .bayesian_optimizer import (
     IntParam,
@@ -60,16 +60,12 @@ class AutotuneTaskManager:
 
     @staticmethod
     def record_autotune_log(
-        autotune_logfile_path: str,
-        autotune_hp: dict,
-        train_iter: int,
-        score: float
+        autotune_logfile_path: str, autotune_hp: dict, train_iter: int, score: float
     ):
         with open(autotune_logfile_path, "a") as autotune_log:
             csv_writer = csv.DictWriter(
                 autotune_log,
-                fieldnames=sorted(["train_iter", "score"] +
-                                  list(autotune_hp.keys())),
+                fieldnames=sorted(["train_iter", "score"] + list(autotune_hp.keys())),
             )
             first_line = open(autotune_logfile_path).readline()
             if not first_line:
@@ -172,8 +168,8 @@ class AutotuneTaskManager:
             tensor_declar for bucket in hp.buckets for tensor_declar in bucket
         ]
         tensor_list = sorted(
-            tensor_list,
-            key=lambda td: tensor_partial_order.get(td["name"], -1))
+            tensor_list, key=lambda td: tensor_partial_order.get(td["name"], -1)
+        )
 
         recommend_buckets = AutotuneTaskManager.split_bucket_by_bucket_size(
             tensor_list,
@@ -183,8 +179,7 @@ class AutotuneTaskManager:
         recommend_hp = BaguaHyperparameter(
             buckets=recommend_buckets,
             bucket_size=recommend_bucket_size,
-            is_hierarchical_reduce=bool(
-                recommend_param["is_hierarchical_reduce"]),
+            is_hierarchical_reduce=bool(recommend_param["is_hierarchical_reduce"]),
         )
 
         return recommend_hp

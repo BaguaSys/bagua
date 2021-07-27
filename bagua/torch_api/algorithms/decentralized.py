@@ -16,7 +16,7 @@ class DecentralizedAlgorithm(Algorithm):
     ):
         """
         Create an instance of the
-        `Decentralized <https://baguasys.github.io/tutorials/algorithms/decentralized.html>`_
+        `Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/decentralized>`_
         algorithm.
 
         Args:
@@ -91,7 +91,7 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
         Create an instance of the
-        `Difference Compression Decentralized <https://arxiv.org/pdf/1803.06443.pdf>`_
+        `Low Precision Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/low-precision-decentralized>`_
         algorithm.
 
         Args:

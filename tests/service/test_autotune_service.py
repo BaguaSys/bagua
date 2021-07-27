@@ -68,11 +68,11 @@ class MockBaguaProcess:
             rsp = self.client.report_metrics(
                 self.model_name, self.rank, train_iter, hp.dict(), score
             )
-            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(
-                rsp)
+            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(rsp)
             rsp = self.client.report_tensor_execution_order(self.spans)
-            assert rsp.status_code == 200, "report_tensor_execution_order failed, rsp={}".format(
-                rsp)
+            assert (
+                rsp.status_code == 200
+            ), "report_tensor_execution_order failed, rsp={}".format(rsp)
             rsp = self.client.ask_hyperparameters(
                 self.model_name, self.rank, train_iter
             )
@@ -270,8 +270,8 @@ class TestAutotuneService(unittest.TestCase):
                         "start_time": 4,
                         "end_time": 5,
                     },
-                ]
-            )
+                ],
+            ),
         }
 
         mock_objs = []
@@ -297,32 +297,39 @@ class TestAutotuneService(unittest.TestCase):
 
         for ret in results["basic"]:
             hp = ret.get()
-            buckets = [[
-                td["name"] for td in bucket] for bucket in hp.buckets]
+            buckets = [[td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['basic.A', 'basic.B', 'basic.C'], ['basic.D'], ['basic.E']],
-                "hp={}".format(hp.dict())
+                [["basic.A", "basic.B", "basic.C"], ["basic.D"], ["basic.E"]],
+                "hp={}".format(hp.dict()),
             )
         for ret in results["Mixed_precision_test"]:
             hp = ret.get()
-            buckets = [[
-                td["name"] for td in bucket] for bucket in hp.buckets]
+            buckets = [[td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['Mixed_precision_test.C', 'Mixed_precision_test.D'], [
-                    'Mixed_precision_test.A', 'Mixed_precision_test.B'], ['Mixed_precision_test.E']],
-                "hp={}".format(hp.dict())
+                [
+                    ["Mixed_precision_test.C", "Mixed_precision_test.D"],
+                    ["Mixed_precision_test.A", "Mixed_precision_test.B"],
+                    ["Mixed_precision_test.E"],
+                ],
+                "hp={}".format(hp.dict()),
             )
         for ret in results["out_of_order_tensor"]:
             hp = ret.get()
-            buckets = [[
-                td["name"] for td in bucket] for bucket in hp.buckets]
+            buckets = [[td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['out_of_order_tensor.D'], ['out_of_order_tensor.E'], [
-                    'out_of_order_tensor.A', 'out_of_order_tensor.B', 'out_of_order_tensor.C']],
-                "hp={}".format(hp.dict())
+                [
+                    ["out_of_order_tensor.D"],
+                    ["out_of_order_tensor.E"],
+                    [
+                        "out_of_order_tensor.A",
+                        "out_of_order_tensor.B",
+                        "out_of_order_tensor.C",
+                    ],
+                ],
+                "hp={}".format(hp.dict()),
             )
 
         server.terminate()
