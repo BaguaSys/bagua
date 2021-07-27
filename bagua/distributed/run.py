@@ -384,7 +384,6 @@ def get_args_parser() -> ArgumentParser:
     parser.add_argument("--autotune_warmup_time", type=float, default=30.0)
     parser.add_argument(
         "--is_output_autotune_log",
-        type=bool,
         action="store_true",
         default=False,
         help="Whether autotune output log or not. default is False",
