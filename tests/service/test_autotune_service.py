@@ -125,35 +125,35 @@ class TestAutotuneService(unittest.TestCase):
             "basic": ([
                 TensorDeclaration(
                     {
-                        "name": "A",
+                        "name": "basic.A",
                         "num_elements": 1 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "B",
+                        "name": "basic.B",
                         "num_elements": 2 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "C",
+                        "name": "basic.C",
                         "num_elements": 3 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "D",
+                        "name": "basic.D",
                         "num_elements": 4 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "E",
+                        "name": "basic.E",
                         "num_elements": 5 * 1024 ** 2,
                         "dtype": "f32",
                     }
@@ -162,35 +162,35 @@ class TestAutotuneService(unittest.TestCase):
             "Mixed_precision_test": ([
                 TensorDeclaration(
                     {
-                        "name": "A",
+                        "name": "Mixed_precision_test.A",
                         "num_elements": 1 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "B",
+                        "name": "Mixed_precision_test.B",
                         "num_elements": 3 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "C",
+                        "name": "Mixed_precision_test.C",
                         "num_elements": 5 * 1024 ** 2,
                         "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "D",
+                        "name": "Mixed_precision_test.D",
                         "num_elements": 7 * 1024 ** 2,
                         "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "E",
+                        "name": "Mixed_precision_test.E",
                         "num_elements": 11 * 1024 ** 2,
                         "dtype": "f32",
                     }
@@ -200,35 +200,35 @@ class TestAutotuneService(unittest.TestCase):
                 [
                     TensorDeclaration(
                         {
-                            "name": "A",
+                            "name": "out_of_order_tensor.A",
                             "num_elements": 1 * 1024 ** 2,
                             "dtype": "f32",
                         }
                     ),
                     TensorDeclaration(
                         {
-                            "name": "B",
+                            "name": "out_of_order_tensor.B",
                             "num_elements": 2 * 1024 ** 2,
                             "dtype": "f32",
                         }
                     ),
                     TensorDeclaration(
                         {
-                            "name": "C",
+                            "name": "out_of_order_tensor.C",
                             "num_elements": 3 * 1024 ** 2,
                             "dtype": "f32",
                         }
                     ),
                     TensorDeclaration(
                         {
-                            "name": "D",
+                            "name": "out_of_order_tensor.D",
                             "num_elements": 4 * 1024 ** 2,
                             "dtype": "f32",
                         }
                     ),
                     TensorDeclaration(
                         {
-                            "name": "E",
+                            "name": "out_of_order_tensor.E",
                             "num_elements": 5 * 1024 ** 2,
                             "dtype": "f32",
                         }
@@ -238,35 +238,35 @@ class TestAutotuneService(unittest.TestCase):
                     {
                         "trace_id": 0,
                         "action": "tensor_ready",
-                        "tensor_name": "D",
+                        "tensor_name": "out_of_order_tensor.D",
                         "start_time": 0,
                         "end_time": 1,
                     },
                     {
                         "trace_id": 1,
                         "action": "tensor_ready",
-                        "tensor_name": "E",
+                        "tensor_name": "out_of_order_tensor.E",
                         "start_time": 1,
                         "end_time": 2,
                     },
                     {
                         "trace_id": 2,
                         "action": "tensor_ready",
-                        "tensor_name": "A",
+                        "tensor_name": "out_of_order_tensor.A",
                         "start_time": 2,
                         "end_time": 3,
                     },
                     {
                         "trace_id": 3,
                         "action": "tensor_ready",
-                        "tensor_name": "B",
+                        "tensor_name": "out_of_order_tensor.B",
                         "start_time": 3,
                         "end_time": 14,
                     },
                     {
                         "trace_id": 4,
                         "action": "tensor_ready",
-                        "tensor_name": "C",
+                        "tensor_name": "out_of_order_tensor.C",
                         "start_time": 4,
                         "end_time": 5,
                     },
@@ -301,7 +301,7 @@ class TestAutotuneService(unittest.TestCase):
                 td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['A', 'B', 'C'], ['D'], ['E']],
+                [['basic.A', 'basic.B', 'basic.C'], ['basic.D'], ['basic.E']],
                 "hp={}".format(hp.dict())
             )
         for ret in results["Mixed_precision_test"]:
@@ -310,7 +310,8 @@ class TestAutotuneService(unittest.TestCase):
                 td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['C', 'D'], ['A', 'B'], ['E']],
+                [['Mixed_precision_test.C', 'Mixed_precision_test.D'], [
+                    'Mixed_precision_test.A', 'Mixed_precision_test.B'], ['Mixed_precision_test.E']],
                 "hp={}".format(hp.dict())
             )
         for ret in results["out_of_order_tensor"]:
@@ -319,7 +320,8 @@ class TestAutotuneService(unittest.TestCase):
                 td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['D', 'E'], ['A', 'B', 'C']],
+                [['out_of_order_tensor.D', 'out_of_order_tensor.E'], [
+                    'out_of_order_tensor.A', 'out_of_order_tensor.B', 'out_of_order_tensor.C']],
                 "hp={}".format(hp.dict())
             )
 
