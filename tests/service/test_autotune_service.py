@@ -5,6 +5,7 @@ import socket
 import time
 import os
 from flask import Flask
+from gevent.pywsgi import WSGIServer
 from typing import List, Dict
 from bagua.bagua_define import TensorDeclaration, BaguaCoreTelemetrySpan
 from bagua.service import AutotuneService, AutotuneClient
@@ -109,14 +110,10 @@ class TestAutotuneService(unittest.TestCase):
         app = autotune_service.setup_app(app)
         log = logging.getLogger("werkzeug")
         log.setLevel(logging.ERROR)
+        http_server = WSGIServer(('0.0.0.0', service_port))
 
         server = multiprocessing.Process(
-            target=app.run,
-            kwargs={
-                "host": "0.0.0.0",
-                "port": service_port,
-                "debug": False,
-            },
+            target=http_server.serve_forever,
         )
         server.daemon = True
         server.start()
