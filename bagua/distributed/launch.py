@@ -159,7 +159,8 @@ def set_bagua_env(args, current_env):
 
     if args.autotune_level > 0:
         current_env["AUTO_TUNE_SERVER_ADDR"] = "{}:{}".format(
-            args.master_addr, args.bagua_service_port)
+            args.master_addr, args.bagua_service_port
+        )
 
 
 def main():
