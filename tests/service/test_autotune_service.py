@@ -110,7 +110,7 @@ class TestAutotuneService(unittest.TestCase):
         app = autotune_service.setup_app(app)
         log = logging.getLogger("werkzeug")
         log.setLevel(logging.ERROR)
-        http_server = WSGIServer(('0.0.0.0', service_port))
+        http_server = WSGIServer(('0.0.0.0', service_port), app)
 
         server = multiprocessing.Process(
             target=http_server.serve_forever,
