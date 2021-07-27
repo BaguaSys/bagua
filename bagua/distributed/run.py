@@ -583,6 +583,7 @@ def set_bagua_env(args, current_env):
             args.master_addr, args.bagua_service_port)
 
 
+
 def run(args):
     set_bagua_env(args, os.environ)
 
