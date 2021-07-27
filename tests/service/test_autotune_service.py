@@ -320,7 +320,7 @@ class TestAutotuneService(unittest.TestCase):
                 td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['out_of_order_tensor.D', 'out_of_order_tensor.E'], [
+                [['out_of_order_tensor.D'], ['out_of_order_tensor.E'], [
                     'out_of_order_tensor.A', 'out_of_order_tensor.B', 'out_of_order_tensor.C']],
                 "hp={}".format(hp.dict())
             )
