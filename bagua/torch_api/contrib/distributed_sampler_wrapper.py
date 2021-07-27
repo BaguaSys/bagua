@@ -86,8 +86,11 @@ class DistributedSamplerWrapper(DistributedSampler):
         shuffle: bool = True,
     ):
         super(DistributedSamplerWrapper, self).__init__(
-            SamplerDataset(sampler), num_replicas=num_replicas, rank=rank, shuffle=shuffle
-            )
+            SamplerDataset(sampler),
+            num_replicas=num_replicas,
+            rank=rank,
+            shuffle=shuffle
+        )
         self.sampler = sampler
 
     def __iter__(self) -> Iterator[int]:
