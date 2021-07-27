@@ -40,7 +40,7 @@ class DistributedSamplerWrapper(DistributedSampler):
     A sampler wrapper attaches the original sampler with distributed feature.
     With this feature you can use any sampler in distributed mode.
     This is intended for the scenario where a dataset sampler need to be used in
-    distributed algorithm and usually appeared with `model.with_bagua()`.
+    distributed algorithm and usually appeared before `model.with_bagua()`.
 
     Arguments:
         sampler: Sampler used for subsampling. It can be any other pytorch
@@ -54,6 +54,28 @@ class DistributedSamplerWrapper(DistributedSampler):
 
     .. note::
         Sampler is assumed to be of constant size.
+
+    Examples::
+        >>> train_dataset = MyDataset(...)
+        >>> weighted_sampler = torch.utils.data.sampler.WeightedRandomSampler(...)
+        >>> from bagua.torch_api.contrib.distributed_sampler_wrapper import DistributedSamplerWrapper
+        >>> train_sampler = DistributedSamplerWrapper(weighted_sampler,
+                                            num_replicas = bagua.get_world_size(),
+                                            rank = bagua.get_rank()
+                                            )
+        >>> train_dataloader = torch.utils.data.DataLoader(train_dataset,
+                                                    batch_size = args.batch_size,
+                                                    shuffle = False,
+                                                    num_workers = args.num_workers,
+                                                    pin_memory = False,
+                                                    sampler = train_sampler)
+        ...
+        ...
+        ...
+        >>> model = model.with_bagua(
+            ...      [optimizer],
+            ...      GradientAllReduce()
+            ...    )
     """
 
     def __init__(
@@ -64,8 +86,7 @@ class DistributedSamplerWrapper(DistributedSampler):
         shuffle: bool = True,
     ):
         super(DistributedSamplerWrapper, self).__init__(
-            SamplerDataset(sampler), num_replicas=num_replicas, rank=rank, shuffle=shuffle,
-        )
+            SamplerDataset(sampler), num_replicas=num_replicas, rank=rank, shuffle=shuffle)
         self.sampler = sampler
 
     def __iter__(self) -> Iterator[int]:
