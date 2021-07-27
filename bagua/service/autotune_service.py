@@ -1,25 +1,21 @@
 import copy
-import csv
 import requests
 import os
 import time
 import threading
-import tempfile
 import json
 import logging
-import collections
-import math
 import multiprocessing
-from flask import Flask, request
 from .autotune_task_manager import AutotuneTaskManager
 from bagua.bagua_define import (
     TensorDtype,
     TensorDeclaration,
+    BaguaCoreTelemetrySpan,
     BaguaHyperparameter,
 )
+from flask import request
 import numpy as np
-from typing import Dict, List, Tuple
-from collections import OrderedDict
+from typing import Dict, List
 
 
 class NpEncoder(json.JSONEncoder):
@@ -271,7 +267,7 @@ class AutotuneService:
         @app.route("/api/v1/report_tensor_execution_order", methods=["POST"])
         def report_tensor_execution_order():
             req: dict = request.get_json(force=True)
-            spans: List[Dict] = req["spans"]
+            spans: List[BaguaCoreTelemetrySpan] = req["spans"]
 
             with self.tensor_partial_order_lock:
                 spans = sorted(spans, key=lambda span: span["start_time"])
@@ -366,9 +362,24 @@ class AutotuneClient:
         )
         return rsp
 
+    def report_tensor_execution_order(
+        self,
+        spans: List[BaguaCoreTelemetrySpan],
+    ) -> requests.Response:
+        rsp = self.session.post(
+            "http://{}/api/v1/report_tensor_execution_order".format(
+                self.autotune_service_addr),
+            json={
+                "spans": spans,
+            },
+            proxies=self.proxies,
+        )
+        return rsp
+
 
 if __name__ == "__main__":
     import argparse
+    from flask import Flask
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--nprocs", type=int, default=8)

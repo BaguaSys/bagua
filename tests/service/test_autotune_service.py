@@ -1,14 +1,14 @@
 import unittest
 import logging
 import multiprocessing
-from flask import Flask
-from bagua.bagua_define import TensorDeclaration
-from bagua.service import AutotuneService, AutotuneClient
-from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 import socket
 import time
-import numpy as np
 import os
+from flask import Flask
+from typing import List, Dict
+from bagua.bagua_define import TensorDeclaration, BaguaCoreTelemetrySpan
+from bagua.service import AutotuneService, AutotuneClient
+from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 
 
 def pick_n_free_ports(n: int):
@@ -42,15 +42,17 @@ def metrics(buckets, is_hierarchical_reduce):
 class MockBaguaProcess:
     def __init__(
         self,
-        rank,
-        service_addr,
-        service_port,
-        model_name,
-        tensor_list,
+        rank: int,
+        service_addr: str,
+        service_port: int,
+        model_name: str,
+        tensor_list: List[TensorDeclaration],
+        spans: List[BaguaCoreTelemetrySpan] = [],
     ) -> None:
         self.rank = rank
         self.model_name = model_name
         self.tensor_list = tensor_list
+        self.spans = spans
         self.client = AutotuneClient(service_addr, service_port)
 
     def run(self):
@@ -67,6 +69,9 @@ class MockBaguaProcess:
                 self.model_name, self.rank, train_iter, hp.dict(), score
             )
             assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(
+                rsp)
+            rsp = self.client.report_tensor_execution_order(self.spans)
+            assert rsp.status_code == 200, "report_tensor_execution_order failed, rsp={}".format(
                 rsp)
             rsp = self.client.ask_hyperparameters(
                 self.model_name, self.rank, train_iter
@@ -117,7 +122,7 @@ class TestAutotuneService(unittest.TestCase):
         server.start()
 
         model_dict = {
-            "m1": [
+            "basic": ([
                 TensorDeclaration(
                     {
                         "name": "A",
@@ -153,8 +158,8 @@ class TestAutotuneService(unittest.TestCase):
                         "dtype": "f32",
                     }
                 ),
-            ],
-            "m2": [
+            ], []),
+            "Mixed_precision_test": ([
                 TensorDeclaration(
                     {
                         "name": "A",
@@ -190,16 +195,92 @@ class TestAutotuneService(unittest.TestCase):
                         "dtype": "f32",
                     }
                 ),
-            ],
+            ], []),
+            "out_of_order_tensor": (
+                [
+                    TensorDeclaration(
+                        {
+                            "name": "A",
+                            "num_elements": 1 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "B",
+                            "num_elements": 2 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "C",
+                            "num_elements": 3 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "D",
+                            "num_elements": 4 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "E",
+                            "num_elements": 5 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                ],
+                [
+                    {
+                        "trace_id": 0,
+                        "action": "tensor_ready",
+                        "tensor_name": "D",
+                        "start_time": 0,
+                        "end_time": 1,
+                    },
+                    {
+                        "trace_id": 1,
+                        "action": "tensor_ready",
+                        "tensor_name": "E",
+                        "start_time": 1,
+                        "end_time": 2,
+                    },
+                    {
+                        "trace_id": 2,
+                        "action": "tensor_ready",
+                        "tensor_name": "A",
+                        "start_time": 2,
+                        "end_time": 3,
+                    },
+                    {
+                        "trace_id": 3,
+                        "action": "tensor_ready",
+                        "tensor_name": "B",
+                        "start_time": 3,
+                        "end_time": 14,
+                    },
+                    {
+                        "trace_id": 4,
+                        "action": "tensor_ready",
+                        "tensor_name": "C",
+                        "start_time": 4,
+                        "end_time": 5,
+                    },
+                ]
+            )
         }
 
         mock_objs = []
         pool = multiprocessing.pool.ThreadPool(nprocs * len(model_dict))
         results = dict([(key, []) for key in model_dict.keys()])
         for i in range(nprocs):
-            for (model_name, tensor_list) in model_dict.items():
+            for (model_name, (tensor_list, spans)) in model_dict.items():
                 mock = MockBaguaProcess(
-                    i, service_addr, service_port, model_name, tensor_list
+                    i, service_addr, service_port, model_name, tensor_list, spans
                 )
                 mock_objs.append(mock)
                 ret = pool.apply_async(mock.run)
@@ -214,7 +295,7 @@ class TestAutotuneService(unittest.TestCase):
                     print(autotune_logfile)
                     print(open(autotune_logfile).read())
 
-        for ret in results["m1"]:
+        for ret in results["basic"]:
             hp = ret.get()
             buckets = [[
                 td["name"] for td in bucket] for bucket in hp.buckets]
@@ -223,13 +304,22 @@ class TestAutotuneService(unittest.TestCase):
                 [['A', 'B', 'C'], ['D'], ['E']],
                 "hp={}".format(hp.dict())
             )
-        for ret in results["m2"]:
+        for ret in results["Mixed_precision_test"]:
             hp = ret.get()
             buckets = [[
                 td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
                 [['C', 'D'], ['A', 'B'], ['E']],
+                "hp={}".format(hp.dict())
+            )
+        for ret in results["out_of_order_tensor"]:
+            hp = ret.get()
+            buckets = [[
+                td["name"] for td in bucket] for bucket in hp.buckets]
+            self.assertEqual(
+                buckets,
+                [['D', 'E'], ['A', 'B', 'C']],
                 "hp={}".format(hp.dict())
             )
 
