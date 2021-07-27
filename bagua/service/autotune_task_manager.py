@@ -4,7 +4,7 @@ import copy
 import math
 import logging
 import csv
-from typing import (Optional, OrderedDict, Tuple, List, Dict)
+from typing import (OrderedDict, Tuple, List, Dict)
 
 from .bayesian_optimizer import (
     IntParam,
