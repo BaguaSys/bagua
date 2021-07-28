@@ -14,7 +14,13 @@ import redis
 
 
 class RedisStore(Store):
-    def __init__(self, bootstrap=True, hosts: List[Dict[str, str]] = None):
+    def __init__(
+        self,
+        capacity: int = 1_000_000_000,
+        bootstrap=True,
+        hosts: List[Dict[str, str]] = None,
+        overwrite=True,
+    ):
         if not bootstrap and (hosts is None or len(hosts) == 0):
             raise ValueError("Must provide `hosts` when bootstrap is `False`")
 
@@ -23,6 +29,7 @@ class RedisStore(Store):
                 logging.warn("Ignore input `hosts` when bootstrap is `True`")
             hosts = []
 
+        self.capacity = capacity
         self.cluster_mode = True
         self.hosts = hosts
 
@@ -35,6 +42,8 @@ class RedisStore(Store):
             self.client = Redis(host=self.hosts[0]["host"], port=self.hosts[0]["port"])
 
         assert self.client.ping()
+        if overwrite:
+            self.clear()
 
     def set(self, key: str, value: str):
         self.client.set(key, value)
@@ -49,7 +58,7 @@ class RedisStore(Store):
             else self.client.dbsize()
         )
 
-    def clear(self):
+    def clear(self) -> bool:
         self.client.flushdb()
 
     def mset(self, mapping: Dict[str, str]):
@@ -61,13 +70,17 @@ class RedisStore(Store):
     def status(self) -> bool:
         return self.client.ping()
 
+    def shutdown(self):
+        self.client.shutdown()
+
     def _start_redis_cluster(self):
         nrank = get_rank() // get_local_size()
         nnodes = get_world_size() // get_local_size()
+        capacity = (self.capacity + nnodes - 1) // nnodes
 
         ip, port = get_host_ip(), find_free_port()
         if not torch.distributed.is_initialized() or nnodes == 1:
-            start_redis_server_cli(port, False)
+            start_redis_server_cli(port, False, "--maxmemory {}".format(capacity))
             self.hosts.append({"host": "127.0.0.1", "port": port})
             self.cluster_mode = False
             return
@@ -76,7 +89,7 @@ class RedisStore(Store):
 
         key_pattern = "redis-node{}"
         if get_local_rank() == 0:
-            start_redis_server_cli(port, True)
+            start_redis_server_cli(port, True, "--maxmemory {}".format(capacity))
             content = {"host": ip, "port": port}
             default_store.set(key_pattern.format(nrank), pickle.dumps(content))
 
@@ -132,4 +145,4 @@ def get_host_ip():
         host_name = socket.gethostname()
         return socket.gethostbyname(host_name)
     except:
-        print("Unable to get host IP")
+        raise RuntimeError("Unable to get host IP")

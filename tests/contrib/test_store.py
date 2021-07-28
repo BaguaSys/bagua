@@ -27,6 +27,21 @@ class TestStore(unittest.TestCase):
         self.assertEqual(r1, b"Spain")
         self.assertEqual(r2, None)
 
+        cnt = store.num_keys()
+        self.assertEqual(cnt, 5)
+
+        store.clear()
+        self.assertEqual(store.num_keys(), 0)
+
+        self.assertTrue(store.status())
+
+        # shut down resources at the end
+        store.shutdown()
+
+    def test_lmdb_store(self):
+        store = LmdbStore(name=".test.lmdb", overwrite=True)
+        self.check(store)
+
     def test_redis_store(self):
         store = RedisStore(bootstrap=True)
         self.check(store)
@@ -42,11 +57,7 @@ class TestStore(unittest.TestCase):
             hosts.append({"host": "127.0.0.1", "port": port})
 
         create_redis_cluster_cli(hosts=hosts)
-        store = RedisStore(hosts=hosts, bootstrap=False)
-        self.check(store)
-
-    def test_lmdb_store(self):
-        store = LmdbStore(name=".test.lmdb")
+        store = RedisStore(hosts=hosts, bootstrap=False, overwrite=True)
         self.check(store)
 
 

@@ -11,18 +11,18 @@ def deserialize(input):
 
 
 class CachedDataset(Dataset):
-    def __init__(self, dataset: Dataset, backend: str = "redis", **kwargs):
+    def __init__(self, dataset: Dataset, backend: str = "redis", overwrite=True, capacity: int = 10_000_000_000, **kwargs):
         self.dataset = dataset
         self.backend = backend
 
         if backend == "redis":
             from .utils.redis_store import RedisStore
 
-            self.store = RedisStore(**kwargs)
+            self.store = RedisStore(overwrite=overwrite, capacity=capacity, **kwargs)
         elif backend == "lmdb":
             from .utils.lmdb_store import LmdbStore
 
-            self.store = LmdbStore(**kwargs)
+            self.store = LmdbStore(overwrite=overwrite, capacity=capacity, **kwargs)
         else:
             raise ValueError(
                 'invalid backend, only support "redis" and "lmdb" at present'
@@ -41,3 +41,6 @@ class CachedDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
+
+    def cleanup(self):
+        self.store.shutdown()

@@ -11,7 +11,7 @@ class Store:
     def num_keys(self) -> int:
         pass
 
-    def clear(self):
+    def cleanup(self) -> bool:
         pass
 
     def mset(self, mapping: Dict[str, str]):
@@ -21,4 +21,7 @@ class Store:
         pass
 
     def status(self) -> bool:
+        pass
+
+    def shutdown(self):
         pass

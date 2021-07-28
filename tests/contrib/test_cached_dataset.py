@@ -26,21 +26,25 @@ class TestCachedDataset(unittest.TestCase):
 
         self.assertEqual(cached_dataset.store.num_keys(), 10)
         for i in range(10):
-            print(i, dataset[i][0], cached_dataset[i][0])
             self.assertTrue((dataset[i][0] == cached_dataset[i][0]).all())
             self.assertTrue((dataset[i][1] == cached_dataset[i][1]).all())
 
     def test_lmdb(self):
         np.random.seed(0)
         dataset = TestDataset(10)
-        cached_dataset = CachedDataset(dataset, backend="lmdb", name=".test.lmdb")
+        cached_dataset = CachedDataset(
+            dataset, backend="lmdb", name=".test.lmdb", overwrite=True
+        )
         self.check_dataset(dataset, cached_dataset)
+
+        cached_dataset.cleanup()
 
     def test_redis(self):
         np.random.seed(0)
         dataset = TestDataset(10)
-        cached_dataset = CachedDataset(dataset, backend="redis")
+        cached_dataset = CachedDataset(dataset, backend="redis", overwrite=True)
         self.check_dataset(dataset, cached_dataset)
+        cached_dataset.cleanup()
 
 
 if __name__ == "__main__":
