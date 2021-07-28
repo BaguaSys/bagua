@@ -16,7 +16,7 @@ import redis
 class RedisStore(Store):
     def __init__(
         self,
-        capacity: int = 1_000_000_000,
+        capacity_per_node: int = 1_000_000_000,
         bootstrap=True,
         hosts: List[Dict[str, str]] = None,
         overwrite=True,
@@ -29,7 +29,7 @@ class RedisStore(Store):
                 logging.warn("Ignore input `hosts` when bootstrap is `True`")
             hosts = []
 
-        self.capacity = capacity
+        self.capacity_per_node = capacity_per_node
         self.cluster_mode = True
         self.hosts = hosts
 
@@ -71,31 +71,34 @@ class RedisStore(Store):
         return self.client.ping()
 
     def shutdown(self):
-        self.client.shutdown()
+        if hasattr(self, "_client_on_host") and self._client_on_host is not None:
+            # shutdown redis server bootstrapped locally
+            self._client_on_host.shutdown(nosave=True)
+        self.client.close()
 
     def _start_redis_cluster(self):
         nrank = get_rank() // get_local_size()
         nnodes = get_world_size() // get_local_size()
-        capacity = (self.capacity + nnodes - 1) // nnodes
 
         ip, port = get_host_ip(), find_free_port()
         if not torch.distributed.is_initialized() or nnodes == 1:
-            start_redis_server_cli(port, False, "--maxmemory {}".format(capacity))
+            start_redis_server_cli(port, False, self.capacity_per_node)
             self.hosts.append({"host": "127.0.0.1", "port": port})
             self.cluster_mode = False
+            self._client_on_host = Redis(port=port)
             return
 
         default_store = c10d._get_default_store()
 
         key_pattern = "redis-node{}"
         if get_local_rank() == 0:
-            start_redis_server_cli(port, True, "--maxmemory {}".format(capacity))
+            start_redis_server_cli(port, True, self.capacity_per_node)
             content = {"host": ip, "port": port}
             default_store.set(key_pattern.format(nrank), pickle.dumps(content))
+            self._client_on_host = Redis(port=port)
 
         for i in range(nnodes):
             ret = default_store.get(key_pattern.format(i))
-            print(ret)
             self.hosts.append(ret)
 
         create_redis_cluster_cli(self.hosts)
@@ -113,15 +116,22 @@ def create_redis_cluster_cli(hosts: List[Dict[str, str]]):
     time.sleep(5)
 
 
-def start_redis_server_cli(port, cluster_mode, *args):
-    cmd = ["redis-server", "--daemonize yes", "--port {}".format(port)]
+def start_redis_server_cli(port, cluster_mode, capacity, *args):
+    cmd = [
+        "redis-server",
+        "--daemonize yes",
+        "--port {}".format(port),
+        "--maxmemory {}".format(capacity),
+        "--maxmemory-policy allkeys-random",  # use random eviction by default
+        "--appendonly no",  # disable persistence by default
+        '--save ""',
+    ]
 
     if cluster_mode:
         cluster_config = [
             "--cluster-enabled yes",
             "--cluster-config-file nodes.conf",
             "--cluster-node-timeout 5000",
-            "--appendonly yes",
         ]
         cmd.extend(cluster_config)
 
