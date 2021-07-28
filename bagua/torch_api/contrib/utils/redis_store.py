@@ -43,7 +43,11 @@ class RedisStore(Store):
         return self.client.get(key)
 
     def num_keys(self) -> int:
-        return sum(self.client.dbsize().values())
+        return (
+            sum(self.client.dbsize().values())
+            if self.cluster_mode
+            else self.client.dbsize()
+        )
 
     def clear(self):
         self.client.flushdb()

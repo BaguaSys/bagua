@@ -1,44 +1,43 @@
 from torch.utils.data.dataset import Dataset
-import pyarrow as pa
+import pickle
 
 
 def serialize(input):
-    try:
-        return pa.serialize(input).to_buffer()
-    except Exception as e:
-        raise RuntimeError("Serialization error!")
+    return pickle.dumps(input)
+
 
 def deserialize(input):
-    try:
-        return pa.deserialize(input)
-    except Exception as e:
-        raise RuntimeError("Deserialization error!")
+    return pickle.loads(input)
 
 
 class CachedDataset(Dataset):
-    def __init__(self, dataset: Dataset, backend: str="redis", **kwargs):
+    def __init__(self, dataset: Dataset, backend: str = "redis", **kwargs):
         self.dataset = dataset
         self.backend = backend
 
         if backend == "redis":
             from .utils.redis_store import RedisStore
+
             self.store = RedisStore(**kwargs)
         elif backend == "lmdb":
             from .utils.lmdb_store import LmdbStore
+
             self.store = LmdbStore(**kwargs)
         else:
-            raise ValueError("invalid backend, only support \"redis\" and \"lmdb\" at present")
+            raise ValueError(
+                'invalid backend, only support "redis" and "lmdb" at present'
+            )
 
     def __getitem__(self, item):
-        value = self.store.get(str(item))
+        ret = self.store.get(str(item).encode())
 
-        if value is not None:
-            return value
+        if ret is not None:
+            return deserialize(ret)
 
         # write to store
-        value = self.dataset[item]
-        self.store.set(str(item), serialize(value))
-        return value
+        ret = self.dataset[item]
+        self.store.set(str(item).encode(), serialize(ret))
+        return ret
 
     def __len__(self):
         return len(self.dataset)
