@@ -68,7 +68,7 @@ class BaguaModule:
         modules_and_parameters = [
             (m, p)
             for m, p in modules_and_parameters
-            if p not in memo and not memo.add(p)
+            if p[1] not in memo and not memo.add(p[1])
         ]
 
         # Build list of parameters.
