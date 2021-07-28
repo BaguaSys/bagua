@@ -251,8 +251,7 @@ class AutotuneService:
                 check_board = hp_manager.check_board
                 if (
                     self.autotune_level >= 1
-                    and check_board.count(check_board[0])
-                    == len(check_board)  # noqa: W503
+                    and check_board.count(check_board[0]) == len(check_board)  # noqa: W503
                     and check_board[rank] < train_iter  # noqa: W503
                 ):
                     self.autotune(hp_manager, rank, train_iter, tensor_partial_order)

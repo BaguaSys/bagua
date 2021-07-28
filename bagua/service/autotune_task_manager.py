@@ -4,7 +4,7 @@ import copy
 import math
 import logging
 import csv
-from typing import OrderedDict, Tuple, List, Dict
+from typing import Tuple, List, Dict
 
 from .bayesian_optimizer import (
     IntParam,
@@ -78,7 +78,7 @@ class AutotuneTaskManager:
                     "score": score,
                 }
             )
-            cols = OrderedDict(cols)
+            cols = collections.OrderedDict(cols)
             logging.info("cols={}".format(cols))
             csv_writer.writerow(cols)
 
