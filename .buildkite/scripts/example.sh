@@ -19,7 +19,7 @@ function parse_benchmark_log {
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
 baguarun --nproc_per_node 8 \
-    --host_list localhost \
+    --host_list localhost:8001 \
     --no_python \
     "--autotune_level 1" \
     python ${SYNTHETIC_SCRIPT} \
