@@ -19,7 +19,7 @@ steps:
           image: "baguasys/bagua:latest"
           propagate-environment: true
           additional-groups:
-            - admin
+            - buildkite-agent
           runtime: nvidia
           network: host
           always-pull: true
