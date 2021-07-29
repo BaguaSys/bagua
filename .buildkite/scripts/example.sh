@@ -18,10 +18,10 @@ function parse_benchmark_log {
 }
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
-baguarun --nproc_per_node 8 \
-    --host_list localhost:8001 \
+python -m bagua.distributed.run \
+    --autotune_level 1 \
+    --nproc_per_node 8 \
     --no_python \
-    "--autotune_level 1" \
     python ${SYNTHETIC_SCRIPT} \
     2>&1 | tee ${logfile}
 parse_benchmark_log ${logfile}
