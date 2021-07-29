@@ -13,7 +13,7 @@ steps:
       queue: "master"
   - label: "benchmark"
     parallelism: 1
-    command: .buildkite/scripts/benchmark.sh
+    command: su buildkite-agent && .buildkite/scripts/benchmark.sh
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"

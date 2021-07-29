@@ -5,8 +5,6 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
-su buildkite-agent
-
 SYNTHETIC_SCRIPT="/bagua/examples/benchmark/synthetic_benchmark.py"
 
 function parse_benchmark_log {
