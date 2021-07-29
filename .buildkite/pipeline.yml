@@ -9,9 +9,9 @@ steps:
           network: host
     agents:
       queue: "master"
-  - label: "example workers"
+  - label: "benchmark"
     parallelism: 1
-    command: .buildkite/scripts/example.sh
+    command: .buildkite/scripts/benchmark.sh
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
