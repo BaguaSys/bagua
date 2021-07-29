@@ -39,13 +39,7 @@ class RedisStore(Store):
         if self.bootstrap:
             self._bootstrap_redis_server()
 
-        if self.cluster_mode:
-            raise ValueError("RedisStore does not support cluster mode at present")
-            # self.client = RedisCluster(startup_nodes=self.hosts, decode_responses=True)
-        else:
-            self.client = create_redis_client(
-                host=self.hosts[0]["host"], port=self.hosts[0]["port"]
-            )
+        self.client = self.create_redis_client(self.hosts)
 
         assert self.client.ping()
 
@@ -103,6 +97,21 @@ class RedisStore(Store):
         # create_redis_cluster_cli(self.hosts)
         # wait_for_create_redis_cluster_cli()
 
+    def create_redis_client(self, hosts):
+        if self.cluster_mode:
+            raise ValueError("RedisStore does not support cluster mode at present")
+            # self.client = RedisCluster(startup_nodes=self.hosts, decode_responses=True)
+        else:
+            nrank = get_rank() // get_local_size()
+            hostinfo = hosts[nrank % len(self.hosts)]
+
+            logging.debug(f"{get_host_ip()} connect to redis server: {hostinfo}")
+            return (
+                Redis(port=hostinfo["port"])
+                if hostinfo["host"] == get_host_ip()
+                else Redis(host=host["info"], port=hostinfo["port"])
+            )
+
 
 def create_redis_cluster_cli(hosts: List[Dict[str, str]]):
     cmd = ["redis-cli", "--cluster", "create"]
@@ -147,10 +156,6 @@ def start_redis_server_cli(port, cluster_mode, capacity, *args):
 
 def wait_for_start_redis_server_cli():
     time.sleep(10)
-
-
-def create_redis_client(host, port):
-    return Redis(port=port) if host == get_host_ip() else Redis(host=host, port=port)
 
 
 def find_free_port():
