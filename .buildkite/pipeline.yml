@@ -20,4 +20,6 @@ steps:
           propagate-environment: true
           runtime: nvidia
           network: host
+          ipc: host
+          shm-size: 100gb
           always-pull: true
