@@ -19,7 +19,7 @@ logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
 python -m bagua.distributed.run \
     --standalone \
     --nnodes=1 \
-    --nproc_per_node 8 \
+    --nproc_per_node 4 \
     --no_python \
     --autotune_level 1 \
     python ${SYNTHETIC_SCRIPT} \
