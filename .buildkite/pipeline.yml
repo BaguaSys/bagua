@@ -18,7 +18,8 @@ steps:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
           propagate-environment: true
-          propagate-uid-gid: true
+          additional-groups:
+            - admin
           runtime: nvidia
           network: host
           always-pull: true
