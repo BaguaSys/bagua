@@ -15,39 +15,39 @@ class CachedDataset(Dataset):
         self,
         dataset: Dataset,
         backend: str = "redis",
-        overwrite=True,
         capacity_per_node: int = 10_000_000_000,
+        key_prefix: str = "",
         **kwargs,
     ):
+        """ """
         self.dataset = dataset
         self.backend = backend
+        self.key_prefix = key_prefix
 
         if backend == "redis":
             from .utils.redis_store import RedisStore
 
-            self.store = RedisStore(
-                overwrite=overwrite, capacity_per_node=capacity_per_node, **kwargs
-            )
+            self.store = RedisStore(capacity_per_node=capacity_per_node, **kwargs)
         elif backend == "lmdb":
             from .utils.lmdb_store import LmdbStore
 
-            self.store = LmdbStore(
-                overwrite=overwrite, capacity_per_node=capacity_per_node, **kwargs
-            )
+            self.store = LmdbStore(capacity_per_node=capacity_per_node, **kwargs)
         else:
             raise ValueError(
                 'invalid backend, only support "redis" and "lmdb" at present'
             )
 
     def __getitem__(self, item):
-        ret = self.store.get(str(item).encode())
+        key = "{}{}".format(self.key_prefix, item).encode()
+
+        ret = self.store.get(key)
 
         if ret is not None:
             return deserialize(ret)
 
         # write to store
         ret = self.dataset[item]
-        self.store.set(str(item).encode(), serialize(ret))
+        self.store.set(key, serialize(ret))
         return ret
 
     def __len__(self):

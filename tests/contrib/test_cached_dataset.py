@@ -21,7 +21,7 @@ class TestDataset(Dataset):
 
 class TestCachedDataset(unittest.TestCase):
     def check_dataset(self, dataset, cached_dataset):
-        for step, data in enumerate(cached_dataset):
+        for _, _ in enumerate(cached_dataset):
             pass
 
         self.assertEqual(cached_dataset.store.num_keys(), 10)
@@ -33,7 +33,7 @@ class TestCachedDataset(unittest.TestCase):
         np.random.seed(0)
         dataset = TestDataset(10)
         cached_dataset = CachedDataset(
-            dataset, backend="lmdb", name=".test.lmdb", overwrite=True
+            dataset, backend="lmdb", path=".lmdb", overwrite=True
         )
         self.check_dataset(dataset, cached_dataset)
 
@@ -42,7 +42,9 @@ class TestCachedDataset(unittest.TestCase):
     def test_redis(self):
         np.random.seed(0)
         dataset = TestDataset(10)
-        cached_dataset = CachedDataset(dataset, backend="redis", overwrite=True)
+        cached_dataset = CachedDataset(
+            dataset, backend="redis", hosts=None, cluster_mode=False
+        )
         self.check_dataset(dataset, cached_dataset)
         cached_dataset.cleanup()
 

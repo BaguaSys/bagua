@@ -4,10 +4,10 @@ from typing import List, Dict, Optional
 
 
 class LmdbStore(Store):
-    def __init__(self, name, capacity_per_node: int = 1_000_000_000, overwrite=True):
-        self.name = name
+    def __init__(self, path, capacity_per_node: int = 1_000_000_000, overwrite=False):
+        self.path = path
         self.capacity_per_node = capacity_per_node
-        self.env = lmdb.open(self.name, map_size=self.capacity_per_node)
+        self.env = lmdb.open(self.path, map_size=self.capacity_per_node)
 
         if overwrite:
             self.clear()

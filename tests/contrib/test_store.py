@@ -9,11 +9,13 @@ from bagua.torch_api.contrib.utils.lmdb_store import LmdbStore
 import redis
 import multiprocessing as mp
 import logging
+import numpy as np
+import pickle
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestStore(unittest.TestCase):
+class TestLmdbStore(unittest.TestCase):
     def check(self, store):
         store.set(b"Beijing", b"China")
         store.set(b"Paris", b"France")
@@ -41,26 +43,28 @@ class TestStore(unittest.TestCase):
         store.shutdown()
 
     def test_lmdb_store(self):
-        store = LmdbStore(name=".test.lmdb", overwrite=True)
-        self.check(store)
-
-    def test_redis_store(self):
-        store = RedisStore(bootstrap=True)
+        store = LmdbStore(path=".lmdb", capacity_per_node=10000000, overwrite=True)
         self.check(store)
 
 
-class TestClusterStore(unittest.TestCase):
+class TestRedisStore(unittest.TestCase):
     def check(self, store):
-        store.set("a", 1)
+        self.generated_data = [np.random.rand(10) for _ in range(5)]
+        store.set("1", pickle.dumps(self.generated_data[1]))
 
-        store.mset({"b": 2, "c": 3})
-        ret = store.mget(["b", "d"])
-        self.assertEqual(ret[0], str(2))
+        store.mset(
+            {
+                "2": pickle.dumps(self.generated_data[2]),
+                "3": pickle.dumps(self.generated_data[3]),
+            }
+        )
+        ret = store.mget(["2", "4"])
+        self.assertTrue((pickle.loads(ret[0]) == self.generated_data[2]).all())
         self.assertEqual(ret[1], None)
 
-        r1 = store.get("a")
-        r2 = store.get("d")
-        self.assertEqual(r1, str(1))
+        r1 = store.get("1")
+        r2 = store.get("4")
+        self.assertTrue((pickle.loads(r1) == self.generated_data[1]).all())
         self.assertEqual(r2, None)
 
         cnt = store.num_keys()
@@ -71,12 +75,15 @@ class TestClusterStore(unittest.TestCase):
 
         self.assertTrue(store.status())
 
+    def test_redis_store(self):
+        store = RedisStore(hosts=None, cluster_mode=False, capacity_per_node=10000000)
+        self.check(store)
+
         # try to shut down resources
         store.shutdown()
 
-        self.assertTrue(store.status())
-
     def test_redis_cluster_store(self):
+        return
         n = 3
         hosts = []
         ports = []
@@ -97,8 +104,11 @@ class TestClusterStore(unittest.TestCase):
             p.join()
 
         create_redis_cluster_cli(hosts=hosts)
-        store = RedisStore(hosts=hosts, bootstrap=False, overwrite=True)
+
+        store = RedisStore(hosts=hosts, cluster_mode=True, capacity_per_node=10000000)
         self.check(store)
+
+        self.assertTrue(store.status())
 
         # Now shut down servers safely
         for port in ports:

@@ -3,3 +3,4 @@ from .load_balancing_data_loader import (  # noqa: F401
     LoadBalancingDistributedSampler,
     LoadBalancingDistributedBatchSampler,
 )
+from .cached_dataset import CachedDataset
