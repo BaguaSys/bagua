@@ -6,7 +6,7 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 set -euox pipefail
 
 function finish {
-    rm $(find /workdir -group root)
+    rm -rf $(find /workdir -group root)
 }
 trap finish EXIT
 
@@ -15,7 +15,7 @@ SYNTHETIC_SCRIPT="/bagua/examples/benchmark/synthetic_benchmark.py"
 function parse_benchmark_log {
     logfile=$1
 
-    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $5}')
+    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
 
     echo $img_per_sec
 }
