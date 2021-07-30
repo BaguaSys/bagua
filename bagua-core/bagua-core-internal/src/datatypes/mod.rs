@@ -34,6 +34,7 @@ pub enum BaguaReductionOp {
     BOR,
     BAND,
     BXOR,
+    AVG,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
