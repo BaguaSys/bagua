@@ -21,6 +21,7 @@ import torch.distributed.distributed_c10d as c10d
 from bagua.service.autotune_service import AutotuneClient
 from functools import lru_cache
 
+
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 class ReduceOp(IntEnum):
     SUM = 0
@@ -509,9 +510,7 @@ def allreduce_inplace(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.allreduce_inplace(
-            tensor.to_bagua_tensor().bagua_backend_tensor(), int(op)
-        )
+        comm.allreduce_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), int(op))
 
     torch.cuda.synchronize()
 
