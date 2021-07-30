@@ -43,11 +43,12 @@ impl CommOpTrait for CentralizedFullPrecisionSynchronous {
                     tracing::debug!("internode communication done")
                 } else {
                     tracing::debug!("start allreduce");
-                    c.allreduce_inplace(&mut t.raw, BaguaReductionOp::SUM);
-                    tracing::debug!("internode communication done");
                     if self.average {
-                        t.raw.divide_inplace(stream_ptr, c.nranks as f32);
+                        c.allreduce_inplace(&mut t.raw, BaguaReductionOp::AVG);
+                    } else {
+                        c.allreduce_inplace(&mut t.raw, BaguaReductionOp::SUM);
                     }
+                    tracing::debug!("internode communication done");
                 }
             },
         );
