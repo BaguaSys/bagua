@@ -24,6 +24,9 @@ from functools import lru_cache
 
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 class ReduceOp(IntEnum):
+    """An enum-like class for available reduction operations: SUM, PRODUCT, MIN, MAX, BAND, BOR, BXOR and AVG.
+
+    """
     SUM = 0
     PRODUCT = 1
     MIN = 2
