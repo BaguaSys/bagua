@@ -64,8 +64,7 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                         {
                             peer_tensor.clone_from(&t.raw, c.stream_ptr);
                             let _guard = NCCLGroupGuard::new();
-                            c.allreduce_inplace(peer_tensor, BaguaReductionOp::SUM);
-                            peer_tensor.divide_inplace(stream_ptr, c.nranks as f32);
+                            c.allreduce_inplace(peer_tensor, BaguaReductionOp::AVG);
                         }
                     }
                     PeerSelectionMode::ShiftOne => {

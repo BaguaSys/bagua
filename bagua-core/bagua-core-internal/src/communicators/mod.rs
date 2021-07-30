@@ -259,17 +259,20 @@ impl BaguaHierarchicalCommunicatorLeader {
         let stream_ptr = intranode_communicator.stream_ptr;
         assert_eq!(communication_tensor.stream_ptr, stream_ptr);
         tracing::debug!("reduce start");
-        intranode_communicator.reduce_inplace(
-            &mut communication_tensor.raw,
-            0,
-            BaguaReductionOp::SUM,
-        );
-        tracing::debug!("reduce done");
         if average {
-            communication_tensor
-                .raw
-                .divide_inplace(stream_ptr, (intranode_communicator.nranks) as f32);
+            intranode_communicator.reduce_inplace(
+                &mut communication_tensor.raw,
+                0,
+                BaguaReductionOp::AVG,
+            );
+        } else {
+            intranode_communicator.reduce_inplace(
+                &mut communication_tensor.raw,
+                0,
+                BaguaReductionOp::SUM,
+            );
         }
+        tracing::debug!("reduce done");
     }
 
     pub fn hierarchical_post(&self, communication_tensor: &mut BaguaCommunicationTensor) {
@@ -288,13 +291,25 @@ pub struct BaguaHierarchicalCommunicatorWorker {
 }
 
 impl BaguaHierarchicalCommunicatorWorker {
-    pub fn hierarchical_worker_pre(&self, communication_tensor: &mut BaguaCommunicationTensor) {
+    pub fn hierarchical_worker_pre(
+        &self,
+        communication_tensor: &mut BaguaCommunicationTensor,
+        average: bool,
+    ) {
         let intranode_communicator = self.intranode.inner.clone();
-        intranode_communicator.reduce_inplace(
-            &mut communication_tensor.raw,
-            0,
-            BaguaReductionOp::SUM,
-        );
+        if average {
+            intranode_communicator.reduce_inplace(
+                &mut communication_tensor.raw,
+                0,
+                BaguaReductionOp::AVG,
+            );
+        } else {
+            intranode_communicator.reduce_inplace(
+                &mut communication_tensor.raw,
+                0,
+                BaguaReductionOp::SUM,
+            );
+        }
     }
 
     pub fn hierarchical_worker_post(&self, communication_tensor: &mut BaguaCommunicationTensor) {
@@ -390,7 +405,7 @@ impl BaguaCommunicator {
                 }
                 BaguaHierarchicalCommunicator::Worker(communicator) => {
                     if hierarchical_pre {
-                        communicator.hierarchical_worker_pre(tensor);
+                        communicator.hierarchical_worker_pre(tensor, intranode_average);
                     }
                     if hierarchical_post {
                         communicator.hierarchical_worker_post(tensor);
