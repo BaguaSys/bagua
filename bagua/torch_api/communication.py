@@ -26,7 +26,6 @@ from functools import lru_cache
 class ReduceOp(IntEnum):
     """An enum-like class for available reduction operations: SUM, PRODUCT, MIN, MAX, BAND, BOR, BXOR and AVG."""
 
-    """
     SUM = 0
     PRODUCT = 1
     MIN = 2
