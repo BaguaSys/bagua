@@ -20,7 +20,7 @@ class RedisStore(Store):
         self,
         hosts: List[Dict[str, str]] = None,
         cluster_mode: bool = False,
-        capacity_per_node: int = 1_000_000_000,
+        capacity_per_node: int = 100_000_000_000,
     ):
         """ """
 
