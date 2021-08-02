@@ -18,8 +18,7 @@ function check_benchmark_log {
     final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
     threshold="70.0"
 
-    ok=$(echo $final_img_per_sec'>'$threshold | bc -l)
-    if [ $ok -ne "1" ]; then
+    if [[ $final_img_per_sec -le $threshold ]]; then
         exit 1
     fi
 }
