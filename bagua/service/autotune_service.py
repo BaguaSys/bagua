@@ -213,7 +213,7 @@ class AutotuneService:
                         hyperparameters,
                     )
                 )
-                logging.info(
+                print(
                     "rank={}, train_iter={}, speed={}, "
                     "hyperparameters={}".format(
                         rank,
@@ -250,7 +250,7 @@ class AutotuneService:
                 tensor_partial_order = copy.deepcopy(self.tensor_partial_order)
 
             logging.debug("tensor_partial_order={}".format(tensor_partial_order))
-            logging.info("tensor_partial_order={}".format(tensor_partial_order))
+            print("tensor_partial_order={}".format(tensor_partial_order))
 
             with hp_manager.lock:
                 # Autotune conditions:
