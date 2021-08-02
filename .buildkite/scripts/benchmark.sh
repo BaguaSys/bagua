@@ -12,13 +12,16 @@ trap finish EXIT
 
 SYNTHETIC_SCRIPT="/bagua/examples/benchmark/synthetic_benchmark.py"
 
-function parse_benchmark_log {
+function check_benchmark_log {
     logfile=$1
 
-    first_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | head -n 1 | awk '{print $4}')
     final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
+    threshold="70.0"
 
-    echo $first_img_per_sec $final_img_per_sec
+    ok=$(echo $final_img_per_sec'>'$threshold | bc -l)
+    if [ $ok -ne "1" ]; then
+        exit 1
+    fi
 }
 
 pip install --upgrade --force-reinstall git+https://github.com/BaguaSys/bagua.git@telemetry
@@ -38,5 +41,4 @@ python -m bagua.distributed.run \
         --num-iters 400 \
         --model vgg16 \
         2>&1 | tee ${logfile}
-parse_benchmark_log ${logfile}
-cat /tmp/bagua_autotune_*
+check_benchmark_log ${logfile}
