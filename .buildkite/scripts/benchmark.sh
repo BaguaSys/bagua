@@ -35,3 +35,4 @@ python -m bagua.distributed.run \
         --model vgg16 \
         2>&1 | tee ${logfile}
 parse_benchmark_log ${logfile}
+cat /tmp/bagua_autotune_*
