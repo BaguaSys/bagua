@@ -23,9 +23,6 @@ function check_benchmark_log {
     fi
 }
 
-pip install --upgrade --force-reinstall git+https://github.com/BaguaSys/bagua.git@telemetry
-pip install --upgrade --force-reinstall git+https://github.com/shjwudp/bagua-core.git@telemetry
-
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
 python -m bagua.distributed.run \
     --standalone \
@@ -37,7 +34,7 @@ python -m bagua.distributed.run \
     --autotune_warmup_time 10 \
     --autotune_max_samples 30 \
     python ${SYNTHETIC_SCRIPT} \
-        --num-iters 400 \
+        --num-iters 200 \
         --model vgg16 \
         2>&1 | tee ${logfile}
 check_benchmark_log ${logfile}
