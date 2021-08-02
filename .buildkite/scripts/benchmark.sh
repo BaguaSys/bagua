@@ -20,7 +20,7 @@ function parse_benchmark_log {
     echo $img_per_sec
 }
 
-pip install --upgrade --force-reinstall git https://github.com/shjwudp/bagua-core.git@telemetry
+pip install --upgrade --force-reinstall git+https://github.com/shjwudp/bagua-core.git@telemetry
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
 python -m bagua.distributed.run \
