@@ -89,11 +89,7 @@ def run_flask_app():
     log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
-    app.run(
-        host="0.0.0.0",
-        port=get_bagua_service_port(),
-        debug=False,
-    )
+    app.run(host="0.0.0.0", port=get_bagua_service_port())
 
 
 _autotune_server = None

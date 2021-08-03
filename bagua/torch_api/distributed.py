@@ -140,7 +140,7 @@ class BaguaModule:
             self._bagua_reset_algorithm_buckets()
             self._bagua_autotune_last_report_time = time.time()
 
-        logging.info("autotune overhead=%s", time.time() - start_time)
+        logging.debug("autotune overhead=%s", time.time() - start_time)
 
     def with_bagua(  # pytype: disable=module-attr
         self,
@@ -352,12 +352,11 @@ class BaguaModule:
                     self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
 
                     def real_post_backward_hook(*unused):
+                        self.bagua_algorithm.init_post_backward_hook(self)()
                         if self._speed_metrics_switch_on:
                             torch.cuda.current_stream().record_event(
                                 self._speed_metrics_end_event
                             )
-
-                        self.bagua_algorithm.init_post_backward_hook(self)()
 
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(
