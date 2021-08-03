@@ -23,6 +23,8 @@ function check_benchmark_log {
     fi
 }
 
+pip install git+https://github.com/BaguaSys/bagua-core@master
+
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
 python -m bagua.distributed.run \
     --standalone \
