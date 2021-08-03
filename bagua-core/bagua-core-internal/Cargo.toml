@@ -29,6 +29,8 @@ ureq = "2.1"
 num-traits = "0.2"
 num-derive = "0.3"
 display_utils = "0.4.0"
+opentelemetry = { version = "0.15", features = ["serialize", "metrics"] }
+bagua-opentelemetry = { path = "../bagua-opentelemetry" }
 
 [dependencies.pyo3]
 version = "0.14.1"
