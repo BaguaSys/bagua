@@ -1,7 +1,4 @@
 import os
-from distutils.errors import (
-    DistutilsPlatformError,
-)
 from setuptools import setup, find_packages
 import sys
 

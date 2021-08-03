@@ -2,6 +2,10 @@
 """
 The Bagua communication library PyTorch interface.
 """
+from distutils.errors import (
+    DistutilsPlatformError,
+)
+
 try:
     import torch
 except ImportError:
@@ -14,11 +18,11 @@ if version is None:
         % torch.__version__
     )
 elif version < "1.6.0":
-     raise Exception(
+    raise Exception(
         "Bagua need pytorch version >= 1.6.0, while current version is {}.".format(
             version
-        )
     )
+)
 
 from .communication import (  # noqa: F401
     get_backend,
