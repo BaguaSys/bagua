@@ -22,6 +22,7 @@ from .communication import (  # noqa: F401
     alltoall_inplace,
     reduce_scatter,
     reduce_scatter_inplace,
+    ReduceOp,
 )
 from .distributed import BaguaModule  # noqa: F401
 from .tensor import BaguaTensor  # noqa: F401
