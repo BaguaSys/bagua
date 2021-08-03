@@ -21,8 +21,8 @@ elif version < "1.6.0":
     raise Exception(
         "Bagua need pytorch version >= 1.6.0, while current version is {}.".format(
             version
+        )
     )
-)
 
 from .communication import (  # noqa: F401
     get_backend,
