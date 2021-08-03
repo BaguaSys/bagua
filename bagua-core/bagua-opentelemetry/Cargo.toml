@@ -1,0 +1,22 @@
+[package]
+name = "bagua-opentelemetry"
+version = "0.1.0"
+edition = "2018"
+publish = ["private"]
+
+[dependencies]
+tracing = "0.1"
+async-std = { version = "1.6", features = ["attributes", "tokio1"] }
+async-trait = { version = "0.1" }
+hyper = { version = "0.14", features = ["full"] }
+opentelemetry = { version = "0.15", default-features = false, features = [
+    "trace",
+    "rt-async-std",
+] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+futures = { version = "0.3" }
+
+tokio-stream = { version = "0.1" }
