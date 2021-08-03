@@ -1,14 +1,14 @@
 import unittest
 import logging
 import multiprocessing
-from flask import Flask
-from bagua.bagua_define import TensorDeclaration
-from bagua.service import AutotuneService, AutotuneClient
-from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 import socket
 import time
-import numpy as np
 import os
+from flask import Flask
+from typing import List
+from bagua.bagua_define import TensorDeclaration, BaguaCoreTelemetrySpan
+from bagua.service import AutotuneService, AutotuneClient
+from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
 
 
 def pick_n_free_ports(n: int):
@@ -42,15 +42,17 @@ def metrics(buckets, is_hierarchical_reduce):
 class MockBaguaProcess:
     def __init__(
         self,
-        rank,
-        service_addr,
-        service_port,
-        model_name,
-        tensor_list,
+        rank: int,
+        service_addr: str,
+        service_port: int,
+        model_name: str,
+        tensor_list: List[TensorDeclaration],
+        spans: List[BaguaCoreTelemetrySpan] = [],
     ) -> None:
         self.rank = rank
         self.model_name = model_name
         self.tensor_list = tensor_list
+        self.spans = spans
         self.client = AutotuneClient(service_addr, service_port)
 
     def run(self):
@@ -66,8 +68,11 @@ class MockBaguaProcess:
             rsp = self.client.report_metrics(
                 self.model_name, self.rank, train_iter, hp.dict(), score
             )
-            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(
-                rsp)
+            assert rsp.status_code == 200, "report_metrics failed, rsp={}".format(rsp)
+            rsp = self.client.report_tensor_execution_order(self.spans)
+            assert (
+                rsp.status_code == 200
+            ), "report_tensor_execution_order failed, rsp={}".format(rsp)
             rsp = self.client.ask_hyperparameters(
                 self.model_name, self.rank, train_iter
             )
@@ -117,89 +122,165 @@ class TestAutotuneService(unittest.TestCase):
         server.start()
 
         model_dict = {
-            "m1": [
+            "basic": ([
                 TensorDeclaration(
                     {
-                        "name": "A",
+                        "name": "basic.A",
                         "num_elements": 1 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "B",
+                        "name": "basic.B",
                         "num_elements": 2 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "C",
+                        "name": "basic.C",
                         "num_elements": 3 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "D",
+                        "name": "basic.D",
                         "num_elements": 4 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "E",
+                        "name": "basic.E",
                         "num_elements": 5 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
-            ],
-            "m2": [
+            ], []),
+            "Mixed_precision_test": ([
                 TensorDeclaration(
                     {
-                        "name": "A",
+                        "name": "Mixed_precision_test.A",
                         "num_elements": 1 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "B",
+                        "name": "Mixed_precision_test.B",
                         "num_elements": 3 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "C",
+                        "name": "Mixed_precision_test.C",
                         "num_elements": 5 * 1024 ** 2,
                         "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "D",
+                        "name": "Mixed_precision_test.D",
                         "num_elements": 7 * 1024 ** 2,
                         "dtype": "f16",
                     }
                 ),
                 TensorDeclaration(
                     {
-                        "name": "E",
+                        "name": "Mixed_precision_test.E",
                         "num_elements": 11 * 1024 ** 2,
                         "dtype": "f32",
                     }
                 ),
-            ],
+            ], []),
+            "out_of_order_tensor": (
+                [
+                    TensorDeclaration(
+                        {
+                            "name": "out_of_order_tensor.A",
+                            "num_elements": 1 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "out_of_order_tensor.B",
+                            "num_elements": 2 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "out_of_order_tensor.C",
+                            "num_elements": 3 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "out_of_order_tensor.D",
+                            "num_elements": 4 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "out_of_order_tensor.E",
+                            "num_elements": 5 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                ],
+                [
+                    {
+                        "trace_id": 0,
+                        "action": "tensor_ready",
+                        "tensor_name": "out_of_order_tensor.D",
+                        "start_time": 0,
+                        "end_time": 1,
+                    },
+                    {
+                        "trace_id": 1,
+                        "action": "tensor_ready",
+                        "tensor_name": "out_of_order_tensor.E",
+                        "start_time": 1,
+                        "end_time": 2,
+                    },
+                    {
+                        "trace_id": 2,
+                        "action": "tensor_ready",
+                        "tensor_name": "out_of_order_tensor.A",
+                        "start_time": 2,
+                        "end_time": 3,
+                    },
+                    {
+                        "trace_id": 3,
+                        "action": "tensor_ready",
+                        "tensor_name": "out_of_order_tensor.B",
+                        "start_time": 3,
+                        "end_time": 14,
+                    },
+                    {
+                        "trace_id": 4,
+                        "action": "tensor_ready",
+                        "tensor_name": "out_of_order_tensor.C",
+                        "start_time": 4,
+                        "end_time": 5,
+                    },
+                ],
+            ),
         }
 
         mock_objs = []
         pool = multiprocessing.pool.ThreadPool(nprocs * len(model_dict))
         results = dict([(key, []) for key in model_dict.keys()])
         for i in range(nprocs):
-            for (model_name, tensor_list) in model_dict.items():
+            for (model_name, (tensor_list, spans)) in model_dict.items():
                 mock = MockBaguaProcess(
-                    i, service_addr, service_port, model_name, tensor_list
+                    i, service_addr, service_port, model_name, tensor_list, spans
                 )
                 mock_objs.append(mock)
                 ret = pool.apply_async(mock.run)
@@ -214,23 +295,41 @@ class TestAutotuneService(unittest.TestCase):
                     print(autotune_logfile)
                     print(open(autotune_logfile).read())
 
-        for ret in results["m1"]:
+        for ret in results["basic"]:
             hp = ret.get()
-            buckets = [[
-                td["name"] for td in bucket] for bucket in hp.buckets]
+            buckets = [[td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['A', 'B', 'C'], ['D'], ['E']],
-                "hp={}".format(hp.dict())
+                [["basic.A", "basic.B", "basic.C"], ["basic.D"], ["basic.E"]],
+                "hp={}".format(hp.dict()),
             )
-        for ret in results["m2"]:
+        for ret in results["Mixed_precision_test"]:
             hp = ret.get()
-            buckets = [[
-                td["name"] for td in bucket] for bucket in hp.buckets]
+            buckets = [[td["name"] for td in bucket] for bucket in hp.buckets]
             self.assertEqual(
                 buckets,
-                [['C', 'D'], ['A', 'B'], ['E']],
-                "hp={}".format(hp.dict())
+                [
+                    ["Mixed_precision_test.C", "Mixed_precision_test.D"],
+                    ["Mixed_precision_test.A", "Mixed_precision_test.B"],
+                    ["Mixed_precision_test.E"],
+                ],
+                "hp={}".format(hp.dict()),
+            )
+        for ret in results["out_of_order_tensor"]:
+            hp = ret.get()
+            buckets = [[td["name"] for td in bucket] for bucket in hp.buckets]
+            self.assertEqual(
+                buckets,
+                [
+                    ["out_of_order_tensor.D"],
+                    ["out_of_order_tensor.E"],
+                    [
+                        "out_of_order_tensor.A",
+                        "out_of_order_tensor.B",
+                        "out_of_order_tensor.C",
+                    ],
+                ],
+                "hp={}".format(hp.dict()),
             )
 
         server.terminate()
