@@ -12,7 +12,12 @@ import torch.utils.data.distributed
 from torchvision import models
 import numpy as np
 import bagua.torch_api as bagua
+import logging
 
+
+logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.ERROR)
+if bagua.get_rank() == 0:
+    logging.getLogger().setLevel(logging.INFO)
 
 # Benchmark settings
 parser = argparse.ArgumentParser(
@@ -143,35 +148,29 @@ def benchmark_step():
     optimizer.step()
 
 
-def log(s, nl=True):
-    if bagua.get_rank() != 0:
-        return
-    print(s, end="\n" if nl else "")
-
-
-log("Model: %s" % args.model)
-log("Batch size: %d" % args.batch_size)
+logging.info("Model: %s" % args.model)
+logging.info("Batch size: %d" % args.batch_size)
 device = "GPU" if args.cuda else "CPU"
-log("Number of %ss: %d" % (device, bagua.get_world_size()))
+logging.info("Number of %ss: %d" % (device, bagua.get_world_size()))
 
 # Warm-up
-log("Running warmup...")
+logging.info("Running warmup...")
 timeit.timeit(benchmark_step, number=args.num_warmup_batches)
 
 # Benchmark
-log("Running benchmark...")
+logging.info("Running benchmark...")
 img_secs = []
 for x in range(args.num_iters):
     time = timeit.timeit(benchmark_step, number=args.num_batches_per_iter)
     img_sec = args.batch_size * args.num_batches_per_iter / time
-    log("Iter #%d: %.1f img/sec %s" % (x, img_sec * bagua.get_world_size(), device))
+    logging.info("Iter #%d: %.1f img/sec %s" % (x, img_sec * bagua.get_world_size(), device))
     img_secs.append(img_sec)
 
 # Results
 img_sec_mean = np.mean(img_secs)
 img_sec_conf = 1.96 * np.std(img_secs)
-log("Img/sec per %s: %.1f +-%.1f" % (device, img_sec_mean, img_sec_conf))
-log(
+logging.info("Img/sec per %s: %.1f +-%.1f" % (device, img_sec_mean, img_sec_conf))
+logging.info(
     "Total img/sec on %d %s(s): %.1f +-%.1f"
     % (
         bagua.get_world_size(),
