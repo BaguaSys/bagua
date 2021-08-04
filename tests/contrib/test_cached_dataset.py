@@ -1,4 +1,4 @@
-from bagua.torch_api.contrib.cached_dataset import CachedDataset
+from bagua.torch_api.contrib.cache_dataset import CacheDataset
 from torch.utils.data.dataset import Dataset
 import numpy as np
 import logging
@@ -19,33 +19,23 @@ class TestDataset(Dataset):
         return self.size
 
 
-class TestCachedDataset(unittest.TestCase):
-    def check_dataset(self, dataset, cached_dataset):
+class TestCacheDataset(unittest.TestCase):
+    def check_dataset(self, dataset, cache_dataset):
         for _ in range(10):
-            for _, _ in enumerate(cached_dataset):
+            for _, _ in enumerate(cache_dataset):
                 pass
 
-        self.assertEqual(cached_dataset.store.num_keys(), len(dataset))
+        self.assertEqual(cache_dataset.cache_loader.num_keys(), len(dataset))
         for i in range(len(dataset)):
-            self.assertTrue((dataset[i][0] == cached_dataset[i][0]).all())
-            self.assertTrue((dataset[i][1] == cached_dataset[i][1]).all())
-
-    def test_lmdb(self):
-        dataset = TestDataset(102)
-        cached_dataset = CachedDataset(
-            dataset, backend="lmdb", path=".lmdb", overwrite=True
-        )
-        self.check_dataset(dataset, cached_dataset)
-
-        cached_dataset.cleanup()
+            self.assertTrue((dataset[i][0] == cache_dataset[i][0]).all())
+            self.assertTrue((dataset[i][1] == cache_dataset[i][1]).all())
 
     def test_redis(self):
         dataset = TestDataset(102)
-        cached_dataset = CachedDataset(
+        cache_dataset = CacheDataset(
             dataset, backend="redis", hosts=None, cluster_mode=False
         )
-        self.check_dataset(dataset, cached_dataset)
-        cached_dataset.cleanup()
+        self.check_dataset(dataset, cache_dataset)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-from torch.utils.data.dataset import Dataset
 import pickle
 from collections import defaultdict
 
@@ -11,30 +10,25 @@ def deserialize(input):
     return pickle.loads(input)
 
 
-class CachedDataset(Dataset):
+class CacheLoader:
     def __init__(
         self,
-        dataset: Dataset,
         backend: str = "redis",
         capacity_per_node: int = 100_000_000_000,
         key_prefix: str = "",
         batch_reads: int = 1,
-        batch_writes: int = 50,
+        batch_writes: int = 20,
         **kwargs,
     ):
         """ """
-        self.dataset = dataset
         self.backend = backend
+        self.capacity_per_node = capacity_per_node
         self.key_prefix = key_prefix
 
         if backend == "redis":
             from .utils.redis_store import RedisStore
 
             self.store = RedisStore(capacity_per_node=capacity_per_node, **kwargs)
-        elif backend == "lmdb":
-            from .utils.lmdb_store import LmdbStore
-
-            self.store = LmdbStore(capacity_per_node=capacity_per_node, **kwargs)
         else:
             raise ValueError(
                 'invalid backend, only support "redis" and "lmdb" at present'
@@ -42,29 +36,29 @@ class CachedDataset(Dataset):
 
         self.fetcher = BatchFetcher(self.store, batch_reads, batch_writes)
 
-    def __getitem__(self, item):
-        key = "{}{}".format(self.key_prefix, item).encode()
-
-        ret = self.fetcher.read(key)
+    def get(self, key, load_fn):
+        cache_key = "{}{}".format(self.key_prefix, key).encode()
+        ret = self.fetcher.read(cache_key)
 
         if ret == None:
-            ret = self.dataset[item]
+            ret = load_fn(key)
             # write to store
-            self.fetcher.write(key, ret)
+            self.fetcher.write(cache_key, ret)
         return ret
 
-    def __len__(self):
-        return len(self.dataset)
+    def num_keys(self):
+        return self.store.num_keys()
 
     def cleanup(self):
+        # TODO: cleanup automatically
         self.store.shutdown()
 
 
 class BatchFetcher:
-    def __init__(self, store, batch_reads=1, batch_writes=50):
+    def __init__(self, store, batch_reads, batch_writes):
         self.store = store
-        self.batch_reads = batch_reads
-        self.batch_writes = batch_writes
+        self.batch_reads = max(1, batch_reads)
+        self.batch_writes = max(1, batch_writes)
 
         self.write_map = defaultdict()
         self.write_cnt = 0

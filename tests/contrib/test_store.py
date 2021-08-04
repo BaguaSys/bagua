@@ -2,49 +2,16 @@ import unittest
 from bagua.torch_api.contrib.utils.redis_store import (
     RedisStore,
     start_redis_server_cli,
-    create_redis_cluster_cli,
     find_free_port,
 )
-from bagua.torch_api.contrib.utils.lmdb_store import LmdbStore
 import redis
 import multiprocessing as mp
 import logging
 import numpy as np
 import pickle
+import time
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-class TestLmdbStore(unittest.TestCase):
-    def check(self, store):
-        store.set(b"Beijing", b"China")
-        store.set(b"Paris", b"France")
-
-        store.mset({b"New Delhi": b"India", b"Tokyo": b"Japan", b"Madrid": b"Spain"})
-        ret = store.mget([b"Beijing", b"London", b"Tokyo"])
-        self.assertEqual(ret[0], b"China")
-        self.assertEqual(ret[1], None)
-        self.assertEqual(ret[2], b"Japan")
-
-        r1 = store.get(b"Madrid")
-        r2 = store.get(b"Shanghai")
-        self.assertEqual(r1, b"Spain")
-        self.assertEqual(r2, None)
-
-        cnt = store.num_keys()
-        self.assertEqual(cnt, 5)
-
-        store.clear()
-        self.assertEqual(store.num_keys(), 0)
-
-        self.assertTrue(store.status())
-
-        # shut down resources at the end
-        store.shutdown()
-
-    def test_lmdb_store(self):
-        store = LmdbStore(path=".lmdb", capacity_per_node=10000000, overwrite=True)
-        self.check(store)
 
 
 class TestRedisStore(unittest.TestCase):
@@ -56,34 +23,35 @@ class TestRedisStore(unittest.TestCase):
             {
                 "2": pickle.dumps(self.generated_data[2]),
                 "3": pickle.dumps(self.generated_data[3]),
+                "4": pickle.dumps(self.generated_data[4]),
             }
         )
-        ret = store.mget(["2", "4"])
-        self.assertTrue((pickle.loads(ret[0]) == self.generated_data[2]).all())
-        self.assertEqual(ret[1], None)
+        ret = store.mget(["1", "2", "5"])
+        self.assertTrue((pickle.loads(ret[0]) == self.generated_data[1]).all())
+        self.assertTrue((pickle.loads(ret[1]) == self.generated_data[2]).all())
+        self.assertEqual(ret[2], None)
 
-        r1 = store.get("1")
-        r2 = store.get("4")
-        self.assertTrue((pickle.loads(r1) == self.generated_data[1]).all())
+        r1 = store.get("4")
+        r2 = store.get("6")
+        self.assertTrue((pickle.loads(r1) == self.generated_data[4]).all())
         self.assertEqual(r2, None)
 
         cnt = store.num_keys()
-        self.assertEqual(cnt, 3)
+        self.assertEqual(cnt, 4)
 
         store.clear()
         self.assertEqual(store.num_keys(), 0)
 
         self.assertTrue(store.status())
 
+        # try to shut down resources
+        store.shutdown()
+
     def test_redis_store(self):
         store = RedisStore(hosts=None, cluster_mode=False, capacity_per_node=10000000)
         self.check(store)
 
-        # try to shut down resources
-        store.shutdown()
-
     def test_redis_cluster_store(self):
-        return
         n = 3
         hosts = []
         ports = []
@@ -92,7 +60,7 @@ class TestRedisStore(unittest.TestCase):
             port = find_free_port()
             p = mp.Process(
                 target=start_redis_server_cli,
-                args=(port, True, 10000000, f"--cluster-config-file nodes{port}.conf"),
+                args=(port, 10000000, f"--cluster-config-file nodes{port}.conf"),
             )
             p.start()
 
@@ -102,8 +70,6 @@ class TestRedisStore(unittest.TestCase):
 
         for p in processes:
             p.join()
-
-        create_redis_cluster_cli(hosts=hosts)
 
         store = RedisStore(hosts=hosts, cluster_mode=True, capacity_per_node=10000000)
         self.check(store)
