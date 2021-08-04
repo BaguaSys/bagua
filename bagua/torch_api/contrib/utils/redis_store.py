@@ -137,7 +137,7 @@ def start_redis_server_cli(port, capacity, *args):
         "--maxmemory-policy allkeys-random",  # use random eviction by default
         "--appendonly no",  # disable persistence by default
         '--save ""',
-        "--protected-mode no"
+        "--protected-mode no",
     ]
 
     cmd.extend(list(args))
