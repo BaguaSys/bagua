@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.nn.modules.batchnorm import _BatchNorm
 
 import bagua.torch_api as bagua
-from bagua.torch_api.communication import allgather, allreduce, allgather_inplace
+from bagua.torch_api.communication import allgather, allreduce
 
 # Backward compat for old PyTorch
 if not hasattr(torch.jit, "unused"):
@@ -78,12 +78,12 @@ class SyncBatchNorm(_BatchNorm):
             return self._run_bn(input)
         else:
             return self._maybe_run_sync_bn(input)
-    
+
     @classmethod
     def convert_sync_batchnorm(cls, module):
         r"""Helper function to convert all :attr:`BatchNorm*D` layers in the model to
         :class:`torch.nn.SyncBatchNorm` layers.
-        
+
         Arguments:
             module (nn.Module): module containing one or more :attr:`BatchNorm*D` layers
 
@@ -92,9 +92,9 @@ class SyncBatchNorm(_BatchNorm):
             layers. If the original :attr:`module` is a :attr:`BatchNorm*D` layer,
             a new :class:`torch.nn.SyncBatchNorm` layer object will be returned
             instead.
-        
+
         .. note:: This porcess must be done before `module.with_bagua()`.
-        
+
         Example::
             >>> # Network with nn.BatchNorm layer
             >>> model = torch.nn.Sequential(
@@ -111,10 +111,10 @@ class SyncBatchNorm(_BatchNorm):
             >>> bagua_model = sync_bn_model.with_bagua([optimizer], GradientAllReduce())
         """
         module_output = module
-        
+
         import bagua
         assert float(bagua.__version__[:3]) >= 0.7, "SyncBN is compatible with bagua version >= 0.7.0"
-        
+
         if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
             module_output = SyncBatchNorm(
                 module.num_features,
@@ -151,7 +151,7 @@ class _SyncBatchNorm(Function):
         # calculate mean/invstd for input.
         mean, invstd = torch.batch_norm_stats(input, eps)
         count, mean, invstd = count.cuda(), mean.cuda(), invstd.cuda()
-        
+
         nums_ranks = bagua.get_world_size()
         count_all = torch.tensor([torch.empty_like(count).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
         mean_all = torch.tensor([torch.empty_like(mean).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
@@ -160,8 +160,7 @@ class _SyncBatchNorm(Function):
         allgather(count.unsqueeze(0), count_all)
         allgather(mean.unsqueeze(0), mean_all)
         allgather(invstd.unsqueeze(0), invstd_all)
-        
-        
+
 
         if _SYNC_BN_V3:
             counts_for_bngswc = count_all.view(-1).float().to(input.device)
@@ -178,7 +177,7 @@ class _SyncBatchNorm(Function):
             running_var,
             momentum,
             eps,
-            counts_for_bngswc
+            counts_for_bngswc,
         )
 
         self.save_for_backward(input, weight, mean, invstd, count_all)
