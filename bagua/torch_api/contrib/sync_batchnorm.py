@@ -13,23 +13,21 @@ import bagua.torch_api as bagua
 from bagua.torch_api.communication import allgather, allreduce, allgather_inplace
 
 # Backward compat for old PyTorch
-if not hasattr(torch.jit, 'unused'):
+if not hasattr(torch.jit, "unused"):
     torch.jit.unused = lambda x: x
 
 
-_SYNC_BN_V2 = (
-    LooseVersion(torch.__version__) >= LooseVersion('1.5.0') and
-    LooseVersion(torch.__version__) <= LooseVersion('1.6.0')
-)
+_SYNC_BN_V2 = LooseVersion(torch.__version__) >= LooseVersion("1.5.0") and LooseVersion(
+    torch.__version__
+) <= LooseVersion("1.6.0")
 _SYNC_BN_V3 = LooseVersion(torch.__version__) >= LooseVersion('1.6.0')
 _SYNC_BN_V4 = LooseVersion(torch.__version__) >= LooseVersion('1.9.0')
 
 
 class SyncBatchNorm(_BatchNorm):
     r"""Applies synchronous BatchNorm for distributed module with N-dimensional BatchNorm layer(s).
-    
     See https://pytorch.org/docs/stable/nn.html#batchnorm2d for more details about BatchNorm.
-    
+
     Arguments:
         num_features: number of channels `C` from the shape `(N, C, ...)`
         eps: a value added to the denominator for numerical stability. Default: 1e-5
@@ -42,7 +40,7 @@ class SyncBatchNorm(_BatchNorm):
             module tracks the running mean and variance, and when set to `False`,
             this module does not track such statistics and always uses batch
             statistics in both training and eval modes. Default: `True`
-    
+
     .. note:: Only GPU input tensors are supported in the training mode.
     """
     def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True):
@@ -203,7 +201,7 @@ class _SyncBatchNorm(Function):
             weight,
             need_input_grad,
             need_weight_grad,
-            need_bias_grad
+            need_bias_grad,
         )
 
         if need_input_grad:
@@ -219,7 +217,7 @@ class _SyncBatchNorm(Function):
                 # before 1.9.0 we need the count as an integer to compute means values
                 count = count_all.sum()
             else:
-                # before 1.5.0, sum_dy was sum of means from every worker, so we just 
+                # before 1.5.0, sum_dy was sum of means from every worker, so we just
                 # need to divide it by number of workers
                 count = bagua.get_world_size()
 
@@ -236,7 +234,7 @@ class _SyncBatchNorm(Function):
                     weight,
                     sum_dy,
                     sum_dy_xmu,
-                    count_all
+                    count_all,
                 )
             else:
                 # before 1.9.0, mean parameters expected, not sums and count
@@ -247,7 +245,7 @@ class _SyncBatchNorm(Function):
                     invstd,
                     weight,
                     sum_dy / count,
-                    sum_dy_xmu / count
+                    sum_dy_xmu / count,
                 )
         else:
             grad_input = None
