@@ -20,8 +20,8 @@ if not hasattr(torch.jit, "unused"):
 _SYNC_BN_V2 = LooseVersion(torch.__version__) >= LooseVersion("1.5.0") and LooseVersion(
     torch.__version__
 ) <= LooseVersion("1.6.0")
-_SYNC_BN_V3 = LooseVersion(torch.__version__) >= LooseVersion('1.6.0')
-_SYNC_BN_V4 = LooseVersion(torch.__version__) >= LooseVersion('1.9.0')
+_SYNC_BN_V3 = LooseVersion(torch.__version__) >= LooseVersion("1.6.0")
+_SYNC_BN_V4 = LooseVersion(torch.__version__) >= LooseVersion("1.9.0")
 
 
 class SyncBatchNorm(_BatchNorm):
