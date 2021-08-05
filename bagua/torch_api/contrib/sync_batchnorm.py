@@ -113,7 +113,9 @@ class SyncBatchNorm(_BatchNorm):
         module_output = module
 
         import bagua
-        assert float(bagua.__version__[:3]) >= 0.7, "SyncBN is compatible with bagua version >= 0.7.0"
+        assert (
+            float(bagua.__version__[:3]) >= 0.7
+        ), "SyncBN is compatible with baguaversion >= 0.7.0"
 
         if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
             module_output = SyncBatchNorm(
@@ -160,7 +162,6 @@ class _SyncBatchNorm(Function):
         allgather(count.unsqueeze(0), count_all)
         allgather(mean.unsqueeze(0), mean_all)
         allgather(invstd.unsqueeze(0), invstd_all)
-
 
         if _SYNC_BN_V3:
             counts_for_bngswc = count_all.view(-1).float().to(input.device)
