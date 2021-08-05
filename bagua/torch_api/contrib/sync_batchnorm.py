@@ -113,6 +113,7 @@ class SyncBatchNorm(_BatchNorm):
         module_output = module
 
         import bagua
+        
         assert (
             float(bagua.__version__[:3]) >= 0.7
         ), "SyncBN is compatible with baguaversion >= 0.7.0"
