@@ -159,7 +159,7 @@ class _SyncBatchNorm(Function):
         count_all = torch.tensor([torch.empty_like(count).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
         mean_all = torch.tensor([torch.empty_like(mean).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
         invstd_all = torch.tensor([torch.empty_like(invstd).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
-        
+
         allgather(count.unsqueeze(0), count_all)
         allgather(mean.unsqueeze(0), mean_all)
         allgather(invstd.unsqueeze(0), invstd_all)
