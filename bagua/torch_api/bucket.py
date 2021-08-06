@@ -332,7 +332,7 @@ class BaguaBucket:
 
     def append_asynchronous_model_average_op(self, peer_selection_mode: str):
         """
-        Append a asynchronous model average operation to a bucket. This operation will enable 
+        Append a asynchronous model average operation to a bucket. This operation will enable
 
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
