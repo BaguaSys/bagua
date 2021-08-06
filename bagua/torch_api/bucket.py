@@ -330,15 +330,14 @@ class BaguaBucket:
 
         return self
 
-    def append_decentralized_asynchronous_op(
-        self, peer_selection_mode, sync_interval_ms
-    ) -> B.BaguaAsyncCommOpPy:
-        return self.backend_bucket.append_decentralized_asynchronous_op(
+    def append_decentralized_asynchronous_op(self, peer_selection_mode):
+        self.backend_bucket.append_decentralized_asynchronous_op(
             self._bagua_backend.global_communicator,
             None,
             peer_selection_mode=peer_selection_mode,
-            sync_interval_ms=sync_interval_ms,
+            torch_stream=torch.cuda.current_stream().cuda_stream,
         )
+        return self
 
     def clear_ops(self) -> BaguaBucket:
         """
