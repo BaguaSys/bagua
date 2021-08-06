@@ -59,7 +59,6 @@ class AsyncModelAverageAlgorithm(Algorithm):
         def hook(parameter_name, parameter):
             pass
 
-
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
