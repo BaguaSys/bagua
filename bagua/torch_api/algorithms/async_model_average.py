@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-import torch
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
-from bagua.torch_api.env import get_world_size
 from typing import List
 from bagua.torch_api.tensor import BaguaTensor
 import threading
