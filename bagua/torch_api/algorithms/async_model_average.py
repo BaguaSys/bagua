@@ -12,9 +12,7 @@ import time
 
 class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(
-        self,
-        peer_selection_mode: str = "all",
-        sync_interval_ms: int = 500,
+        self, peer_selection_mode: str = "all", sync_interval_ms: int = 500,
     ):
         """
         Create an instance of the
@@ -25,8 +23,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         Since with an async algorithm, each worker can be in different iterations, the current implementation
         assumes the data are in an endless stream, and there is no concept of an "epoch".
 
-        Should call :func:`self.barrier` to stop async training. It will cancel all unfinished communication operations and
-        average model weights among all workers.
+        Should call :func:`barrier` to stop async training. It will cancel all unfinished communication operations.
 
         Args:
             peer_selection_mode (str): The way how a worker communicate with its peers. Currently "all" is supported.
@@ -69,9 +66,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         return hook
 
     def init_operations(
-        self,
-        bagua_module: BaguaModule,
-        bucket: BaguaBucket,
+        self, bagua_module: BaguaModule, bucket: BaguaBucket,
     ):
         bucket.clear_ops()
         bucket.append_asynchronous_model_average_op(
@@ -80,10 +75,10 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
     def barrier(self, bagua_module: BaguaModule, stop_grace_period_secs=5):
         """
-        Gracefully stop all workers and average model weights among all workers.
+        Gracefully stop all workers.
 
         Args:
-            bagua_module: A PyTorch module initialized by :func:`bagua.torch_api.with_bagua(...)` method.
+            bagua_module: A PyTorch module initialized by ``with_bagua(...)`` method.
             stop_grace_period_secs: How many seconds a worker will wait before aborting its unfinished communication operations.
         """
         self.stop_event.set()
@@ -97,22 +92,15 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 "Could not barrier model since background communication thread has not started"
             )
 
-        from bagua.torch_api.communication import allreduce_inplace
-
-        module_states = bagua_module.bagua_build_params()
-        with torch.no_grad():
-            for name, state in module_states:
-                allreduce_inplace(state)
-                state /= get_world_size()
-
     def run_async_loop(self, bagua_module: BaguaModule):
         step = 0
         while not self.stop_event.is_set():
-            for bucket in bagua_module.bagua_buckets:
-                for tensor in bucket.tensors:
-                    tensor.bagua_mark_communication_ready()
+            if bagua_module.training:
+                for bucket in bagua_module.bagua_buckets:
+                    for tensor in bucket.tensors:
+                        tensor.bagua_mark_communication_ready()
 
-            bagua_module._bagua_backend.wait_pending_comm_ops()
+                bagua_module._bagua_backend.wait_pending_comm_ops()
 
             time.sleep(self.sync_interval_ms / 1000)
             step += 1
