@@ -37,14 +37,18 @@ def run_abort(rank, nprocs, results):
     comm = init_bagua_communicator(model_name="test_comm", stream=comm_stream)
 
     def abort():
-        time.sleep(2)
+        time.sleep(10)
         comm.abort()
 
     threading.Thread(target=abort).start()
 
-    for _ in range(rank + 1):
+    with torch.cuda.stream(comm_stream):
         data = torch.rand(10).cuda()
+
+    for _ in range(rank + 1):
         comm.allreduce_inplace(data.to_bagua_tensor().bagua_backend_tensor(), 10)
+
+    comm_stream.synchronize()
 
 
 def run_allreduce(rank, nprocs, results):
