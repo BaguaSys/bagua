@@ -23,15 +23,16 @@ curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
-MNIST_SCRIPT="/workdir/examples/mnist/main.py"
+#MNIST_SCRIPT="/workdir/examples/mnist/main.py"
 logfile=$(mktemp /tmp/bagua_mnist.XXXXXX.log)
+cd /workdir/examples/mnist
 python -m bagua.distributed.launch \
     --nnodes=2 \
     --nproc_per_node 2 \
     --node_rank=0 \
     --master_addr="23.236.107.69" \
     --master_port=1234 \
-    ${MNIST_SCRIPT} \
+    main.py \
     --set-deterministic \
     2>&1 | tee ${logfile}
 #check_benchmark_log ${logfile}
