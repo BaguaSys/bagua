@@ -66,7 +66,7 @@ class SyncBatchNorm(_BatchNorm):
     def forward(self, input):
         # currently only GPU input is supported by underlying kernel from PyTorch
         if not input.is_cuda:
-            raise ValueError('SyncBatchNorm expected input tensor to be on GPU')
+            raise ValueError("SyncBatchNorm expected input tensor to be on GPU")
 
         self._check_input_dim(input)
 
