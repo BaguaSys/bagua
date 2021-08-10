@@ -32,7 +32,7 @@ python -m bagua.distributed.launch \
     --nnodes=2 \
     --nproc_per_node 2 \
     --node_rank=0 \
-    --master_address="23.236.107.69" \
+    --master_addr="23.236.107.69" \
     --master_port=1234 \
     ${MNIST_SCRIPT} \
     2>&1 | tee ${logfile}
