@@ -19,10 +19,11 @@ function check_benchmark_log {
 
 export HOME=/workdir
 cd /workdir && pip install . && git clone https://github.com/BaguaSys/examples.git
-MNIST_SCRIPT="/workdir/examples/mnist/main.py"
-
+curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
+MNIST_SCRIPT="/workdir/examples/mnist/main.py"
 logfile=$(mktemp /tmp/bagua_mnist.XXXXXX.log)
 python -m bagua.distributed.launch \
     --nnodes=2 \

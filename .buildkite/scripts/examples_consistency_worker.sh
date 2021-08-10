@@ -6,13 +6,6 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 set -euox pipefail
 hostname -i
 
-function finish {
-    rm -rf $(find /workdir -group root)
-}
-trap finish EXIT
-
-MNIST_SCRIPT="/bagua/examples/mnist/main.py"
-
 function check_benchmark_log {
     logfile=$1
 
@@ -24,9 +17,13 @@ function check_benchmark_log {
     fi
 }
 
-pip install /workdir
+export HOME=/workdir
+cd /workdir && pip install . && git clone https://github.com/BaguaSys/examples.git
+curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
+MNIST_SCRIPT="/workdir/examples/mnist/main.py"
 logfile=$(mktemp /tmp/bagua_mnist.XXXXXX.log)
 python -m bagua.distributed.launch \
     --nnodes=2 \
