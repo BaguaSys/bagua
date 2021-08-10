@@ -1,4 +1,30 @@
 steps:
+  - label: "examples_consistency_master"
+    parallelism: 1
+    command: bash .buildkite/scripts/examples_consistency_master.sh
+    plugins:
+      - docker#v3.8.0:
+          image: "baguasys/bagua:latest"
+          propagate-environment: true
+          runtime: nvidia
+          network: host
+          ipc: host
+          shm-size: 100gb
+          always-pull: true
+    agents:
+      queue: "master"
+  - label: "examples_consistency_worker"
+    parallelism: 1
+    command: bash .buildkite/scripts/examples_consistency_worker.sh
+    plugins:
+      - docker#v3.8.0:
+          image: "baguasys/bagua:latest"
+          propagate-environment: true
+          runtime: nvidia
+          network: host
+          ipc: host
+          shm-size: 100gb
+          always-pull: true
   - label: "example master"
     command: .buildkite/scripts/example.sh
     plugins:

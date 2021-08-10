@@ -6,4 +6,3 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 set -euo pipefail
 
 nvidia-smi
-sleep 1d
