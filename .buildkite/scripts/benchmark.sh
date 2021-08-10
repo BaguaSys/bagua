@@ -5,11 +5,6 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
-function finish {
-    rm -rf $(find /workdir -group root)
-}
-trap finish EXIT
-
 SYNTHETIC_SCRIPT="/bagua/examples/benchmark/synthetic_benchmark.py"
 
 function check_benchmark_log {
@@ -18,7 +13,7 @@ function check_benchmark_log {
     final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
     threshold="70.0"
 
-    if [[ $final_img_per_sec -le $threshold ]]; then
+    if [[ $(awk 'BEGIN{ print "'$final_img_per_sec'"<"'$threshold'" }') -eq 1 ]]; then
         exit 1
     fi
 }
