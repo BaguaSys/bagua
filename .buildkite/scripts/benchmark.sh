@@ -25,6 +25,7 @@ function check_benchmark_log {
 
 which pip
 pip --version
+export HOME=/workdir
 
 cd /workdir && pip install .
 curl https://sh.rustup.rs -sSf | sh
