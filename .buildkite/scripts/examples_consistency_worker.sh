@@ -35,5 +35,6 @@ python -m bagua.distributed.launch \
     --master_addr="23.236.107.69" \
     --master_port=1234 \
     ${MNIST_SCRIPT} \
+    --set-deterministic \
     2>&1 | tee ${logfile}
 #check_benchmark_log ${logfile}
