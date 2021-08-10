@@ -96,9 +96,10 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
     def run_async_loop(self, bagua_module: BaguaModule):
         while not self.stop_event.is_set():
-            for bucket in bagua_module.bagua_buckets:
-                for tensor in bucket.tensors:
-                    tensor.bagua_mark_communication_ready()
+            if bagua_module.training:
+                for bucket in bagua_module.bagua_buckets:
+                    for tensor in bucket.tensors:
+                        tensor.bagua_mark_communication_ready_without_synchronization()
 
                 bagua_module._bagua_backend.wait_pending_comm_ops()
 
