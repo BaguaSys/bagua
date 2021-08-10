@@ -23,7 +23,7 @@ function check_benchmark_log {
     fi
 }
 
-pip install /workdir
+cd /workdir && pip install .
 curl https://sh.rustup.rs -sSf | sh
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
