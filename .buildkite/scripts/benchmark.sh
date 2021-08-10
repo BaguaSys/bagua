@@ -26,6 +26,7 @@ export HOME=/workdir
 
 cd /workdir && pip install .
 curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
