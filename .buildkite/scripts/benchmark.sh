@@ -13,9 +13,7 @@ function check_benchmark_log {
     final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
     threshold="70.0"
 
-    if [[ $(awk 'BEGIN{ print "'$final_img_per_sec'"<"'$threshold'" }') -eq 1 ]]; then
-        exit 1
-    fi
+    python -c "import sys; sys.exit(0 if float($final_img_per_sec) < float($threshold) else 1)"
 }
 
 export HOME=/workdir
