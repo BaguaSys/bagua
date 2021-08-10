@@ -22,9 +22,11 @@ function check_benchmark_log {
         exit 1
     fi
 }
-
 export HOME=/workdir
+
 cd /workdir && pip install .
+rm -rf /workdir/.cargo
+curl https://sh.rustup.rs -sSf | sh
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
