@@ -75,7 +75,7 @@ make html
 
 % Theory on System Relaxation Techniques
 @book{liu2020distributed,
-  title={Distributed Learning Systems with First-Order Methods: An Instruction},
+  title={Distributed Learning Systems with First-Order Methods: An Introduction},
   author={Liu, J. and Zhang, C.},
   isbn={9781680837018},
   series={Foundations and trends in databases},
