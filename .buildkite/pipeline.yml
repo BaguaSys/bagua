@@ -1,7 +1,7 @@
 steps:
-  - label: "examples_consistency_master"
+  - label: "benchmark_master"
     parallelism: 1
-    command: bash .buildkite/scripts/examples_consistency_master.sh
+    command: bash .buildkite/scripts/benchmark_master.sh
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
@@ -16,7 +16,7 @@ steps:
       queue: "master"
   - label: "examples_consistency_worker"
     parallelism: 1
-    command: bash .buildkite/scripts/examples_consistency_worker.sh
+    command: bash .buildkite/scripts/benchmark_worker.sh
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
