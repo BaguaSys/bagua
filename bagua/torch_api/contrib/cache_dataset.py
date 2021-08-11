@@ -22,8 +22,8 @@ class CacheDataset(Dataset):
 ... )
     >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
 
-    .. note::
-        This class use :class:`CacheLoader` as the implementation of cache. See :class:`CacheLoader` for more information.
+        .. note::
+            This class use :class:`CacheLoader` as the implementation of cache. See :class:`CacheLoader` for more information.
     """
 
     def __init__(
