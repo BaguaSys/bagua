@@ -17,6 +17,7 @@ steps:
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
+          propagate-uid-gid: true
           propagate-environment: true
           runtime: nvidia
           network: host
