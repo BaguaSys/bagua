@@ -26,7 +26,6 @@ pip install git+https://github.com/BaguaSys/bagua-core@master
 #MNIST_SCRIPT="/workdir/examples/mnist/main.py"
 logfile=$(mktemp /tmp/bagua_mnist.XXXXXX.log)
 cd /workdir/examples/mnist
-sleep 5d
 python -m bagua.distributed.launch \
     --nnodes=2 \
     --nproc_per_node 2 \
