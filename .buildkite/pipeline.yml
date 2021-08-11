@@ -14,7 +14,7 @@ steps:
           always-pull: true
     agents:
       queue: "master"
-  - label: "examples_consistency_worker"
+  - label: "benchmark_worker"
     parallelism: 1
     command: bash .buildkite/scripts/benchmark_worker.sh
     plugins:
@@ -27,19 +27,7 @@ steps:
           ipc: host
           shm-size: 100gb
           always-pull: true
-  - label: "example master"
-    command: .buildkite/scripts/example.sh
-    plugins:
-      - docker#v3.8.0:
-          image: "baguasys/bagua:latest"
-          propagate-environment: true
-          propagate-uid-gid: true
-          runtime: nvidia
-          network: host
-          always-pull: true
-    agents:
-      queue: "master"
-  - label: "benchmark"
+  - label: "autotune_test"
     parallelism: 1
     command: bash .buildkite/scripts/benchmark.sh
     plugins:
