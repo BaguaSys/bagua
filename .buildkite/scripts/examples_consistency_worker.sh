@@ -30,7 +30,7 @@ sleep 5d
 python -m bagua.distributed.launch \
     --nnodes=2 \
     --nproc_per_node 2 \
-    --node_rank=0 \
+    --node_rank=1 \
     --master_addr="10.158.66.134" \
     --master_port=1234 \
     main.py \
