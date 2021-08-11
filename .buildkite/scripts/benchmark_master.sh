@@ -16,7 +16,7 @@ function check_benchmark_log {
     python -c "import sys; sys.exit(1) if float($final_batch_loss) != 0.001848 else print('final_batch_loss is euqal.')"
 
     speed_threshold="200.0"
-    python -c "import sys; sys.exit(0 if float($final_img_per_sec) > float($threshold) else 1)"
+    python -c "import sys; sys.exit(0 if float($final_img_per_sec) > float($speed_threshold) else 1)"
 
 }
 
