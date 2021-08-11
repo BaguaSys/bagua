@@ -13,9 +13,9 @@ function check_benchmark_log {
     final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
     final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
 
-    python -c "import sys; sys.exit(1) if float($final_img_per_sec) != 0.001848"
+    python -c "import sys; sys.exit(1) if float($final_batch_loss) != 0.001848"
 
-    speed_threshold="1500.0"
+    speed_threshold="200.0"
     python -c "import sys; sys.exit(0 if float($final_img_per_sec) > float($threshold) else 1)"
 
 }
