@@ -5,7 +5,7 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
-SYNTHETIC_SCRIPT="/bagua/examples/benchmark/synthetic_benchmark.py"
+SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 
 function check_benchmark_log {
     logfile=$1
