@@ -16,11 +16,11 @@ class CacheDataset(Dataset):
 
     Example::
 
-    >>> from bagua.torch_api.contrib import CacheDataset
-    >>> cache_dataset = CacheDataset(
-...     dataset, backend="redis", hosts=None, cluster_mode=False
-... )
-    >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
+        >>> from bagua.torch_api.contrib import CacheDataset
+        >>> cache_dataset = CacheDataset(
+    ...     dataset, backend="redis", hosts=None, cluster_mode=False
+    ... )
+        >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
 
         .. note::
             This class use :class:`CacheLoader` as the implementation of cache. See :class:`CacheLoader` for more information.
