@@ -7,17 +7,6 @@ set -euox pipefail
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 
-function check_benchmark_log {
-    logfile=$1
-
-    final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
-    threshold="70.0"
-
-    if [[ $final_img_per_sec -le $threshold ]]; then
-        exit 1
-    fi
-}
-
 export HOME=/workdir
 cd /workdir && pip install . && git clone https://github.com/BaguaSys/examples.git
 curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
@@ -35,4 +24,3 @@ python -m bagua.distributed.launch \
     --num-iters 100 \
     --deterministic \
     2>&1 | tee ${logfile}
-#check_benchmark_log ${logfile}
