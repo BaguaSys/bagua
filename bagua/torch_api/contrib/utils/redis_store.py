@@ -9,11 +9,28 @@ import torch.distributed.distributed_c10d as c10d
 import json
 import logging
 
+__all__ = ["RedisStore"]
 
 _host_ip = None
 
 
 class RedisStore(ClusterStore):
+    """
+    A Redis-based store implementation.
+
+    The server holds the data, while the client can connect to the server over Redis protocal and perform
+    actions such as set() to insert a key-value pair, get() to retrieve a key-value pair, etc.
+
+    Args:
+        hosts (List[Dict[str, str]]): A list of redis servers, defined by a list of "host" and "port" mappings. Can be ``None``, which
+            means to bootstrap redis servers locally by Bagua processes.
+        cluster_mode (bool): View redis servers as a cluster or not. If True, data is automatically sharded across all redis servers,
+            otherwise, each process connects to and stores data to only one redis server. In bootstrapped cases, each process connects to
+            its local redis server.
+        capacity_per_node (int): Maximum memory limit in bytes to configure bootstrapped redis servers. Redis servers will randomly evict 
+            keys when maximum memory limit reached.
+    """
+
     def __init__(
         self,
         hosts: List[Dict[str, str]] = None,

@@ -1,9 +1,14 @@
 from typing import List, Dict, Optional, Any
-from .hash_func import crc16
 from collections import defaultdict
 
 
 class Store:
+    """
+    Base class for all store implementations. A store keeps a mapping from keys to values.
+    key-value pairs are manually added to store using `set()` or `mset()` and can be retrieved by
+    `get()` or `mget()`.
+    """
+
     def set(self, key: str, value: str):
         pass
 
@@ -30,12 +35,25 @@ class Store:
 
 
 class ClusterStore(Store):
-    def __init__(self, stores: List[Store]):
+    """
+    An implementation for a cluster of stores.
+
+    Data is sharded on client side. Default hashing algorithm for the shard key is CRC-16. Can
+    accept customized hashing algorithms by passing `hash_fn` on initialization.
+    """
+
+    def __init__(self, stores: List[Store], hash_fn=None):
         self.stores = stores
         self.num_stores = len(stores)
 
+        if hash_fn is None:
+            from .hash_func import crc16
+
+            hash_fn = crc16
+        self.hash_fn = hash_fn
+
     def _hash_key(self, key):
-        hash_code = crc16(key)
+        hash_code = self.hash_fn(key)
         return hash_code % self.num_stores
 
     def route(self, key) -> Store:
