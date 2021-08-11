@@ -27,7 +27,7 @@ class RedisStore(ClusterStore):
         cluster_mode (bool): View redis servers as a cluster or not. If True, data is automatically sharded across all redis servers,
             otherwise, each process connects to and stores data to only one redis server. In bootstrapped cases, each process connects to
             its local redis server.
-        capacity_per_node (int): Maximum memory limit in bytes to configure bootstrapped redis servers. Redis servers will randomly evict 
+        capacity_per_node (int): Maximum memory limit in bytes to configure bootstrapped redis servers. Redis servers will randomly evict
             keys when maximum memory limit reached.
     """
 
