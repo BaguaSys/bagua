@@ -16,11 +16,11 @@ class Store:
         "Set a key-value pair."
         pass
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key):
         "Return the value associated with key `key`, or None if the key doesn’t exist"
         pass
 
-    def num_keys(self) -> int:
+    def num_keys(self):
         "Returns the number of keys in the current store."
         pass
 
@@ -28,15 +28,15 @@ class Store:
         "Delete all keys in the current store."
         pass
 
-    def mset(self, mapping: Dict[str, str]):
+    def mset(self, mapping):
         "Sets key/values based on a mapping. Mapping is a dictionary of key/value pairs. Both keys and values should be strings."
         pass
 
-    def mget(self, keys: List[str]) -> List[Optional[str]]:
+    def mget(self, keys):
         "Returns a list of values ordered identically to `keys`."
         pass
 
-    def status(self) -> bool:
+    def status(self):
         "Check the status of the current store."
         pass
 
