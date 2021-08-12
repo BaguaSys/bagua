@@ -157,6 +157,11 @@ def set_bagua_env(args, current_env):
     current_env["BAGUA_AUTOTUNE_WARMUP_TIME_S"] = str(args.autotune_warmup_time)
     current_env["BAGUA_IS_OUTPUT_AUTOTUNE_LOG"] = str(int(args.is_output_autotune_log))
 
+    if args.autotune_level > 0:
+        current_env["AUTO_TUNE_SERVER_ADDR"] = "{}:{}".format(
+            args.master_addr, args.bagua_service_port
+        )
+
 
 def main():
     logging.basicConfig(
