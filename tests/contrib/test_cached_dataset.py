@@ -7,7 +7,7 @@ import unittest
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestDataset(Dataset):
+class MyDataset(Dataset):
     def __init__(self, size):
         self.size = size
         self.dataset = [(np.random.rand(5, 2), np.random.rand(1)) for _ in range(size)]
@@ -31,7 +31,7 @@ class TestCacheDataset(unittest.TestCase):
             self.assertTrue((dataset[i][1] == cache_dataset[i][1]).all())
 
     def test_redis(self):
-        dataset = TestDataset(102)
+        dataset = MyDataset(102)
         cache_dataset = CacheDataset(
             dataset, backend="redis", hosts=None, cluster_mode=False
         )

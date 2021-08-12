@@ -48,3 +48,11 @@ class BaguaHyperparameter(BaseModel):
                 self.__dict__[key] = value
 
         return self
+
+
+class BaguaCoreTelemetrySpan(TypedDict):
+    trace_id: int
+    action: str
+    tensor_name: str
+    start_time: int
+    end_time: int
