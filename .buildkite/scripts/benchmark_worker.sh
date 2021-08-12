@@ -13,14 +13,21 @@ curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
-logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
-python -m bagua.distributed.launch \
-    --nnodes=2 \
-    --nproc_per_node 4 \
-    --node_rank=1 \
-    --master_addr="10.158.66.134" \
-    --master_port=1234 \
-    ${SYNTHETIC_SCRIPT} \
-    --num-iters 100 \
-    --deterministic \
-    2>&1 | tee ${logfile}
+algorithms=(gradient_allreduce bytegrad decentralized)
+length=${#algorithms[@]}
+for ((i=0;i<$length;i++))
+do
+    echo "begin to test ["${algorithms[$i]}]
+    logfile=$(mktemp /tmp/bagua_benchmark_${algorithms}.XXXXXX.log)
+    python -m bagua.distributed.launch \
+        --nnodes=2 \
+        --nproc_per_node 4 \
+        --node_rank=1 \
+        --master_addr="10.158.66.134" \
+        --master_port=1234 \
+        ${SYNTHETIC_SCRIPT} \
+        --num-iters 100 \
+        --algorithm ${algorithms[$i]} \
+        --deterministic \
+        2>&1 | tee ${logfile}
+done
