@@ -73,7 +73,7 @@ class CacheLoader:
         `load_fn` accepts `key` as input, and returns an object ser
         """
 
-        cache_key = "{}{}".format(self.key_prefix, key).encode()
+        cache_key = "{}{}".format(self.key_prefix, key)
         ret = self.fetcher.read(cache_key)
 
         if ret is None:
