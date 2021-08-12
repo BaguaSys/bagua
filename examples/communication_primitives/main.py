@@ -7,6 +7,7 @@ import bagua.torch_api as bagua
 
 
 def main():
+    torch.set_printoptions(precision=20)
     parser = argparse.ArgumentParser(description="Communication Primitives Example")
     args = parser.parse_args()
 
@@ -19,7 +20,7 @@ def main():
     if bagua.get_rank() == 0:
         logging.getLogger().setLevel(logging.INFO)
 
-    comm = bagua_backend = bagua.get_backend("bagua_communication_primitives_test").global_communicator
+    comm = bagua.get_backend("bagua_communication_primitives_test").global_communicator
 
     # send, recv
     if bagua.get_rank() == 0:
@@ -54,9 +55,9 @@ def main():
     dist.all_reduce(send_tensor)
     bagua.allreduce(send_tensor_bagua, recv_tensor_bagua, comm=comm)
     bagua.allreduce_inplace(send_tensor_bagua, comm=comm)
-    assert torch.equal(send_tensor, recv_tensor_bagua),\
+    assert torch.all(torch.isclose(send_tensor, recv_tensor_bagua)),\
         "send_tensor:{a}, recv_tensor_bagua:{b}".format(a=send_tensor, b=recv_tensor_bagua)
-    assert torch.equal(send_tensor_bagua, recv_tensor_bagua),\
+    assert torch.all(torch.isclose(send_tensor_bagua, recv_tensor_bagua)),\
         "send_tensor_bagua:{a}, recv_tensor_bagua:{b}".format(a=send_tensor_bagua, b=recv_tensor_bagua)
 
     # reduce
@@ -67,10 +68,10 @@ def main():
     dist.reduce(send_tensor, dst)
     bagua.reduce(send_tensor_bagua, recv_tensor_bagua, dst=dst, comm=comm)
     bagua.reduce_inplace(send_tensor_bagua, dst=dst, comm=comm)
-    assert torch.equal(send_tensor, send_tensor_bagua),\
+    assert torch.all(torch.isclose(send_tensor, send_tensor_bagua)),\
         "send_tensor:{a}, send_tensor_bagua:{b}".format(a=send_tensor, b=send_tensor_bagua)
     if bagua.get_rank() == dst:
-        assert torch.equal(send_tensor_bagua, recv_tensor_bagua),\
+        assert torch.all(torch.isclose(send_tensor_bagua, recv_tensor_bagua)),\
             "send_tensor_bagua:{a}, recv_tensor_bagua:{b}".format(a=send_tensor_bagua, b=recv_tensor_bagua)
 
     # allgather
@@ -91,7 +92,7 @@ def main():
     recv_tensor_bagua = torch.zeros(4, dtype=torch.float32).cuda()
     dist.reduce_scatter(recv_tensor, send_tensors)
     bagua.reduce_scatter(send_tensor_bagua, recv_tensor_bagua, comm=comm)
-    assert torch.equal(recv_tensor, recv_tensor_bagua),\
+    assert torch.all(torch.isclose(recv_tensor, recv_tensor_bagua)),\
         "recv_tensor:{a}, recv_tensor_bagua:{b}".format(a=recv_tensor, b=recv_tensor_bagua)
 
     # alltoall
