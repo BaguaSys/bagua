@@ -16,16 +16,16 @@ class CacheDataset(Dataset):
         """
         A dataset wrapper which caches `dataset` samples.
 
-        This is useful in scenarios when `dataset` has a lot preprocessing work to fetch a sample.
+        This is useful in scenarios when `dataset` has a lot pre-processing work to fetch a sample.
 
         Args:
             dataset: Dataset used for caching.
-            backend(str): The backend to use. Currently ``"redis"`` is supported. If using ``"redis"`` backend, must provide
-                argument `hosts` to initialize :class:`RedisStore`. See :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore`
-                for further customization.
+            backend(str): The backend to use. Currently ``"redis"`` is supported.
             key_prefix(str): Prefix of the cache key. Default ``""``.
-            batch_writes(int): How many key-value pairs written to cache once. Default ``20``. If `batch_writes > 1`, the cache
-                will combine multiple `set` operations to one or a few `mset` operations. May help to reduce the write latency.
+            batch_writes(int): How many key-value pairs written to cache once. Default ``20``, If `batch_writes > 1`, the
+                cache will delay writing non-existed key-value pairs until `batch_writes` key-value pairs are accumulated.
+                Thus it could combine multiple `set` operations to one `mset` operation. This is expected to reduce
+                the write latency.
 
         Example::
 
@@ -36,19 +36,24 @@ class CacheDataset(Dataset):
             >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
 
         .. note::
-
-            This class use :class:`CacheLoader` as the implementation of cache. See
-            :class:`bagua.torch_api.contrib.CacheLoader` for more information.
+            `CacheDataset` is a special use case of `CacheLoader`, and parameter `backend`, `key_prefix` and `batch_writes`
+            in `CacheDataset` have the same meanings in `CacheLoader`. See :class:`bagua.torch_api.contrib.CacheLoader`
+            for more information.
 
         .. note::
-            The cache assocaite dataset indices to determined dataset samples, thus it will violate the randomness of the dataset.
-            Use :class:`CacheLoader` which can wrap arbitrary data loading logic in this situation.
+            The cache associates dataset indices to determined dataset samples, thus it will break the randomness of
+            the dataset, if it has. Use :class:`CacheLoader` which can wrap arbitrary data loading logic in this situation.
 
         """
 
         self.dataset = dataset
 
-        self.cache_loader = CacheLoader(backend, key_prefix, batch_writes, **kwargs,)
+        self.cache_loader = CacheLoader(
+            backend,
+            key_prefix,
+            batch_writes,
+            **kwargs,
+        )
 
     def __getitem__(self, item):
         return self.cache_loader.get(item, lambda x: self.dataset[x])

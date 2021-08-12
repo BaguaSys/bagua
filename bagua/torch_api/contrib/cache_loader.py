@@ -24,13 +24,17 @@ class CacheLoader:
         A mapping from keys to values. Values are automatically loaded by the cache, and
         are stored in the cache until evicted.
 
+        Current backend is "redis". Using "redis" backend, the cache will initialize an instance of :class:`RedisStore`
+        by a list of initialized redis servers or bootstrap redis servers locally. See :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore`
+        for more information.
+
         Args:
-            backend(str): The backend to use. Currently ``"redis"`` is supported. If using ``"redis"`` backend, must provide
-                argument `hosts` to initialize :class:`RedisStore`. See :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore`
-                for further customization.
+            backend(str): The backend to use. Currently ``"redis"`` is supported.
             key_prefix(str): Prefix of the cache key. Default ``""``.
-            batch_writes(int): How many key-value pairs written to cache once. Default ``1``. If `batch_writes > 1`, the cache
-                will combine multiple `set` operations to one or a few `mset` operations. May help to reduce the write latency.
+            batch_writes(int): How many key-value pairs written to cache once. Default ``1``. If `batch_writes > 1`, the
+                cache will delay writing non-existed key-value pairs until `batch_writes` key-value pairs are accumulated.
+                Thus it could combine multiple `set` operations to one `mset` operation. This is expected to reduce
+                the write latency.
 
         Example::
             To use "redis" backend and initialized redis clusters: `{'192.168.1.0:7000', '192.168.1.1:7000'}`:
