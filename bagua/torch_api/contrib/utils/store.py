@@ -12,37 +12,46 @@ class Store:
     `get()` or `mget()`.
     """
 
-    def set(self, key: str, value: str):
-        "Set a key-value pair."
+    def set(self, key, value):
+        """Set a key-value pair."""
         pass
 
-    def get(self, key):
-        "Return the value associated with key `key`, or None if the key doesn’t exist"
+    def get(self, key) -> Optional[str]:
+        """Returns the value associated with key `key`, or None if the key doesn't exist."""
         pass
 
-    def num_keys(self):
-        "Returns the number of keys in the current store."
+    def num_keys(self) -> int:
+        """Returns the number of keys in the current store."""
         pass
 
     def clear(self):
-        "Delete all keys in the current store."
+        """Delete all keys in the current store."""
         pass
 
     def mset(self, mapping):
-        "Sets key/values based on a mapping. Mapping is a dictionary of key/value pairs. Both keys and values should be strings."
+        """
+        Set key/values based on a mapping. Mapping is a dictionary of key/value pairs. Both keys and values
+        should be strings.
+        """
         pass
 
-    def mget(self, keys):
-        "Returns a list of values ordered identically to `keys`."
+    def mget(self, keys) -> List[Optional[str]]:
+        """
+        Returns a list of values ordered identically to `keys`.
+        """
+
         pass
 
-    def status(self):
-        "Check the status of the current store."
+    def status(self) -> bool:
+        """
+        Returns the status of the current store.
+        """
         pass
 
     def shutdown(self):
         """
-        Shutdown the current store. External store resources, for example, initialized redis servers, will not be shutted down by this method.
+        Shutdown the current store. External store resources, for example, initialized redis servers,
+        will not be shutted down by this method.
         """
         pass
 
