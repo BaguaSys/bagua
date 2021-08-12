@@ -15,8 +15,8 @@ function check_benchmark_log {
     final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
     img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
 
-    #python -c "import sys; sys.exit(1) if float($final_batch_loss) != float($loss) else print('final_batch_loss is euqal.')"
-    #python -c "import sys; sys.exit(1) if float($img_per_sec) < float($speed) else print('imag_per_sec is bigger than $speed.')"
+    python -c "import sys; sys.exit(1) if float($final_batch_loss) != float($loss) else print('final_batch_loss is euqal.')"
+    python -c "import sys; sys.exit(1) if float($img_per_sec) < float($speed) else print('imag_per_sec is bigger than $speed.')"
 }
 
 export HOME=/workdir
@@ -26,8 +26,8 @@ source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
-speeds=(200.0 180.0 150.0 100 100)
-losses=(0.001848 0.001815 0.002699 0 0)
+speeds=(200.0 180.0 150.0 110.0 100)
+losses=(0.001848 0.001815 0.002699 0.002047 0)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
