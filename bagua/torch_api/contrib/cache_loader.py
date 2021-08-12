@@ -34,7 +34,7 @@ class CacheLoader:
             key_prefix(str): Prefix added to the cache key. Default ``""``.
             batch_writes(int): How many key-value pairs written to cache once. Default ``1``. If `batch_writes > 1`, the
                 cache will delay writing non-existed key-value pairs until `batch_writes` key-value pairs are accumulated.
-                Thus it could combine multiple `set` operations to one `mset` operation. This is expected to reduce
+                Thus it could combine multiple `set` operations into one `mset` operation, and is expected to reduce
                 the write latency.
 
         Example::
@@ -70,7 +70,7 @@ class CacheLoader:
     def get(self, key, load_fn):
         """
         Returns the value associated with key in cache, first loading the value if necessary.
-        `load_fn` accepts `key` as input, and returns an object ser
+        `load_fn` accepts `key` as input, and returns the data to be serialized and stored.
         """
 
         cache_key = "{}{}".format(self.key_prefix, key)

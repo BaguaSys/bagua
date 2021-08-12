@@ -30,8 +30,7 @@ class Store:
 
     def mset(self, mapping):
         """
-        Set key/values based on a mapping. Mapping is a dictionary of key/value pairs. Both keys and values
-        should be strings.
+        Set key/values based on a mapping. Mapping is a dictionary of key/value pairs.
         """
         pass
 
@@ -51,7 +50,7 @@ class Store:
     def shutdown(self):
         """
         Shutdown the current store. External store resources, for example, initialized redis servers,
-        will not be shutted down by this method.
+        will not be shut down by this method.
         """
         pass
 

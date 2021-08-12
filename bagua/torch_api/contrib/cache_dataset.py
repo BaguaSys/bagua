@@ -16,7 +16,7 @@ class CacheDataset(Dataset):
         """
         A dataset wrapper which caches `dataset` samples.
 
-        This is useful in scenarios when `dataset` has a lot pre-processing work to fetch a sample.
+        This is useful in scenarios when `dataset` is slow to fetch a sample.
 
         Args:
             dataset: Dataset used for caching.
@@ -24,7 +24,7 @@ class CacheDataset(Dataset):
             key_prefix(str): Prefix of the cache key. Default ``""``.
             batch_writes(int): How many key-value pairs written to cache once. Default ``20``, If `batch_writes > 1`, the
                 cache will delay writing non-existed key-value pairs until `batch_writes` key-value pairs are accumulated.
-                Thus it could combine multiple `set` operations to one `mset` operation. This is expected to reduce
+                Thus it could combine multiple `set` operations into one `mset` operation, and is expected to reduce
                 the write latency.
 
         Example::
@@ -37,7 +37,7 @@ class CacheDataset(Dataset):
 
         .. note::
             `CacheDataset` is a special use case of `CacheLoader`, and parameter `backend`, `key_prefix` and `batch_writes`
-            in `CacheDataset` have the same meanings in `CacheLoader`. See :class:`bagua.torch_api.contrib.CacheLoader`
+            in `CacheDataset` have the same meanings with those in `CacheLoader`. See :class:`bagua.torch_api.contrib.CacheLoader`
             for more information.
 
         .. note::
