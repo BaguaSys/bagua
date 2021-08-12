@@ -55,7 +55,7 @@ class RedisStore(ClusterStore):
 
     def __init__(
         self,
-        hosts: List[Dict[str, str]] = None,
+        hosts: Optional[List[Dict[str, str]]] = None,
         cluster_mode: bool = False,
         capacity_per_node: int = 100_000_000_000,
         hash_fn=None,
@@ -159,7 +159,7 @@ class _RedisStore(Store):
 
     def shutdown(self):
         if self.bootstrap:
-            self.client.shutdown(nosave=True)
+            self.client.shutdown(nosave=True)  # pytype: disable=wrong-keyword-args
 
 
 def create_redis_client(host, port):

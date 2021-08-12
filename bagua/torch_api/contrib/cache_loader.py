@@ -37,10 +37,11 @@ class CacheLoader:
                 the write latency.
 
         Example::
-            To use "redis" backend and initialized redis clusters: `{'192.168.1.0:7000', '192.168.1.1:7000'}`:
+            To use "redis" backend and initialized redis clusters:
 
+            >>> from bagua.torch_api.contrib import CacheLoader
             >>> hosts = [{"host": "192.168.1.0", "port": "7000"}, {"host": "192.168.1.1", "port": "7000"}]
-            >>> loader = CacheLoader(backend="redis", hosts=hosts, cluster_mode=True)
+            >>> loader = CacheLoader(backend="redis", hosts=hosts, cluster_mode=True, key_prefix="test")
             >>>
             >>> loader.get(index, lambda x: items[x])
 
