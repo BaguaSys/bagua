@@ -2,6 +2,9 @@ from typing import List, Dict, Optional
 from collections import defaultdict
 
 
+__all__ = ["Store", "ClusterStore"]
+
+
 class Store:
     """
     Base class for all store implementations. A store keeps a mapping from keys to values.
@@ -36,13 +39,18 @@ class Store:
 
 class ClusterStore(Store):
     """
-    An implementation for a cluster of stores.
+    An implementation for a store cluster.
 
-    Data is sharded on client side. Default hashing algorithm for the shard key is CRC-16. Can
+    This class implements client side sharding. It uses CRC-16 algorithm to compute the shard key by default, and can
     accept customized hashing algorithms by passing `hash_fn` on initialization.
+
+    key-value pairs are manually added to the cluster using `set()` or `mset()` and can be retrieved by
+    `get()` or `mget()`.
+
     """
 
     def __init__(self, stores: List[Store], hash_fn=None):
+
         self.stores = stores
         self.num_stores = len(stores)
 
@@ -52,7 +60,7 @@ class ClusterStore(Store):
             hash_fn = crc16
         self.hash_fn = hash_fn
 
-    def _hash_key(self, key):
+    def _hash_key(self, key) -> int:
         hash_code = self.hash_fn(key)
         return hash_code % self.num_stores
 

@@ -5,27 +5,6 @@ __all__ = ["CacheDataset"]
 
 
 class CacheDataset(Dataset):
-    """
-        A dataset wrapper which caches `dataset` samples.
-
-        Args:
-            dataset: Dataset used for caching.
-            backend(str): The backend to use. Currently "redis" is supported, which means to use :class:`RedisStore`.
-            key_prefix(str): Prefix of the cache key. Default ``""``.
-            batch_writes(int): How many key-value pairs written to cache once. Default ``20``.
-
-        Example::
-
-        >>> from bagua.torch_api.contrib import CacheDataset
-        >>> cache_dataset = CacheDataset(
-    ...     dataset, backend="redis", hosts=None, cluster_mode=False
-    ... )
-        >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
-
-            .. note::
-                This class use :class:`CacheLoader` as the implementation of cache. See :class:`CacheLoader` for more information.
-    """
-
     def __init__(
         self,
         dataset: Dataset,
@@ -34,6 +13,27 @@ class CacheDataset(Dataset):
         batch_writes: int = 20,
         **kwargs,
     ):
+        """
+        A dataset wrapper which caches `dataset` samples.
+
+        Args:
+            dataset: Dataset used for caching.
+            backend(str): The backend to use. Currently "redis" is supported.
+            key_prefix(str): Prefix of the cache key. Default ``""``.
+            batch_writes(int): How many key-value pairs written to cache once. Default ``20``.
+
+        Example::
+
+            >>> from bagua.torch_api.contrib import CacheDataset
+            >>> cache_dataset = CacheDataset(
+            ...     dataset, backend="redis", hosts=None, cluster_mode=False
+            ... )
+            >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
+
+        .. note::
+
+            This class use :class:`CacheLoader` as the implementation of cache. See :class:`CacheLoader` for more information.
+        """
 
         self.dataset = dataset
 

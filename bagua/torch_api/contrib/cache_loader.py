@@ -25,16 +25,18 @@ class CacheLoader:
         are stored in the cache until evicted.
 
         Args:
-            backend(str): The backend to use. Currently "redis" is supported, which means to use :class:`RedisStore`.
+            backend(str): The backend to use. Currently "redis" is supported.
             key_prefix(str): Prefix of the cache key. Default ``""``.
             batch_writes(int): How many key-value pairs written to cache once. Default ``1``.
 
         Example::
-            >>> # redis server '127.0.0.1:7000' must be alive beforehand
-            >>> hosts = [{"host": "127.0.0.1", "port": "7000"}]
-            >>> loader = CacheLoader(backend="redis", hosts=hosts, cluster_mode=False)
+            To use an initialized redis clusters: {'192.168.1.0:7000', '192.168.1.1:7000'}
+
+            >>> hosts = [{"host": "192.168.1.0", "port": "7000"}, {"host": "192.168.1.1", "port": "7000"}]
+            >>> loader = CacheLoader(backend="redis", hosts=hosts, cluster_mode=True)
             >>>
             >>> loader.get(index, lambda x: items[x])
+
         """
 
         self.backend = backend
@@ -51,7 +53,8 @@ class CacheLoader:
 
     def get(self, key, load_fn):
         """
-        Returns the value associated with key in cache, first loading the value by calling `load_fn(key)` if necessary.
+        Returns the value associated with key in cache, first loading the value if necessary.
+        `load_fn` accepts `key` as input, and returns an object ser
         """
 
         cache_key = "{}{}".format(self.key_prefix, key).encode()
@@ -64,7 +67,7 @@ class CacheLoader:
         return ret
 
     def num_keys(self):
-        """Returns total number of keys in cache"""
+        """Returns the total number of keys in cache"""
 
         return self.store.num_keys()
 

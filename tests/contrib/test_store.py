@@ -71,7 +71,7 @@ class TestRedisStore(unittest.TestCase):
         for p in processes:
             p.join()
 
-        store = RedisStore(hosts=hosts, cluster_mode=True, capacity_per_node=10000000)
+        store = RedisStore(hosts=hosts, cluster_mode=True)
         self.check(store)
 
         self.assertTrue(store.status())
