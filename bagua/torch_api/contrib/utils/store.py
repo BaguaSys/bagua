@@ -21,7 +21,7 @@ class Store:
     def num_keys(self) -> int:
         pass
 
-    def clear(self) -> bool:
+    def clear(self):
         pass
 
     def mset(self, mapping: Dict[str, str]):
@@ -84,7 +84,7 @@ class ClusterStore(Store):
     def num_keys(self) -> int:
         return sum([store.num_keys() for store in self.stores])
 
-    def clear(self) -> bool:
+    def clear(self):
         for store in self.stores:
             store.clear()
 

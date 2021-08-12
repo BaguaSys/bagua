@@ -124,7 +124,7 @@ class _RedisStore(Store):
     def num_keys(self) -> int:
         return self.client.dbsize()
 
-    def clear(self) -> bool:
+    def clear(self):
         self.client.flushdb()
 
     def mset(self, mapping: Dict[str, str]):
