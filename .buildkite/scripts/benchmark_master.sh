@@ -26,7 +26,7 @@ source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
-speeds=(200.0 180.0 150.0 110.0 100)
+speeds=(200.0 180.0 150.0 115.0 100)
 losses=(0.001848 0.001815 0.002699 0.002047 0)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
@@ -46,3 +46,13 @@ do
         2>&1 | tee ${logfile}
     check_benchmark_log ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
 done
+
+echo "begin to test [communication_primitives]"
+COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
+python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 4 \
+    --node_rank=0 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${COMMUNICATION_SCRIPT}

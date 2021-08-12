@@ -31,3 +31,13 @@ do
         --deterministic \
         2>&1 | tee ${logfile}
 done
+
+echo "begin to test [communication_primitives]"
+COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
+python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 4 \
+    --node_rank=1 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${COMMUNICATION_SCRIPT}
