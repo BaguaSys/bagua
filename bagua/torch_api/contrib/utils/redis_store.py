@@ -2,12 +2,33 @@ import socket
 import subprocess
 import time
 from bagua.torch_api.env import get_rank, get_local_rank, get_world_size, get_local_size
-from redis import Redis
+
+try:
+    from redis import Redis
+except ImportError as err:
+    print(
+        "DEBUG: did not find redis-py. To install it, run `pip install redis` or follow instructions on its website(https://github.com/andymccurdy/redis-py)."
+    )
+    raise err
+
 from typing import List, Dict, Optional
 from .store import Store, ClusterStore
 import torch.distributed.distributed_c10d as c10d
 import json
 import logging
+
+try:
+    p = subprocess.Popen(
+        ["redis-server" "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    out, err = p.communicate()
+except Exception:
+    print(
+        "DEBUG: did not find redis-server. Follow instructions on its website(https://redis.io/download) to have it installed."
+    )
+    print("DEBUG: out: " + out)
+    print("DEBUG: err: " + err)
+
 
 __all__ = ["RedisStore"]
 
