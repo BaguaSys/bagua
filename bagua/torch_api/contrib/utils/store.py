@@ -16,11 +16,11 @@ class Store:
         """Set a key-value pair."""
         pass
 
-    def get(self, key) -> Optional[str]:
+    def get(self, key) -> Optional[str]:  # type: ignore
         """Returns the value associated with key `key`, or None if the key doesn't exist."""
         pass
 
-    def num_keys(self) -> int:
+    def num_keys(self) -> int:  # type: ignore
         """Returns the number of keys in the current store."""
         pass
 
@@ -35,14 +35,14 @@ class Store:
         """
         pass
 
-    def mget(self, keys) -> List[Optional[str]]:
+    def mget(self, keys) -> List[Optional[str]]:  # type: ignore
         """
         Returns a list of values ordered identically to `keys`.
         """
 
         pass
 
-    def status(self) -> bool:
+    def status(self) -> bool:  # type: ignore
         """
         Returns the status of the current store.
         """
