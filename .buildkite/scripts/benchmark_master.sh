@@ -15,7 +15,7 @@ function check_benchmark_log {
     final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
     img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
 
-    python -c "import sys; sys.exit(1) if float($final_batch_loss) != float(loss) else print('final_batch_loss is euqal.')"
+    python -c "import sys; sys.exit(1) if float($final_batch_loss) != float($loss) else print('final_batch_loss is euqal.')"
     python -c "import sys; sys.exit(1) if float($img_per_sec) < float($speed) else print('imag_per_sec is bigger than $speed.')"
 }
 
