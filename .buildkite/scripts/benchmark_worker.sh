@@ -13,7 +13,7 @@ curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
-algorithms=(gradient_allreduce bytegrad decentralized)
+algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
