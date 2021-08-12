@@ -17,6 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 import re
+
 project = "Bagua API Documentation"
 copyright = "2021, Kuaishou AI Platform and DS3 Lab"
 author = "Kuaishou AI Platform and DS3 Lab"
@@ -55,7 +56,7 @@ autoapi_ignore = [
     "*/bagua/torch_api/globals.py",
     "*/bagua/version.py",
     "*/bagua/bagua_define.py",
-    "*/bagua/torch_api/contrib/utils/hash_func.py"
+    "*/bagua/torch_api/contrib/utils/hash_func.py",
 ]
 autoapi_options = [
     "members",
@@ -128,7 +129,7 @@ _ignore_methods = [
     "bagua.torch_api.contrib.LoadBalancingDistributedBatchSampler.generate_batches",
     "bagua.torch_api.contrib.load_balancing_data_loader.LoadBalancingDistributedSampler.shuffle_chunks",
     "bagua.torch_api.contrib.load_balancing_data_loader.LoadBalancingDistributedBatchSampler.generate_batches",
-    "bagua.torch_api.contrib.utils.store.ClusterStore.*"
+    "bagua.torch_api.contrib.utils.store.ClusterStore.*",
 ]
 _ignore_functions = [
     "bagua.torch_api.env.get_autotune_server_addr",
