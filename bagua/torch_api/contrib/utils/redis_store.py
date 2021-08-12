@@ -22,14 +22,15 @@ class RedisStore(ClusterStore):
     actions such as `set()` to insert a key-value pair, `get()` to retrieve a key-value pair, etc.
 
     Args:
-        hosts (List[Dict[str, str]]): A list of redis servers. Can be ``None``, which means to bootstrap redis servers
-             locally.
+        hosts (List[Dict[str, str]]): A list of redis servers, defined by a list of dict containing server host and
+            port information. Can be ``None``, which means to bootstrap redis servers locally.
         cluster_mode (bool): Redis servers serve as a cluster or not. If True, data is automatically sharded across all
-            redis servers.
-        capacity_per_node (int): Maximum memory limit in bytes to configure redis servers. Useful only for local bootstrapped
-            redis servers.
+            redis servers, otherwise, data is routed to a specific server.
+        capacity_per_node (int): Maximum memory limit in bytes to configure redis servers when bootstrap locally. Redis servers
+            will evict keys randomly when maximum memory limit is reached.
         hash_fn: Hash function to compute the shard key. Default is `crc16`. A `hash_fn` accepts a `str` or `bytes` as
             input, and returns an `int` as output.
+
     """
 
     def __init__(

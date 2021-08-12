@@ -16,6 +16,8 @@ class CacheDataset(Dataset):
         """
         A dataset wrapper which caches `dataset` samples.
 
+        This is useful in scenarios when `dataset` has a lot preprocessing work to fetch a sample.
+
         Args:
             dataset: Dataset used for caching.
             backend(str): The backend to use. Currently "redis" is supported.
@@ -33,16 +35,16 @@ class CacheDataset(Dataset):
         .. note::
 
             This class use :class:`CacheLoader` as the implementation of cache. See :class:`CacheLoader` for more information.
+
+        .. note::
+            The cache assocaite dataset indices to determined dataset samples, thus it will violate the randomness of the dataset.
+            Use :class:`CacheLoader` which can wrap arbitrary data loading logic in this situation.
+
         """
 
         self.dataset = dataset
 
-        self.cache_loader = CacheLoader(
-            backend,
-            key_prefix,
-            batch_writes,
-            **kwargs,
-        )
+        self.cache_loader = CacheLoader(backend, key_prefix, batch_writes, **kwargs,)
 
     def __getitem__(self, item):
         return self.cache_loader.get(item, lambda x: self.dataset[x])

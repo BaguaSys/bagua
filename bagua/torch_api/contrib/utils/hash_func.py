@@ -1,5 +1,3 @@
-__all__ = []
-
 # reference: https://github.com/lammertb/libcrc/blob/master/src/crc16.c
 
 # fmt: off

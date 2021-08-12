@@ -13,27 +13,37 @@ class Store:
     """
 
     def set(self, key: str, value: str):
+        "Set a key-value pair."
         pass
 
     def get(self, key: str) -> Optional[str]:
+        "Return the value associated with key `key`, or None if the key doesn’t exist"
         pass
 
     def num_keys(self) -> int:
+        "Returns the number of keys in the current store."
         pass
 
     def clear(self):
+        "Delete all keys in the current store."
         pass
 
     def mset(self, mapping: Dict[str, str]):
+        "Sets key/values based on a mapping. Mapping is a dictionary of key/value pairs. Both keys and values should be strings."
         pass
 
     def mget(self, keys: List[str]) -> List[Optional[str]]:
+        "Returns a list of values ordered identically to `keys`."
         pass
 
     def status(self) -> bool:
+        "Check the status of the current store."
         pass
 
     def shutdown(self):
+        """
+        Shutdown the current store. External store resources, for example, initialized redis servers, will not be shutted down by this method.
+        """
         pass
 
 
@@ -46,6 +56,11 @@ class ClusterStore(Store):
 
     key-value pairs are manually added to the cluster using `set()` or `mset()` and can be retrieved by
     `get()` or `mget()`.
+
+    Args:
+        stores(List[Store]): A list of stores in the cluster.
+        hash_fn: Hash function to compute the shard key. Default is `crc16`. A `hash_fn` accepts a `str` or `bytes` as
+            input, and returns an `int` as output.
 
     """
 
