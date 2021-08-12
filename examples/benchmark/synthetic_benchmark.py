@@ -126,7 +126,7 @@ elif args.algorithm == "qadam":
     from bagua.torch_api.algorithms import q_adam
 
     optimizer = q_adam.QAdamOptimizer(model.parameters())
-    algorithm = q_adam.QAdamAlgorithm(optimizer, 10)
+    algorithm = q_adam.QAdamAlgorithm(optimizer, True)
 else:
     raise NotImplementedError
 
