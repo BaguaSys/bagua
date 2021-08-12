@@ -11,7 +11,7 @@ except ImportError:
     )
     raise
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from .store import Store, ClusterStore
 import torch.distributed.distributed_c10d as c10d
 import json
@@ -136,10 +136,10 @@ class _RedisStore(Store):
 
         return False
 
-    def set(self, key: str, value: str):
+    def set(self, key: str, value: Union[str, bytes]):
         self.client.set(key, value)
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> Optional[Union[str, bytes]]:
         return self.client.get(key)
 
     def num_keys(self) -> int:
@@ -148,10 +148,10 @@ class _RedisStore(Store):
     def clear(self):
         self.client.flushdb()
 
-    def mset(self, mapping: Dict[str, str]):
+    def mset(self, mapping: Dict[str, Union[str, bytes]]):
         self.client.mset(mapping)
 
-    def mget(self, keys: List[str]) -> List[Optional[str]]:
+    def mget(self, keys: List[str]) -> List[Optional[Union[str, bytes]]]:
         return self.client.mget(keys)
 
     def status(self) -> bool:

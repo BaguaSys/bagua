@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from collections import defaultdict
 
 
@@ -16,7 +16,7 @@ class Store:
         """Set a key-value pair."""
         pass
 
-    def get(self, key) -> Optional[str]:
+    def get(self, key) -> Optional[Union[str, bytes]]:
         """Returns the value associated with key `key`, or None if the key doesn't exist."""
         pass  # type: ignore
 
@@ -35,7 +35,7 @@ class Store:
         """
         pass
 
-    def mget(self, keys) -> List[Optional[str]]:
+    def mget(self, keys) -> List[Optional[Union[str, bytes]]]:
         """
         Returns a list of values ordered identically to `keys`.
         """
@@ -93,13 +93,13 @@ class ClusterStore(Store):
             self.stores[self._hash_key(key)] if self.num_stores > 1 else self.stores[0]
         )
 
-    def set(self, key: str, value: str):
+    def set(self, key: str, value: Union[str, bytes]):
         if self.num_stores == 1:
             return self.stores[0].set(key, value)
 
         self.route(key).set(key, value)
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> Optional[Union[str, bytes]]:
         if self.num_stores == 1:
             return self.stores[0].get(key)
 
@@ -112,7 +112,7 @@ class ClusterStore(Store):
         for store in self.stores:
             store.clear()
 
-    def mset(self, mapping: Dict[str, str]):
+    def mset(self, mapping: Dict[str, Union[str, bytes]]):
         if self.num_stores == 1:
             return self.stores[0].mset(mapping)
 
@@ -126,7 +126,7 @@ class ClusterStore(Store):
         for sid, m in route_table.items():
             self.stores[sid].mset(m)
 
-    def mget(self, keys: List[str]) -> List[Optional[str]]:
+    def mget(self, keys: List[str]) -> List[Optional[Union[str, bytes]]]:
         if self.num_stores == 1:
             return self.stores[0].mget(keys)
 
