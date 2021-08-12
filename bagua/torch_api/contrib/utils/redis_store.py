@@ -18,17 +18,18 @@ class RedisStore(ClusterStore):
     """
     A Redis-based store implementation.
 
-    The server holds the data, while the client can connect to the server over Redis protocal and perform
-    actions such as set() to insert a key-value pair, get() to retrieve a key-value pair, etc.
+    The server holds the data, while the client can connect to the server over Redis protocol and perform
+    actions such as `set()` to insert a key-value pair, `get()` to retrieve a key-value pair, etc.
 
     Args:
-        hosts (List[Dict[str, str]]): A list of redis servers, defined by a list of "host" and "port" mappings. Can be ``None``, which
-            means to bootstrap redis servers locally by Bagua processes.
-        cluster_mode (bool): View redis servers as a cluster or not. If True, data is automatically sharded across all redis servers,
-            otherwise, each process connects to and stores data to only one redis server. In bootstrapped cases, each process connects to
-            its local redis server.
-        capacity_per_node (int): Maximum memory limit in bytes to configure bootstrapped redis servers. Redis servers will randomly evict
-            keys when maximum memory limit reached.
+        hosts (List[Dict[str, str]]): A list of redis servers. Can be ``None``, which means to bootstrap redis servers
+             locally.
+        cluster_mode (bool): Redis servers serve as a cluster or not. If True, data is automatically sharded across all
+            redis servers.
+        capacity_per_node (int): Maximum memory limit in bytes to configure redis servers. Useful only for local bootstrapped
+            redis servers.
+        hash_fn: Hash function to compute the shard key. Default is `crc16`. A `hash_fn` accepts a `str` or `bytes` as
+            input, and returns an `int` as output.
     """
 
     def __init__(
@@ -36,8 +37,8 @@ class RedisStore(ClusterStore):
         hosts: List[Dict[str, str]] = None,
         cluster_mode: bool = False,
         capacity_per_node: int = 100_000_000_000,
+        hash_fn=None,
     ):
-        """ """
 
         self.hosts = []
         if hosts is None:
@@ -61,7 +62,7 @@ class RedisStore(ClusterStore):
             )
             stores.append(store)
 
-        super(RedisStore, self).__init__(stores)
+        super(RedisStore, self).__init__(stores, hash_fn)
 
     def _bootstrap_redis_server(self):
         ip, port = get_host_ip(), find_free_port()
