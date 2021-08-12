@@ -1,5 +1,6 @@
 import pickle
 from collections import defaultdict
+import atexit
 
 __all__ = ["CacheLoader"]
 
@@ -64,6 +65,7 @@ class CacheLoader:
             raise ValueError('invalid backend, only support "redis" currently')
 
         self.fetcher = BatchFetcher(self.store, 1, batch_writes)
+        self.register_shutdown_handler()
 
     def get(self, key, load_fn):
         """
@@ -85,11 +87,8 @@ class CacheLoader:
 
         return self.store.num_keys()
 
-    def cleanup(self):
-        """Cleanup the resources used."""
-
-        # TODO: cleanup automatically
-        self.store.shutdown()
+    def register_shutdown_handler(self):
+        atexit.register(self.store.shutdown)
 
 
 class BatchFetcher:
