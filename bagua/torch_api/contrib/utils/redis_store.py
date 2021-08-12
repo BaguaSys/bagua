@@ -104,7 +104,7 @@ class _RedisStore(Store):
         for i in range(retry_times):
             try:
                 connected = self.client.ping()
-            except Exception as e:
+            except Exception:
                 if i == retry_times - 1:
                     return False
 

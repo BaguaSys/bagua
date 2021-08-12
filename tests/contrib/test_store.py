@@ -9,7 +9,7 @@ import multiprocessing as mp
 import logging
 import numpy as np
 import pickle
-import time
+
 
 logging.basicConfig(level=logging.DEBUG)
 

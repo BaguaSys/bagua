@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 from collections import defaultdict
 
 
@@ -101,14 +101,14 @@ class ClusterStore(Store):
         route_table = {}
         for k in keys:
             sid = self._hash_key(k)
-            l = route_table.get(sid, [])
-            l.append(k)
-            route_table[sid] = l
+            ll = route_table.get(sid, [])
+            ll.append(k)
+            route_table[sid] = ll
 
         result_map = {}
-        for sid, l in route_table.items():
-            ret = self.stores[sid].mget(l)
-            m = {k: v for k, v in zip(l, ret)}
+        for sid, ll in route_table.items():
+            ret = self.stores[sid].mget(ll)
+            m = {k: v for k, v in zip(ll, ret)}
             result_map = {**result_map, **m}
 
         return list(map(lambda x: result_map.get(x, None), keys))

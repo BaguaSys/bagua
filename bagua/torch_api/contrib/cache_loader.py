@@ -92,7 +92,7 @@ class BatchFetcher:
 
         try:
             ret = self.store.get(key)
-        except:
+        except Exception:
             ret = None
         else:
             self.write_post_read()
@@ -115,7 +115,7 @@ class BatchFetcher:
     def flush_write_map(self):
         try:
             self.store.mset(self.write_map)
-        except:
+        except Exception:
             pass
         else:
             self.write_map.clear()
