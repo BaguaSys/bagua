@@ -59,7 +59,7 @@ class ClusterStore(Store):
     """
     An implementation for a store cluster.
 
-    This class implements client side sharding. It uses CRC-16 algorithm to compute the shard key by default, and can
+    This class implements client side sharding. It uses xxHash algorithm to compute the shard key by default, and can
     accept customized hashing algorithms by passing `hash_fn` on initialization.
 
     key-value pairs are manually added to the cluster using `set()` or `mset()` and can be retrieved by
@@ -67,7 +67,7 @@ class ClusterStore(Store):
 
     Args:
         stores(List[Store]): A list of stores in the cluster.
-        hash_fn: Hash function to compute the shard key. Default is `crc16`. A `hash_fn` accepts a `str` or `bytes` as
+        hash_fn: Hash function to compute the shard key. Default is `xxh64`. A `hash_fn` accepts a `str` as
             input, and returns an `int` as output.
 
     """
@@ -78,9 +78,9 @@ class ClusterStore(Store):
         self.num_stores = len(stores)
 
         if hash_fn is None:
-            from .hash_func import crc16
+            import xxhash
 
-            hash_fn = crc16
+            hash_fn = lambda x: xxhash.xxh64(x).intdigest()
         self.hash_fn = hash_fn
 
     def _hash_key(self, key) -> int:

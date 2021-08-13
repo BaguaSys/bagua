@@ -48,7 +48,7 @@ class RedisStore(ClusterStore):
             redis servers, otherwise, data is routed to a specific server.
         capacity_per_node (int): Maximum memory limit in bytes to configure redis servers when bootstrap locally. Redis servers
             will evict keys randomly when maximum memory limit is reached.
-        hash_fn: Hash function to compute the shard key. Default is `crc16`. A `hash_fn` accepts a `str` or `bytes` as
+        hash_fn: Hash function to compute the shard key. Default is `xxh64`. A `hash_fn` accepts a `str` as
             input, and returns an `int` as output.
 
     """

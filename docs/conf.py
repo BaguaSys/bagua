@@ -56,7 +56,6 @@ autoapi_ignore = [
     "*/bagua/torch_api/globals.py",
     "*/bagua/version.py",
     "*/bagua/bagua_define.py",
-    "*/bagua/torch_api/contrib/utils/hash_func.py",
 ]
 autoapi_options = [
     "members",
