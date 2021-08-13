@@ -25,11 +25,11 @@ function check_benchmark_log {
     fi
     var=$(awk 'BEGIN{ print "'$img_per_sec'"<"'$speed'" }')
     if [ "$var" -eq 1 ]; then
-        result="Check ["${algorithm}"] fail, img_per_sec is smaller than "$speed
+        result="Check ["${algorithm}"] fail, img_per_sec["$img_per_sec"] is smaller than "$speed
         echo $result
         CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
     else
-        echo "Check ["${algorithm}"] success, img_per_sec is greater than "$speed
+        echo "Check ["${algorithm}"] success, img_per_secc["$img_per_sec"] is greater than "$speed
     fi
 }
 
