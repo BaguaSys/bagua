@@ -44,9 +44,6 @@ class TestRedisStore(unittest.TestCase):
 
         self.assertTrue(store.status())
 
-        # try to shut down resources
-        store.shutdown()
-
     def test_redis_store(self):
         store = RedisStore(hosts=None, cluster_mode=False, capacity_per_node=10000000)
         self.check(store)
@@ -74,9 +71,10 @@ class TestRedisStore(unittest.TestCase):
         store = RedisStore(hosts=hosts, cluster_mode=True)
         self.check(store)
 
+        store.shutdown()
         self.assertTrue(store.status())
 
-        # Now shut down servers safely
+        # Now shut down servers manually
         for port in ports:
             client = redis.Redis(port=port)
             client.shutdown(nosave=True)

@@ -1,6 +1,5 @@
 import pickle
 from collections import defaultdict
-import atexit
 
 __all__ = ["CacheLoader"]
 
@@ -68,7 +67,6 @@ class CacheLoader:
             raise ValueError('invalid backend, only support "redis" currently')
 
         self.fetcher = BatchFetcher(self.store, 1, writer_buffer_size)
-        self.register_shutdown_handler()
 
     def get(self, key, load_fn):
         """
@@ -89,9 +87,6 @@ class CacheLoader:
         """Returns the total number of keys in cache"""
 
         return self.store.num_keys()
-
-    def register_shutdown_handler(self):
-        atexit.register(self.store.shutdown)
 
 
 class BatchFetcher:

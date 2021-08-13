@@ -16,6 +16,7 @@ from .store import Store, ClusterStore
 import torch.distributed.distributed_c10d as c10d
 import json
 import logging
+import atexit
 
 
 try:
@@ -32,7 +33,8 @@ except Exception:
 __all__ = ["RedisStore"]
 
 _host_ip = None
-_bootstrap_redis_hosts = []
+
+_global_redis_servers = []
 
 
 class RedisStore(ClusterStore):
@@ -79,7 +81,7 @@ class RedisStore(ClusterStore):
 
         if self.bootstrap:
             bootstrap_redis_server(self.capacity_per_node)
-            self.hosts.extend(get_bootstrapped_redis_server(self.cluster_mode))
+            self.hosts.extend(get_bootstrapped_host_info(self.cluster_mode))
 
         stores = []
         for h in self.hosts:
@@ -92,14 +94,23 @@ class RedisStore(ClusterStore):
 
 
 def _is_bootstrapped():
-    global _bootstrap_redis_hosts
+    global _global_redis_servers
 
-    return _bootstrap_redis_hosts is not None and len(_bootstrap_redis_hosts) > 0
+    return _global_redis_servers is not None and len(_global_redis_servers) > 0
+
+
+def shutdown_redis_server():
+    global _global_redis_servers
+
+    hostinfo = get_bootstrapped_host_info(cluster_mode=False)[0]
+    store = _RedisStore(host=hostinfo["host"], port=hostinfo["port"], bootstrap=True)
+
+    store.shutdown()
 
 
 def bootstrap_redis_server(capacity_per_node):
     if _is_bootstrapped():
-        logging.debug("local redis server is already bootstrapped")
+        logging.debug("local redis server has already bootstrapped")
         return
 
     ip, port = get_host_ip(), find_free_port()
@@ -123,21 +134,27 @@ def bootstrap_redis_server(capacity_per_node):
     else:
         hosts.append(hostinfo)
 
-    global _bootstrap_redis_hosts
-    _bootstrap_redis_hosts.extend(hosts)
+    global _global_redis_servers
+    _global_redis_servers.extend(hosts)
+
+    atexit.register(shutdown_redis_server)
 
 
-def get_bootstrapped_redis_server(cluster_mode):
+def get_bootstrapped_host_info(cluster_mode):
+    global _global_redis_servers
+
     if cluster_mode:
-        return _bootstrap_redis_hosts
+        return _global_redis_servers
     else:
         nrank = get_rank() // get_local_size()
-        return [_bootstrap_redis_hosts[nrank]]
+        return [_global_redis_servers[nrank]]
 
 
 class _RedisStore(Store):
     def __init__(self, host, port, bootstrap):
         self.client = create_redis_client(host=host, port=port)
+        self.host = host
+        self.port = port
         self.bootstrap = bootstrap
 
         assert self._connect_with_retry(
@@ -181,6 +198,7 @@ class _RedisStore(Store):
 
     def shutdown(self):
         if self.bootstrap:
+            logging.debug(f"shutting down local redis server at port {self.port}")
             self.client.shutdown(nosave=True)  # pytype: disable=wrong-keyword-args
 
 
