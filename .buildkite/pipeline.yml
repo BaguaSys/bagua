@@ -1,17 +1,33 @@
 steps:
-  - label: "example master"
-    command: .buildkite/scripts/example.sh
+  - label: "benchmark_master"
+    parallelism: 1
+    command: bash .buildkite/scripts/benchmark_master.sh
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
-          propagate-environment: true
           propagate-uid-gid: true
+          propagate-environment: true
           runtime: nvidia
           network: host
+          ipc: host
+          shm-size: 100gb
           always-pull: true
     agents:
       queue: "master"
-  - label: "benchmark"
+  - label: "benchmark_worker"
+    parallelism: 1
+    command: bash .buildkite/scripts/benchmark_worker.sh
+    plugins:
+      - docker#v3.8.0:
+          image: "baguasys/bagua:latest"
+          propagate-uid-gid: true
+          propagate-environment: true
+          runtime: nvidia
+          network: host
+          ipc: host
+          shm-size: 100gb
+          always-pull: true
+  - label: "autotune_test"
     parallelism: 1
     command: bash .buildkite/scripts/benchmark.sh
     plugins:
