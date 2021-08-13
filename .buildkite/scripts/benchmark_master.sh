@@ -23,16 +23,14 @@ function check_benchmark_log {
         echo $result
         CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
     fi
-    if [ 1 -eq "$(echo "$img_per_sec < $speed" | bc)" ]; then
-        result="Check ["${algorithm}"] fail, img_per_sec is less than "$speed
+    var=$(awk 'BEGIN{ print "'$img_per_sec'"<"'$speed'" }')
+    if [ "$var" -eq 1 ]; then
+        result="Check ["${algorithm}"] fail, img_per_sec is smaller than "$speed
         echo $result
         CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
     else
         echo "Check ["${algorithm}"] success, img_per_sec is greater than "$speed
     fi
-
-    #python -c "import sys; sys.exit(1) if float($final_batch_loss) != float($loss) else print('final_batch_loss is euqal.')"
-    #python -c "import sys; sys.exit(1) if float($img_per_sec) < float($speed) else print('imag_per_sec is bigger than $speed.')"
 }
 
 export HOME=/workdir
