@@ -29,5 +29,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: baguasys/bagua:latest
+          tags: baguasys/bagua:latest-pytorch-1.9.0-cuda10.2-cudnn7
           file: docker/Dockerfile.pytorch-1.9.0-cuda10.2-cudnn7 
