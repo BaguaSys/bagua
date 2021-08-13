@@ -10,9 +10,7 @@ import time
 
 class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(
-        self,
-        peer_selection_mode: str = "all",
-        sync_interval_ms: int = 500,
+        self, peer_selection_mode: str = "all", sync_interval_ms: int = 500,
     ):
         """
         Create an instance of the
@@ -66,9 +64,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         return hook
 
     def init_operations(
-        self,
-        bagua_module: BaguaModule,
-        bucket: BaguaBucket,
+        self, bagua_module: BaguaModule, bucket: BaguaBucket,
     ):
         bucket.clear_ops()
         bucket.append_asynchronous_model_average_op(
@@ -83,16 +79,14 @@ class AsyncModelAverageAlgorithm(Algorithm):
             bagua_module: A PyTorch module initialized by ``with_bagua(...)`` method.
             stop_grace_period_secs: How many seconds a worker will wait before aborting its unfinished communication operations.
         """
+        assert (
+            self.worker.is_alive()
+        ), "Could not barrier model since background communication thread has not started"
         self.stop_event.set()
         time.sleep(stop_grace_period_secs)
         bagua_module._bagua_backend.global_communicator.abort()
 
-        if hasattr(self, "worker"):
-            self.worker.join()
-        else:
-            raise RuntimeError(
-                "Could not barrier model since background communication thread has not started"
-            )
+        self.worker.join()
 
     def run_async_loop(self, bagua_module: BaguaModule):
         while not self.stop_event.is_set():
