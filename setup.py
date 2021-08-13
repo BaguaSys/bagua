@@ -47,6 +47,12 @@ if __name__ == "__main__":
             "gevent",
             "xxhash==v2.0.2",
         ],
-        entry_points={"console_scripts": ["baguarun = bagua.script.baguarun:main",],},
-        scripts=["bagua/script/bagua_sys_perf",],
+        entry_points={
+            "console_scripts": [
+                "baguarun = bagua.script.baguarun:main",
+            ],
+        },
+        scripts=[
+            "bagua/script/bagua_sys_perf",
+        ],
     )
