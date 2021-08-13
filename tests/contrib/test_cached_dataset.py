@@ -25,17 +25,23 @@ class TestCacheDataset(unittest.TestCase):
             for _, _ in enumerate(cache_dataset):
                 pass
 
-        self.assertEqual(cache_dataset.cache_loader.num_keys(), len(dataset))
         for i in range(len(dataset)):
             self.assertTrue((dataset[i][0] == cache_dataset[i][0]).all())
             self.assertTrue((dataset[i][1] == cache_dataset[i][1]).all())
 
     def test_redis(self):
-        dataset = MyDataset(102)
-        cache_dataset = CachedDataset(
-            dataset, backend="redis", hosts=None, cluster_mode=False
+        dataset1 = MyDataset(102)
+        dataset2 = MyDataset(102)
+        cache_dataset1 = CachedDataset(dataset1, backend="redis", dataset_name="d1",)
+        cache_dataset2 = CachedDataset(dataset2, backend="redis", dataset_name="d2",)
+
+        self.check_dataset(dataset1, cache_dataset1)
+        self.assertEqual(cache_dataset1.cache_loader.num_keys(), len(dataset1))
+
+        self.check_dataset(dataset2, cache_dataset2)
+        self.assertEqual(
+            cache_dataset2.cache_loader.num_keys(), len(dataset1) + len(dataset2)
         )
-        self.check_dataset(dataset, cache_dataset)
 
 
 if __name__ == "__main__":

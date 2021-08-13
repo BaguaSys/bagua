@@ -32,11 +32,12 @@ except Exception:
 __all__ = ["RedisStore"]
 
 _host_ip = None
+_bootstrap_redis_hosts = []
 
 
 class RedisStore(ClusterStore):
     """
-    A Redis-based store implementation.
+    A Redis-based Key-Value store implementation.
 
     The server holds the data, while the client can connect to the server over Redis protocol and perform
     actions such as `set()` to insert a key-value pair, `get()` to retrieve a key-value pair, etc.
@@ -51,6 +52,9 @@ class RedisStore(ClusterStore):
         hash_fn: Hash function to compute the shard key. Default is `xxh64`. A `hash_fn` accepts a `str` as
             input, and returns an `int` as output.
 
+    .. note::
+        Only one redis server can be bootstrapped on each node, thus the maximum memory limit of it is determined on
+        its first initialization.
     """
 
     def __init__(
@@ -74,7 +78,8 @@ class RedisStore(ClusterStore):
         self.capacity_per_node = capacity_per_node
 
         if self.bootstrap:
-            self._bootstrap_redis_server()
+            bootstrap_redis_server(self.capacity_per_node)
+            self.hosts.extend(get_bootstrapped_redis_server(self.cluster_mode))
 
         stores = []
         for h in self.hosts:
@@ -85,32 +90,49 @@ class RedisStore(ClusterStore):
 
         super(RedisStore, self).__init__(stores, hash_fn)
 
-    def _bootstrap_redis_server(self):
-        ip, port = get_host_ip(), find_free_port()
-        hostinfo = {"host": ip, "port": port}
+
+def _is_bootstrapped():
+    global _bootstrap_redis_hosts
+
+    return _bootstrap_redis_hosts is not None and len(_bootstrap_redis_hosts) > 0
+
+
+def bootstrap_redis_server(capacity_per_node):
+    if _is_bootstrapped():
+        logging.debug("local redis server is already bootstrapped")
+        return
+
+    ip, port = get_host_ip(), find_free_port()
+    hostinfo = {"host": ip, "port": port}
+    if get_local_rank() == 0:
+        start_redis_server_cli(port, capacity_per_node)
+
+    hosts = []
+    nrank = get_rank() // get_local_size()
+    if get_world_size() > 1:
+        nnodes = get_world_size() // get_local_size()
+        default_store = c10d._get_default_store()
+        key_pattern = "redis-node{}"
+
         if get_local_rank() == 0:
-            start_redis_server_cli(port, self.capacity_per_node)
+            default_store.set(key_pattern.format(nrank), json.dumps(hostinfo))
 
-        hosts = []
+        for i in range(nnodes):
+            ret = json.loads(default_store.get(key_pattern.format(i)))
+            hosts.append(ret)
+    else:
+        hosts.append(hostinfo)
+
+    global _bootstrap_redis_hosts
+    _bootstrap_redis_hosts.extend(hosts)
+
+
+def get_bootstrapped_redis_server(cluster_mode):
+    if cluster_mode:
+        return _bootstrap_redis_hosts
+    else:
         nrank = get_rank() // get_local_size()
-        if get_world_size() > 1:
-            nnodes = get_world_size() // get_local_size()
-            default_store = c10d._get_default_store()
-            key_pattern = "redis-node{}"
-
-            if get_local_rank() == 0:
-                default_store.set(key_pattern.format(nrank), json.dumps(hostinfo))
-
-            for i in range(nnodes):
-                ret = json.loads(default_store.get(key_pattern.format(i)))
-                hosts.append(ret)
-        else:
-            hosts.append(hostinfo)
-
-        if self.cluster_mode:
-            self.hosts.extend(hosts)
-        else:
-            self.hosts.append(hosts[nrank])
+        return [_bootstrap_redis_hosts[nrank]]
 
 
 class _RedisStore(Store):
