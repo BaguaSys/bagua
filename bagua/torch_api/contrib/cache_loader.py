@@ -18,7 +18,7 @@ class CacheLoader:
         self,
         backend: str = "redis",
         key_prefix: str = "",
-        batch_writes: int = 1,
+        writer_buffer_size: int = 1,
         **kwargs,
     ):
         """
@@ -26,16 +26,14 @@ class CacheLoader:
         are stored in the cache until evicted.
 
         Current backend is "redis". Using "redis" backend, the cache will initialize an instance of :class:`RedisStore`
-        by a list of initialized redis servers or bootstrapping redis servers locally. See :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore`
-        for more information.
+        by a list of initialized redis servers or bootstrapping redis servers locally. See
+        :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore` for more information.
 
         Args:
-            backend(str): The backend to use. Currently ``"redis"`` is supported.
+            backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
             key_prefix(str): Prefix added to the cache key. Default ``""``.
-            batch_writes(int): How many key-value pairs written to cache once. Default ``1``. If `batch_writes > 1`, the
-                cache will delay writing non-existed key-value pairs until `batch_writes` key-value pairs are accumulated.
-                Thus it could combine multiple `set` operations into one `mset` operation, and is expected to reduce
-                the write latency.
+            writer_buffer_size(int): Number of samples to collect before writing to the backend Key-Value store.
+                Useful for improving the backend throughput.
 
         Example::
             To use "redis" backend and initialized redis clusters:
@@ -64,7 +62,7 @@ class CacheLoader:
         else:
             raise ValueError('invalid backend, only support "redis" currently')
 
-        self.fetcher = BatchFetcher(self.store, 1, batch_writes)
+        self.fetcher = BatchFetcher(self.store, 1, writer_buffer_size)
         self.register_shutdown_handler()
 
     def get(self, key, load_fn):
@@ -92,10 +90,10 @@ class CacheLoader:
 
 
 class BatchFetcher:
-    def __init__(self, store, batch_reads, batch_writes):
+    def __init__(self, store, read_buffer_size, writer_buffer_size):
         self.store = store
-        self.batch_reads = max(1, batch_reads)
-        self.batch_writes = max(1, batch_writes)
+        self.read_buffer_size = max(1, read_buffer_size)
+        self.writer_buffer_size = max(1, writer_buffer_size)
 
         self.write_map = defaultdict()
         self.write_cnt = 0
@@ -121,7 +119,7 @@ class BatchFetcher:
         self.write_cnt += 1
 
         self.write_map[key] = serialize(value)
-        if self.write_cnt % self.batch_writes == 0:
+        if self.write_cnt % self.writer_buffer_size == 0:
             self.flush_write_map()
 
     def write_post_read(self):

@@ -1,4 +1,4 @@
-from bagua.torch_api.contrib.cache_dataset import CacheDataset
+from bagua.torch_api.contrib.cached_dataset import CachedDataset
 from torch.utils.data.dataset import Dataset
 import numpy as np
 import logging
@@ -32,7 +32,7 @@ class TestCacheDataset(unittest.TestCase):
 
     def test_redis(self):
         dataset = MyDataset(102)
-        cache_dataset = CacheDataset(
+        cache_dataset = CachedDataset(
             dataset, backend="redis", hosts=None, cluster_mode=False
         )
         self.check_dataset(dataset, cache_dataset)

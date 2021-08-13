@@ -56,7 +56,7 @@ class RedisStore(ClusterStore):
     def __init__(
         self,
         hosts: Optional[List[Dict[str, str]]] = None,
-        cluster_mode: bool = False,
+        cluster_mode: bool = True,
         capacity_per_node: int = 100_000_000_000,
         hash_fn=None,
     ):
