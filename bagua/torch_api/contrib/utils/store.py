@@ -80,7 +80,11 @@ class ClusterStore(Store):
         if hash_fn is None:
             import xxhash
 
-            hash_fn = lambda x: xxhash.xxh64(x).intdigest()
+            def xxh64(x):
+                return xxhash.xxh64(x).intdigest()
+
+            hash_fn = xxh64
+
         self.hash_fn = hash_fn
 
     def _hash_key(self, key) -> int:
