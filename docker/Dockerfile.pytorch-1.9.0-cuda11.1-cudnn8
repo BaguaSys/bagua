@@ -44,6 +44,11 @@ RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://
     make -j$(nproc) install && \
     rm -rf /var/tmp/hwloc* && cd -
 
+# Redis
+RUN add-apt-repository ppa:redislabs/redis
+RUN apt-get update && apt-get install -y redis
+RUN yes | python3 -m pip install -U redis
+
 RUN mkdir /bagua && git clone https://github.com/BaguaSys/examples.git /bagua/examples
 
 COPY ./ /var/tmp/bagua
