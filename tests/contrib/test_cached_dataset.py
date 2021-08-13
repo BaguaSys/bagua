@@ -32,8 +32,16 @@ class TestCacheDataset(unittest.TestCase):
     def test_redis(self):
         dataset1 = MyDataset(102)
         dataset2 = MyDataset(102)
-        cache_dataset1 = CachedDataset(dataset1, backend="redis", dataset_name="d1",)
-        cache_dataset2 = CachedDataset(dataset2, backend="redis", dataset_name="d2",)
+        cache_dataset1 = CachedDataset(
+            dataset1,
+            backend="redis",
+            dataset_name="d1",
+        )
+        cache_dataset2 = CachedDataset(
+            dataset2,
+            backend="redis",
+            dataset_name="d2",
+        )
 
         self.check_dataset(dataset1, cache_dataset1)
         self.assertEqual(cache_dataset1.cache_loader.num_keys(), len(dataset1))
