@@ -45,11 +45,11 @@ class CachedDataset(Dataset):
         self.dataset = dataset
 
         self.cache_loader = CacheLoader(
-            backend,
-            dataset_name,
-            writer_buffer_size,
-            **kwargs,
+            backend, dataset_name, writer_buffer_size, **kwargs,
         )
+        """
+        The backend cache instance.
+        """
 
     def __getitem__(self, item):
         return self.cache_loader.get(item, lambda x: self.dataset[x])

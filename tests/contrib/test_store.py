@@ -16,6 +16,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 class TestRedisStore(unittest.TestCase):
     def check(self, store):
+        store.clear()
+        self.assertEqual(store.num_keys(), 0)
+
         self.generated_data = [np.random.rand(10) for _ in range(5)]
         store.set("1", pickle.dumps(self.generated_data[1]))
 
@@ -38,9 +41,6 @@ class TestRedisStore(unittest.TestCase):
 
         cnt = store.num_keys()
         self.assertEqual(cnt, 4)
-
-        store.clear()
-        self.assertEqual(store.num_keys(), 0)
 
         self.assertTrue(store.status())
 
@@ -71,10 +71,7 @@ class TestRedisStore(unittest.TestCase):
         store = RedisStore(hosts=hosts, cluster_mode=True)
         self.check(store)
 
-        store.shutdown()
-        self.assertTrue(store.status())
-
-        # Now shut down servers manually
+        # Shut down servers manually
         for port in ports:
             client = redis.Redis(port=port)
             client.shutdown(nosave=True)

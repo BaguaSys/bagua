@@ -85,9 +85,7 @@ class RedisStore(ClusterStore):
 
         stores = []
         for h in self.hosts:
-            store = _RedisStore(
-                host=h["host"], port=h["port"], bootstrap=self.bootstrap
-            )
+            store = _RedisStore(host=h["host"], port=h["port"])
             stores.append(store)
 
         super(RedisStore, self).__init__(stores, hash_fn)
@@ -103,7 +101,7 @@ def shutdown_redis_server():
     global _global_redis_servers
 
     hostinfo = get_bootstrapped_host_info(cluster_mode=False)[0]
-    store = _RedisStore(host=hostinfo["host"], port=hostinfo["port"], bootstrap=True)
+    store = _RedisStore(host=hostinfo["host"], port=hostinfo["port"])
 
     store.shutdown()
 
@@ -151,11 +149,10 @@ def get_bootstrapped_host_info(cluster_mode):
 
 
 class _RedisStore(Store):
-    def __init__(self, host, port, bootstrap):
+    def __init__(self, host, port):
         self.client = create_redis_client(host=host, port=port)
         self.host = host
         self.port = port
-        self.bootstrap = bootstrap
 
         assert self._connect_with_retry(
             retry_times=3
@@ -197,8 +194,12 @@ class _RedisStore(Store):
         return self.client.ping()
 
     def shutdown(self):
-        if self.bootstrap:
-            logging.debug(f"shutting down local redis server at port {self.port}")
+        if self.host != get_host_ip():
+            logging.error(f"Could not shut down non-local redis servers.")
+        else:
+            logging.debug(
+                f"CLEANUP: shutting down local redis server at port {self.port}."
+            )
             self.client.shutdown(nosave=True)  # pytype: disable=wrong-keyword-args
 
 
