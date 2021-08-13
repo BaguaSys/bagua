@@ -19,15 +19,15 @@ function check_benchmark_log {
     if [ $final_batch_loss == $loss ]; then
         echo "Check ["${algorithm}"] success, final_batch_loss is equal."
     else
-        result="Check ["${algorithm}"] fail, final_batch_loss is not equal."
+        result="Check ["${algorithm}"] fail, final_batch_loss["$final_batch_loss"] is not equal with "$loss"."
         echo $result
-        CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]=${result}\n
     fi
     var=$(awk 'BEGIN{ print "'$img_per_sec'"<"'$speed'" }')
     if [ "$var" -eq 1 ]; then
         result="Check ["${algorithm}"] fail, img_per_sec["$img_per_sec"] is smaller than "$speed
         echo $result
-        CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]=${result}\n
     else
         echo "Check ["${algorithm}"] success, img_per_secc["$img_per_sec"] is greater than "$speed
     fi
