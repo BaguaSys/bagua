@@ -36,7 +36,7 @@ _host_ip = None
 
 class RedisStore(ClusterStore):
     """
-    A Redis-based store implementation.
+    A Redis-based Key-Value store implementation.
 
     The server holds the data, while the client can connect to the server over Redis protocol and perform
     actions such as `set()` to insert a key-value pair, `get()` to retrieve a key-value pair, etc.

@@ -25,9 +25,12 @@ class CacheLoader:
         A mapping from keys to values. Values are automatically loaded by the cache, and
         are stored in the cache until evicted.
 
-        Current backend is "redis". Using "redis" backend, the cache will initialize an instance of :class:`RedisStore`
-        by a list of initialized redis servers or bootstrapping redis servers locally. See
-        :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore` for more information.
+        Internally, values are indexed by ``"{key_prefix}_{key}"`` and saved in a distributed Key-Value
+        store, where ``key_prefix`` is specified on initializing, and ``key`` is the argument in :func:`get`.
+
+        By default, CacheLoader uses :class:`RedisStore` as its backend distributed Key-Value store implementation. It
+        could reuse a list of initialized redis servers or bootstrap local redis servers by itself. See
+        :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore` for further customization.
 
         Args:
             backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
@@ -36,20 +39,22 @@ class CacheLoader:
                 Useful for improving the backend throughput.
 
         Example::
-            To use "redis" backend and initialized redis clusters:
+            To reuse a list of initialized redis servers for "redis" backend:
 
             >>> from bagua.torch_api.contrib import CacheLoader
+            >>>
             >>> hosts = [{"host": "192.168.1.0", "port": "7000"}, {"host": "192.168.1.1", "port": "7000"}]
             >>> loader = CacheLoader(backend="redis", hosts=hosts, cluster_mode=True, key_prefix="test")
             >>>
             >>> loader.get(index, lambda x: items[x])
 
-            To use "redis" backend and bootstrap redis servers locally:
+            To bootstrap local redis servers for "redis" backend:
 
             >>> loader = CacheLoader(backend="redis", hosts=None, cluster_mode=True, capacity_per_node=100000000)
 
         .. note::
             Setting a specific `key_prefix` can be useful to avoid overwriting existing cache data.
+
         """
 
         self.backend = backend
