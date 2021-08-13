@@ -5,18 +5,34 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
-SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
-
+CHECK_RESULT=()
 function check_benchmark_log {
     logfile=$1
+    algorithm=$2
     speed=$3
     loss=$4
 
     final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
     img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
 
-    python -c "import sys; sys.exit(1) if float($final_batch_loss) != float($loss) else print('final_batch_loss is euqal.')"
-    python -c "import sys; sys.exit(1) if float($img_per_sec) < float($speed) else print('imag_per_sec is bigger than $speed.')"
+    echo "Checking ["${algorithm}"]..."
+    if [ $final_batch_loss == $loss ]; then
+        echo "Check ["${algorithm}"] success, final_batch_loss is equal."
+    else
+        result="Check ["${algorithm}"] fail, final_batch_loss is not equal."
+        echo $result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
+    fi
+    if [ $img_per_sec -lt $speed ]; then
+        result="Check ["${algorithm}"] fail, img_per_sec is less than "$speed
+        echo $result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
+    else
+        echo "Check ["${algorithm}"] success, img_per_sec is greater than"$speed
+    fi
+
+    #python -c "import sys; sys.exit(1) if float($final_batch_loss) != float($loss) else print('final_batch_loss is euqal.')"
+    #python -c "import sys; sys.exit(1) if float($img_per_sec) < float($speed) else print('imag_per_sec is bigger than $speed.')"
 }
 
 export HOME=/workdir
@@ -25,6 +41,17 @@ curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
 
+echo "begin to test [communication_primitives]"
+COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
+python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 4 \
+    --node_rank=0 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${COMMUNICATION_SCRIPT}
+
+SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
 speeds=(200.0 180.0 150.0 115.0 170)
 losses=(0.001848 0.001815 0.002699 0.002047 0.000009)
@@ -47,12 +74,7 @@ do
     check_benchmark_log ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
 done
 
-echo "begin to test [communication_primitives]"
-COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
-python -m bagua.distributed.launch \
-    --nnodes=2 \
-    --nproc_per_node 4 \
-    --node_rank=0 \
-    --master_addr="10.158.66.134" \
-    --master_port=1234 \
-    ${COMMUNICATION_SCRIPT}
+if [ ${#CHECK_RESULT[*]} -gt 0 ]; then
+  echo ${my_array[*]}
+  exit 1
+fi
