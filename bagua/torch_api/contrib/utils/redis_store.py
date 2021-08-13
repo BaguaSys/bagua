@@ -179,7 +179,7 @@ class _RedisStore(Store):
 
     def shutdown(self):
         if self.host != get_host_ip():
-            logging.error(f"Could not shut down non-local redis servers.")
+            logging.error("Could not shut down non-local redis servers.")
         else:
             logging.debug(
                 f"CLEANUP: shutting down local redis server at port {self.port}."
