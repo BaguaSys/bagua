@@ -51,8 +51,8 @@ python -m bagua.distributed.launch \
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
-speeds=(200.0 180.0 150.0 115.0 170)
-losses=(0.001848 0.001815 0.002699 0.002047 0.000009)
+speeds=(185.0 180.0 150.0 115.0 170)
+losses=(0.001763 0.001694 0.002583 0.001821 0.000010)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
