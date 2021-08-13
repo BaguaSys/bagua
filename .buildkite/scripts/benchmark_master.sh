@@ -73,6 +73,6 @@ do
 done
 
 if [ ${#CHECK_RESULT[*]} -gt 0 ]; then
-  echo ${my_array[*]}
+  echo ${CHECK_RESULT[*]}
   exit 1
 fi
