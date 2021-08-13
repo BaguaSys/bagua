@@ -7,7 +7,7 @@ __all__ = ["Store", "ClusterStore"]
 
 class Store:
     """
-    Base class for all store implementations. A store keeps a mapping from keys to values.
+    Base class for all Key-Value store implementations. A store keeps a mapping from keys to values.
     key-value pairs are manually added to store using `set()` or `mset()` and can be retrieved by
     `get()` or `mget()`.
     """
@@ -57,9 +57,9 @@ class Store:
 
 class ClusterStore(Store):
     """
-    An implementation for a store cluster.
+    Base class for distributed Key-Value stores.
 
-    This class implements client side sharding. It uses xxHash algorithm to compute the shard key by default, and can
+    This class implements client side sharding. It uses **xxHash** algorithm to compute the shard key by default, and can
     accept customized hashing algorithms by passing `hash_fn` on initialization.
 
     key-value pairs are manually added to the cluster using `set()` or `mset()` and can be retrieved by
