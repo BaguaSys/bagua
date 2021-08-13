@@ -25,14 +25,14 @@ class CachedDataset(Dataset):
         Args:
             dataset: PyTorch Dataset to be wrapped.
             backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
-            dataset_name(str): Name of the dataset. Default ``""``.
+            dataset_name(str): Name of the dataset. Better to be short. Default ``""``.
             writer_buffer_size(int): Number of samples to collect before writing to the backend Key-Value store.
                 Useful for improving the backend throughput.
 
         Example::
 
             >>> from bagua.torch_api.contrib import CachedDataset
-            >>> cache_dataset = CachedDataset(dataset, backend="redis")
+            >>> cache_dataset = CachedDataset(dataset, backend="redis", dataset_name="ds")
             >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
 
         .. note::

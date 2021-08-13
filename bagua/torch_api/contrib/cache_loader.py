@@ -34,7 +34,7 @@ class CacheLoader:
 
         Args:
             backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
-            key_prefix(str): Prefix added to the cache key. Default ``""``.
+            key_prefix(str): Prefix added to the cache key. Better to be short. Default ``""``.
             writer_buffer_size(int): Number of samples to collect before writing to the backend Key-Value store.
                 Useful for improving the backend throughput.
 
