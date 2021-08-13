@@ -64,7 +64,7 @@ class CacheLoader:
 
             self.store = RedisStore(**kwargs)
         else:
-            raise ValueError('invalid backend, only support "redis" currently')
+            raise ValueError('Invalid backend, only support "redis" currently')
 
         self.fetcher = BatchFetcher(self.store, 1, writer_buffer_size)
 

@@ -67,24 +67,21 @@ class RedisStore(ClusterStore):
         hash_fn=None,
     ):
 
-        self.hosts = []
         if hosts is None:
-            logging.info("Ready to bootstrap redis server locally")
-            self.bootstrap = True
+            logging.info("Ready to bootstrap redis server locally.")
+            hosts = bootstrap_redis_server(capacity_per_node)
         else:
+            assert len(hosts) > 0, "RedisStore hosts should not be empty."
             logging.info("Ready to connect redis servers: {}".format(hosts))
-            self.bootstrap = False
-            self.hosts.extend(hosts)
 
-        self.cluster_mode = cluster_mode
-        self.capacity_per_node = capacity_per_node
-
-        if self.bootstrap:
-            bootstrap_redis_server(self.capacity_per_node)
-            self.hosts.extend(get_bootstrapped_host_info(self.cluster_mode))
+        to_connect = []
+        if cluster_mode:
+            to_connect.extend(hosts)
+        else:
+            to_connect.append(hosts[get_node_rank() % len(hosts)])
 
         stores = []
-        for h in self.hosts:
+        for h in to_connect:
             store = _RedisStore(host=h["host"], port=h["port"])
             stores.append(store)
 
@@ -100,52 +97,39 @@ def _is_bootstrapped():
 def shutdown_redis_server():
     global _global_redis_servers
 
-    hostinfo = get_bootstrapped_host_info(cluster_mode=False)[0]
+    hostinfo = _global_redis_servers[get_node_rank() % len(_global_redis_servers)]
     store = _RedisStore(host=hostinfo["host"], port=hostinfo["port"])
 
     store.shutdown()
 
 
 def bootstrap_redis_server(capacity_per_node):
-    if _is_bootstrapped():
-        logging.debug("local redis server has already bootstrapped")
-        return
+    global _global_redis_servers
 
-    ip, port = get_host_ip(), find_free_port()
-    hostinfo = {"host": ip, "port": port}
+    if _is_bootstrapped():
+        logging.debug("Local redis server has already bootstrapped.")
+        return _global_redis_servers
+
+    host, port = get_host_ip(), find_free_port()
+    hostinfo = {"host": host, "port": port}
     if get_local_rank() == 0:
         start_redis_server_cli(port, capacity_per_node)
+        atexit.register(shutdown_redis_server)
 
-    hosts = []
-    nrank = get_rank() // get_local_size()
     if get_world_size() > 1:
-        nnodes = get_world_size() // get_local_size()
         default_store = c10d._get_default_store()
         key_pattern = "redis-node{}"
 
         if get_local_rank() == 0:
-            default_store.set(key_pattern.format(nrank), json.dumps(hostinfo))
+            default_store.set(key_pattern.format(get_node_rank()), json.dumps(hostinfo))
 
-        for i in range(nnodes):
+        for i in range(get_num_nodes()):
             ret = json.loads(default_store.get(key_pattern.format(i)))
-            hosts.append(ret)
+            _global_redis_servers.append(ret)
     else:
-        hosts.append(hostinfo)
+        _global_redis_servers.append(hostinfo)
 
-    global _global_redis_servers
-    _global_redis_servers.extend(hosts)
-
-    atexit.register(shutdown_redis_server)
-
-
-def get_bootstrapped_host_info(cluster_mode):
-    global _global_redis_servers
-
-    if cluster_mode:
-        return _global_redis_servers
-    else:
-        nrank = get_rank() // get_local_size()
-        return [_global_redis_servers[nrank]]
+    return _global_redis_servers
 
 
 class _RedisStore(Store):
@@ -221,8 +205,16 @@ def start_redis_server_cli(port, capacity, *args):
     ]
 
     cmd.extend(list(args))
-    logging.debug(f"start redis server, command: {cmd}")
+    logging.debug(f"Start redis server, command: {cmd}")
     subprocess.run(cmd)
+
+
+def get_node_rank():
+    return get_rank() // get_local_size()
+
+
+def get_num_nodes():
+    return get_world_size() // get_local_size()
 
 
 def find_free_port():
