@@ -19,15 +19,15 @@ function check_benchmark_log {
     if [ $final_batch_loss == $loss ]; then
         echo "Check ["${algorithm}"] success, final_batch_loss is equal."
     else
-        result="Check ["${algorithm}"] fail, final_batch_loss is not equal."
+        result="Check ["${algorithm}"] fail, final_batch_loss["$final_batch_loss"] is not equal with "$loss"."
         echo $result
-        CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]="${result}\n"
     fi
     var=$(awk 'BEGIN{ print "'$img_per_sec'"<"'$speed'" }')
     if [ "$var" -eq 1 ]; then
         result="Check ["${algorithm}"] fail, img_per_sec["$img_per_sec"] is smaller than "$speed
         echo $result
-        CHECK_RESULT[${#CHECK_RESULT[*]}]=$result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]="${result}\n"
     else
         echo "Check ["${algorithm}"] success, img_per_secc["$img_per_sec"] is greater than "$speed
     fi
@@ -51,8 +51,8 @@ python -m bagua.distributed.launch \
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
-speeds=(200.0 180.0 150.0 115.0 170)
-losses=(0.001848 0.001815 0.002699 0.002047 0.000009)
+speeds=(185.0 180.0 150.0 115.0 170)
+losses=(0.001763 0.001694 0.002583 0.001821 0.000010)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
@@ -73,6 +73,6 @@ do
 done
 
 if [ ${#CHECK_RESULT[*]} -gt 0 ]; then
-  echo ${my_array[*]}
+  echo -e ${CHECK_RESULT[*]}
   exit 1
 fi
