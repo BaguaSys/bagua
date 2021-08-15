@@ -1,44 +1,86 @@
-## v0.4.0
+# CHANGELOG
 
-### ⚠ BREAKING CHANGE
+## [0.4.1] - 2021-08-14
 
-* `BaguaBucketPy::append_decentralized_synchronous_op` now only supports full precision decentralized communication.
+    ### Features
+    
+        - Add opentelemetry to report tensor ready order (#42)
 
-### Features
 
-* make full precision decentralized op stateless (#36) 98319c9
-* add (scatter, gather, scatter_reduce) and all inplace version communication primitives (#37) f931473
-* add native low precision decentralized operator (#26) 50295e8
-* better debug log including tensor info when executing ops 1bd6e0b
+## [0.4.0] - 2021-07-23
 
-### Fixes
+    ### Features
+    
+        - Better debug log including tensor info when executing ops
+        - Make full precision decentralized op stateless (#36)
 
-* substract overflow error for decentralized op (#39) 30cdb67
-* fix scatter and reduce_scatter implementation (#40) ee90376
-* make compress/decompress of BaguaTensor `method` string consistent (#33) ee929df
 
-## v0.3.1
+## [0.3.1] - 2021-07-01
 
-### Fixes
+    ### Bug Fixes
+    
+        - Always mark bagua padding tensor as ready
 
-* always mark bagua padding tensor as ready 63f88d4
-* fix alltoall_v parameter types (#27) b541d85
 
-## v0.3.0
+## [0.3.0] - 2021-07-01
 
-### ⚠ BREAKING CHANGE
+    ### Bug Fixes
+    
+        - Fix decompress incorrect pointer and typo in error msg
+        - Fix python gil deadlock during getting data ptr
 
-* `BaguaBucketPy` and `BaguaTensorPy` now require name. `BaguaTensorPy` is created by passing pytorch tensor directly now.
+    ### Features
+    
+        - Replace NCCL with Aluminum (#7)
+        - Support creating BaguaTensor by passing torch tensor directly (#19)
+        - Compatible mode for getting pytorch tensor info with Python interpreter
 
-### Features
 
-* Compatible mode for getting pytorch tensor info with Python interpreter 1534d23
-* Support creating BaguaTensor by passing torch tensor directly (#19) 4306e94
-* Support Reduction op selection (SUM, MAX, etc.) b1bf784
-* Add `reduce` and `allgather` python interface ff68a61
-* Support `alltoall_v` (vector alltoall) (#14) a6fe110
+## [0.2.0] - 2021-06-17
 
-### Fixes
+    ### Features
+    
+        - Initial support for python op (#2)
 
-* fix python gil deadlock during getting data ptr 6ba6ace
-* fix decompress incorrect pointer and typo in error msg a7e34ba
+
+## [0.1.3] - 2021-06-17
+
+    ### Bug Fixes
+    
+        - Move import bagua_install_library to install library function
+        - Merge bagua_install_library and setup.py, remove nccl<=2.6 support
+
+
+## [0.1.2] - 2021-06-17
+
+    ### Features
+    
+        - Add version.py placeholder to prevent file not found error
+
+
+## [0.1.1] - 2021-06-10
+
+    ### Bug Fixes
+    
+        - Only run publish once on git tag
+
+    ### Features
+    
+        - Install nccl deps in bagua core and add generated __version__ variable
+
+
+## [0.1.0] - 2021-06-10
+
+    ### Bug Fixes
+    
+        - Fix ci pypi versioning
+        - Remove __init__.py and python __version__, use cargo version
+
+    ### Features
+    
+        - Initial commit of bagua core impl
+        - Add python packaging related files
+        - Only publish pypi for master commits
+        - Add __version__ variable
+
+
