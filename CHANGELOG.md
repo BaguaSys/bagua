@@ -1,55 +1,90 @@
-## v0.6.3
+# CHANGELOG
 
-### Features
+## [0.7.0] - 2021-08-15
 
-* support different ssh port on different nodes (#93) 6810245
-* support multiple models in one training script (#113) 312bcc0 (#107) 0aec789
+    ### Bug Fixes
+    
+        - Autotune api conflict (#131)
 
-### Fixes
+    ### Features
+    
+        - Add low precision decentralized algorithm (#103)
+        - Add all communication primitives such as send recv to communication module (#128)
+        - Make full precision decentralized op stateless (#126)
+        - Support nccl 2.10 ReduceOp.AVG (#149)
+        - Add support for reporting tensor completion order (#146)
 
-* autotune service defaults with a fixed random seed (#117) a58c2de
 
-### Others
+## [0.6.3] - 2021-07-08
 
-* sort q_adam variables for better performance (#102) f277549
-* improve autotune speed metrics measurement for better accuracy (#86) e4ee5ee
-* install.sh upgrades existing bagua package bc69890
-* install.sh will not install Rust if already exist on the system 67e1efe
+    ### Features
+    
+        - Install.sh will not install rust if already exist on the system
+        - Install.sh upgrades existing bagua
+        - Sort q_adam variables for better performance (#102)
+        - Support multiple models on autotune service (#107)
+        - Support multiple models in buckets registration (#113)
+        - Support different ssh port on different nodes (#93)
 
-## v0.6.2
 
-### Fixes
+## [0.6.2] - 2021-07-02
 
-* fix QAdam gradient is not BaguaTensor during first stage 1d4dc82
+    ### Bug Fixes
+    
+        - Fix QAdam gradient is not BaguaTensor during first stage
 
-## v0.6.1
 
-### Features
+## [0.6.1] - 2021-07-02
 
-* add QAdam algorithm (#92) 0dafd24
-* broadcast model parameters on every algorithm reset e5b36dc
-* wrap python op in communication stream context by default 51eb656
-* add append op methods to python `BaguaBucket` class (#87) 84d8cbc
+    ### Bug Fixes
+    
+        - Fix BaguaBacket.clear_ops() return value
+        - Fix append python op callable reference
+        - BaguaBucket.tensors should only contain original passed in tensors
 
-### Fixes
+    ### Features
+    
+        - Wrap python op in communication stream context by default
+        - Broadcast model parameters on every algorithm reset
+        - Add QAdam algorithm (#92)
 
-* BaguaBucket.tensors should only contain original passed in tensors c4ff05f
-* fix append python op callable reference 04019cc
-* fix BaguaBacket.clear_ops() return value 8cb9f54
 
-## v0.6.0
+## [0.6.0] - 2021-07-01
 
-### ⚠ BREAKING CHANGE
+    ### Bug Fixes
+    
+        - Fix algoirthm pre forward hook not returned
 
-* Now end users should use `model.with_bagua(...)` API to use Bagua for communication. Algorithm developers can use `bagua.torch_api.algorithms.Algorithm` to easily develop new algorithms. Installation requires `bagua-core` >=0.3 now.
+    ### Features
+    
+        - Support reduction op and reduce
+        - Add algorithm import in bagua.torch_api
+        - Add all algorithms import in bagua.torch_api.algorithms
 
-### Features
 
-* add algorithm import in bagua.torch_api ee73edc
-* support reduction op and reduce ac8632c
-* auto installation support centos (#50) 073a59e
+## [0.5.0] - 2021-06-25
 
-### Fixes
+    ### Bug Fixes
+    
+        - Do not setup python dependencies when performing codeql check
+        - Remove logging in load balancing dataloader to avoid deadlock (#35)
 
-* fix algoirthm pre forward hook not returned e6c7c8d
-* the environment variable LOCAL_SIZE has been renamed in LOCAL_WORLD_SIZE (#51) 801b25a
+    ### Features
+    
+        - Add broadcast_buffer in bagua_init (#29)
+        - Elastic training (#31)
+        - Add dependency installation script for ubuntu (#41)
+
+
+## [0.4.0] - 2021-06-17
+
+    ### Bug Fixes
+    
+        - Fix baguaelastic launcher
+        - Fix baguaelastic launch script
+
+    ### Features
+    
+        - Initial public release of bagua python code
+
+

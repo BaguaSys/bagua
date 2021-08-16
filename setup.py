@@ -17,7 +17,7 @@ if __name__ == "__main__":
         author="Kuaishou AI Platform & DS3 Lab",
         author_email="admin@mail.xrlian.com",
         install_requires=[
-            "bagua-core>=0.4,<0.5",
+            "bagua-core>=0.4.1,<0.5",
             "deprecation",
             "pytest-benchmark",
             "scikit-optimize",
