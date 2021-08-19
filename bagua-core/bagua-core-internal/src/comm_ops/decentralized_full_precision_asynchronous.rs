@@ -77,7 +77,6 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
              temp_tensor.clone_from(&t.raw, torch_stream as u64);
 
              let src_ready_event = CUDA_EVENT_POOL.take().event;
-             let dst_ready_event = CUDA_EVENT_POOL.take().event;
 
              unsafe {
                  cpp::cpp!([
@@ -100,16 +99,25 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                 PeerSelectionMode::ShiftOne => {
                     unimplemented!()
                 }
-            };
+             };
+
+             let comm_ready_event = CUDA_EVENT_POOL.take().event;
 
              unsafe {
-                  cpp::cpp!([comm_stream as "cudaStream_t"] { CUDACHECK(cudaStreamSynchronize(comm_stream)); });
+                 cpp::cpp!([
+                     comm_ready_event as "cudaEvent_t",
+                     comm_stream as "cudaStream_t"]
+                 {
+                     CUDACHECK(cudaEventRecord(comm_ready_event, comm_stream));
+                     CUDACHECK(cudaEventSynchronize(comm_ready_event));
+                 });
              }
 
              if c.check_abort() {
                  tracing::debug!("async model average on process {} early stopped due to communicator abortion", c.rank);
                  return
              }
+
 
              // do we need to wait default stream?
              unsafe {
