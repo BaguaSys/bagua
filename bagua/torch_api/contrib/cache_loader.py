@@ -16,24 +16,24 @@ class CacheLoader:
     def __init__(
         self,
         backend: str = "redis",
-        key_prefix: str = "",
+        dataset_name: str = "",
         writer_buffer_size: int = 1,
         **kwargs,
     ):
         """
-        A mapping from keys to values. Values are automatically loaded by the cache, and
-        are stored in the cache until evicted.
+        `CacheLoader` caches values calculated by an expensive function by theirs keys via :func:`CacheLoader.get` method,
+        so that the values can be retrieved faster next time.
 
-        Internally, values are indexed by ``"{key_prefix}_{key}"`` and saved in a distributed Key-Value
-        store, where ``key_prefix`` is specified on initializing, and ``key`` is the argument in :func:`get`.
+        Internally, values are indexed by ``"{dataset_name}_{key}"`` and saved in a distributed Key-Value
+        store, where ``dataset_name`` is specified on initializing, and ``key`` is the argument in :func:`CacheLoader.get`.
 
-        By default, CacheLoader uses :class:`RedisStore` as its backend distributed Key-Value store implementation. It
+        By default, `CacheLoader` uses :class:`RedisStore` as its backend distributed Key-Value store implementation. It
         could reuse a list of initialized redis servers or bootstrap local redis servers by itself. See
         :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore` for further customization.
 
         Args:
             backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
-            key_prefix(str): Prefix added to the cache key. Default ``""``.
+            dataset_name(str): Name of the dataset. Default ``""``.
             writer_buffer_size(int): Number of samples to collect before writing to the backend Key-Value store.
                 Useful for improving the backend throughput.
 
@@ -43,7 +43,7 @@ class CacheLoader:
             >>> from bagua.torch_api.contrib import CacheLoader
             >>>
             >>> hosts = [{"host": "192.168.1.0", "port": "7000"}, {"host": "192.168.1.1", "port": "7000"}]
-            >>> loader = CacheLoader(backend="redis", hosts=hosts, cluster_mode=True, key_prefix="test")
+            >>> loader = CacheLoader(backend="redis", hosts=hosts, cluster_mode=True, dataset_name="test")
             >>>
             >>> loader.get(index, lambda x: items[x])
 
@@ -52,12 +52,12 @@ class CacheLoader:
             >>> loader = CacheLoader(backend="redis", hosts=None, cluster_mode=True, capacity_per_node=100000000)
 
         .. note::
-            Setting a specific `key_prefix` can be useful to avoid overwriting existing cache data.
+            Setting a specific `dataset_name` can be useful to avoid overwriting existing cache data.
 
         """
 
         self.backend = backend
-        self.key_prefix = key_prefix
+        self.dataset_name = dataset_name
 
         if backend == "redis":
             from .utils.redis_store import RedisStore
@@ -74,7 +74,7 @@ class CacheLoader:
         `load_fn` accepts `key` as input, and returns the data to be serialized and stored.
         """
 
-        cache_key = "{}{}".format(self.key_prefix, key)
+        cache_key = "{}{}".format(self.dataset_name, key)
         ret = self.fetcher.read(cache_key)
 
         if ret is None:
