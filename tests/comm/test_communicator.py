@@ -105,7 +105,7 @@ def run_allgather(rank, nprocs, results):
 def run_test_locally(fn):
     if not torch.cuda.is_available():
         print("skip tests since cuda is not available")
-        return
+        return []
 
     nprocs = torch.cuda.device_count()
     os.environ["WORLD_SIZE"] = str(nprocs)
