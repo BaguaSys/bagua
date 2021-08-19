@@ -4,6 +4,8 @@ use crate::datatypes::{
 use crate::BaguaCoreError;
 use itertools::Itertools;
 use std::sync::Arc;
+use parking_lot::Mutex;
+
 
 #[derive(Clone, Debug)]
 pub struct BaguaCommunicatorInner {
@@ -12,6 +14,7 @@ pub struct BaguaCommunicatorInner {
     pub rank: usize,
     pub nranks: usize,
     pub device_id: usize,
+    pub aborted: Arc<Mutex<bool>>,
 }
 
 #[derive(Clone, Debug)]
@@ -52,6 +55,7 @@ impl BaguaSingleCommunicator {
                 rank,
                 nranks,
                 device_id,
+                aborted: Arc::new(Mutex::new(false)),
             }),
         }
     }
@@ -66,6 +70,14 @@ impl BaguaSingleCommunicator {
 
     pub fn device_id(&self) -> usize {
         self.inner.device_id
+    }
+
+    pub fn abort(&self) {
+        self.inner.abort();
+    }
+
+    pub fn check_abort(&self) -> bool {
+        return self.inner.check_abort()
     }
 
     pub fn allreduce(
@@ -442,6 +454,22 @@ impl Drop for NCCLGroupGuard {
 }
 
 impl BaguaCommunicatorInner {
+    pub fn abort(&self) {
+        let communicator_ptr = self.comm_ptr;
+
+        *self.aborted.lock() = true;
+        unsafe {
+            cpp::cpp!([communicator_ptr as "Al::NCCLCommunicator*"]
+            {
+                communicator_ptr->abort();
+            });
+        }
+    }
+
+    pub fn check_abort(&self) -> bool {
+        *self.aborted.lock()
+    }
+
     pub fn broadcast(&self, tensor: &mut dyn RawBaguaTensor, root_rank: i32) {
         let communicator_ptr = self.comm_ptr;
         let tensor_ptr = tensor.data_ptr();
