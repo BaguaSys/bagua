@@ -1,4 +1,6 @@
 use sized_object_pool::{DynamicReset, SizedAllocatable, SizedPool};
+use dynamic_pool::DynamicPool;
+
 
 #[derive(Debug)]
 pub struct CudaMemory {
@@ -57,3 +59,43 @@ pub static CUDA_DEVICE_MEMORY_POOL: once_cell::sync::Lazy<Vec<SizedPool<CudaMemo
         }
         pools
     });
+
+
+#[derive(Debug)]
+pub struct CudaEvent {
+    pub event: u64,
+}
+
+impl CudaEvent {
+    pub fn new() -> Self {
+        let event = unsafe {
+            cpp::cpp!([] -> u64 as "cudaEvent_t"
+            {
+                cudaEvent_t event = 0;
+                CUDACHECK(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+                return event;
+            })
+        };
+        Self {event,}
+    }
+}
+
+impl Drop for CudaEvent {
+    fn drop(&mut self) {
+        let event = self.event;
+        unsafe {
+            cpp::cpp!([event as "cudaEvent_t"]
+            {
+                CUDACHECK(cudaEventDestroy(event));
+            })
+        };
+    }
+}
+
+impl DynamicReset for CudaEvent {
+    fn reset(&mut self) {}
+}
+
+
+pub static CUDA_EVENT_POOL: once_cell::sync::Lazy<DynamicPool<CudaEvent>> =
+    once_cell::sync::Lazy::new(|| DynamicPool::new(0, 10, CudaEvent::new));

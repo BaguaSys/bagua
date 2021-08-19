@@ -126,4 +126,12 @@ extern "C" {
         output: *mut c_void,
         stream: *const c_void,
     ) -> usize;
+    pub fn async_model_average_host(
+        tensor: *mut c_void,
+        reduced_tensor_copy: *const c_void,
+        tensor_copy: *const c_void,
+        nranks:  f32,
+        N: i32,
+        stream: *const c_void,
+    );
 }

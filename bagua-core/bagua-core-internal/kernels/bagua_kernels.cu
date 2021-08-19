@@ -254,6 +254,16 @@ __global__ void divide_inplace_f16(__half *x, float D_, int N) {
     }
 }
 
+__global__ void async_model_average(float *tensor, const float *reduced_tensor_copy, 
+		const float *tensor_copy, const float nranks, const int N) {
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
+//        tensor[i] += reduced_tensor_copy[i] / nranks - tensor_copy[i];
+//        if (tensor[i] != tensor[i]) {
+//            printf("nan encountered!");
+//        }
+        atomicAdd(&tensor[i], reduced_tensor_copy[i] / nranks - tensor_copy[i]);
+    }
+}
 
 template<typename T>
 size_t array_min_max_size(
@@ -610,6 +620,13 @@ void average_inplace_f16_host(__half *x, __half *y, int N, cudaStream_t stream) 
     average_inplace_f16<<<DIVUP(N, 1024), 1024, 0, stream>>>(x, y, N);
     CUDACHECK(cudaGetLastError());
 }
+
+void async_model_average_host(float *tensor, const float *reduced_tensor_copy, 
+		const float *tensor_copy, const float nranks, const int N, cudaStream_t stream) {
+    async_model_average<<<DIVUP(N, 1024), 1024, 0, stream>>>(tensor, reduced_tensor_copy, tensor_copy, nranks, N);
+    CUDACHECK(cudaGetLastError());
+}
+
 //// decentralize, recvbuf should get the average of sendbuf and peer's sendbuf
 //ncclResult_t ncclPeerAverage(void *sendbuf, void *recvbuf, size_t sendcount,
 //                             int peer_rank, ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream) {

@@ -2,7 +2,7 @@
 
 use bagua_core_internal::communicators::BaguaSingleCommunicator;
 use bagua_core_internal::datatypes::{
-    BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype,
+    BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype
 };
 use bagua_core_internal::BaguaCommBackend;
 use num_traits::FromPrimitive;
@@ -10,6 +10,7 @@ use numpy::{IntoPyArray, PyArray1};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::PyNativeType;
+
 
 #[pyclass(dict)]
 pub struct BaguaSingleCommunicatorPy {
@@ -47,6 +48,14 @@ impl BaguaSingleCommunicatorPy {
 
     pub fn device_id(&self) -> usize {
         self.inner.device_id()
+    }
+
+    pub fn abort(&self) {
+       self.inner.abort()
+    }
+
+    pub fn check_abort(&self) -> bool {
+       self.inner.check_abort()
     }
 
     pub fn allreduce(&self, send_tensor: &BaguaTensorPy, recv_tensor: &mut BaguaTensorPy, op: u8) {
@@ -397,7 +406,7 @@ impl BaguaBucketPy {
         Ok(())
     }
 
-    #[args(hierarchical = "false", communication_interval = "1")]
+    #[args(hierarchical = "false")]
     pub fn append_decentralized_synchronous_op(
         &mut self,
         communicator_internode: Option<&BaguaSingleCommunicatorPy>,
@@ -416,7 +425,7 @@ impl BaguaBucketPy {
         Ok(())
     }
 
-    #[args(hierarchical = "false", communication_interval = "1")]
+    #[args(hierarchical = "false")]
     pub fn append_low_precision_decentralized_synchronous_op(
         &mut self,
         communicator_internode: Option<&BaguaSingleCommunicatorPy>,
@@ -438,6 +447,24 @@ impl BaguaBucketPy {
                 (*weight).inner.clone(),
                 (*left_peer_weight).inner.clone(),
                 (*right_peer_weight).inner.clone(),
+            );
+        Ok(())
+    }
+
+    pub fn append_decentralized_asynchronous_op(
+        &mut self,
+        communicator_internode: Option<&BaguaSingleCommunicatorPy>,
+        communicator_intranode: Option<&BaguaSingleCommunicatorPy>,
+        peer_selection_mode: String,
+        torch_stream: u64,
+    ) -> PyResult<()> {
+       
+        self.inner
+            .append_decentralized_asynchronous_op(
+                communicator_internode.map(|x| &x.inner),
+                communicator_intranode.map(|x| &x.inner),
+                peer_selection_mode,
+                torch_stream,
             );
         Ok(())
     }
