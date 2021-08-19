@@ -19,14 +19,14 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
         The currently implementation is experimental, and has some restrictions on the training scenarios.
         Since with an async algorithm, each worker can be in different iterations, the current implementation
-        assumes the data are in an endless stream, and there is no concept of an "epoch".
+        assumes the data are in an endless stream, and there is no concept of a "epoch".
 
         Should call :func:`barrier` to stop async training. It will cancel all unfinished communication operations.
 
         Args:
             peer_selection_mode (str): The way how a worker communicate with its peers. Currently "all" is supported.
                 "all" means all workers' weights are averaged in each communication step.
-            sync_interval_ms (int): How many milliseconds between two model synchronizations.
+            sync_interval_ms (int): How many milliseconds between two model synchronization operations.
         """
 
         self.peer_selection_mode = peer_selection_mode
