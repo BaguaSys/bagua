@@ -1,10 +1,10 @@
 use crate::comm_ops::centralized_full_precision_synchronous::CentralizedFullPrecisionSynchronous;
 use crate::comm_ops::centralized_low_precision_synchronous::CentralizedLowPrecisionSynchronous;
+use crate::comm_ops::decentralized_full_precision_asynchronous::DecentralizedFullPrecisionAsynchronous;
 use crate::comm_ops::decentralized_full_precision_synchronous::{
     DecentralizedFullPrecisionSynchronous, PeerSelectionMode,
 };
 use crate::comm_ops::decentralized_low_precision_synchronous::DecentralizedLowPrecisionSynchronous;
-use crate::comm_ops::decentralized_full_precision_asynchronous::DecentralizedFullPrecisionAsynchronous;
 use crate::comm_ops::python_ffi_op::PythonFFIOp;
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::{BaguaCommunicator, BaguaSingleCommunicator};
@@ -20,7 +20,6 @@ use sized_object_pool::DynamicPoolItem;
 use std::ffi::c_void;
 use std::fmt::Debug;
 use std::sync::Arc;
-
 
 // must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 #[derive(Clone, Copy, Debug, PartialEq, FromPrimitive)]
@@ -141,7 +140,13 @@ pub trait RawBaguaTensor: Debug {
         }
     }
 
-    fn async_model_average(&mut self, reduced_tensor: &dyn RawBaguaTensor, tensor: &dyn RawBaguaTensor, nranks: f32,  stream_ptr: u64) {
+    fn async_model_average(
+        &mut self,
+        reduced_tensor: &dyn RawBaguaTensor,
+        tensor: &dyn RawBaguaTensor,
+        nranks: f32,
+        stream_ptr: u64,
+    ) {
         assert_eq!(self.dtype(), reduced_tensor.dtype());
         assert_eq!(self.num_elements(), reduced_tensor.num_elements());
         assert_eq!(self.dtype(), tensor.dtype());
@@ -1242,7 +1247,8 @@ impl BaguaBucket {
                     }
                 },
                 torch_stream,
-            });
+            },
+        );
 
         self.inner.lock().comm_ops.push(comm_op);
     }
