@@ -1,24 +1,6 @@
 import os
-from distutils.errors import (
-    DistutilsPlatformError,
-)
 from setuptools import setup, find_packages
 import sys
-
-
-def check_torch_version():
-    try:
-        import torch
-    except ImportError:
-        print("import torch failed, is it installed?")
-
-    version = torch.__version__
-    if version is None:
-        raise DistutilsPlatformError(
-            "Unable to determine PyTorch version from the version string '%s'"
-            % torch.__version__
-        )
-    return version
 
 
 if __name__ == "__main__":
@@ -35,7 +17,7 @@ if __name__ == "__main__":
         author="Kuaishou AI Platform & DS3 Lab",
         author_email="admin@mail.xrlian.com",
         install_requires=[
-            "bagua-core>=0.4,<0.5",
+            "bagua-core>=0.4.1,<0.5",
             "deprecation",
             "pytest-benchmark",
             "scikit-optimize",

@@ -1,0 +1,33 @@
+name: 'dockerhub'
+
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+  build:
+    name: 'Build'
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Build:checkout"
+        uses: actions/checkout@v2
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: build and push bagua
+        uses: docker/build-push-action@v2.6.1
+        with:
+          context: .
+          push: true
+          tags: baguasys/bagua:latest
+          file: docker/Dockerfile.pytorch-1.9.0-cuda11.1-cudnn8
+      - name: build and push bagua cuda 10.2
+        uses: docker/build-push-action@v2.6.1
+        with:
+          context: .
+          push: true
+          tags: baguasys/bagua:latest-pytorch-1.9.0-cuda10.2-cudnn7
+          file: docker/Dockerfile.pytorch-1.9.0-cuda10.2-cudnn7 
