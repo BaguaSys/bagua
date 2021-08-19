@@ -3,9 +3,8 @@ use crate::datatypes::{
 };
 use crate::BaguaCoreError;
 use itertools::Itertools;
-use std::sync::Arc;
 use parking_lot::Mutex;
-
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct BaguaCommunicatorInner {
@@ -77,7 +76,7 @@ impl BaguaSingleCommunicator {
     }
 
     pub fn check_abort(&self) -> bool {
-        return self.inner.check_abort()
+        return self.inner.check_abort();
     }
 
     pub fn allreduce(

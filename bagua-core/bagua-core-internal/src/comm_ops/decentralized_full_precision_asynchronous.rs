@@ -2,12 +2,11 @@ use crate::comm_ops::decentralized_full_precision_synchronous::PeerSelectionMode
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::BaguaCommunicator;
 use crate::datatypes::{BaguaBucket, BaguaReductionOp, BaguaTensorRaw, RawBaguaTensor};
+use crate::events::BaguaEventChannel;
 use crate::resource_pool::{CUDA_DEVICE_MEMORY_POOL, CUDA_EVENT_POOL};
 use crate::{BaguaCommOpChannels, BaguaCoreError};
-use crate::events::BaguaEventChannel;
 use std::sync::Arc;
 use std::time::Duration;
-
 
 #[derive(Debug)]
 pub struct DecentralizedFullPrecisionAsynchronous {
@@ -17,11 +16,10 @@ pub struct DecentralizedFullPrecisionAsynchronous {
 }
 
 impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
-
     fn execute_background_communication(
-            &self,
-            bucket: Arc<BaguaBucket>,
-            comm_op_channels: &BaguaCommOpChannels,
+        &self,
+        bucket: Arc<BaguaBucket>,
+        comm_op_channels: &BaguaCommOpChannels,
     ) {
         let bucket_guard = bucket.inner.lock();
         let comm_stream = self.communicator.stream_ptr();
@@ -32,7 +30,7 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
             }
             BaguaCommunicator::HierarchicalCommunicator(x) => {
                 panic!("asynchronous op only accepts non-hierarchical communicator");
-            },
+            }
         };
 
         let peer_mode = &self.peer_selection_mode;
