@@ -6,13 +6,26 @@ from typing import List
 from bagua.torch_api.tensor import BaguaTensor
 import threading
 import time
+import logging
+import os
+
+
+def check_nccl_proto():
+    # TODO: remove nccl proto check
+    proto_str = os.environ.get("NCCL_PROTO", "")
+    if (
+        proto_str == ""
+        or ("^" not in proto_str and "LL128" in proto_str)
+        or ("^" in proto_str and "LL128" not in proto_str)
+    ):
+        logging.warn(
+            "`LL128` proto for NCCL is not stable for async algorithm currently, set `NCCL_PROTO=^LL128` to exclude it."
+        )
 
 
 class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(
-        self,
-        peer_selection_mode: str = "all",
-        sync_interval_ms: int = 500,
+        self, peer_selection_mode: str = "all", sync_interval_ms: int = 500,
     ):
         """
         Create an instance of the
@@ -34,6 +47,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
         self.stop_event = threading.Event()
+        check_nccl_proto()
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -66,9 +80,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         return hook
 
     def init_operations(
-        self,
-        bagua_module: BaguaModule,
-        bucket: BaguaBucket,
+        self, bagua_module: BaguaModule, bucket: BaguaBucket,
     ):
         bucket.clear_ops()
         bucket.append_asynchronous_model_average_op(
