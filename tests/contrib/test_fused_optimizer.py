@@ -4,7 +4,7 @@ import torch.optim as optim
 import unittest
 import os
 from tests.internal.common_utils import find_free_port
-from tests import skip_if_cuda_available
+from tests import skip_if_cuda_available, skip_if_cuda_not_available
 
 
 def run_step(opt, flag_param, fuse, wrap, device):
@@ -124,11 +124,8 @@ class TestFusedOptimizer(unittest.TestCase):
     def test_fused_optimizer(self):
         self.run_all_optimizers_once(device="cpu", wrap=False)
 
+    @skip_if_cuda_not_available()
     def test_fused_optimizer_with_bagua_wrapper(self):
-        if not torch.cuda.is_available():
-            print("skip tests since cuda is not available")
-            return
-
         # init env
         os.environ["WORLD_SIZE"] = "1"
         os.environ["LOCAL_WORLD_SIZE"] = "1"

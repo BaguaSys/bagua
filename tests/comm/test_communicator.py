@@ -13,6 +13,7 @@ import torch.multiprocessing as mp
 import bagua.torch_api as bagua
 import threading
 import time
+from tests import skip_if_cuda_not_available
 
 
 class Result(object):
@@ -103,10 +104,6 @@ def run_allgather(rank, nprocs, results):
 
 
 def run_test_locally(fn):
-    if not torch.cuda.is_available():
-        print("skip tests since cuda is not available")
-        return []
-
     nprocs = torch.cuda.device_count()
     os.environ["WORLD_SIZE"] = str(nprocs)
     os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
@@ -125,14 +122,17 @@ def run_test_locally(fn):
 
 
 class TestCommunication(unittest.TestCase):
+    @skip_if_cuda_not_available()
     def test_abort(self):
         run_test_locally(run_abort)
 
+    @skip_if_cuda_not_available()
     def test_allreduce(self):
         results = run_test_locally(run_allreduce)
         for ret in results:
             self.assertTrue(ret.ret.item())
 
+    @skip_if_cuda_not_available()
     def test_p2p(self):
         results = run_test_locally(run_p2p)
 
@@ -141,6 +141,7 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue(torch.equal(results[i].data, results[i - 1].data))
             i += 2
 
+    @skip_if_cuda_not_available()
     def test_allgather(self):
         results = run_test_locally(run_allgather)
         for ret in results:

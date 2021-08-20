@@ -8,6 +8,7 @@ import torch.multiprocessing as mp
 import os
 from bagua.torch_api.utils import apply_flattened_call, flatten
 import bagua.torch_api as bagua
+from tests import skip_if_cuda_not_available
 
 
 class Net(nn.Module):
@@ -234,10 +235,6 @@ class LowPrecDecentralizedAlgor(nn.Module):
 
 class TestLowPrecisionDecentralized(unittest.TestCase):
     def run_test_locally(self, hierarchical, communication_interval):
-        if not torch.cuda.is_available():
-            print("skip tests since cuda is not available")
-            return
-
         nprocs = torch.cuda.device_count()
         os.environ["WORLD_SIZE"] = str(nprocs)
         os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
@@ -277,10 +274,6 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                 )
 
     def run_diff_locally(self, hierarchical, communication_interval, backend):
-        if not torch.cuda.is_available():
-            print("skip tests since cuda is not available")
-            return
-
         nprocs = torch.cuda.device_count()
         os.environ["WORLD_SIZE"] = str(nprocs)
         os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
@@ -321,11 +314,13 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                 ).item()
             )
 
+    @skip_if_cuda_not_available()
     def test_algorithm(self):
         self.run_test_locally(hierarchical=False, communication_interval=1)
         self.run_test_locally(hierarchical=False, communication_interval=2)
         self.run_test_locally(hierarchical=True, communication_interval=1)
 
+    @skip_if_cuda_not_available()
     def test_compare(self):
         self.run_diff_locally(
             hierarchical=False, communication_interval=1, backend="gloo"
