@@ -1,16 +1,9 @@
 import torch
 import unittest
-from functools import wraps
 
 
-def cpuTest(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if torch.cuda.is_available():
-            return unittest.skip(
-                "skip cpu test: {}.{}".format(func.__module__, func.__name__)
-            )
+def skip_if_cuda_available():
+    if torch.cuda.is_available():
+        return unittest.skip("skip when cuda is available")
 
-        return func(*args, **kwargs)
-
-    return wrapper
+    return lambda func: func

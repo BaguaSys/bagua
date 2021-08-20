@@ -4,11 +4,11 @@ from bagua.service.bayesian_optimizer import (
     BayesianOptimizer,
     IntParam,
 )
-from tests import cpuTest
+from tests import skip_if_cuda_available
 
 
 class TestBayesianOptimizer(unittest.TestCase):
-    @cpuTest
+    @skip_if_cuda_available()
     def test_bayesian_optimization(self):
         def f(x, y):
             x /= 10000.0

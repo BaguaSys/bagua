@@ -4,11 +4,11 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
     TensorDtype,
 )
-from tests import cpuTest
+from tests import skip_if_cuda_available
 
 
 class TestBaguaDefine(unittest.TestCase):
-    @cpuTest
+    @skip_if_cuda_available()
     def test_bagua_hyperparameter(self):
         hp = BaguaHyperparameter(is_hierarchical_reduce=False)
 

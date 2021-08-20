@@ -2,11 +2,11 @@ import unittest
 import time
 import numpy as np
 from bagua.torch_api.utils import StatisticalAverage
-from tests import cpuTest
+from tests import skip_if_cuda_available
 
 
 class TestUtils(unittest.TestCase):
-    @cpuTest
+    @skip_if_cuda_available()
     def test_statistical_average(self):
         m = StatisticalAverage(
             last_update_time=time.time(),
