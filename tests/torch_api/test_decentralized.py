@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tests.internal.common_utils import find_free_port
 import unittest
-import torch.multiprocessing as mp
+import multiprocessing
 import os
 from bagua.torch_api.utils import flatten, unflatten
 import bagua.torch_api as bagua
@@ -39,9 +39,17 @@ def _init_env(rank):
 
 
 def run_model(
-    rank, nprocs, hierarchical, peer_selection_mode, communication_interval, results
+    rank,
+    nprocs,
+    hierarchical,
+    peer_selection_mode,
+    communication_interval,
+    results,
+    env,
 ):
+    os.environ = env
     _init_env(rank)
+    # print(f'os env: {os.environ}, rank: {rank}')
 
     # init bagua distributed process group
     torch.cuda.set_device(rank)
@@ -88,8 +96,11 @@ def run_torch_model(
     communication_interval,
     results,
     backend,
+    env,
 ):
+    os.environ = env
     _init_env(rank)
+    # print(f'os env: {os.environ}, rank: {rank}')
 
     # init torch distributed process group
     torch.cuda.set_device(rank)
@@ -240,18 +251,28 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         os.environ["MASTER_PORT"] = str(find_free_port())
         os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
 
+        mp = multiprocessing.get_context("spawn")
         results = [Result() for _ in range(nprocs)]
-        mp.spawn(
-            run_model,
-            nprocs=nprocs,
-            args=(
-                nprocs,
-                hierarchical,
-                peer_selection_mode,
-                communication_interval,
-                results,
-            ),
-        )
+        processes = []
+        for i in range(nprocs):
+            env = os.environ.copy()
+            p = mp.Process(
+                target=run_model,
+                args=(
+                    i,
+                    nprocs,
+                    hierarchical,
+                    peer_selection_mode,
+                    communication_interval,
+                    results,
+                    env,
+                ),
+            )
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=60)
 
         for rank in range(nprocs):
             if peer_selection_mode == "all":
@@ -289,32 +310,51 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         os.environ["MASTER_PORT"] = str(find_free_port())
         os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
 
+        mp = multiprocessing.get_context("spawn")
         torch_results = [Result() for _ in range(nprocs)]
-        mp.spawn(
-            run_torch_model,
-            nprocs=nprocs,
-            args=(
-                nprocs,
-                hierarchical,
-                peer_selection_mode,
-                communication_interval,
-                torch_results,
-                backend,
-            ),
-        )
+        processes = []
+        for i in range(nprocs):
+            env = os.environ.copy()
+            p = mp.Process(
+                target=run_torch_model,
+                args=(
+                    i,
+                    nprocs,
+                    hierarchical,
+                    peer_selection_mode,
+                    communication_interval,
+                    torch_results,
+                    backend,
+                    env,
+                ),
+            )
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=60)
 
         bagua_results = [Result() for _ in range(nprocs)]
-        mp.spawn(
-            run_model,
-            nprocs=nprocs,
-            args=(
-                nprocs,
-                hierarchical,
-                peer_selection_mode,
-                communication_interval,
-                bagua_results,
-            ),
-        )
+        processes = []
+        for i in range(nprocs):
+            env = os.environ.copy()
+            p = mp.Process(
+                target=run_model,
+                args=(
+                    i,
+                    nprocs,
+                    hierarchical,
+                    peer_selection_mode,
+                    communication_interval,
+                    bagua_results,
+                    env,
+                ),
+            )
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=60)
 
         for rank in range(nprocs):
             self.assertTrue(

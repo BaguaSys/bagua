@@ -137,7 +137,7 @@ class TestFusedOptimizer(unittest.TestCase):
         os.environ["LOCAL_RANK"] = "0"
 
         # init bagua distributed process group
-        torch.cuda.set_device(bagua.get_local_rank())
+        torch.cuda.set_device(0)
         bagua.init_process_group()
 
         self.run_all_optimizers_once(device="cuda:0", wrap=True)
