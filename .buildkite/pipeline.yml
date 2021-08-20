@@ -1,17 +1,4 @@
 steps:
-  - label: "pytest"
-    parallelism: 1
-    command: bash .buildkite/scripts/test.sh
-    plugins:
-      - docker#v3.8.0:
-          image: "baguasys/bagua:latest"
-          propagate-uid-gid: true
-          propagate-environment: true
-          runtime: nvidia
-          network: host
-          ipc: host
-          shm-size: 100gb
-          always-pull: true
   - label: "benchmark_master"
     parallelism: 1
     command: bash .buildkite/scripts/benchmark_master.sh
@@ -43,6 +30,19 @@ steps:
   - label: "autotune_test"
     parallelism: 1
     command: bash .buildkite/scripts/benchmark.sh
+    plugins:
+      - docker#v3.8.0:
+          image: "baguasys/bagua:latest"
+          propagate-uid-gid: true
+          propagate-environment: true
+          runtime: nvidia
+          network: host
+          ipc: host
+          shm-size: 100gb
+          always-pull: true
+  - label: "pytest"
+    parallelism: 1
+    command: bash .buildkite/scripts/test.sh
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
