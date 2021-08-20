@@ -15,8 +15,8 @@ def check_nccl_proto():
     proto_str = os.environ.get("NCCL_PROTO", "")
     if (
         proto_str == ""
-        or ("^" not in proto_str and "LL128" in proto_str)  # noqa: F503
-        or ("^" in proto_str and "LL128" not in proto_str)  # noqa: F503
+        or ("^" not in proto_str and "LL128" in proto_str)  # noqa: W503
+        or ("^" in proto_str and "LL128" not in proto_str)  # noqa: W503
     ):
         logging.warn(
             "`LL128` proto for NCCL is not stable for async algorithm currently, set `NCCL_PROTO=^LL128` to exclude it."
