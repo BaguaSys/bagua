@@ -10,7 +10,7 @@ def skip_if_cuda_available():
 
 
 def skip_if_cuda_not_available():
-    if torch.cuda.is_available():
+    if not torch.cuda.is_available():
         return unittest.skip("skip when cuda is not available")
 
     return lambda func: func
