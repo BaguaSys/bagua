@@ -7,4 +7,4 @@ set -euo pipefail
 
 export HOME=/workdir
 cd /workdir
-pytest
+pytest -s

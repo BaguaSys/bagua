@@ -9,7 +9,7 @@ from bagua.torch_api.communication import (
     allgather,
 )
 from tests.internal.common_utils import find_free_port
-import torch.multiprocessing as mp
+import multiprocessing
 import bagua.torch_api as bagua
 import threading
 import time
@@ -31,7 +31,8 @@ def init_env(rank):
     bagua.init_process_group()
 
 
-def run_abort(rank, nprocs, results):
+def run_abort(rank, nprocs, results, env):
+    os.environ = env
     init_env(rank)
 
     comm_stream = torch.cuda.Stream()
@@ -52,7 +53,8 @@ def run_abort(rank, nprocs, results):
     comm_stream.synchronize()
 
 
-def run_allreduce(rank, nprocs, results):
+def run_allreduce(rank, nprocs, results, env):
+    os.environ = env
     init_env(rank)
 
     send_tensor = torch.rand(100).cuda()
@@ -67,7 +69,8 @@ def run_allreduce(rank, nprocs, results):
     results[rank].ret[0] = torch.equal(recv_tensor, tensor)
 
 
-def run_p2p(rank, nprocs, results):
+def run_p2p(rank, nprocs, results, env):
+    os.environ = env
     init_env(rank)
 
     send_tensor = torch.rand(100).cuda()
@@ -81,7 +84,8 @@ def run_p2p(rank, nprocs, results):
         results[rank].data.copy_(torch.norm(recv_tensor))
 
 
-def run_allgather(rank, nprocs, results):
+def run_allgather(rank, nprocs, results, env):
+    os.environ = env
     init_env(rank)
 
     send_tensor = torch.rand(100).cuda()
@@ -111,12 +115,17 @@ def run_test_locally(fn):
     os.environ["MASTER_PORT"] = str(find_free_port())
     os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
 
+    mp = multiprocessing.get_context("spawn")
     results = [Result() for _ in range(nprocs)]
-    mp.spawn(
-        fn,
-        nprocs=nprocs,
-        args=(nprocs, results),
-    )
+    processes = []
+    for i in range(nprocs):
+        env = os.environ.copy()
+        p = mp.Process(target=fn, args=(i, nprocs, results, env),)
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join(timeout=60)
 
     return results
 
