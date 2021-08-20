@@ -9,6 +9,7 @@ from typing import List
 from bagua.bagua_define import TensorDeclaration, BaguaCoreTelemetrySpan
 from bagua.service import AutotuneService, AutotuneClient
 from bagua.bagua_define import BaguaHyperparameter, get_tensor_declaration_bytes
+from tests import cpuTest
 
 
 def pick_n_free_ports(n: int):
@@ -93,6 +94,7 @@ class MockBaguaProcess:
 
 
 class TestAutotuneService(unittest.TestCase):
+    @cpuTest
     def test_autotune_service(self):
         service_addr = "127.0.0.1"
         service_port = pick_n_free_ports(1)[0]

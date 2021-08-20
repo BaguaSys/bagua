@@ -4,9 +4,11 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
     TensorDtype,
 )
+from tests import cpuTest
 
 
 class TestBaguaDefine(unittest.TestCase):
+    @cpuTest
     def test_bagua_hyperparameter(self):
         hp = BaguaHyperparameter(is_hierarchical_reduce=False)
 

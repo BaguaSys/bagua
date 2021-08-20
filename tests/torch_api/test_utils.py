@@ -2,9 +2,11 @@ import unittest
 import time
 import numpy as np
 from bagua.torch_api.utils import StatisticalAverage
+from tests import cpuTest
 
 
 class TestUtils(unittest.TestCase):
+    @cpuTest
     def test_statistical_average(self):
         m = StatisticalAverage(
             last_update_time=time.time(),

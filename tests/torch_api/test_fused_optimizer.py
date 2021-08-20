@@ -4,6 +4,7 @@ import torch.optim as optim
 import unittest
 import os
 from tests.internal.common_utils import find_free_port
+from tests import cpuTest
 
 
 def run_step(opt, flag_param, fuse, wrap, device):
@@ -119,6 +120,7 @@ class TestFusedOptimizer(unittest.TestCase):
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
 
+    @cpuTest
     def test_fused_optimizer(self):
         self.run_all_optimizers_once(device="cpu", wrap=False)
 
