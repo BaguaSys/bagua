@@ -312,7 +312,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
             processes.append(p)
 
         for p in processes:
-            p.join(timout=60)
+            p.join(timeout=60)
 
         bagua_results = [Result() for _ in range(nprocs)]
         processes = []
