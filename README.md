@@ -78,7 +78,7 @@ CLUSTER_SIZE = 4
 NODE_INSTANCE_TYPE = p3.16xlarge
 ```
 
-With the above setup, we created two identical clusters to benchmark a synthesized image classification task over BAGUA and Horovod. Here is the screem recording video of this experiment.
+With the above setup, we created two identical clusters to benchmark a synthesized image classification task over BAGUA and Horovod, respectively. Here is the screen recording video of this experiment.
 
 [<img src="./figures/video_cover.png" width="400px"/>](https://www.youtube.com/watch?v=G8o5HVYZJvs)
 
