@@ -14,16 +14,16 @@ class CachedDataset(Dataset):
         **kwargs,
     ):
         """
-        `CachedDataset` wraps a PyTorch Dataset to cache its samples in memory, so that accessing these samples after the
+        Cached dataset wraps a PyTorch dataset to cache its samples in memory, so that accessing these samples after the
         first time can be much faster. This is useful when samples need tedious preprocessing to produce, or reading
         the dataset itself is slow, which could slow down the whole training process.
 
         Internally, the samples are indexed by a key ``"{dataset_name}_{index}"`` and saved in a distributed Key-Value
-        store, where ``dataset_name`` is specified when initializing the `CachedDataset`, and ``index`` is the index
-        of a specific sample (the argument of `__getitem__(...)` method in a PyTorch Dataset).
+        store, where ``dataset_name`` is specified when initializing the cached dataset, and ``index`` is the index
+        of a specific sample (the argument of :func:`__getitem__(...)` method in a PyTorch dataset).
 
         Args:
-            dataset: PyTorch Dataset to be wrapped.
+            dataset: PyTorch dataset to be wrapped.
             backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
             dataset_name(str): Name of the dataset. Default ``""``.
             writer_buffer_size(int): Number of samples to collect before writing to the backend Key-Value store.
@@ -36,9 +36,9 @@ class CachedDataset(Dataset):
             >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
 
         .. note::
-            `CachedDataset` is a special case of `CacheLoader`, and parameter `backend` and `writer_buffer_size`
-            in `CachedDataset` have the same meanings with those in `CacheLoader`. You can provide ``CacheLoader``'s
-            argument here in ``**kwargs``. See also :class:`bagua.torch_api.contrib.CacheLoader`.
+            Cached dataset is a special case of cache loader, and parameter ``backend`` and ``writer_buffer_size`` in
+            in initializing a cached dataset have the same meanings with those in initializing a cache loader. You can
+            provide the arguments for cache loader here in ``**kwargs``. See also :class:`~bagua.torch_api.contrib.cache_loader.CacheLoader`.
 
         """
 
@@ -51,7 +51,7 @@ class CachedDataset(Dataset):
             **kwargs,
         )
         """
-        The backend cache instance.
+        The backend cache loader instance.
         """
 
     def __getitem__(self, item):

@@ -46,18 +46,17 @@ class RedisStore(ClusterStore):
             port information. New Redis instances will be spawned if ``hosts=None``.
         cluster_mode (bool): If ``True``, data is sharded across all Redis instances. Otherwise, data is routed to a specific server.
         capacity_per_node (int): Maximum memory limit in bytes when spawning new Redis instances. Old values will be evicted when the limit is reached.
-        hash_fn: Hash function to determine which shard a key belongs to. ``hash_fn`` accepts a ``str`` and returns an ``int`` as output.
+            Default is 100GB.
 
     .. note::
-        All Bagua jobs will share the same local Redis instance if ``hosts=None``.
+        All Bagua jobs within the same node will share the same local Redis instance if ``hosts=None``.
     """
 
     def __init__(
         self,
         hosts: Optional[List[Dict[str, str]]] = None,
         cluster_mode: bool = True,
-        capacity_per_node: int = 100_000_000_000,
-        hash_fn=None,
+        capacity_per_node: int = 107_374_182_400,
     ):
 
         if hosts is None:
@@ -78,7 +77,7 @@ class RedisStore(ClusterStore):
             store = _RedisStore(host=h["host"], port=h["port"])
             stores.append(store)
 
-        super(RedisStore, self).__init__(stores, hash_fn)
+        super(RedisStore, self).__init__(stores)
 
 
 def _is_bootstrapped():
@@ -161,8 +160,8 @@ class _RedisStore(Store):
     def clear(self):
         self.client.flushdb()
 
-    def mset(self, mapping: Dict[str, Union[str, bytes]]):
-        self.client.mset(mapping)
+    def mset(self, dictionary: Dict[str, Union[str, bytes]]):
+        self.client.mset(dictionary)
 
     def mget(self, keys: List[str]) -> List[Optional[Union[str, bytes]]]:
         return self.client.mget(keys)

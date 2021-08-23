@@ -21,15 +21,15 @@ class CacheLoader:
         **kwargs,
     ):
         """
-        `CacheLoader` caches values calculated by an expensive function by theirs keys via :func:`CacheLoader.get` method,
+        Cache loader caches values calculated by an expensive function by theirs keys via :func:`get` method,
         so that the values can be retrieved faster next time.
 
         Internally, values are indexed by ``"{dataset_name}_{key}"`` and saved in a distributed Key-Value
-        store, where ``dataset_name`` is specified on initializing, and ``key`` is the argument in :func:`CacheLoader.get`.
+        store, where ``dataset_name`` is specified on initializing, and ``key`` is the argument in :func:`get`.
 
-        By default, `CacheLoader` uses :class:`RedisStore` as its backend distributed Key-Value store implementation. It
+        By default, cache loader uses :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` as its backend distributed Key-Value store implementation. It
         supports using a list of existing redis servers or spawning new redis servers. See also
-        :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore`. Parameters for `RedisStore` can be provided here in
+        :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore`. Parameters for :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` can be provided here in
         ``**kwargs``.
 
         Args:
@@ -53,7 +53,7 @@ class CacheLoader:
             >>> loader = CacheLoader(backend="redis", hosts=None, cluster_mode=True, capacity_per_node=100000000)
 
         .. note::
-            ``CacheLoader``s with the same ``dataset_name`` will reuse and overwrite each other's cache.
+            Cache loaders with the same ``dataset_name`` will reuse and overwrite each other's cache.
             Use different ``dataset_name`` if this is not desired.
 
         """

@@ -27,9 +27,9 @@ class Store:
         """Delete all keys in the current store."""
         pass
 
-    def mset(self, mapping):
+    def mset(self, dictionary):
         """
-        Set key/values based on a mapping. Mapping is a dictionary of key/value pairs.
+        Set multiple entries at once with a dictionary. Each key-value pair in the ``dictionary`` will be set.
         """
         pass
 
@@ -42,7 +42,7 @@ class Store:
 
     def status(self) -> bool:
         """
-        Returns the status of the current store.
+        Returns ``True`` if the current store is alive.
         """
         pass  # type: ignore
 
@@ -61,31 +61,26 @@ class ClusterStore(Store):
 
     Args:
         stores(List[Store]): A list of stores to shard entries on.
-        hash_fn: Hash function to compute the shard key. Default is `xxh64`. A `hash_fn` accepts a `str` as
-            input, and returns an `int` as output.
 
     """
 
-    def __init__(self, stores: List[Store], hash_fn=None):
+    def __init__(self, stores: List[Store]):
 
         self.stores = stores
         self.num_stores = len(stores)
 
-        if hash_fn is None:
-            import xxhash
+        import xxhash
 
-            def xxh64(x):
-                return xxhash.xxh64(x).intdigest()
+        def xxh64(x):
+            return xxhash.xxh64(x).intdigest()
 
-            hash_fn = xxh64
+        self.hash_fn = xxh64
 
-        self.hash_fn = hash_fn
-
-    def _hash_key(self, key) -> int:
+    def _hash_key(self, key: str) -> int:
         hash_code = self.hash_fn(key)
         return hash_code % self.num_stores
 
-    def route(self, key) -> Store:
+    def route(self, key: str) -> Store:
         return (
             self.stores[self._hash_key(key)] if self.num_stores > 1 else self.stores[0]
         )
@@ -109,12 +104,12 @@ class ClusterStore(Store):
         for store in self.stores:
             store.clear()
 
-    def mset(self, mapping: Dict[str, Union[str, bytes]]):
+    def mset(self, dictionary: Dict[str, Union[str, bytes]]):
         if self.num_stores == 1:
-            return self.stores[0].mset(mapping)
+            return self.stores[0].mset(dictionary)
 
         route_table = {}
-        for k, v in mapping.items():
+        for k, v in dictionary.items():
             sid = self._hash_key(k)
             m = route_table.get(sid, defaultdict(dict))
             m[k] = v
