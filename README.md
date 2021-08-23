@@ -80,12 +80,7 @@ NODE_INSTANCE_TYPE = p3.16xlarge
 
 With the above setup, we created two identical clusters to benchmark a synthesized image classification task over BAGUA and Horovod, respectively. Here is the screen recording video of this experiment.
 
-<iframe width="720" height="405"
-src="https://youtube.com/embed/G8o5HVYZJvs" 
-frameborder="0" 
-allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" 
-allowfullscreen>
-</iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/G8o5HVYZJvs" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ## Build API documentation locally
 
