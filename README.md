@@ -55,18 +55,17 @@ pip install bagua
 
 ## Quick start on AWS
 
-Thanks to the [Amazon Machine Images (AMI)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html), we can provide users an easy way to deploy and run BAGUA on AWS EC2 clusters with flexible size of machines and a wide range of GPU types. Users can find our pre-installed BAGUA image on EC2 by a unique AMI-ID that we publish here. 
+Thanks to the [Amazon Machine Images (AMI)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html), we can provide users an easy way to deploy and run Bagua on AWS EC2 clusters with flexible size of machines and a wide range of GPU types. Users can find our pre-installed Bagua image on EC2 by a unique AMI-ID that we publish here. 
 
 | Bagua version  | AMI ID |  Region |
 |---|---|---|
 | 0.6.3 | ami-0e719d0e3e42b397e | us-east-1 |
 
-To manage the EC2 cluster more efficiently, we use [Starcluster](http://star.mit.edu/cluster/) as a toolkit to manipulate the cluster. In the `config` file of Starcluster, there are a few configurations that need to be set up by users, including AWS credentials, cluster settings, etc. More information regarding the Starcluster configuration can be found in this [tutorial](http://star.mit.edu/cluster/docs/latest/quickstart.html). Note that AMIs is a regional resource, so you need to specify the AMI ID and its corresponding EC2 region at the same time.
+To manage the EC2 cluster more efficiently, we use [Starcluster](http://star.mit.edu/cluster/) as a toolkit to manipulate the cluster. In the `config` file of Starcluster, there are a few configurations that need to be set up by users, including AWS credentials, cluster settings, etc. More information regarding the Starcluster configuration can be found in this [tutorial](http://star.mit.edu/cluster/docs/latest/quickstart.html). Note that AMI is a regional resource, so you need to specify the AMI ID and its corresponding EC2 region at the same time.
 
+For example, we create a EC2 cluster with 4 machines (`p3.16xlarge`), each of which has 8 V100 GPUs. The cluster is based on the Bagua AMI we pre-installed in `us-east-1` region. Then the `config` file of Starcluster would be:
 
-For example, we create a EC2 cluster with 4 machines (`p3.16xlarge`), each of which has 8 V100 GPUs. The cluster is based on the BAGUA AMI we pre-installed in `us-east-1` region. Then the `config` file of Starcluster would be:
-
-```conf
+```yaml
 # region of EC2 instances, here we choose us_east_1
 AWS_REGION_NAME = us-east-1
 AWS_REGION_HOST = ec2.us-east-1.amazonaws.com
@@ -78,10 +77,10 @@ CLUSTER_SIZE = 4
 NODE_INSTANCE_TYPE = p3.16xlarge
 ```
 
-With the above setup, we created two identical clusters to benchmark a synthesized image classification task over BAGUA and Horovod, respectively. Here is the [screen recording video](https://youtu.be/G8o5HVYZJvs) on YouTube of this experiment.
+With above setup, we created two identical clusters to benchmark a synthesized image classification task over Bagua and Horovod, respectively. Here is the screen recording video of this experiment.
 
 <p align="center">
-    <img src="./figures/video_shot.png" width="600"/>
+    <a href="https://youtu.be/G8o5HVYZJvs"><img src="./figures/video_shot.png" width="600"/></a>
 </p>
 
 
