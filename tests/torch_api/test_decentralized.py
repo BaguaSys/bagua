@@ -28,27 +28,15 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def _init_env(rank):
+def _init_env(rank, env):
     # set deterministic
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     torch.manual_seed(rank)
     # initialize subprocess env
+    os.environ = env
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
-
-
-_store_id = 0
-
-
-def _init_file_store(nprocs):
-    global _store_id
-    cur_file = __file__.split("/")[-1]
-    filename = f".{cur_file}.filestore.{_store_id}"
-    store = torch.distributed.FileStore(filename, nprocs)
-
-    _store_id += 1
-    return store
 
 
 def run_model(
@@ -60,8 +48,7 @@ def run_model(
     results,
     env,
 ):
-    os.environ = env
-    _init_env(rank)
+    _init_env(rank, env)
 
     # init bagua distributed process group
     torch.cuda.set_device(rank)
@@ -110,14 +97,15 @@ def run_torch_model(
     backend,
     env,
 ):
-    os.environ = env
-    _init_env(rank)
+    _init_env(rank, env)
 
     # init torch distributed process group
     torch.cuda.set_device(rank)
-    store = _init_file_store(nprocs)
     torch.distributed.init_process_group(
-        world_size=nprocs, rank=rank, store=store, backend=backend
+        world_size=nprocs,
+        rank=rank,
+        backend=backend,
+        init_method="file:///tmp/.bagua.test.filestore",
     )
 
     # construct model and optimizer, etc.
@@ -389,24 +377,19 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_algorithm(self):
         nprocs = torch.cuda.device_count()
-        # self.run_test_locally(
-        #     nprocs=nprocs,
-        #     hierarchical=False,
-        #     peer_selection_mode="all",
-        #     communication_interval=1,
-        # )
+        self.run_test_locally(
+            nprocs=nprocs,
+            hierarchical=False,
+            peer_selection_mode="all",
+            communication_interval=1,
+        )
+
         self.run_test_locally(
             nprocs=nprocs,
             hierarchical=False,
             peer_selection_mode="shift_one",
             communication_interval=1,
         )
-        # self.run_test_locally(
-        #     nprocs=nprocs,
-        #     hierarchical=False,
-        #     peer_selection_mode="shift_one",
-        #     communication_interval=2,
-        # )
 
     @skip_if_cuda_not_available()
     def test_compare(self):
@@ -414,17 +397,11 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         self.run_diff_locally(
             nprocs=nprocs,
             hierarchical=False,
-            peer_selection_mode="all",
+            peer_selection_mode="shift_one",
             communication_interval=1,
             backend="gloo",
         )
-        # self.run_diff_locally(
-        #     nprocs=nprocs,
-        #     hierarchical=False,
-        #     peer_selection_mode="shift_one",
-        #     communication_interval=1,
-        #     backend="gloo",
-        # )
+
         self.run_diff_locally(
             nprocs=nprocs,
             hierarchical=False,

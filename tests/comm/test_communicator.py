@@ -22,7 +22,8 @@ class Result(object):
         self.data = torch.Tensor([0.0])
 
 
-def init_env(rank):
+def init_env(rank, env):
+    os.environ = env
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
 
@@ -32,8 +33,9 @@ def init_env(rank):
 
 
 def run_abort(rank, nprocs, results, env):
-    os.environ = env
-    init_env(rank)
+    init_env(rank, env)
+
+    os.environ["NCCL_PROTO"] = "^LL128"
 
     comm_stream = torch.cuda.Stream()
     comm = init_bagua_communicator(model_name="test_comm", stream=comm_stream)
@@ -54,8 +56,7 @@ def run_abort(rank, nprocs, results, env):
 
 
 def run_allreduce(rank, nprocs, results, env):
-    os.environ = env
-    init_env(rank)
+    init_env(rank, env)
 
     send_tensor = torch.rand(100).cuda()
     recv_tensor = torch.zeros_like(send_tensor)
@@ -70,8 +71,7 @@ def run_allreduce(rank, nprocs, results, env):
 
 
 def run_p2p(rank, nprocs, results, env):
-    os.environ = env
-    init_env(rank)
+    init_env(rank, env)
 
     send_tensor = torch.rand(100).cuda()
     recv_tensor = torch.zeros_like(send_tensor)
@@ -85,8 +85,7 @@ def run_p2p(rank, nprocs, results, env):
 
 
 def run_allgather(rank, nprocs, results, env):
-    os.environ = env
-    init_env(rank)
+    init_env(rank, env)
 
     send_tensor = torch.rand(100).cuda()
     recv_tensor = torch.zeros(
@@ -120,7 +119,10 @@ def run_test_locally(fn):
     processes = []
     for i in range(nprocs):
         env = os.environ.copy()
-        p = mp.Process(target=fn, args=(i, nprocs, results, env),)
+        p = mp.Process(
+            target=fn,
+            args=(i, nprocs, results, env),
+        )
         p.start()
         processes.append(p)
 

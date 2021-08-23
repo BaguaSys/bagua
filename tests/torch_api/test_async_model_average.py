@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tests.internal.common_utils import find_free_port
 import unittest
-import torch.multiprocessing as mp
+import multiprocessing
 import os
 import bagua.torch_api as bagua
+from tests import skip_if_cuda_not_available
 
 
 class Net(nn.Module):
@@ -23,10 +24,13 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def run_model(rank):
+def run_model(rank, env):
     # initialize subprocess env
+    os.environ = env
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
+
+    os.environ["NCCL_PROTO"] = "^LL128"
 
     # init bagua distributed process group
     torch.cuda.set_device(rank)
@@ -39,9 +43,7 @@ def run_model(rank):
 
     # wrap model
     algorithm = bagua.algorithms.async_model_average.AsyncModelAverageAlgorithm()
-    model = model.with_bagua(
-        [optimizer], algorithm
-    )
+    model = model.with_bagua([optimizer], algorithm)
 
     for _ in range(10):
         data = torch.randn(4, 2).cuda()
@@ -58,11 +60,8 @@ def run_model(rank):
 
 
 class TestAsyncModelAverage(unittest.TestCase):
+    @skip_if_cuda_not_available()
     def test_algorithm(self):
-        if not torch.cuda.is_available():
-            print("skip tests since cuda is not available")
-            return
-
         nprocs = torch.cuda.device_count()
         os.environ["WORLD_SIZE"] = str(nprocs)
         os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
@@ -70,10 +69,17 @@ class TestAsyncModelAverage(unittest.TestCase):
         os.environ["MASTER_PORT"] = str(find_free_port())
         os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
 
-        mp.spawn(
-            run_model,
-            nprocs=nprocs,
-        )
+        mp = multiprocessing.get_context("spawn")
+
+        processes = []
+        for i in range(nprocs):
+            env = os.environ.copy()
+            p = mp.Process(target=run_model, args=(i, env))
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=60)
 
 
 if __name__ == "__main__":
