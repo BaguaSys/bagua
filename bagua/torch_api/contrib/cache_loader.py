@@ -28,8 +28,9 @@ class CacheLoader:
         store, where ``dataset_name`` is specified on initializing, and ``key`` is the argument in :func:`CacheLoader.get`.
 
         By default, `CacheLoader` uses :class:`RedisStore` as its backend distributed Key-Value store implementation. It
-        could reuse a list of initialized redis servers or bootstrap local redis servers by itself. See
-        :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore` for further customization.
+        supports using a list of existing redis servers or spawning new redis servers. See also
+        :class:`bagua.torch_api.contrib.utils.redis_store.RedisStore`. Parameters for `RedisStore` can be provided here in
+        ``**kwargs``.
 
         Args:
             backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
@@ -38,7 +39,7 @@ class CacheLoader:
                 Useful for improving the backend throughput.
 
         Example::
-            To reuse a list of initialized redis servers for "redis" backend:
+            To use a list of existing redis servers for the "redis" backend:
 
             >>> from bagua.torch_api.contrib import CacheLoader
             >>>
@@ -47,12 +48,13 @@ class CacheLoader:
             >>>
             >>> loader.get(index, lambda x: items[x])
 
-            To bootstrap local redis servers for "redis" backend:
+            To spawn new redis servers for the "redis" backend:
 
             >>> loader = CacheLoader(backend="redis", hosts=None, cluster_mode=True, capacity_per_node=100000000)
 
         .. note::
-            Setting a specific `dataset_name` can be useful to avoid overwriting existing cache data.
+            ``CacheLoader``s with the same ``dataset_name`` will reuse and overwrite each other's cache.
+            Use different ``dataset_name`` if this is not desired.
 
         """
 
@@ -70,8 +72,9 @@ class CacheLoader:
 
     def get(self, key, load_fn):
         """
-        Returns the value associated with key in cache, first loading the value if necessary.
-        `load_fn` accepts `key` as input, and returns the data to be serialized and stored.
+        Returns the value associated with key in cache, use ``load_fn`` to create the entry if the key does not exist
+        in the cache. ``load_fn`` is a function taking ``key`` as its argument, and returning corresponding value to
+        be cached.
         """
 
         cache_key = "{}{}".format(self.dataset_name, key)
@@ -84,7 +87,7 @@ class CacheLoader:
         return ret
 
     def num_keys(self):
-        """Returns the total number of keys in cache"""
+        """Returns the number of keys in the cache."""
 
         return self.store.num_keys()
 
