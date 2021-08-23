@@ -12,7 +12,7 @@ tracing-subscriber = "0.2"
 thiserror = "1"
 base64 = "0.13"
 itertools = "0.10"
-shadow-rs = "0.6"
+shadow-rs = "0.7"
 parking_lot = { version = "0.11", features = ["deadlock_detection"] }
 hashbrown = "0.11"
 flume = "0.10"
@@ -38,7 +38,7 @@ version = "0.14.2"
 features = ["auto-initialize"]
 
 [build-dependencies]
-shadow-rs = "0.6"
+shadow-rs = "0.7"
 cmake = "0.1"
 cpp_build = "0.5"
 cc = "1.0"
