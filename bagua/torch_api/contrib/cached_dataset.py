@@ -37,8 +37,8 @@ class CachedDataset(Dataset):
 
         .. note::
             `CachedDataset` is a special case of `CacheLoader`, and parameter `backend` and `writer_buffer_size`
-            in `CachedDataset` have the same meanings with those in `CacheLoader`. Further customization can be found in
-            :class:`bagua.torch_api.contrib.CacheLoader`.
+            in `CachedDataset` have the same meanings with those in `CacheLoader`. You can provide ``CacheLoader``'s
+            argument here in ``**kwargs``. See also :class:`bagua.torch_api.contrib.CacheLoader`.
 
         """
 
