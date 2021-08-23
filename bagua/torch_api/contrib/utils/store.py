@@ -16,7 +16,7 @@ class Store:
         pass
 
     def get(self, key) -> Optional[Union[str, bytes]]:
-        """Returns the value associated with key `key`, or None if the key doesn't exist."""
+        """Returns the value associated with ``key``, or None if the key doesn't exist."""
         pass  # type: ignore
 
     def num_keys(self) -> int:
@@ -35,7 +35,7 @@ class Store:
 
     def mget(self, keys) -> List[Optional[Union[str, bytes]]]:
         """
-        Returns a list of values ordered identically to `keys`.
+        Retrieve each key's corresponding value and return them in a list with the same order as ``keys``.
         """
 
         pass  # type: ignore
@@ -48,8 +48,7 @@ class Store:
 
     def shutdown(self):
         """
-        Shutdown the current store. External store resources, for example, initialized redis servers,
-        will not be shut down by this method.
+        Shutdown the managed store instances. Unmanaged instances will not be killed.
         """
         pass
 
@@ -58,14 +57,10 @@ class ClusterStore(Store):
     """
     Base class for distributed Key-Value stores.
 
-    This class implements client side sharding. It uses **xxHash** algorithm to compute the shard key by default, and can
-    accept customized hashing algorithms by passing `hash_fn` on initialization.
-
-    key-value pairs are manually added to the cluster using `set()` or `mset()` and can be retrieved by
-    `get()` or `mget()`.
+    In ``ClusterStore``, entries will be sharded equally among multiple store instances based on their keys.
 
     Args:
-        stores(List[Store]): A list of stores in the cluster.
+        stores(List[Store]): A list of stores to shard entries on.
         hash_fn: Hash function to compute the shard key. Default is `xxh64`. A `hash_fn` accepts a `str` as
             input, and returns an `int` as output.
 
