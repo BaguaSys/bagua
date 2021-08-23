@@ -39,24 +39,17 @@ _global_redis_servers = []
 
 class RedisStore(ClusterStore):
     """
-    A Redis-based Key-Value store implementation.
-
-    The server holds the data, while the client can connect to the server over Redis protocol and perform
-    actions such as `set()` to insert a key-value pair, `get()` to retrieve a key-value pair, etc.
+    A Redis-based distributed Key-Value store implementation, with ``set(...)`` and ``get(...)``` API exposed.
 
     Args:
         hosts (List[Dict[str, str]]): A list of redis servers, defined by a list of dict containing server host and
-            port information. Can be ``None``, which means to bootstrap redis servers locally.
-        cluster_mode (bool): Redis servers serve as a cluster or not. If True, data is automatically sharded across all
-            redis servers, otherwise, data is routed to a specific server.
-        capacity_per_node (int): Maximum memory limit in bytes to configure redis servers when bootstrap locally. Redis servers
-            will evict keys randomly when maximum memory limit is reached.
-        hash_fn: Hash function to compute the shard key. Default is `xxh64`. A `hash_fn` accepts a `str` as
-            input, and returns an `int` as output.
+            port information. New Redis instances will be spawned if ``hosts=None``.
+        cluster_mode (bool): If ``True``, data is sharded across all Redis instances. Otherwise, data is routed to a specific server.
+        capacity_per_node (int): Maximum memory limit in bytes when spawning new Redis instances. Old values will be evicted when the limit is reached.
+        hash_fn: Hash function to determine which shard a key belongs to. ``hash_fn`` accepts a ``str`` and returns an ``int`` as output.
 
     .. note::
-        Only one redis server can be bootstrapped on each node, thus the maximum memory limit of it is determined on
-        its first initialization.
+        All Bagua jobs will share the same local Redis instance if ``hosts=None``.
     """
 
     def __init__(
