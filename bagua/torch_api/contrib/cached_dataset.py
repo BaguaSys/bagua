@@ -36,8 +36,8 @@ class CachedDataset(Dataset):
             >>> dataloader = torch.utils.data.DataLoader(cached_dataset)
 
         .. note::
-            Cached dataset is a special case of cache loader, and parameter ``backend`` and ``writer_buffer_size`` in
-            in initializing a cached dataset have the same meanings with those in initializing a cache loader. You can
+            Cached dataset is a special case of cache loader. Parameter ``backend`` and ``writer_buffer_size`` in
+            initializing a cached dataset have the same meanings as those in initializing a cache loader. You can
             provide the arguments for cache loader here in ``**kwargs``. See also :class:`~bagua.torch_api.contrib.cache_loader.CacheLoader`.
 
         """

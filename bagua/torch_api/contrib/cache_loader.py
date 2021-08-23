@@ -1,5 +1,7 @@
 import pickle
 from collections import defaultdict
+from typing import Callable
+
 
 __all__ = ["CacheLoader"]
 
@@ -70,7 +72,7 @@ class CacheLoader:
 
         self.fetcher = BatchFetcher(self.store, 1, writer_buffer_size)
 
-    def get(self, key, load_fn):
+    def get(self, key: str, load_fn: Callable[[str], None]):
         """
         Returns the value associated with key in cache, use ``load_fn`` to create the entry if the key does not exist
         in the cache. ``load_fn`` is a function taking ``key`` as its argument, and returning corresponding value to

@@ -11,11 +11,11 @@ class Store:
     with ``get()`` or ``mget()``.
     """
 
-    def set(self, key, value):
+    def set(self, key: str, value: Union[str, bytes]):
         """Set a key-value pair."""
         pass
 
-    def get(self, key) -> Optional[Union[str, bytes]]:
+    def get(self, key: str) -> Optional[Union[str, bytes]]:
         """Returns the value associated with ``key``, or None if the key doesn't exist."""
         pass  # type: ignore
 
@@ -27,13 +27,13 @@ class Store:
         """Delete all keys in the current store."""
         pass
 
-    def mset(self, dictionary):
+    def mset(self, dictionary: Dict[str, Union[str, bytes]]):
         """
         Set multiple entries at once with a dictionary. Each key-value pair in the ``dictionary`` will be set.
         """
         pass
 
-    def mget(self, keys) -> List[Optional[Union[str, bytes]]]:
+    def mget(self, keys: List[str]) -> List[Optional[Union[str, bytes]]]:
         """
         Retrieve each key's corresponding value and return them in a list with the same order as ``keys``.
         """
