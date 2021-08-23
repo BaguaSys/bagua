@@ -69,7 +69,7 @@ For example, we create a EC2 cluster with 4 machines (`p3.16xlarge`), each of wh
 # region of EC2 instances, here we choose us_east_1
 AWS_REGION_NAME = us-east-1
 AWS_REGION_HOST = ec2.us-east-1.amazonaws.com
-# AMI ID of BAGUA
+# AMI ID of Bagua
 NODE_IMAGE_ID = ami-0e719d0e3e42b397e
 # number of instances
 CLUSTER_SIZE = 4
