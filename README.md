@@ -81,7 +81,7 @@ NODE_INSTANCE_TYPE = p3.16xlarge
 With the above setup, we created two identical clusters to benchmark a synthesized image classification task over BAGUA and Horovod, respectively. Here is the [screen recording video](https://youtu.be/G8o5HVYZJvs) on YouTube of this experiment.
 
 <p align="center">
-    <img src="./figures/video_shot.png" width="350"/>
+    <img src="./figures/video_shot.png" width="600"/>
 </p>
 
 
