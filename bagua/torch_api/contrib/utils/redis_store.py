@@ -51,7 +51,8 @@ class RedisStore(ClusterStore):
         hash_fn: Hash function to determine which shard a key belongs to. ``hash_fn`` accepts a ``str`` and returns an ``int`` as output.
 
     .. note::
-        All Bagua jobs will share the same local Redis instance if ``hosts=None``.
+        All Bagua jobs will share the same local Redis instance if ``hosts=None``. The ``capacity_per_node`` only affects
+        newly spawned Redis instances, and has no effect on existing Redis instances.
     """
 
     def __init__(
