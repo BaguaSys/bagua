@@ -20,7 +20,7 @@ def check_nccl_proto():
     ):
         logging.warn(
             "`LL128` proto for NCCL backend is not stable for async algorithms. Set `NCCL_PROTO=^LL128` to exclude it."
-        ) # TODO; remove this after https://github.com/NVIDIA/nccl/issues/549 gets solved
+        )  # TODO; remove this after https://github.com/NVIDIA/nccl/issues/549 gets solved
 
 
 class AsyncModelAverageAlgorithm(Algorithm):

@@ -334,7 +334,6 @@ class BaguaBucket:
         """
         Append an asynchronous model average operation to a bucket. This operation will enable continuous model averaging between workers
         while training a model.
-        
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
 
