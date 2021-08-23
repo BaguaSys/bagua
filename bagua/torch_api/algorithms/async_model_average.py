@@ -88,13 +88,13 @@ class AsyncModelAverageAlgorithm(Algorithm):
             peer_selection_mode=self.peer_selection_mode,
         )
 
-    def abort(self, bagua_module: BaguaModule, grace_period_secs=5):
+    def abort(self, bagua_module: BaguaModule, grace_period_seconds=5):
         """
         Gracefully stop all workers.
 
         Args:
             bagua_module: A PyTorch module initialized by ``with_bagua(...)`` method.
-            grace_period_secs: Number of seconds a worker will wait before aborting its unfinished communication operations.
+            grace_period_seconds: Number of seconds a worker will wait before aborting its unfinished communication operations.
         """
         assert (
             self.worker.is_alive()  # pytype: disable=attribute-error
