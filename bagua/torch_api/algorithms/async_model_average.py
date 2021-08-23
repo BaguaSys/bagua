@@ -100,7 +100,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             self.worker.is_alive()  # pytype: disable=attribute-error
         ), "cannot abort since the asynchronous communication thread is not started"
         self.stop_event.set()
-        time.sleep(stop_grace_period_secs)
+        time.sleep(grace_period_seconds)
         bagua_module._bagua_backend.global_communicator.abort()
 
         self.worker.join()  # pytype: disable=attribute-error

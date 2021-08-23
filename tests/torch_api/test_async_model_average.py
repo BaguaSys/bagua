@@ -54,7 +54,7 @@ def run_model(rank):
         loss.backward()
         optimizer.step()
 
-    algorithm.barrier(model)
+    algorithm.abort(model)
 
 
 class TestAsyncModelAverage(unittest.TestCase):
