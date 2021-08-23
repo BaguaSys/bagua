@@ -332,15 +332,15 @@ class BaguaBucket:
 
     def append_asynchronous_model_average_op(self, peer_selection_mode: str):
         """
-        Append an asynchronous model average operation to a bucket. This operation will enable model averaging simultaneously
-        with gradient computation and gradient update.
-
+        Append an asynchronous model average operation to a bucket. This operation will enable continuous model averaging between workers
+        while training a model.
+        
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
 
         Args:
-            peer_selection_mode (str): The way how a worker communicate with its peers. Currently "all" is supported.
-                "all" means all workers' weights are averaged in each communication step.
+            peer_selection_mode (str): The way how workers communicate with each otehr. Currently "all" is supported.
+                "all" means all workers' weights are averaged during each communication.
         """
 
         self.backend_bucket.append_decentralized_asynchronous_op(
