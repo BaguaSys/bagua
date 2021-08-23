@@ -32,7 +32,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         `AsyncModelAverage <https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average.html>`_
         algorithm.
 
-        The async implementation is experimental, and imposes some restrictions.
+        The asynchronous implementation is experimental, and imposes some restrictions.
         With such asynchronous algorithm, the number of iterations on each worker are different. Therefore
         the current implementation assumes that the dataset is an endless stream, and all workers continuously
         synchronize between each other.
