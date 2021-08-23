@@ -77,7 +77,7 @@ class CacheLoader:
         be cached.
         """
 
-        cache_key = "{}{}".format(self.dataset_name, key)
+        cache_key = "{}_{}".format(self.dataset_name, key)
         ret = self.fetcher.read(cache_key)
 
         if ret is None:
