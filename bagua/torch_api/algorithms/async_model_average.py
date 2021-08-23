@@ -19,8 +19,8 @@ def check_nccl_proto():
         or ("^" in proto_str and "LL128" not in proto_str)  # noqa: W503
     ):
         logging.warn(
-            "`LL128` proto for NCCL is not stable for async algorithm currently, set `NCCL_PROTO=^LL128` to exclude it."
-        )
+            "`LL128` proto for NCCL backend is not stable for async algorithms. Set `NCCL_PROTO=^LL128` to exclude it."
+        ) # TODO; remove this after https://github.com/NVIDIA/nccl/issues/549 gets solved
 
 
 class AsyncModelAverageAlgorithm(Algorithm):
@@ -32,16 +32,17 @@ class AsyncModelAverageAlgorithm(Algorithm):
         `AsyncModelAverage <https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average.html>`_
         algorithm.
 
-        The currently implementation is experimental, and has some restrictions on the training scenarios.
-        Since with an async algorithm, each worker can be in different iterations, the current implementation
-        assumes the data are in an endless stream, and there is no concept of a "epoch".
+        The async implementation is experimental, and imposes some restrictions.
+        With such asynchronous algorithm, the number of iterations on each worker are different. Therefore
+        the current implementation assumes that the dataset is an endless stream, and all workers continuously
+        synchronize between each other.
 
-        Should call :func:`barrier` to stop async training. It will cancel all unfinished communication operations.
+        Users should call :func:`abort` to manually stop the algorithm's continuous synchronization process.
 
         Args:
-            peer_selection_mode (str): The way how a worker communicate with its peers. Currently "all" is supported.
-                "all" means all workers' weights are averaged in each communication step.
-            sync_interval_ms (int): How many milliseconds between two model synchronization operations.
+            peer_selection_mode (str): The way how workers communicate with each other. Currently "all" is supported.
+                "all" means all workers' weights are synchronized during each communication.
+            sync_interval_ms (int): Number of milliseconds between model synchronizations.
         """
 
         self.peer_selection_mode = peer_selection_mode
@@ -87,17 +88,17 @@ class AsyncModelAverageAlgorithm(Algorithm):
             peer_selection_mode=self.peer_selection_mode,
         )
 
-    def barrier(self, bagua_module: BaguaModule, stop_grace_period_secs=5):
+    def abort(self, bagua_module: BaguaModule, grace_period_secs=5):
         """
         Gracefully stop all workers.
 
         Args:
             bagua_module: A PyTorch module initialized by ``with_bagua(...)`` method.
-            stop_grace_period_secs: How many seconds a worker will wait before aborting its unfinished communication operations.
+            grace_period_secs: Number of seconds a worker will wait before aborting its unfinished communication operations.
         """
         assert (
             self.worker.is_alive()  # pytype: disable=attribute-error
-        ), "Could not barrier model since background communication thread has not started"
+        ), "cannot abort since the asynchronous communication thread is not started"
         self.stop_event.set()
         time.sleep(stop_grace_period_secs)
         bagua_module._bagua_backend.global_communicator.abort()
