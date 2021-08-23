@@ -7,9 +7,8 @@ __all__ = ["Store", "ClusterStore"]
 
 class Store:
     """
-    Base class for all Key-Value store implementations. A store keeps a mapping from keys to values.
-    key-value pairs are manually added to store using `set()` or `mset()` and can be retrieved by
-    `get()` or `mget()`.
+    Base class for Key-Value store implementations. Entries are added to store with ``set()`` or ``mset()``, and retrieved
+    with ``get()`` or ``mget()``.
     """
 
     def set(self, key, value):
