@@ -30,7 +30,7 @@ class TestCacheDataset(unittest.TestCase):
             self.assertTrue((dataset[i][0] == cache_dataset[i][0]).all())
             self.assertTrue((dataset[i][1] == cache_dataset[i][1]).all())
 
-    @skip_if_cuda_available
+    @skip_if_cuda_available()
     def test_redis(self):
         dataset1 = MyDataset(102)
         dataset2 = MyDataset(102)
