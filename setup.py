@@ -29,6 +29,7 @@ if __name__ == "__main__":
             "requests",
             "gorilla",
             "gevent",
+            "xxhash==v2.0.2",
         ],
         entry_points={
             "console_scripts": [
