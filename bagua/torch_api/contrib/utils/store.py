@@ -77,7 +77,7 @@ class ClusterStore(Store):
         self.hash_fn = xxh64
 
     def _hash_key(self, key: str) -> int:
-        hash_code = self.hash_fn(key)
+        hash_code = self.hash_fn(key.encode())
         return hash_code % self.num_stores
 
     def route(self, key: str) -> Store:
