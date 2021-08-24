@@ -39,20 +39,20 @@ _global_redis_servers = []
 
 class RedisStore(ClusterStore):
     """
-    A Redis-based distributed Key-Value store implementation, with ``set(...)`` and ``get(...)``` API exposed.
+    A Redis-based distributed key-value store implementation, with :meth:`set` and :meth:`get` API exposed.
 
     Args:
         hosts (List[Dict[str, str]]): A list of redis servers, defined by a list of dict containing Redis host and
             port information like ``[{"host": "192.168.1.0", "port": "7000"}, {"host": "192.168.1.1", "port": "7000"}]``.
-            A new Redis instance will be spawned on each node if ``hosts=None``.
+            A new Redis instance will be spawned on each node if ``hosts`` is ``None``.
         cluster_mode (bool): If ``True``, data is sharded across all Redis instances. Otherwise, if there are ``m``
-            Redis instances, the workers on the n-th node will use the ``n % m``-th Redis instance.
+            Redis instances, the workers on the ``n``-th node will use the ``n % m``-th Redis instance.
         capacity_per_node (int): Maximum memory limit in bytes when spawning new Redis instances. Old values will be evicted when the limit is reached.
-            Default is 100GB.
+            Default is ``100GB``.
 
     .. note::
-        All Bagua jobs within the same node will share the same local Redis instance if ``hosts=None``. The ``capacity_per_node`` only affects
-        newly spawned Redis instances, and has no effect on existing Redis instances.
+        All Bagua jobs within the same node will share the same local Redis instance if ``hosts`` is ``None``. The ``capacity_per_node`` only affects
+        newly spawned Redis instances, and has no effect on existing ones.
     """
 
     def __init__(

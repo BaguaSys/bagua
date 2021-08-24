@@ -23,21 +23,20 @@ class CacheLoader:
         **kwargs,
     ):
         """
-        Cache loader caches values calculated by an expensive function by theirs keys via :func:`get` method,
+        Cache loader caches values calculated by an expensive function by theirs keys via :meth:`get`,
         so that the values can be retrieved faster next time.
 
-        Internally, values are indexed by ``"{dataset_name}_{key}"`` and saved in a distributed Key-Value
-        store, where ``dataset_name`` is specified on initializing, and ``key`` is the argument in :func:`get`.
+        Internally, values are indexed by ``"{dataset_name}_{key}"`` and saved in a distributed key-value
+        store, where ``dataset_name`` is specified on initializing, and ``key`` is the argument in :meth:`get`.
 
-        By default, cache loader uses :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` as its backend distributed Key-Value store implementation. It
-        supports using a list of existing redis servers or spawning new redis servers. See also
-        :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore`. Parameters for :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` can be provided here in
+        By default, cache loader uses :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` as its backend distributed key-value store implementation. It
+        supports using a list of existing redis servers or spawning new redis servers. Parameters for :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` can be provided here in
         ``**kwargs``.
 
         Args:
-            backend(str): Backend distributed Key-Value store implementation. Can be ``"redis"``.
+            backend(str): Backend distributed key-value store implementation. Can be ``"redis"``.
             dataset_name(str): Name of the dataset. Default ``""``.
-            writer_buffer_size(int): Number of samples to collect before writing to the backend Key-Value store.
+            writer_buffer_size(int): Number of samples to collect before writing to the backend key-value store.
                 Useful for improving the backend throughput.
 
         Example::
@@ -74,7 +73,7 @@ class CacheLoader:
 
     def get(self, key: str, load_fn: Callable[[str], None]):
         """
-        Returns the value associated with key in cache, use ``load_fn`` to create the entry if the key does not exist
+        Returns the value associated with ``key`` in cache, use ``load_fn`` to create the entry if the key does not exist
         in the cache. ``load_fn`` is a function taking ``key`` as its argument, and returning corresponding value to
         be cached.
         """

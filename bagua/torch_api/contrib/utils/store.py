@@ -7,8 +7,8 @@ __all__ = ["Store", "ClusterStore"]
 
 class Store:
     """
-    Base class for Key-Value store implementations. Entries are added to store with ``set()`` or ``mset()``, and retrieved
-    with ``get()`` or ``mget()``.
+    Base class for key-value store implementations. Entries are added to store with :meth:`set` or :meth:`mset`, and retrieved
+    with :meth:`get` or :meth:`mget`.
     """
 
     def set(self, key: str, value: Union[str, bytes]):
@@ -55,9 +55,9 @@ class Store:
 
 class ClusterStore(Store):
     """
-    Base class for distributed Key-Value stores.
+    Base class for distributed key-value stores.
 
-    In ``ClusterStore``, entries will be sharded equally among multiple store instances based on their keys.
+    In cluster store, entries will be sharded equally among multiple store instances based on their keys.
 
     Args:
         stores(List[Store]): A list of stores to shard entries on.
