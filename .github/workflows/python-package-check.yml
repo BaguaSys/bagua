@@ -19,6 +19,7 @@ jobs:
     - name: Install with pip
       run: |
         python -m pip install --pre .
+        python -m pip install --pre git+https://github.com/BaguaSys/bagua-core.git
     - name: Install pytest
       run: |
         python -m pip install --upgrade pip
