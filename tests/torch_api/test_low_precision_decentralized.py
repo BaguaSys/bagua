@@ -229,6 +229,7 @@ class LowPrecDecentralizedAlgor(nn.Module):
             x.copy_(self.weight + diff)
             self.weight.copy_(x)
 
+        # Note: skip hierarchical test since torch reduce does not support AVG op.
         def hierarchical_update_weight_fn(x):
             torch.distributed.reduce(x, dst=0)
             if self.rank == 0:
@@ -380,10 +381,6 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
         self.run_diff_locally(
             hierarchical=False, communication_interval=2, backend="gloo"
-        )
-
-        self.run_diff_locally(
-            hierarchical=True, communication_interval=1, backend="nccl"
         )
 
 
