@@ -26,11 +26,14 @@ class Net(nn.Module):
 
 def run_model(rank, env):
     # initialize subprocess env
-    os.environ = env
+    os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
+    os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
+    os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
+    os.environ["MASTER_PORT"] = env["MASTER_PORT"]
+    os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
-
-    os.environ["NCCL_PROTO"] = "^LL128"
+    os.environ["NCCL_PROTO"] = "^LL128"  # FIXME
 
     # init bagua distributed process group
     torch.cuda.set_device(rank)
@@ -63,17 +66,17 @@ class TestAsyncModelAverage(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_algorithm(self):
         nprocs = torch.cuda.device_count()
-        os.environ["WORLD_SIZE"] = str(nprocs)
-        os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
-        os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port())
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+        env = {
+            "WORLD_SIZE": str(nprocs),
+            "LOCAL_WORLD_SIZE": str(nprocs),
+            "MASTER_ADDR": "127.0.0.1",
+            "MASTER_PORT": str(find_free_port()),
+            "BAGUA_SERVICE_PORT": str(find_free_port()),
+        }
 
         mp = multiprocessing.get_context("spawn")
-
         processes = []
         for i in range(nprocs):
-            env = os.environ.copy()
             p = mp.Process(target=run_model, args=(i, env))
             p.start()
             processes.append(p)

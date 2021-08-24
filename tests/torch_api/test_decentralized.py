@@ -28,15 +28,40 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def _init_env(rank, env):
+def _init_bagua_env(rank, env):
     # set deterministic
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     torch.manual_seed(rank)
     # initialize subprocess env
-    os.environ = env
+    os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
+    os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
+    os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
+    os.environ["MASTER_PORT"] = env["MASTER_PORT"]
+    os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
+
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
+
+    # init bagua distributed process group
+    torch.cuda.set_device(rank)
+    bagua.init_process_group()
+
+
+def _init_torch_env(rank, nprocs, backend):
+    # set deterministic
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.manual_seed(rank)
+
+    # init torch distributed process group
+    torch.cuda.set_device(rank)
+    torch.distributed.init_process_group(
+        world_size=nprocs,
+        rank=rank,
+        backend=backend,
+        init_method="file:///tmp/.bagua.test.filestore",
+    )
 
 
 def run_model(
@@ -48,11 +73,7 @@ def run_model(
     results,
     env,
 ):
-    _init_env(rank, env)
-
-    # init bagua distributed process group
-    torch.cuda.set_device(rank)
-    bagua.init_process_group()
+    _init_bagua_env(rank, env)
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -97,16 +118,7 @@ def run_torch_model(
     backend,
     env,
 ):
-    _init_env(rank, env)
-
-    # init torch distributed process group
-    torch.cuda.set_device(rank)
-    torch.distributed.init_process_group(
-        world_size=nprocs,
-        rank=rank,
-        backend=backend,
-        init_method="file:///tmp/.bagua.test.filestore",
-    )
+    _init_torch_env(rank, nprocs, backend)
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -244,18 +256,18 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         self, nprocs, hierarchical, peer_selection_mode, communication_interval
     ):
         nprocs = torch.cuda.device_count()
-        os.environ["WORLD_SIZE"] = str(nprocs)
-        os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
-        os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port())
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+        env = {
+            "WORLD_SIZE": str(nprocs),
+            "LOCAL_WORLD_SIZE": str(nprocs),
+            "MASTER_ADDR": "127.0.0.1",
+            "MASTER_PORT": str(find_free_port()),
+            "BAGUA_SERVICE_PORT": str(find_free_port()),
+        }
 
-        mp = multiprocessing.get_context("spawn")
         results = [Result() for _ in range(nprocs)]
         processes = []
         for i in range(nprocs):
-            env = os.environ.copy()
-            p = mp.Process(
+            p = multiprocessing.Process(
                 target=run_model,
                 args=(
                     i,
@@ -303,18 +315,12 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
     def run_diff_locally(
         self, nprocs, hierarchical, peer_selection_mode, communication_interval, backend
     ):
-        os.environ["WORLD_SIZE"] = str(nprocs)
-        os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
-        os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port())
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+        env = {}
 
-        mp = multiprocessing.get_context("spawn")
         torch_results = [Result() for _ in range(nprocs)]
         processes = []
         for i in range(nprocs):
-            env = os.environ.copy()
-            p = mp.Process(
+            p = multiprocessing.Process(
                 target=run_torch_model,
                 args=(
                     i,
@@ -333,11 +339,18 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         for p in processes:
             p.join(timeout=60)
 
+        env = {
+            "WORLD_SIZE": str(nprocs),
+            "LOCAL_WORLD_SIZE": str(nprocs),
+            "MASTER_ADDR": "127.0.0.1",
+            "MASTER_PORT": str(find_free_port()),
+            "BAGUA_SERVICE_PORT": str(find_free_port()),
+        }
+
         bagua_results = [Result() for _ in range(nprocs)]
         processes = []
         for i in range(nprocs):
-            env = os.environ.copy()
-            p = mp.Process(
+            p = multiprocessing.Process(
                 target=run_model,
                 args=(
                     i,
@@ -412,4 +425,5 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method("spawn")
     unittest.main()
