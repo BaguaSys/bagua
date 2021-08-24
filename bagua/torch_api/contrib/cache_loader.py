@@ -55,7 +55,7 @@ class CacheLoader:
 
         .. note::
             Cache loaders with the same ``dataset_name`` will reuse and overwrite each other's cache.
-            Use different ``dataset_name`` if this is not desired.
+            Use a different ``dataset_name`` if this is not desired.
 
         """
 
