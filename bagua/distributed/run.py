@@ -438,7 +438,7 @@ def parse_min_max_nnodes(nnodes: str):
     return min_nodes, max_nodes
 
 
-def determine_local_world_size(nproc_per_node: str):
+def determine_local_world_size(nproc_per_node: str) -> int:
     try:
         logging.info(f"Using nproc_per_node={nproc_per_node}.")
         return int(nproc_per_node)
@@ -466,7 +466,7 @@ def determine_local_world_size(nproc_per_node: str):
             f" seting to {num_proc} since the instance "
             f"has {os.cpu_count()} {device_type}"
         )
-        return num_proc
+        return int(num_proc)
 
 
 def get_rdzv_endpoint(args):
