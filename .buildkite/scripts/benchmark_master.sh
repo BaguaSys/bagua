@@ -70,7 +70,7 @@ do
         --deterministic \
         2>&1 | tee ${logfile}
     if [[ ${algorithms[$i]} == "async" ]]; then
-	echo "Skip checking for async"
+        echo "Skip checking for async"
     else
         check_benchmark_log ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
     fi
