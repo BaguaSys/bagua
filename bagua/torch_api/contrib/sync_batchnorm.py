@@ -1,7 +1,7 @@
 # This module is mainly based on https://github.com/horovod/horovod/blob/master/horovod/torch/sync_batch_norm.py,
 # also benefits from https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/batchnorm.py a lot.
 #
-# Copyright (c) Uber, Inc. and its affiliates.
+# Copyright (c) Uber Technologies, Inc. and its affiliates.
 # Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
 #
 # All rights reserved.
