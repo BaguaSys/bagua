@@ -121,10 +121,11 @@ def run_test_locally(fn):
         "BAGUA_SERVICE_PORT": str(find_free_port()),
     }
 
+    mp = multiprocessing.get_context("spawn")
     results = [Result() for _ in range(nprocs)]
     processes = []
     for i in range(nprocs):
-        p = multiprocessing.Process(
+        p = mp.Process(
             target=fn,
             args=(i, nprocs, results, env),
         )
@@ -165,5 +166,4 @@ class TestCommunication(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    multiprocessing.set_start_method("spawn")
     unittest.main()

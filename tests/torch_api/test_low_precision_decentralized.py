@@ -261,10 +261,11 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
             "BAGUA_SERVICE_PORT": str(find_free_port()),
         }
 
+        mp = multiprocessing.get_context("spawn")
         results = [Result() for _ in range(nprocs)]
         processes = []
         for i in range(nprocs):
-            p = multiprocessing.Process(
+            p = mp.Process(
                 target=run_model,
                 args=(i, nprocs, hierarchical, communication_interval, results, env),
             )
@@ -302,10 +303,11 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         nprocs = torch.cuda.device_count()
         env = {}
 
+        mp = multiprocessing.get_context("spawn")
         torch_results = [Result() for _ in range(nprocs)]
         processes = []
         for i in range(nprocs):
-            p = multiprocessing.Process(
+            p = mp.Process(
                 target=run_torch_model,
                 args=(
                     i,
@@ -333,7 +335,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         bagua_results = [Result() for _ in range(nprocs)]
         processes = []
         for i in range(nprocs):
-            p = multiprocessing.Process(
+            p = mp.Process(
                 target=run_model,
                 args=(
                     i,
@@ -388,5 +390,4 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    multiprocessing.set_start_method("spawn")
     unittest.main()
