@@ -109,9 +109,6 @@ def init_process_group():
     also initialize the distributed package, should be executed before all the
     APIs of bagua.
 
-    Raises:
-        RepeatedInitializationError: If you run this function repeatedly
-
     Examples::
         >>> import bagua.torch_api as bagua
         >>> bagua.init_process_group()
