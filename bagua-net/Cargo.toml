@@ -9,7 +9,7 @@ license = "MIT License Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab"
 crate-type = ["cdylib"]
 
 [dependencies]
-nix = "0.22.0"
+nix = "0.22.1"
 tracing = "0.1"
 tracing-subscriber = "0.2"
 thiserror = "1"
