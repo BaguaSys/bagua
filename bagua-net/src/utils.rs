@@ -30,22 +30,22 @@ pub struct NCCLSocketDev {
 }
 
 pub fn find_interfaces() -> Vec<NCCLSocketDev> {
-    let NCCL_SOCKET_FAMILY = std::env::var("NCCL_SOCKET_FAMILY")
+    let nccl_socket_family = std::env::var("NCCL_SOCKET_FAMILY")
         .unwrap_or("-1".to_string())
         .parse::<i32>()
         .unwrap_or(-1);
-    let NCCL_SOCKET_IFNAME =
+    let nccl_socket_ifname =
         std::env::var("NCCL_SOCKET_IFNAME").unwrap_or("^docker,lo".to_string());
     // TODO @shjwudp: support parse sockaddr from NCCL_COMM_ID
 
     let mut search_not = Vec::<&str>::new();
     let mut search_exact = Vec::<&str>::new();
-    if NCCL_SOCKET_IFNAME.starts_with("^") {
-        search_not = NCCL_SOCKET_IFNAME[1..].split(",").collect();
-    } else if NCCL_SOCKET_IFNAME.starts_with("=") {
-        search_exact = NCCL_SOCKET_IFNAME[1..].split(",").collect();
+    if nccl_socket_ifname.starts_with("^") {
+        search_not = nccl_socket_ifname[1..].split(",").collect();
+    } else if nccl_socket_ifname.starts_with("=") {
+        search_exact = nccl_socket_ifname[1..].split(",").collect();
     } else {
-        search_exact = NCCL_SOCKET_IFNAME.split(",").collect();
+        search_exact = nccl_socket_ifname.split(",").collect();
     }
 
     let mut socket_devs = Vec::<NCCLSocketDev>::new();
@@ -73,7 +73,7 @@ pub fn find_interfaces() -> Vec<NCCLSocketDev> {
                 let pci_path = format!("/sys/class/net/{}/device", ifaddr.interface_name);
                 let pci_path: String = match std::fs::canonicalize(pci_path) {
                     Ok(pci_path) => pci_path.to_str().unwrap_or("").to_string(),
-                    Err(err) => "".to_string(),
+                    Err(_) => "".to_string(),
                 };
 
                 socket_devs.push(NCCLSocketDev {
@@ -83,7 +83,7 @@ pub fn find_interfaces() -> Vec<NCCLSocketDev> {
                 })
             }
             None => {
-                println!(
+                tracing::warn!(
                     "interface {} with unsupported address family",
                     ifaddr.interface_name
                 );
@@ -98,7 +98,7 @@ pub fn find_interfaces() -> Vec<NCCLSocketDev> {
         .filter({
             |socket_dev| -> bool {
                 let (sockaddr, _) = socket_dev.addr.as_ffi_pair();
-                if NCCL_SOCKET_FAMILY != -1 && sockaddr.sa_family != NCCL_SOCKET_FAMILY as u16 {
+                if nccl_socket_family != -1 && sockaddr.sa_family as i32 != nccl_socket_family {
                     return false;
                 }
 
@@ -177,6 +177,26 @@ pub fn nonblocking_read_exact(
     }
 }
 
+pub fn parse_user_pass_and_addr(raw_url: &str) -> Option<(String, String, String)> {
+    let re = regex::Regex::new(r"^(?:([^:]+):([^@]+)@)?(\S+)$").unwrap();
+    match re.captures(raw_url) {
+        Some(caps) => {
+            let username = match caps.get(1) {
+                Some(username) => username.as_str().to_owned(),
+                None => Default::default(),
+            };
+            let password = match caps.get(2) {
+                Some(password) => password.as_str().to_owned(),
+                None => Default::default(),
+            };
+            let address = caps.get(3).unwrap().as_str().to_owned();
+
+            Some((username, password, address))
+        }
+        None => None,
+    }
+}
+
 /// Creates a `SockAddr` struct from libc's sockaddr.
 ///
 /// Supports only the following address families: Unix, Inet (v4 & v6), Netlink and System.
@@ -230,5 +250,38 @@ pub(crate) unsafe fn from_libc_sockaddr(addr: *const libc::sockaddr) -> Option<S
             // entry instead of a proper conversion to a `SockAddr`.
             Some(_) | None => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse() {
+        let username = "nagle";
+        let password = "1984";
+        let address = "127.0.0.1:9090";
+
+        let (user, pass, addr) = parse_user_pass_and_addr(&format!("{}:{}@{}", username, password, address)).unwrap();
+        assert_eq!(user, username);
+        assert_eq!(pass, password);
+        assert_eq!(addr, address);
+
+        let (user, pass, addr) = parse_user_pass_and_addr(address).unwrap();
+        assert_eq!(user, "");
+        assert_eq!(pass, "");
+        assert_eq!(addr, address);
+
+        match parse_user_pass_and_addr("106.12.175.12:19091") {
+            Some(ret) => {
+                println!("ret={:?}", ret);
+            },
+            None => {
+                println!("abc");
+            }
+        };
+
+        println!("{:?}", parse_user_pass_and_addr("106.12.175.12:19091").unwrap());
     }
 }

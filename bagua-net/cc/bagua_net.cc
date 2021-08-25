@@ -206,7 +206,7 @@ __hidden ncclResult_t baguaNetInit(ncclDebugLogger_t logFunction)
     NCCL_DEBUG_LOG = logFunction;
     BagueNet::instance();
 
-    NCCL_INFO(NCCL_ALL, "baguaNetInit!");
+    NCCL_TRACE(NCCL_ALL, "baguaNetInit!");
 
     return ncclSuccess;
 }
@@ -219,7 +219,7 @@ __hidden ncclResult_t baguaNetDevices(int *ndev)
         return ncclInternalError;
     }
 
-    NCCL_INFO(NCCL_ALL, "baguaNetDevices, ndev=%d", *ndev);
+    NCCL_TRACE(NCCL_ALL, "baguaNetDevices, ndev=%d", *ndev);
     return ncclSuccess;
 }
 
@@ -231,7 +231,7 @@ __hidden ncclResult_t baguaNetGetProperties(int dev, ncclNetProperties_v4_t *pro
         NCCL_WARN("baguaNetGetProperties failed, ret=%d, dev=%d", ret, dev);
         return ncclInternalError;
     }
-    NCCL_INFO(NCCL_ALL, "baguaNetGetProperties, dev=%d", dev);
+    NCCL_TRACE(NCCL_ALL, "baguaNetGetProperties, dev=%d", dev);
 
     return ncclSuccess;
 }
@@ -244,7 +244,7 @@ __hidden ncclResult_t baguaNetListen(int dev, void *handle, void **listenComm)
         NCCL_WARN("baguaNetListen failed, ret=%d, dev=%d", ret, dev);
         return ncclInternalError;
     }
-    NCCL_INFO(NCCL_ALL, "baguaNetListen, dev=%d", dev);
+    NCCL_TRACE(NCCL_ALL, "baguaNetListen, dev=%d", dev);
 
     return ncclSuccess;
 }
@@ -257,7 +257,7 @@ __hidden ncclResult_t baguaNetConnect(int dev, void *handle, void **sendComm)
         NCCL_WARN("baguaNetConnect failed, ret=%d", ret);
         return ncclInternalError;
     }
-    NCCL_INFO(NCCL_ALL, "baguaNetConnect ok, dev=%d", dev);
+    NCCL_TRACE(NCCL_ALL, "baguaNetConnect ok, dev=%d", dev);
 
     return ncclSuccess;
 }
@@ -270,14 +270,14 @@ __hidden ncclResult_t baguaNetAccept(void *listenComm, void **recvComm)
         NCCL_WARN("baguaNetAccept failed, ret=%d", ret);
         return ncclInternalError;
     }
-    NCCL_INFO(NCCL_ALL, "baguaNetAccept, listenComm=%p", listenComm);
+    NCCL_TRACE(NCCL_ALL, "baguaNetAccept, listenComm=%p", listenComm);
 
     return ncclSuccess;
 }
 
 __hidden ncclResult_t baguaNetRegMr(void *comm, void *data, int size, int type, void **mhandle)
 {
-    NCCL_INFO(NCCL_ALL, "baguaNetRegMr, comm=%p, data=%p, type=%d", comm, data, type);
+    NCCL_TRACE(NCCL_ALL, "baguaNetRegMr, comm=%p, data=%p, type=%d", comm, data, type);
     return (type != NCCL_PTR_HOST) ? ncclInternalError : ncclSuccess;
 }
 
