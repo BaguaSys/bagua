@@ -155,6 +155,10 @@ def train(args, train_dataset, model, tokenizer):
 
         optimizer = q_adam.QAdamOptimizer(model.parameters())
         algorithm = q_adam.QAdamAlgorithm(optimizer, 10)
+    elif args.algorithm == "async":
+        from bagua.torch_api.algorithms import async_model_average
+
+        algorithm = async_model_average.AsyncModelAverageAlgorithm()
     else:
         raise NotImplementedError
 
@@ -896,7 +900,7 @@ def main():
         "--algorithm",
         type=str,
         default="gradient_allreduce",
-        help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam}",
+        help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam, async}",
     )
     args = parser.parse_args()
 
@@ -1087,6 +1091,9 @@ def main():
             results.update(result)
 
     logger.info("Results: {}".format(results))
+
+    if args.algorithm == "async":
+        algorithm.abort(model)
 
     return results
 

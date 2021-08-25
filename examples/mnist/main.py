@@ -142,7 +142,7 @@ def main():
         "--algorithm",
         type=str,
         default="gradient_allreduce",
-        help="gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam",
+        help="gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam, async",
     )
     parser.add_argument(
       "--set-deterministic",
@@ -228,16 +228,27 @@ def main():
 
         optimizer = q_adam.QAdamOptimizer(model.parameters())
         algorithm = q_adam.QAdamAlgorithm(optimizer, 10)
+    elif args.algorithm == "async":
+        from bagua.torch_api.algorithms import async_model_average
+
+        algorithm = async_model_average.AsyncModelAverageAlgorithm()
     else:
         raise NotImplementedError
 
-    model = model.with_bagua([optimizer], algorithm)
+    model = model.with_bagua(
+        [optimizer],
+        algorithm,
+    )
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):
         train(args, model, train_loader, optimizer, epoch)
+
         test(model, test_loader)
         scheduler.step()
+
+    if args.algorithm == "async":
+        algorithm.abort(model)
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
