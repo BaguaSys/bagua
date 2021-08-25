@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 mod bagua_net;
 mod utils;
 
@@ -138,7 +141,7 @@ pub extern "C" fn bagua_net_c_listen(
     unsafe {
         let (handle, id) = match (*ptr).inner.lock().unwrap().listen(dev_id as usize) {
             Ok(result) => result,
-            Err(err) => return -3,
+            Err(_err) => return -3,
         };
         let (sockaddr, _) = handle.addr.as_ffi_pair();
         (*socket_handle).sockaddr = *sockaddr;
@@ -153,6 +156,7 @@ pub extern "C" fn bagua_net_c_listen(
 /// -2: invalid parameter
 /// -3: connect failed
 #[no_mangle]
+#[cfg(target_os = "linux")]
 pub extern "C" fn bagua_net_c_connect(
     ptr: *mut BaguaNetC,
     dev_id: i32,
@@ -170,10 +174,10 @@ pub extern "C" fn bagua_net_c_connect(
 
     unsafe {
         let sockaddr = (*socket_handle).sockaddr;
+
         let sockaddr = libc::sockaddr {
             sa_family: sockaddr.sa_family,
             sa_data: sockaddr.sa_data,
-            // sa_len: 0,
         };
 
         *socket_send_comm_id = match (*ptr).inner.lock().unwrap().connect(
@@ -183,7 +187,7 @@ pub extern "C" fn bagua_net_c_connect(
             },
         ) {
             Ok(id) => id,
-            Err(err) => return -3,
+            Err(_err) => return -3,
         }
     }
     return 0;
@@ -214,14 +218,6 @@ pub extern "C" fn bagua_net_c_accept(
 pub struct Buffer {
     data: *mut u8,
     len: usize,
-}
-
-extern "C" fn free_buf(buf: Buffer) {
-    let s = unsafe { std::slice::from_raw_parts_mut(buf.data, buf.len) };
-    let s = s.as_mut_ptr();
-    unsafe {
-        Box::from_raw(s);
-    }
 }
 
 /// Error code

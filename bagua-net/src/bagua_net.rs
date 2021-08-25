@@ -1,8 +1,8 @@
 use crate::utils;
 use crate::utils::NCCLSocketDev;
-use bytes::{Bytes, BytesMut};
-use nix::sys::socket::{AddressFamily, InetAddr, SockAddr};
+use nix::sys::socket::{InetAddr, SockAddr};
 use opentelemetry::{
+    metrics::{BoundValueRecorder, ObserverResult},
     trace::{Span, TraceContextExt, Tracer},
     KeyValue,
 };
@@ -16,22 +16,8 @@ use thiserror::Error;
 const NCCL_PTR_HOST: i32 = 1;
 const NCCL_PTR_CUDA: i32 = 2;
 
-type SocketListenCommID = usize;
-type SocketSendCommID = usize;
-type SocketRecvCommID = usize;
-type SocketRequestID = usize;
-
-pub struct BaguaNet {
-    pub socket_devs: Vec<NCCLSocketDev>,
-    pub listen_comm_next_id: usize,
-    pub listen_comm_map: HashMap<SocketListenCommID, SocketListenComm>,
-    pub send_comm_next_id: usize,
-    pub send_comm_map: HashMap<SocketSendCommID, SocketSendComm>,
-    pub recv_comm_next_id: usize,
-    pub recv_comm_map: HashMap<SocketRecvCommID, SocketRecvComm>,
-    pub socket_request_next_id: usize,
-    pub socket_request_map: HashMap<SocketRequestID, SocketRequest>,
-    pub trace_span_context: opentelemetry::Context,
+lazy_static! {
+    static ref HANDLER_ALL: [KeyValue; 1] = [KeyValue::new("handler", "all")];
 }
 
 #[derive(Debug)]
@@ -58,13 +44,13 @@ pub struct SocketListenComm {
 #[derive(Clone)]
 pub struct SocketSendComm {
     pub tcp_sender: Arc<std::thread::JoinHandle<()>>,
-    pub msg_sender: flume::Sender<(Bytes, Arc<Mutex<(bool, usize)>>)>,
+    pub msg_sender: flume::Sender<(&'static [u8], Arc<Mutex<RequestState>>)>,
 }
 
 #[derive(Clone)]
 pub struct SocketRecvComm {
     pub tcp_sender: Arc<std::thread::JoinHandle<()>>,
-    pub msg_sender: flume::Sender<(&'static mut [u8], Arc<Mutex<(bool, usize)>>)>,
+    pub msg_sender: flume::Sender<(&'static mut [u8], Arc<Mutex<RequestState>>)>,
 }
 
 #[derive(Error, Debug)]
@@ -78,13 +64,20 @@ pub enum BaguaNetError {
 }
 
 pub struct SocketSendRequest {
-    pub state: Arc<Mutex<(bool, usize)>>,
+    pub state: Arc<Mutex<RequestState>>,
     pub trace_span: opentelemetry::global::BoxedSpan,
 }
 
 pub struct SocketRecvRequest {
-    pub state: Arc<Mutex<(bool, usize)>>,
+    pub state: Arc<Mutex<RequestState>>,
     pub trace_span: opentelemetry::global::BoxedSpan,
+}
+
+#[derive(Debug)]
+pub struct RequestState {
+    pub nsubtasks: usize,
+    pub completed_subtasks: usize,
+    pub nbytes_transferred: usize,
 }
 
 pub enum SocketRequest {
@@ -95,14 +88,53 @@ pub enum SocketRequest {
 static TELEMETRY_INIT_ONCE: std::sync::Once = std::sync::Once::new();
 // static TELEMETRY_GUARD: Option<TelemetryGuard> = None;
 
+struct AppState {
+    exporter: opentelemetry_prometheus::PrometheusExporter,
+    isend_nbytes_gauge: BoundValueRecorder<'static, u64>,
+    irecv_nbytes_gauge: BoundValueRecorder<'static, u64>,
+    isend_nbytes_per_second: Arc<Mutex<f64>>,
+    isend_percentage_of_effective_time: Arc<Mutex<f64>>,
+    // isend_nbytes_gauge: BoundValueRecorder<'static, u64>,
+    // irecv_nbytes_gauge: BoundValueRecorder<'static, u64>,
+    uploader: std::thread::JoinHandle<()>,
+}
+
+type SocketListenCommID = usize;
+type SocketSendCommID = usize;
+type SocketRecvCommID = usize;
+type SocketRequestID = usize;
+
+pub struct BaguaNet {
+    pub socket_devs: Vec<NCCLSocketDev>,
+    pub listen_comm_next_id: usize,
+    pub listen_comm_map: HashMap<SocketListenCommID, SocketListenComm>,
+    pub send_comm_next_id: usize,
+    pub send_comm_map: HashMap<SocketSendCommID, SocketSendComm>,
+    pub recv_comm_next_id: usize,
+    pub recv_comm_map: HashMap<SocketRecvCommID, SocketRecvComm>,
+    pub socket_request_next_id: usize,
+    pub socket_request_map: HashMap<SocketRequestID, SocketRequest>,
+    pub trace_span_context: opentelemetry::Context,
+    pub trace_on_flag: bool,
+    pub rank: i32,
+    state: Arc<AppState>,
+    nstreams: usize,
+    task_split_threshold: usize,
+}
+
 impl BaguaNet {
     const DEFAULT_SOCKET_MAX_COMMS: i32 = 65536;
     const DEFAULT_LISTEN_BACKLOG: i32 = 16384;
-    const NSOCKS: usize = 2;
 
     pub fn new() -> Result<BaguaNet, BaguaNetError> {
+        let rank: i32 = std::env::var("RANK")
+            .unwrap_or("-1".to_string())
+            .parse()
+            .unwrap();
         TELEMETRY_INIT_ONCE.call_once(|| {
-            opentelemetry::global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+            if rank == -1 || rank > 7 {
+                return;
+            }
 
             let jaeger_addr = match std::env::var("BAGUA_NET_JAEGER_ADDRESS") {
                 Ok(jaeger_addr) => {
@@ -115,8 +147,8 @@ impl BaguaNet {
                 }
             };
 
-            // Write my jaeger agent
-            let tracer = opentelemetry_jaeger::new_pipeline()
+            opentelemetry::global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+            opentelemetry_jaeger::new_pipeline()
                 .with_collector_endpoint(format!("http://{}/api/traces", jaeger_addr))
                 .with_service_name("bagua-net")
                 .install_batch(opentelemetry::runtime::AsyncStd)
@@ -124,11 +156,86 @@ impl BaguaNet {
         });
 
         let tracer = opentelemetry::global::tracer("bagua-net");
-        let mut span = tracer.start("BaguaNet");
+        let mut span = tracer.start(format!("BaguaNet-{}", rank));
         span.set_attribute(KeyValue::new(
             "socket_devs",
             format!("{:?}", utils::find_interfaces()),
         ));
+
+        let prom_exporter = opentelemetry_prometheus::exporter()
+            .with_default_histogram_boundaries(vec![16., 1024., 4096., 1048576.])
+            .init();
+
+        let isend_nbytes_per_second = Arc::new(Mutex::new(0.));
+        let isend_percentage_of_effective_time = Arc::new(Mutex::new(0.));
+
+        let meter = opentelemetry::global::meter("bagua-net");
+        let isend_nbytes_per_second_clone = isend_nbytes_per_second.clone();
+        meter
+            .f64_value_observer(
+                "isend_nbytes_per_second",
+                move |res: ObserverResult<f64>| {
+                    res.observe(
+                        *isend_nbytes_per_second_clone.lock().unwrap(),
+                        HANDLER_ALL.as_ref(),
+                    );
+                },
+            )
+            .init();
+        let isend_percentage_of_effective_time_clone = isend_percentage_of_effective_time.clone();
+        meter
+            .f64_value_observer(
+                "isend_percentage_of_effective_time",
+                move |res: ObserverResult<f64>| {
+                    res.observe(
+                        *isend_percentage_of_effective_time_clone.lock().unwrap(),
+                        HANDLER_ALL.as_ref(),
+                    );
+                },
+            )
+            .init();
+        let state = Arc::new(AppState {
+            exporter: prom_exporter.clone(),
+            isend_nbytes_gauge: meter
+                .u64_value_recorder("isend_nbytes")
+                .init()
+                .bind(HANDLER_ALL.as_ref()),
+            irecv_nbytes_gauge: meter
+                .u64_value_recorder("irecv_nbytes")
+                .init()
+                .bind(HANDLER_ALL.as_ref()),
+            isend_nbytes_per_second: isend_nbytes_per_second,
+            isend_percentage_of_effective_time: isend_percentage_of_effective_time,
+            uploader: std::thread::spawn(move || {
+                let prometheus_addr =
+                    std::env::var("BAGUA_NET_PROMETHEUS_ADDRESS").unwrap_or_default();
+                let (user, pass, address) = match utils::parse_user_pass_and_addr(&prometheus_addr)
+                {
+                    Some(ret) => ret,
+                    None => return,
+                };
+
+                loop {
+                    std::thread::sleep(std::time::Duration::from_micros(200));
+                    let metric_families = prom_exporter.registry().gather();
+                    match prometheus::push_metrics(
+                        "BaguaNet",
+                        prometheus::labels! { "rank".to_owned() => rank.to_string(), },
+                        &address,
+                        metric_families,
+                        Some(prometheus::BasicAuthentication {
+                            username: user.clone(),
+                            password: pass.clone(),
+                        }),
+                    ) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            tracing::warn!("{:?}", err);
+                        }
+                    }
+                }
+            }),
+        });
 
         Ok(Self {
             socket_devs: utils::find_interfaces(),
@@ -141,6 +248,17 @@ impl BaguaNet {
             socket_request_next_id: 0,
             socket_request_map: Default::default(),
             trace_span_context: opentelemetry::Context::current_with_span(span),
+            rank: rank,
+            trace_on_flag: rank < 8,
+            state: state,
+            nstreams: std::env::var("BAGUA_NET_NSTREAMS")
+                .unwrap_or("2".to_owned())
+                .parse()
+                .unwrap(),
+            task_split_threshold: std::env::var("BAGUA_NET_TASK_SPLIT_THRESHOLD")
+                .unwrap_or("1048576".to_owned())
+                .parse()
+                .unwrap(),
         })
     }
 
@@ -214,7 +332,8 @@ impl BaguaNet {
         socket_handle: SocketHandle,
     ) -> Result<SocketSendCommID, BaguaNetError> {
         let mut parallel_streams = Vec::new();
-        for i in 0..BaguaNet::NSOCKS {
+        let mut streams_input = Vec::new();
+        for _ in 0..self.nstreams {
             let mut stream = match net::TcpStream::connect(socket_handle.addr.clone().to_str()) {
                 Ok(stream) => stream,
                 Err(err) => {
@@ -229,13 +348,61 @@ impl BaguaNet {
                     )));
                 }
             };
-            stream.set_nodelay(true);
-            stream.set_nonblocking(true);
+            stream.set_nodelay(true).unwrap();
+            stream.set_nonblocking(true).unwrap();
 
-            parallel_streams.push(stream);
+            let (msg_sender, msg_receiver) =
+                flume::unbounded::<(&'static [u8], Arc<Mutex<RequestState>>)>();
+            let metrics = self.state.clone();
+            // TODO: Consider dynamically assigning tasks to make the least stream full
+            parallel_streams.push(std::thread::spawn(move || {
+                let out_timer = std::time::Instant::now();
+                let mut sum_in_time = 0.;
+                for (data, state) in msg_receiver.iter() {
+                    let in_timer = std::time::Instant::now();
+                    utils::nonblocking_write_all(&mut stream, &data[..]).unwrap();
+
+                    let dur = in_timer.elapsed().as_secs_f64();
+                    sum_in_time += dur;
+
+                    *metrics.isend_nbytes_per_second.lock().unwrap() = data.len() as f64 / dur;
+                    *metrics.isend_percentage_of_effective_time.lock().unwrap() =
+                        sum_in_time / out_timer.elapsed().as_secs_f64();
+
+                    metrics.isend_nbytes_gauge.record(data.len() as u64);
+                    match state.lock() {
+                        Ok(mut state) => {
+                            state.completed_subtasks += 1;
+                            state.nbytes_transferred += data.len();
+                        }
+                        Err(poisoned) => {
+                            tracing::warn!("{:?}", poisoned);
+                        }
+                    };
+                }
+            }));
+            streams_input.push(msg_sender);
         }
 
+        let mut master_stream = match net::TcpStream::connect(socket_handle.addr.clone().to_str()) {
+            Ok(master_stream) => master_stream,
+            Err(err) => {
+                tracing::warn!(
+                    "net::TcpStream::connect failed, err={:?}, socket_handle={:?}",
+                    err,
+                    socket_handle
+                );
+                return Err(BaguaNetError::TCPError(format!(
+                    "socket_handle={:?}, err={:?}",
+                    socket_handle, err
+                )));
+            }
+        };
+        master_stream.set_nodelay(true).unwrap();
+        master_stream.set_nonblocking(true).unwrap();
+
         let (msg_sender, msg_receiver) = flume::unbounded();
+        let task_split_threshold = self.task_split_threshold;
         let id = self.send_comm_next_id;
         self.send_comm_next_id += 1;
         self.send_comm_map.insert(
@@ -243,16 +410,29 @@ impl BaguaNet {
             SocketSendComm {
                 msg_sender: msg_sender,
                 tcp_sender: Arc::new(std::thread::spawn(move || {
-                    let mut stream_id = 0;
+                    let mut downstream_id = 0;
                     for (data, state) in msg_receiver.iter() {
-                        let mut send_nbytes = data.len().to_be_bytes();
+                        let send_nbytes = data.len().to_be_bytes();
+                        utils::nonblocking_write_all(&mut master_stream, &send_nbytes[..]).unwrap();
 
-                        let mut stream = &mut parallel_streams[stream_id];
-                        stream_id = (stream_id + 1) % BaguaNet::NSOCKS;
-                        utils::nonblocking_write_all(&mut stream, &send_nbytes[..]).unwrap();
-                        utils::nonblocking_write_all(&mut stream, &data[..]).unwrap();
+                        if data.len() != 0 {
+                            let bucket_size = if data.len() >= task_split_threshold
+                                && data.len() > parallel_streams.len()
+                            {
+                                data.len() + (parallel_streams.len() - 1) / parallel_streams.len()
+                            } else {
+                                data.len()
+                            };
+                            for bucket in data.chunks(bucket_size) {
+                                state.lock().unwrap().nsubtasks += 1;
+                                streams_input[downstream_id]
+                                    .send((bucket, state.clone()))
+                                    .unwrap();
+                                downstream_id = (downstream_id + 1) % parallel_streams.len();
+                            }
+                        }
 
-                        (*state.lock().unwrap()) = (true, data.len());
+                        state.lock().unwrap().completed_subtasks += 1;
                     }
                 })),
             },
@@ -265,22 +445,52 @@ impl BaguaNet {
         &mut self,
         listen_comm_id: SocketListenCommID,
     ) -> Result<SocketRecvCommID, BaguaNetError> {
+        let listen_comm = self.listen_comm_map.get(&listen_comm_id).unwrap();
         let mut parallel_streams = Vec::new();
-        for i in 0..BaguaNet::NSOCKS {
-            let listen_comm = self.listen_comm_map.get(&listen_comm_id).unwrap();
-            let (mut stream, addr) = match listen_comm.tcp_listener.lock().unwrap().accept() {
+        let mut streams_input = Vec::new();
+        for _ in 0..self.nstreams {
+            let (mut stream, _addr) = match listen_comm.tcp_listener.lock().unwrap().accept() {
                 Ok(listen) => listen,
                 Err(err) => {
                     return Err(BaguaNetError::TCPError(format!("{:?}", err)));
                 }
             };
-            stream.set_nodelay(true);
-            stream.set_nonblocking(true);
+            stream.set_nodelay(true).unwrap();
+            stream.set_nonblocking(true).unwrap();
 
-            parallel_streams.push(stream);
+            let (msg_sender, msg_receiver) =
+                flume::unbounded::<(&'static mut [u8], Arc<Mutex<RequestState>>)>();
+            let metrics = self.state.clone();
+            parallel_streams.push(std::thread::spawn(move || {
+                for (data, state) in msg_receiver.iter() {
+                    utils::nonblocking_read_exact(&mut stream, &mut data[..]).unwrap();
+
+                    metrics.irecv_nbytes_gauge.record(data.len() as u64);
+                    match state.lock() {
+                        Ok(mut state) => {
+                            state.completed_subtasks += 1;
+                            state.nbytes_transferred += data.len();
+                        }
+                        Err(poisoned) => {
+                            tracing::warn!("{:?}", poisoned);
+                        }
+                    };
+                }
+            }));
+            streams_input.push(msg_sender);
         }
 
+        let (mut master_stream, _addr) = match listen_comm.tcp_listener.lock().unwrap().accept() {
+            Ok(listen) => listen,
+            Err(err) => {
+                return Err(BaguaNetError::TCPError(format!("{:?}", err)));
+            }
+        };
+        master_stream.set_nodelay(true).unwrap();
+        master_stream.set_nonblocking(true).unwrap();
+
         let (msg_sender, msg_receiver) = flume::unbounded();
+        let task_split_threshold = self.task_split_threshold;
         let id = self.recv_comm_next_id;
         self.recv_comm_next_id += 1;
         self.recv_comm_map.insert(
@@ -288,17 +498,31 @@ impl BaguaNet {
             SocketRecvComm {
                 msg_sender: msg_sender,
                 tcp_sender: Arc::new(std::thread::spawn(move || {
-                    let mut stream_id = 0;
-                    for (mut data, state) in msg_receiver.iter() {
-                        let mut stream = &mut parallel_streams[stream_id];
-                        stream_id = (stream_id + 1) % BaguaNet::NSOCKS;
-
+                    let mut downstream_id = 0;
+                    for (data, state) in msg_receiver.iter() {
                         let mut target_nbytes = data.len().to_be_bytes();
-                        utils::nonblocking_read_exact(&mut stream, &mut target_nbytes[..]).unwrap();
+                        utils::nonblocking_read_exact(&mut master_stream, &mut target_nbytes[..]).unwrap();
                         let target_nbytes = usize::from_be_bytes(target_nbytes);
-                        utils::nonblocking_read_exact(&mut stream, &mut data[..target_nbytes])
-                            .unwrap();
-                        (*state.lock().unwrap()) = (true, target_nbytes);
+
+                        if target_nbytes != 0 {
+                            let bucket_size = if target_nbytes >= task_split_threshold
+                                && target_nbytes > parallel_streams.len()
+                            {
+                                target_nbytes
+                                    + (parallel_streams.len() - 1) / parallel_streams.len()
+                            } else {
+                                target_nbytes
+                            };
+
+                            for bucket in data[..target_nbytes].chunks_mut(bucket_size) {
+                                state.lock().unwrap().nsubtasks += 1;
+                                streams_input[downstream_id]
+                                    .send((&mut bucket[..], state.clone()))
+                                    .unwrap();
+                                downstream_id = (downstream_id + 1) % parallel_streams.len();
+                            }
+                        }
+                        state.lock().unwrap().completed_subtasks += 1;
                     }
                 })),
             },
@@ -314,7 +538,7 @@ impl BaguaNet {
     ) -> Result<SocketRequestID, BaguaNetError> {
         let tracer = opentelemetry::global::tracer("bagua-net");
         let mut span = tracer
-            .span_builder("isend")
+            .span_builder(format!("isend-{}", send_comm_id))
             .with_parent_context(self.trace_span_context.clone())
             .start(&tracer);
         let send_comm = self.send_comm_map.get(&send_comm_id).unwrap();
@@ -324,7 +548,11 @@ impl BaguaNet {
         span.set_attribute(KeyValue::new("nbytes", data.len() as i64));
 
         self.socket_request_next_id += 1;
-        let task_state = Arc::new(Mutex::new((false, 0)));
+        let task_state = Arc::new(Mutex::new(RequestState {
+            nsubtasks: 1,
+            completed_subtasks: 0,
+            nbytes_transferred: 0,
+        }));
         self.socket_request_map.insert(
             id,
             SocketRequest::SendRequest(SocketSendRequest {
@@ -333,10 +561,7 @@ impl BaguaNet {
             }),
         );
 
-        send_comm
-            .msg_sender
-            .send((Bytes::from_static(data), task_state))
-            .unwrap();
+        send_comm.msg_sender.send((data, task_state)).unwrap();
 
         Ok(id)
     }
@@ -348,7 +573,7 @@ impl BaguaNet {
     ) -> Result<SocketRequestID, BaguaNetError> {
         let tracer = opentelemetry::global::tracer("bagua-net");
         let mut span = tracer
-            .span_builder("irecv")
+            .span_builder(format!("irecv-{}", recv_comm_id))
             .with_parent_context(self.trace_span_context.clone())
             .start(&tracer);
         let recv_comm = self.recv_comm_map.get(&recv_comm_id).unwrap();
@@ -357,7 +582,11 @@ impl BaguaNet {
         span.set_attribute(KeyValue::new("id", id as i64));
 
         self.socket_request_next_id += 1;
-        let task_state = Arc::new(Mutex::new((false, 0)));
+        let task_state = Arc::new(Mutex::new(RequestState {
+            nsubtasks: 1,
+            completed_subtasks: 0,
+            nbytes_transferred: 0,
+        }));
         self.socket_request_map.insert(
             id,
             SocketRequest::RecvRequest(SocketRecvRequest {
@@ -374,8 +603,24 @@ impl BaguaNet {
     pub fn test(&mut self, request_id: SocketRequestID) -> Result<(bool, usize), BaguaNetError> {
         let request = self.socket_request_map.get_mut(&request_id).unwrap();
         let ret = match request {
-            SocketRequest::SendRequest(send_req) => Ok(*send_req.state.lock().unwrap()),
-            SocketRequest::RecvRequest(recv_req) => Ok(*recv_req.state.lock().unwrap()),
+            SocketRequest::SendRequest(send_req) => {
+                let state = send_req.state.lock().unwrap();
+                let task_completed = state.nsubtasks == state.completed_subtasks;
+
+                if task_completed {
+                    send_req.trace_span.end();
+                }
+                Ok((task_completed, state.nbytes_transferred))
+            }
+            SocketRequest::RecvRequest(recv_req) => {
+                let state = recv_req.state.lock().unwrap();
+                let task_completed = state.nsubtasks == state.completed_subtasks;
+
+                if task_completed {
+                    recv_req.trace_span.end();
+                }
+                Ok((task_completed, state.nbytes_transferred))
+            }
         };
 
         if let Ok(ret) = ret {
@@ -412,6 +657,7 @@ impl BaguaNet {
 impl Drop for BaguaNet {
     fn drop(&mut self) {
         // TODO: make shutdown global
+        self.trace_span_context.span().end();
         opentelemetry::global::shutdown_tracer_provider();
     }
 }
