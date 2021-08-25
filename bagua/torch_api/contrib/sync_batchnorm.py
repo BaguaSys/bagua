@@ -1,6 +1,13 @@
 # This module is mainly based on https://github.com/horovod/horovod/blob/master/horovod/torch/sync_batch_norm.py,
 # also benefits from https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/batchnorm.py a lot.
-
+#
+# Copyright (c) Uber, Inc. and its affiliates.
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
+#
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
 
 from distutils.version import LooseVersion
 
@@ -29,17 +36,17 @@ class SyncBatchNorm(_BatchNorm):
     See https://pytorch.org/docs/stable/nn.html#batchnorm2d for more details about BatchNorm.
 
     Arguments:
-        num_features: number of channels `C` from the shape `(N, C, ...)`
-        eps: a value added to the denominator for numerical stability. Default: 1e-5
+        num_features: number of channels `C` from the shape `(N, C, ...)`.
+        eps: a value added to the denominator for numerical stability. Default: 1e-5.
         momentum: the value used for the running_mean and running_var
             computation. Can be set to `None` for cumulative moving average
-            (i.e. simple average). Default: 0.1
+            (i.e. simple average). Default: 0.1.
         affine: a boolean value that when set to `True`, this module has
-            learnable affine parameters. Default: `True`
+            learnable affine parameters. Default: `True`.
         track_running_stats: a boolean value that when set to `True`, this
             module tracks the running mean and variance, and when set to `False`,
             this module does not track such statistics and always uses batch
-            statistics in both training and eval modes. Default: `True`
+            statistics in both training and eval modes. Default: `True`.
 
     .. note:: Only GPU input tensors are supported in the training mode.
     """
@@ -107,16 +114,10 @@ class SyncBatchNorm(_BatchNorm):
             ...      lr=0.01,
             ...      momentum=0.9
             ...    )
-            >>> sync_bn_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+            >>> sync_bn_model = bagua.torch_api.contrib.sync_batchnorm.SyncBatchNorm.convert_sync_batchnorm(model)
             >>> bagua_model = sync_bn_model.with_bagua([optimizer], GradientAllReduce())
         """
         module_output = module
-
-        import bagua
-
-        assert (
-            float(bagua.__version__[:3]) >= 0.7
-        ), "SyncBN is compatible with baguaversion >= 0.7.0"
 
         if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
             module_output = SyncBatchNorm(
