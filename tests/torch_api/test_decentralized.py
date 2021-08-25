@@ -422,6 +422,13 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
             communication_interval=2,
             backend="gloo",
         )
+        self.run_diff_locally(
+            nprocs=nprocs,
+            hierarchical=False,
+            peer_selection_mode="all",
+            communication_interval=1,
+            backend="gloo",
+        )
 
 
 if __name__ == "__main__":

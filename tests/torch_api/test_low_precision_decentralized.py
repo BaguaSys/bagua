@@ -166,9 +166,9 @@ class LowPrecDecentralizedAlgor(nn.Module):
         for param in self.module.parameters():
             torch.distributed.broadcast(param.data, src=0)
 
-        self.weight = flatten(self._build_params()).cuda()
-        self.left_peer_weight = self.weight.detach().clone().cuda()
-        self.right_peer_weight = self.weight.detach().clone().cuda()
+        self.weight = flatten(self._build_params())
+        self.left_peer_weight = self.weight.detach().clone()
+        self.right_peer_weight = self.weight.detach().clone()
 
     def _build_params(self):
         return [param.data for param in list(self.module.parameters()).__reversed__()]
@@ -208,6 +208,7 @@ class LowPrecDecentralizedAlgor(nn.Module):
             return left_tensor.cuda(), right_tensor.cuda()
 
         def update_weight_fn(x, comm_size):
+
             x += 1 / 3 * self.left_peer_weight
             x += 1 / 3 * self.right_peer_weight
             x -= 5 / 3 * self.weight
@@ -229,7 +230,6 @@ class LowPrecDecentralizedAlgor(nn.Module):
             x.copy_(self.weight + diff)
             self.weight.copy_(x)
 
-        # Note: skip hierarchical test since torch reduce does not support AVG op.
         def hierarchical_update_weight_fn(x):
             torch.distributed.reduce(x, dst=0)
             if self.rank == 0:
@@ -246,6 +246,7 @@ class LowPrecDecentralizedAlgor(nn.Module):
                 apply_flattened_call(
                     weights, lambda x: update_weight_fn(x, self.world_size)
                 )
+
         self.step_count += 1
 
 
@@ -378,9 +379,11 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         self.run_diff_locally(
             hierarchical=False, communication_interval=1, backend="gloo"
         )
-
         self.run_diff_locally(
             hierarchical=False, communication_interval=2, backend="gloo"
+        )
+        self.run_diff_locally(
+            hierarchical=True, communication_interval=1, backend="nccl"
         )
 
 
