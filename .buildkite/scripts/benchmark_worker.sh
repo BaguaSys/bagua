@@ -6,7 +6,7 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 set -euox pipefail
 
 export HOME=/workdir
-cd /workdir && pip install . && git clone -b test https://github.com/BaguaSys/examples.git
+cd /workdir && pip install . && git clone https://github.com/BaguaSys/examples.git
 curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 source $HOME/.cargo/env
 pip install git+https://github.com/BaguaSys/bagua-core@master
