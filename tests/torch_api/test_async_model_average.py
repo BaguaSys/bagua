@@ -70,8 +70,8 @@ class TestAsyncModelAverage(unittest.TestCase):
             "WORLD_SIZE": str(nprocs),
             "LOCAL_WORLD_SIZE": str(nprocs),
             "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port()),
-            "BAGUA_SERVICE_PORT": str(find_free_port()),
+            "MASTER_PORT": str(find_free_port(8000, 8100)),
+            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
         }
 
         mp = multiprocessing.get_context("spawn")
