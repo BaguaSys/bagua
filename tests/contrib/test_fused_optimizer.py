@@ -130,8 +130,8 @@ class TestFusedOptimizer(unittest.TestCase):
         os.environ["WORLD_SIZE"] = "1"
         os.environ["LOCAL_WORLD_SIZE"] = "1"
         os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port())
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+        os.environ["MASTER_PORT"] = str(find_free_port(8000, 8100))
+        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port(9000, 9100))
 
         os.environ["RANK"] = "0"
         os.environ["LOCAL_RANK"] = "0"
