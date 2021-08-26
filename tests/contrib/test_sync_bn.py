@@ -34,7 +34,7 @@ def _init_torch_env(rank, nprocs, env):
 
     # init torch distributed process group
     torch.cuda.set_device(rank)
-    init_method = "tcp://" + env["MASTER_ADDR"] + ":"+ env["MASTER_PORT"]
+    init_method = "tcp://" + env["MASTER_ADDR"] + ":" + env["MASTER_PORT"]
     torch.distributed.init_process_group(
         world_size=nprocs,
         rank=rank,
@@ -123,7 +123,7 @@ class Test_Sync_Bn(unittest.TestCase):
         mp = multiprocessing.get_context("spawn")
         torch_results_forward = [Result_Forward() for _ in range(nprocs)]
         torch_results_backward = [Result_Backward() for _ in range(nprocs)]
-        processes=[]
+        processes = []
 
         for i in range(nprocs):
             p = mp.Process(
@@ -152,7 +152,7 @@ class Test_Sync_Bn(unittest.TestCase):
 
         bagua_results_forward = [Result_Forward() for _ in range(nprocs)]
         bagua_results_backward = [Result_Backward() for _ in range(nprocs)]
-        processes=[]
+        processes = []
         for i in range(nprocs):
             p = mp.Process(
                 target=run_bagua_sync_bn,
