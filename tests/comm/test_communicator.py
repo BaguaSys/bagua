@@ -9,10 +9,11 @@ from bagua.torch_api.communication import (
     allgather,
 )
 from tests.internal.common_utils import find_free_port
-import torch.multiprocessing as mp
+import multiprocessing
 import bagua.torch_api as bagua
 import threading
 import time
+from tests import skip_if_cuda_not_available
 
 
 class Result(object):
@@ -21,7 +22,13 @@ class Result(object):
         self.data = torch.Tensor([0.0])
 
 
-def init_env(rank):
+def init_env(rank, env):
+    os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
+    os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
+    os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
+    os.environ["MASTER_PORT"] = env["MASTER_PORT"]
+    os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
+
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
 
@@ -30,8 +37,10 @@ def init_env(rank):
     bagua.init_process_group()
 
 
-def run_abort(rank, nprocs, results):
-    init_env(rank)
+def run_abort(rank, nprocs, results, env):
+    init_env(rank, env)
+
+    os.environ["NCCL_PROTO"] = "^LL128"
 
     comm_stream = torch.cuda.Stream()
     comm = init_bagua_communicator(model_name="test_comm", stream=comm_stream)
@@ -51,8 +60,8 @@ def run_abort(rank, nprocs, results):
     comm_stream.synchronize()
 
 
-def run_allreduce(rank, nprocs, results):
-    init_env(rank)
+def run_allreduce(rank, nprocs, results, env):
+    init_env(rank, env)
 
     send_tensor = torch.rand(100).cuda()
     recv_tensor = torch.zeros_like(send_tensor)
@@ -66,8 +75,8 @@ def run_allreduce(rank, nprocs, results):
     results[rank].ret[0] = torch.equal(recv_tensor, tensor)
 
 
-def run_p2p(rank, nprocs, results):
-    init_env(rank)
+def run_p2p(rank, nprocs, results, env):
+    init_env(rank, env)
 
     send_tensor = torch.rand(100).cuda()
     recv_tensor = torch.zeros_like(send_tensor)
@@ -80,8 +89,8 @@ def run_p2p(rank, nprocs, results):
         results[rank].data.copy_(torch.norm(recv_tensor))
 
 
-def run_allgather(rank, nprocs, results):
-    init_env(rank)
+def run_allgather(rank, nprocs, results, env):
+    init_env(rank, env)
 
     send_tensor = torch.rand(100).cuda()
     recv_tensor = torch.zeros(
@@ -103,36 +112,44 @@ def run_allgather(rank, nprocs, results):
 
 
 def run_test_locally(fn):
-    if not torch.cuda.is_available():
-        print("skip tests since cuda is not available")
-        return []
-
     nprocs = torch.cuda.device_count()
-    os.environ["WORLD_SIZE"] = str(nprocs)
-    os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
-    os.environ["MASTER_ADDR"] = "127.0.0.1"
-    os.environ["MASTER_PORT"] = str(find_free_port())
-    os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+    env = {
+        "WORLD_SIZE": str(nprocs),
+        "LOCAL_WORLD_SIZE": str(nprocs),
+        "MASTER_ADDR": "127.0.0.1",
+        "MASTER_PORT": str(find_free_port(8000, 8100)),
+        "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
+    }
 
+    mp = multiprocessing.get_context("spawn")
     results = [Result() for _ in range(nprocs)]
-    mp.spawn(
-        fn,
-        nprocs=nprocs,
-        args=(nprocs, results),
-    )
+    processes = []
+    for i in range(nprocs):
+        p = mp.Process(
+            target=fn,
+            args=(i, nprocs, results, env),
+        )
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join(timeout=60)
 
     return results
 
 
 class TestCommunication(unittest.TestCase):
+    @skip_if_cuda_not_available()
     def test_abort(self):
         run_test_locally(run_abort)
 
+    @skip_if_cuda_not_available()
     def test_allreduce(self):
         results = run_test_locally(run_allreduce)
         for ret in results:
             self.assertTrue(ret.ret.item())
 
+    @skip_if_cuda_not_available()
     def test_p2p(self):
         results = run_test_locally(run_p2p)
 
@@ -141,6 +158,7 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue(torch.equal(results[i].data, results[i - 1].data))
             i += 2
 
+    @skip_if_cuda_not_available()
     def test_allgather(self):
         results = run_test_locally(run_allgather)
         for ret in results:

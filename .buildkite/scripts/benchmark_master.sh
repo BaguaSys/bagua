@@ -51,13 +51,16 @@ python -m bagua.distributed.launch \
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
-speeds=(185.0 180.0 150.0 115.0 170)
-losses=(0.001763 0.001694 0.002583 0.001821 0.000010)
+speeds=(185.0 180.0 150.0 115.0 170 0)
+losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.00000)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
     echo "begin to test ["${algorithms[$i]}]
     logfile=$(mktemp /tmp/bagua_benchmark_${algorithms[$i]}.XXXXXX.log)
+    if [[ ${algorithms[$i]} == "async" ]]; then
+        export NCCL_PROTO=^LL128
+    fi
     python -m bagua.distributed.launch \
         --nnodes=2 \
         --nproc_per_node 4 \
@@ -69,7 +72,11 @@ do
         --algorithm ${algorithms[$i]} \
         --deterministic \
         2>&1 | tee ${logfile}
-    check_benchmark_log ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
+    if [[ ${algorithms[$i]} == "async" ]]; then
+        echo "Skip checking for async"
+    else
+        check_benchmark_log ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
+    fi
 done
 
 if [ ${#CHECK_RESULT[*]} -gt 0 ]; then

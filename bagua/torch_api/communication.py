@@ -124,13 +124,13 @@ def init_process_group():
         ...    )
         >>> model, optimizer = bagua_init(model, optimizer)
     """
+    if get_rank() == 0 and _autotune_server is None:
+        start_autotune_server()
+
     if not dist.is_initialized():
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"
         )  # fmt: off
-
-    if get_rank() == 0 and _autotune_server is None:
-        start_autotune_server()
 
 
 def gen_nccl_unique_id(comm_type: str, root=0, store=None):

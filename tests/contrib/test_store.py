@@ -9,6 +9,7 @@ import multiprocessing as mp
 import logging
 import numpy as np
 import pickle
+from tests import skip_if_cuda_available
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -44,10 +45,12 @@ class TestRedisStore(unittest.TestCase):
 
         self.assertTrue(store.status())
 
+    @skip_if_cuda_available()
     def test_redis_store(self):
         store = RedisStore(hosts=None, cluster_mode=False, capacity_per_node=10000000)
         self.check(store)
 
+    @skip_if_cuda_available()
     def test_redis_cluster_store(self):
         n = 3
         hosts = []
