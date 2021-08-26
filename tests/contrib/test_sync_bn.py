@@ -117,7 +117,7 @@ class Test_Sync_Bn(unittest.TestCase):
         print(nprocs)
         env = {
             "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port()),
+            "MASTER_PORT": str(find_free_port(8000, 8100)),
         }
 
         mp = multiprocessing.get_context("spawn")
@@ -146,8 +146,8 @@ class Test_Sync_Bn(unittest.TestCase):
             "WORLD_SIZE": str(nprocs),
             "LOCAL_WORLD_SIZE": str(nprocs),
             "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port()),
-            "BAGUA_SERVICE_PORT": str(find_free_port()),
+            "MASTER_PORT": str(find_free_port(8000, 8100)),
+            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
         }
 
         bagua_results_forward = [Result_Forward() for _ in range(nprocs)]

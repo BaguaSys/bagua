@@ -1,10 +1,13 @@
 import socket
 
 
-def find_free_port():
+def find_free_port(port=8000, max_port=9000):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("localhost", 0))
-    sockname = sock.getsockname()
-    sock.close()
-    return sockname[1]
+    while port <= max_port:
+        try:
+            sock.bind(("", port))
+            sock.close()
+            return port
+        except OSError:
+            port += 1
+    raise IOError("no free ports")
