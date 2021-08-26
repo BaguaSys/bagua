@@ -58,6 +58,9 @@ for ((i=0;i<$length;i++))
 do
     echo "begin to test ["${algorithms[$i]}]
     logfile=$(mktemp /tmp/bagua_benchmark_${algorithms[$i]}.XXXXXX.log)
+    if [[ ${algorithms[$i]} == "async" ]]; then
+        export NCCL_PROTO=^LL128
+    fi
     python -m bagua.distributed.launch \
         --nnodes=2 \
         --nproc_per_node 4 \

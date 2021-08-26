@@ -42,7 +42,7 @@ steps:
           always-pull: true
   - label: "pytest"
     parallelism: 1
-    command: bash .buildkite/scripts/test.sh
+    command: bash .buildkite/scripts/run_pytest.sh
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:latest"
