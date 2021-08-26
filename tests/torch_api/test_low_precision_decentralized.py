@@ -367,6 +367,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                     torch.isclose(
                         bagua_results[rank].bucket_weight,
                         torch_results[rank].bucket_weight,
+                        atol=1e-5,
                     )
                 ).item()
             )
