@@ -39,7 +39,7 @@ The underlying communication execution engine is in [bagua-core](https://github.
 
 For more comprehensive and up to date results, refer to [Bagua benchmark page](https://bagua-tutorials.kwai-seattle.com/benchmark/index.html).
 
-## Installation
+## Installation & Quick Start
 
 Develop version:
 
@@ -52,6 +52,8 @@ Release version:
 ```
 pip install bagua
 ```
+
+See [Bagua tutorials](https://bagua-tutorials.kwai-seattle.com/getting-started/) for quick start guide.
 
 ## Quick start on AWS
 
