@@ -55,7 +55,7 @@ pip install bagua
 
 See [Bagua tutorials](https://bagua-tutorials.kwai-seattle.com/getting-started/) for quick start guide.
 
-## Quick start on AWS
+## Quick Start on AWS
 
 Thanks to the [Amazon Machine Images (AMI)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html), we can provide users an easy way to deploy and run Bagua on AWS EC2 clusters with flexible size of machines and a wide range of GPU types. Users can find our pre-installed Bagua image on EC2 by a unique AMI-ID that we publish here. 
 
@@ -84,14 +84,6 @@ With above setup, we created two identical clusters to benchmark a synthesized i
 <p align="center">
     <a href="https://youtu.be/G8o5HVYZJvs"><img src="./figures/video_shot.png" width="600"/></a>
 </p>
-
-
-## Build API documentation locally
-
-```
-pip install -r docs/doc-requirements.txt
-make html
-```
 
 ## Cite Bagua
 
