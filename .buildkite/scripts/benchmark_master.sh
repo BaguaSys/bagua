@@ -33,6 +33,33 @@ function check_benchmark_log {
     fi
 }
 
+function check_benchmark_log_approximation {
+    logfile=$1
+    algorithm=$2
+    speed=$3
+    loss=$4
+
+    final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
+    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
+
+    echo "Checking ["${algorithm}"]..."
+    if [ $final_batch_loss < $loss ]; then
+        echo "Check ["${algorithm}"] success, final_batch_loss is smaller than "$loss
+    else
+        result="Check ["${algorithm}"] fail, final_batch_loss["$final_batch_loss"] is greater than "$loss"."
+        echo $result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]="${result}\n"
+    fi
+    var=$(awk 'BEGIN{ print "'$img_per_sec'"<"'$speed'" }')
+    if [ "$var" -eq 1 ]; then
+        result="Check ["${algorithm}"] fail, img_per_sec["$img_per_sec"] is smaller than "$speed
+        echo $result
+        CHECK_RESULT[${#CHECK_RESULT[*]}]="${result}\n"
+    else
+        echo "Check ["${algorithm}"] success, img_per_secc["$img_per_sec"] is greater than "$speed
+    fi
+}
+
 export HOME=/workdir
 cd /workdir && pip install . && git clone https://github.com/BaguaSys/examples.git
 curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
@@ -50,9 +77,9 @@ python -m bagua.distributed.launch \
     ${COMMUNICATION_SCRIPT}
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
-algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
-speeds=(185.0 180.0 150.0 115.0 170 0)
-losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.00000)
+algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam async)
+speeds=(185.0 180.0 150.0 115.0 170 200)
+losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.004000)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
@@ -73,7 +100,7 @@ do
         --deterministic \
         2>&1 | tee ${logfile}
     if [[ ${algorithms[$i]} == "async" ]]; then
-        echo "Skip checking for async"
+        check_benchmark_log_approximation ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
     else
         check_benchmark_log ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
     fi
