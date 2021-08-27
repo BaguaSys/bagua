@@ -1,11 +1,11 @@
-`bagua-net`
+Bagua-Net
 =====
 
 [![GitHub license](https://img.shields.io/github/license/BaguaSys/bagua-core)](https://github.com/BaguaSys/bagua-core/blob/master/LICENSE)
 
-Bagua-Net is high performance NCCL plugin for Bagua. By optimizing the fairness of TCP multi-streams, it has achieved better performance under TCP network.
+Bagua-Net is a high performance NCCL plugin for [Bagua](https://github.com/BaguaSys/bagua). By optimizing the fairness among multiple TCP streams, Bagua-Net can improve the overall throughput under TCP network by more than 30% for typical distributed learning tasks.
 
-## QuickStart
+## Quick Start
 
 ```bash
 # Install Bagua-Net
@@ -44,9 +44,9 @@ mpirun \
 
 ## Benchmark
 
-We tested the performance on the Kuaishou V100 machine and found that the throughput of Bagua-Net allreduce was significantly better than the NCCL tcp. Here is the [test record](https://gist.github.com/shjwudp/9eb08bbaf46d9b12239aa62a54d35a48).
+On 4 nodes, each one equipped with 8 V100 GPUs and 100Gb ethernet connection, [the throughput of AllReduce can be improved by 50%](https://github.com/BaguaSys/bagua-net/wiki/NCCL-benchmark-bagua-net-vs-google-fastsocket-vs-baseline).
 
-In the end-to-end test, we have obvious advantages compare to NCCL TCP. You can reproduce this test result through [this script](https://github.com/BaguaSys/examples/blob/main/benchmark/synthetic_benchmark.py).
+In an [end-to-end test](https://github.com/BaguaSys/examples/blob/main/benchmark/synthetic_benchmark.py) with VGG16 as the model to be trained, with Bagua-Net enabled, Bagua can be more than 35% faster than other distributed solutions (such as PyTorch DDP):
 
 ```
 # VGG16 on 4x8xV100 bagua-net
