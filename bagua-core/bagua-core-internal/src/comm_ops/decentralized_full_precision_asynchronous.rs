@@ -44,6 +44,11 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                 false,
                 &mut |c, t| {
 
+             if c.check_abort() {
+                 tracing::debug!("process {} exits due to previous abortion", c.rank);
+                 return
+             }
+
              let start_time = std::time::Instant::now();
              tracing::debug!("async model average start");
 
@@ -103,21 +108,31 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
 
              let comm_ready_event = CUDA_EVENT_POOL.take().event;
 
-             unsafe {
+             let ret = unsafe {
                  cpp::cpp!([
                      comm_ready_event as "cudaEvent_t",
-                     comm_stream as "cudaStream_t"]
+                     comm_stream as "cudaStream_t"] -> bool as "bool"
                  {
                      CUDACHECK(cudaEventRecord(comm_ready_event, comm_stream));
-                     CUDACHECK(cudaEventSynchronize(comm_ready_event));
-                 });
-             }
+                     cudaError_t err = cudaEventSynchronize(comm_ready_event);
+                     if (err != cudaSuccess) {
+                         printf("Warning: Cuda error %s:%d '%s'\n", __FILE__,__LINE__,cudaGetErrorString(err));
+                         return false;
+                     }
+                     return true;
+                 })
+             };
 
-             if c.check_abort() {
-                 tracing::debug!("async model average on process {} early stopped due to communicator abortion", c.rank);
+             if !ret {
+                 tracing::debug!("process {} early stopped due to communication failure", c.rank);
+                 c.set_abort();
                  return
              }
 
+             if c.check_abort() {
+                 tracing::debug!("process {} early stopped due to communicator abortion", c.rank);
+                 return
+             }
 
              // do we need to wait default stream?
              unsafe {
