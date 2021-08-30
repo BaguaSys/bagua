@@ -30,9 +30,9 @@ class BaguaTensor:
 
         Args:
             name: the unique name of the tensor
-            model_name: The name of the model of which the tensor belongs to.
+            module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
-              This is required to call ``bagua_mark_communication_ready`` related methods.
+              This is required to call :meth:`bagua_mark_communication_ready` related methods.
 
         Returns:
             The original tensor with Bagua tensor attributes initialized.
@@ -65,9 +65,9 @@ class BaguaTensor:
 
         Args:
             name: the unique name of the tensor
-            model_name: The name of the model of which the tensor belongs to.
+            module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
-              This is required to call ``bagua_mark_communication_ready`` related methods.
+              This is required to call :meth:`bagua_mark_communication_ready` related methods.
 
         Returns:
             The new Bagua tensor sharing the same storage with the original tensor.

@@ -19,17 +19,17 @@ from typing import List, Tuple
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
 class BaguaModule:
     """
-    This class patches `torch.nn.Module` with several methods to enable Bagua
+    This class patches `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html?highlight=module#torch.nn.Module>`_ with several methods to enable Bagua
     functionalities.
 
-    :ivar bagua_optimizers: The optimizers passed in by ``with_bagua(...)``.
+    :ivar bagua_optimizers: The optimizers passed in by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`.
     :vartype bagua_optimizers: List[torch.optim.Optimizer]
 
-    :ivar bagua_algorithm: The algorithm passed in by ``with_bagua(...)``.
+    :ivar bagua_algorithm: The algorithm passed in by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`.
     :vartype bagua_algorithm: bagua.torch_api.algorithms.Algorithm
 
     :ivar parameters_to_ignore: The parameter names in ``"{module_name}.{param_name}"`` format to ignore
-        when calling ``self.bagua_build_params()``.
+        when calling :meth:`bagua_build_params`.
     :vartype parameters_to_ignore: List[str]
 
     :ivar bagua_train_step_counter: Number of iterations in training mode
@@ -148,7 +148,7 @@ class BaguaModule:
         algorithm: "bagua.torch_api.algorithms.Algorithm",
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
-        ``torch.nn.Module``.
+        `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html?highlight=module#torch.nn.Module>`_.
 
         Arguments:
             optimizers: Optimizer(s) used by the
