@@ -17,7 +17,7 @@ def get_rank() -> int:
 
     Rank is a unique identifier assigned to each process within a distributed
     process group. They are always consecutive integers ranging from ``0`` to
-    ``world_size``.
+    :attr:`world_size`.
 
     Returns:
         The rank of the process group.
@@ -30,7 +30,7 @@ def get_local_rank() -> int:
     Get the rank of current node.
 
     Local rank is a unique identifier assigned to each process within a node.
-    They are always consecutive integers ranging from ``0`` to ``local_size``.
+    They are always consecutive integers ranging from ``0`` to :attr:`local_size`.
 
     Returns:
         The local rank of the node.

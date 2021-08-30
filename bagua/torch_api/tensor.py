@@ -10,7 +10,7 @@ import gorilla
 @gorilla.patches(torch.Tensor, filter=lambda name, obj: "bagua" in name)
 class BaguaTensor:
     """
-    This class patch torch.Tensor with additional methods.
+    This class patch `torch.Tensor <https://pytorch.org/docs/stable/tensors.html?highlight=tensor#torch.Tensor>`_ with additional methods.
     """
 
     def _bagua_sanity_check(self):
@@ -29,7 +29,7 @@ class BaguaTensor:
         A Bagua tensor is required to use Bagua's communication algorithms.
 
         Args:
-            name: the unique name of the tensor
+            name: The unique name of the tensor.
             module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
@@ -64,7 +64,7 @@ class BaguaTensor:
         Bagua's communication algorithms.
 
         Args:
-            name: the unique name of the tensor
+            name: The unique name of the tensor.
             module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
@@ -124,11 +124,11 @@ class BaguaTensor:
 
     def bagua_set_storage(self, storage: torch.Storage, storage_offset: int = 0):
         """
-        Sets the underlying storage using an existing torch.Storage.
+        Sets the underlying storage using an existing `torch.Storage <https://pytorch.org/docs/stable/storage.html?highlight=storage>`_.
 
         Args:
-            storage: the storage to use
-            storage_offset: the offset in the storage
+            storage: The storage to use.
+            storage_offset: The offset in the storage.
         """
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
