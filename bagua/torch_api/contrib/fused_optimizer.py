@@ -12,9 +12,9 @@ class FusedOptimizer(torch.optim.Optimizer):
     into one or a few, by flattening parameter tensors into one or more
     contiguous buckets.
 
-    It can be used in conjunction with :func:`bagua.torch_api.bagua_init`. In this case,
-    `Bagua` will do the fusions automatically, otherwise, you need to explicitly
-    pass ``do_flatten=True``.
+    It can be used in conjunction with :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method. In this case,
+    Bagua will do the fusions automatically, otherwise, you need to explicitly
+    set :attr:`do_flatten=True`.
 
     Args:
         optimizer (torch.optim.Optimizer): Any PyTorch optimizer.
@@ -25,13 +25,14 @@ class FusedOptimizer(torch.optim.Optimizer):
 
 
     Example::
-        To use in conjunction with :func:`bagua.torch_api.bagua_init`:
+        To use in conjunction with :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
         >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer)
         >>> model = model.with_bagua([optimizer], GradientAllReduceAlgorithm())
 
-        To use alone or with :class:`torch.nn.parallel.DistributedDataParallel`, set `do_flatten` to be ``True``:
+        To use alone or with `torch.nn.parallel.DistributedDataParallel <https://pytorch.org/docs/stable/generated/torch.nn.parallel.DistributedDataParallel.html?highlight=distributeddataparallel#torch.nn.parallel.DistributedDataParallel>`_,
+        set :attr:`do_flatten=True`:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
         >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer, do_flatten=True)

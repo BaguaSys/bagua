@@ -12,14 +12,14 @@ __all__ = ["LoadBalancingDistributedSampler", "LoadBalancingDistributedBatchSamp
 class LoadBalancingDistributedSampler(Sampler):
     r"""Sampler that restricts data loading to a subset of the dataset.
 
-    This sampler use a `complexity_fn` to calculate each sample's computational
+    This sampler use a :attr:`complexity_fn` to calculate each sample's computational
     complexity and make each batch get similar computation complexity.
 
     This is useful in scenarios like speech and NLP, where each batch has variable
     length and distributed training suffers from straggler problem.
 
-    The usage is similar to :class:`torch.utils.data.DistributedSampler`, where each
-    process loads a subset of the original dataset that is exclusive to it.
+    The usage is similar to `torch.utils.data.DistributedSampler <https://pytorch.org/docs/stable/data.html?highlight=distributedsampler#torch.utils.data.distributed.DistributedSampler>`_,
+    where each process loads a subset of the original dataset that is exclusive to it.
 
     .. note::
         Dataset is assumed to be of constant size.
@@ -48,18 +48,19 @@ class LoadBalancingDistributedSampler(Sampler):
 
     .. warning::
         In distributed mode, calling the :meth:`set_epoch` method at
-        the beginning of each epoch **before** creating the :class:`DataLoader` iterator
+        the beginning of each epoch **before** creating the `DataLoader <https://pytorch.org/docs/stable/data.html?highlight=dataloader#torch.utils.data.DataLoader>`_ iterator
         is necessary to make shuffling work properly across multiple epochs. Otherwise,
         the same ordering will be always used.
 
     Example::
-        Define your `complexity_fn`, which accepts a dataset sample as its input and produces an integer
-        as the sample's computational complexity.
+        Define your :attr:`complexity_fn`, which accepts a dataset sample as its input and produces an integer
+        as the sample's computational complexity:
 
         >>> dataset = torch.utils.data.TensorDataset(torch.randn(n, 2), torch.randperm(n))
         >>> complexity_fn = lambda x: x[1]
 
-        Below is the usage of :class:`LoadBalancingDistributedSampler` and :class:`DataLoader`:
+        Below is the usage of :class:`LoadBalancingDistributedSampler`
+        and `DataLoader <https://pytorch.org/docs/stable/data.html?highlight=dataloader#torch.utils.data.DataLoader>`_:
 
         >>> sampler = bagua.torch_api.contrib.LoadBalancingDistributedSampler(
         ...     dataset,
@@ -236,12 +237,13 @@ class LoadBalancingDistributedBatchSampler(Sampler):
         sampler (LoadBalancingDistributedSampler): Load balance sampler.
         batch_fn (Callable): Callable to yield mini-batch indices.
         drop_last (bool): If ``True``, the sampler will drop the last few batches exceeding
-            the least number of batches among replicas, otherwises, the number of batches
+            the least number of batches among replicas, otherwise, the number of batches
             on each replica will be padded to the same.
 
+    :attr:`batch_fn` will have the signature of::
 
-    `batch_fn` will have the signature of
-    ``def batch_fn(indices: List[int]) -> List[List[int]]``.
+        def batch_fn(indices: List[int]) -> List[List[int]]
+
 
     Example::
 

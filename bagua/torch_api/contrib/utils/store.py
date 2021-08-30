@@ -16,7 +16,7 @@ class Store:
         pass
 
     def get(self, key: str) -> Optional[Union[str, bytes]]:
-        """Returns the value associated with ``key``, or None if the key doesn't exist."""
+        """Returns the value associated with ``key``, or ``None`` if the key doesn't exist."""
         pass  # type: ignore
 
     def num_keys(self) -> int:

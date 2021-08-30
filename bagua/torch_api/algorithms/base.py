@@ -95,8 +95,7 @@ class Algorithm:
                 :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
-            A function that takes the name of a parameter (as in
-            :meth:`torch.nn.Module.named_parameters`) and the parameter itself.
+            A function that takes the name of a parameter (as in :meth:`torch.nn.Module.named_parameters`) and the parameter itself.
         """
 
         def hook(parameter_name, parameter):
@@ -147,8 +146,8 @@ class Algorithm:
         bagua_module: BaguaModule,
         bucket: BaguaBucket,
     ):
-        """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, and a Bagua bucket, register operations to be
-        executed on the bucket.
+        """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, and a :class:`~bagua.torch_api.bucket.BaguaBucket`,
+        register operations to be executed on the bucket.
 
         Args:
             bagua_module: A PyTorch module initialized by
