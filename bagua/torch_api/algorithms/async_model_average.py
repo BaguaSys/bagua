@@ -25,7 +25,7 @@ def check_nccl_proto():
 
 class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(
-        self, peer_selection_mode: str = "all", sync_interval_ms: int = 100,
+        self, peer_selection_mode: str = "all", sync_interval_ms: int = 500,
     ):
         """
         Create an instance of the
@@ -99,9 +99,9 @@ class AsyncModelAverageAlgorithm(Algorithm):
         assert (
             self.worker.is_alive()  # pytype: disable=attribute-error
         ), "cannot abort since the asynchronous communication thread is not started"
-        self.stop_event.set()
         time.sleep(grace_period_seconds)
         bagua_module._bagua_backend.global_communicator.abort()
+        self.stop_event.set()
 
         self.worker.join()  # pytype: disable=attribute-error
 
