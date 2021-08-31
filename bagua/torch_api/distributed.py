@@ -44,7 +44,7 @@ class BaguaModule:
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
         Build tuple of ``(parameter_name, parameter)`` for all parameters that
-        require grads and not in the ``_bagua_params_and_buffers_to_ignore`` attribute.
+        require grads and not in the :attr:`_bagua_params_and_buffers_to_ignore` attribute.
         """
         modules_and_parameters = [
             (module, parameter)
@@ -161,9 +161,9 @@ class BaguaModule:
 
         .. note::
             If we want to ignore some layers for communication, we can first check
-            these layer's corresponding keys in the module's ``state_dict`` (they are
+            these layer's corresponding keys in the module's :attr:`state_dict` (they are
             in ``"{module_name}.{param_name}"`` format), then assign the list of
-            keys to ``your_module._bagua_params_and_buffers_to_ignore``.
+            keys to :attr:`your_module._bagua_params_and_buffers_to_ignore`.
 
         Examples::
 

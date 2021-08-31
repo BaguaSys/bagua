@@ -25,7 +25,7 @@ class BaguaBucket:
             name: The unique name of the bucket.
             flatten: If ``True``, flatten the input tensors so that they are
                 contiguous in memory.
-            alignment: If `alignment > 1`, Bagua will create a padding tensor to
+            alignment: If :attr:`alignment > 1`, Bagua will create a padding tensor to
                 the bucket so that the total number of elements in the bucket divides
                 the given alignment.
         """
@@ -74,7 +74,7 @@ class BaguaBucket:
 
     def flattened_tensor(self) -> BaguaTensor:
         """
-        Returns a tensor contiguous in memory which contains the same data as `self` tensors and padding tensor (if exists).
+        Returns a tensor contiguous in memory which contains the same data as :attr:`self` tensors and padding tensor (if exists).
         """
 
         total_size = 0
@@ -211,16 +211,16 @@ class BaguaBucket:
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
-        This operation is not inplace, which means the bucket weights is first copied to `peer_weight`, and the result of
-        decentralized averaging will be in `peer_weight`. To copy `peer_weight` back to `self`, call
-        :func:`decentralized_synchronous_op_copy_back_peer_weight`.
+        This operation is not inplace, which means the bucket weights is first copied to :attr:`peer_weight`, and the result of
+        decentralized averaging will be in :attr:`peer_weight`. To copy :attr:`peer_weight` back to :attr:`self`, call
+        :meth:`decentralized_synchronous_op_copy_back_peer_weight`.
 
         This operation will be executed by the Bagua backend in
         the order they are appended when all the tensors within the bucket are marked ready.
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
+                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
@@ -253,16 +253,16 @@ class BaguaBucket:
         self, peer_weight: BaguaTensor, hierarchical: bool = True
     ):
         """
-        Copy `peer_weight` back to bucket weights to end a decentralized synchronous operation.
-        See :func:`append_decentralized_synchronous_op` for more information.
+        Copy :attr:`peer_weight` back to bucket weights to end a decentralized synchronous operation.
+        See :meth:`append_decentralized_synchronous_op` for more information.
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
+                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
-                boost performance when the inter-node communication cost is high. Must be the same with `hierarchical` argument in
-                :func:`append_decentralized_synchronous_op`.
+                boost performance when the inter-node communication cost is high. Must be the same with :attr:`hierarchical` argument in
+                :meth:`append_decentralized_synchronous_op`.
         """
         intra_comm = self._bagua_backend.intranode_communicator
         inter_comm = self._bagua_backend.internode_communicator
@@ -290,12 +290,12 @@ class BaguaBucket:
 
         Args:
             weight (BaguaTensor): Model replica of current worker's local model. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
+                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
             left_peer_weight (BaguaTensor): Model replica of current worker's left peer. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor,
+                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor,
                 then copy the initializing weights of current worker's left peer to the tensor.
             right_peer_weight (BaguaTensor): Model replica of current worker's right peer. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
+                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
                 then copy the initializing weights of current worker's right peer to the tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
@@ -359,8 +359,5 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket.
-
-        Returns:
-            int: number of bucket bytes
         """
         return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)

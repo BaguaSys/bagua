@@ -246,7 +246,6 @@ class LoadBalancingDistributedBatchSampler(Sampler):
 
 
     Example::
-
         >>> from bagua.torch_api.contrib import LoadBalancingDistributedSampler, \
         ...     LoadBalancingDistributedBatchSampler
         >>>
