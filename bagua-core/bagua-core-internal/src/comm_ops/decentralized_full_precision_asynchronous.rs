@@ -38,110 +38,119 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
         let torch_stream = self.torch_stream;
 
         self.communicator.execute_communication(
-                &mut communication_tensor,
-                false,
-                false,
-                false,
-                &mut |c, t| {
+            &mut communication_tensor,
+            false,
+            false,
+            false,
+            &mut |c, t| {
+                let start_time = std::time::Instant::now();
+                tracing::debug!("async model average start");
 
-             let start_time = std::time::Instant::now();
-             tracing::debug!("async model average start");
+                let temp_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
+                    .try_pull(t.raw.num_elements_allocated() * t.raw.dtype().bytes())
+                    .expect("cannot allocate cuda memory");
 
-             let temp_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
-             .try_pull(t.raw.num_elements_allocated() * t.raw.dtype().bytes())
-             .expect("cannot allocate cuda memory");
+                let mut temp_tensor = BaguaTensorRaw {
+                    ptr: temp_buf.ptr,
+                    num_elem_allocated: t.raw.num_elements_allocated(),
+                    dtype: t.raw.dtype().clone(),
+                    num_elem: t.raw.num_elements(),
+                    device_id: t.raw.device_id(),
+                    pool_allocations: vec![Arc::new(temp_buf)],
+                };
 
-             let mut temp_tensor = BaguaTensorRaw {
-                 ptr: temp_buf.ptr,
-                 num_elem_allocated: t.raw.num_elements_allocated(),
-                 dtype: t.raw.dtype().clone(),
-                 num_elem: t.raw.num_elements(),
-                 device_id: t.raw.device_id(),
-                 pool_allocations: vec![Arc::new(temp_buf)],
-             };
+                let reduced_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
+                    .try_pull(t.raw.num_elements_allocated() * t.raw.dtype().bytes())
+                    .expect("cannot allocate cuda memory");
 
-             let reduced_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
-             .try_pull(t.raw.num_elements_allocated() * t.raw.dtype().bytes())
-             .expect("cannot allocate cuda memory");
+                let mut reduced_tensor = BaguaTensorRaw {
+                    ptr: reduced_buf.ptr,
+                    num_elem_allocated: t.raw.num_elements_allocated(),
+                    dtype: t.raw.dtype().clone(),
+                    num_elem: t.raw.num_elements(),
+                    device_id: t.raw.device_id(),
+                    pool_allocations: vec![Arc::new(reduced_buf)],
+                };
 
-             let mut reduced_tensor = BaguaTensorRaw {
-                 ptr: reduced_buf.ptr,
-                 num_elem_allocated: t.raw.num_elements_allocated(),
-                 dtype: t.raw.dtype().clone(),
-                 num_elem: t.raw.num_elements(),
-                 device_id: t.raw.device_id(),
-                 pool_allocations: vec![Arc::new(reduced_buf)],
-             };
+                // use default stream to copy weights
+                temp_tensor.clone_from(&t.raw, torch_stream as u64);
 
-             // use default stream to copy weights
-             temp_tensor.clone_from(&t.raw, torch_stream as u64);
+                let src_ready_event = CUDA_EVENT_POOL.take().event;
 
-             let src_ready_event = CUDA_EVENT_POOL.take().event;
-
-             unsafe {
-                 cpp::cpp!([
-                     src_ready_event as "cudaEvent_t",
-                     comm_stream as "cudaStream_t",
-                     torch_stream as "cudaStream_t"]
-                 {
-                     CUDACHECK(cudaEventRecord(src_ready_event, torch_stream));
-                     CUDACHECK(cudaStreamWaitEvent(comm_stream, src_ready_event , 0));
-                 });
-             }
-
-             match peer_mode {
-                PeerSelectionMode::All => {
-                    c.allreduce(&temp_tensor, &mut reduced_tensor, BaguaReductionOp::SUM);
+                unsafe {
+                    cpp::cpp!([
+                        src_ready_event as "cudaEvent_t",
+                        comm_stream as "cudaStream_t",
+                        torch_stream as "cudaStream_t"]
+                    {
+                        CUDACHECK(cudaEventRecord(src_ready_event, torch_stream));
+                        CUDACHECK(cudaStreamWaitEvent(comm_stream, src_ready_event , 0));
+                    });
                 }
-                PeerSelectionMode::Ring => {
-                    unimplemented!()
+
+                if c.check_abort() {
+                    return;
                 }
-                PeerSelectionMode::ShiftOne => {
-                    unimplemented!()
+
+                match peer_mode {
+                    PeerSelectionMode::All => {
+                        c.allreduce(&temp_tensor, &mut reduced_tensor, BaguaReductionOp::SUM);
+                    }
+                    PeerSelectionMode::Ring => {
+                        unimplemented!()
+                    }
+                    PeerSelectionMode::ShiftOne => {
+                        unimplemented!()
+                    }
+                };
+
+                let comm_ready_event = CUDA_EVENT_POOL.take().event;
+
+                unsafe {
+                    cpp::cpp!([
+                        comm_ready_event as "cudaEvent_t",
+                        comm_stream as "cudaStream_t"]
+                    {
+                        CUDACHECK(cudaEventRecord(comm_ready_event, comm_stream));
+                        CUDACHECK(cudaEventSynchronize(comm_ready_event));
+                    });
                 }
-             };
 
-             let comm_ready_event = CUDA_EVENT_POOL.take().event;
+                if c.check_abort() {
+                    return;
+                }
 
-             unsafe {
-                 cpp::cpp!([
-                     comm_ready_event as "cudaEvent_t",
-                     comm_stream as "cudaStream_t"]
-                 {
-                     CUDACHECK(cudaEventRecord(comm_ready_event, comm_stream));
-                     CUDACHECK(cudaEventSynchronize(comm_ready_event));
-                 });
-             }
+                // do we need to wait default stream?
+                unsafe {
+                    cpp::cpp!([
+                        src_ready_event as "cudaEvent_t",
+                        comm_stream as "cudaStream_t",
+                        torch_stream as "cudaStream_t"]
+                    {
+                        CUDACHECK(cudaEventRecord(src_ready_event, torch_stream));
+                        CUDACHECK(cudaStreamWaitEvent(comm_stream, src_ready_event , 0));
+                    });
+                }
 
-             if c.check_abort() {
-                 tracing::debug!("async model average on process {} early stopped due to communicator abortion", c.rank);
-                 return
-             }
+                t.raw.async_model_average(
+                    &reduced_tensor,
+                    &temp_tensor,
+                    c.nranks as f32,
+                    comm_stream,
+                );
 
+                unsafe {
+                    cpp::cpp!([comm_stream as "cudaStream_t"]
+                    {
+                        CUDACHECK(cudaStreamSynchronize(comm_stream));
+                    });
+                }
 
-             // do we need to wait default stream?
-             unsafe {
-                 cpp::cpp!([
-                     src_ready_event as "cudaEvent_t",
-                     comm_stream as "cudaStream_t",
-                     torch_stream as "cudaStream_t"]
-                 {
-                     CUDACHECK(cudaEventRecord(src_ready_event, torch_stream));
-                     CUDACHECK(cudaStreamWaitEvent(comm_stream, src_ready_event , 0));
-                 });
-             }
-
-             t.raw.async_model_average(&reduced_tensor, &temp_tensor, c.nranks as f32, comm_stream);
-
-             unsafe {
-                 cpp::cpp!([comm_stream as "cudaStream_t"]
-                 {
-                     CUDACHECK(cudaStreamSynchronize(comm_stream));
-                 });
-             }
-
-             tracing::debug!("async model average update cost: {:?}", start_time.elapsed());
-
-        });
+                tracing::debug!(
+                    "async model average update cost: {:?}",
+                    start_time.elapsed()
+                );
+            },
+        );
     }
 }
