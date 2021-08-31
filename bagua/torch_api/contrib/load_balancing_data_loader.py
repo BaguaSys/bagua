@@ -38,13 +38,13 @@ class LoadBalancingDistributedSampler(Sampler):
             indices.
         seed (int, optional): random seed used to shuffle the sampler if
             :attr:`shuffle=True`. This number should be identical across all
-            processes in the distributed group. Default: ``0``.
+            processes in the distributed group. Default: 0.
         drop_last (bool, optional): if ``True``, then the sampler will drop the
             tail of the data to make it evenly divisible across the number of
             replicas. If ``False``, the sampler will add extra indices to make
             the data evenly divisible across the replicas. Default: ``False``.
-        random_level (float, optional): A float varies from ``0`` and ``1`` that controls the extent
-            of load balance. ``0`` means the best load balance, while ``1`` means the opposite.
+        random_level (float, optional): A float varies from 0 and 1 that controls the extent
+            of load balance. 0 means the best load balance, while 1 means the opposite.
 
     .. warning::
         In distributed mode, calling the :meth:`set_epoch` method at

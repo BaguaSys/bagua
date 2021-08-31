@@ -42,8 +42,8 @@ class AsyncModelAverageAlgorithm(Algorithm):
         Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
 
         Args:
-            peer_selection_mode (str): The way how workers communicate with each other. Currently "all" is supported.
-                "all" means all workers' weights are synchronized during each communication.
+            peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
+                ``"all"`` means all workers' weights are synchronized during each communication.
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
         """
 

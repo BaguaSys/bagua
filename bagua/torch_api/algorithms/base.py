@@ -95,7 +95,7 @@ class Algorithm:
                 :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
-            A function that takes the name of a parameter (as in :meth:`torch.nn.Module.named_parameters`) and the parameter itself.
+            A function that takes the name of a parameter (as in ``torch.nn.Module.named_parameters``) and the parameter itself.
         """
 
         def hook(parameter_name, parameter):
@@ -126,14 +126,14 @@ class Algorithm:
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, return a hook function that will be executed when the
-        :meth:`optimizer.step` is done.
+        ``optimizer.step()`` is done.
 
         Args:
             bagua_module: A PyTorch module initialized by
                 :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
-            A function that takes the optimizer that is called step().
+            A function that takes the optimizer that is called ``step()``.
         """
 
         def hook(optimizer: torch.optim.Optimizer):

@@ -34,10 +34,10 @@ class SyncBatchNorm(_BatchNorm):
 
     Arguments:
         num_features: Number of channels :math:`C` from the shape :math:`(N, C, ...)`.
-        eps: A value added to the denominator for numerical stability. Default: ``1e-5``.
+        eps: A value added to the denominator for numerical stability. Default: 1e-5.
         momentum: The value used for the running_mean and running_var
             computation. Can be set to ``None`` for cumulative moving average
-            (i.e. simple average). Default: ``0.1``.
+            (i.e. simple average). Default: 0.1.
         affine: A boolean value that when set to ``True``, this module has
             learnable affine parameters. Default: ``True``.
         track_running_stats: A boolean value that when set to ``True``, this

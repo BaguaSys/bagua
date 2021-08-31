@@ -31,11 +31,11 @@ class CacheLoader:
 
         By default, cache loader uses :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` as its backend distributed key-value store implementation. It
         supports using a list of existing redis servers or spawning new redis servers. Parameters for :class:`~bagua.torch_api.contrib.utils.redis_store.RedisStore` can be provided here in
-        :attr:`**kwargs`.
+        ``**kwargs``.
 
         Args:
-            backend(str): Backend distributed key-value store implementation. Can be "redis".
-            dataset_name(str): Name of the dataset. Default "".
+            backend(str): Backend distributed key-value store implementation. Can be ``"redis"``.
+            dataset_name(str): Name of the dataset. Default ``""``.
             writer_buffer_size(int): Number of samples to collect before writing to the backend key-value store.
                 Useful for improving the backend throughput.
 

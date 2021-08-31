@@ -2,7 +2,6 @@ import logging
 import multiprocessing
 import bagua_core as B
 from bagua.service import AutotuneService
-from collections import defaultdict
 from . import env
 from .env import (
     get_master_addr,
@@ -308,7 +307,7 @@ def broadcast(tensor, src=0, comm: B.BaguaSingleCommunicatorPy = None):
         tensor (torch.Tensor): Data to be sent if :attr:`src` is the rank of
             current process, and tensor to be used to save received data
             otherwise.
-        src (int, optional): Source rank. Default: ``0``.
+        src (int, optional): Source rank. Default: 0.
         comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator
             to work on. If ``None``, the global Bagua communicator will be used.
             Default: ``None``.
@@ -333,7 +332,7 @@ def reduce(
     send_tensor,
     recv_tensor,
     dst,
-    op: ReduceOp =ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     r"""Reduces the tensor data across all processes.
@@ -342,7 +341,7 @@ def reduce(
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
-        recv_tensor (torch.Tensor): Output of the collective, must have the same size and type with :attr:`send_tensor`.
+        recv_tensor (torch.Tensor): Output of the collective, must have the same size with :attr:`send_tensor`.
         dst (int): Destination rank.
         op (ReduceOp, optional): One of the values from :class:`ReduceOp`
             enum. Specifies an operation used for element-wise reductions.
@@ -376,7 +375,7 @@ def reduce(
 
 
 def reduce_inplace(
-    tensor, dst, op=ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
+    tensor, dst, op = ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
 ):
     r"""The in-place version of :func:`reduce`."""
 
@@ -398,7 +397,7 @@ def reduce_inplace(
 
 def allreduce_coalesced_inplace(
     tensors,
-    op=ReduceOp.SUM,
+    op = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     for tensor in tensors:
@@ -428,7 +427,7 @@ def allreduce_coalesced_inplace(
 def allreduce(
     send_tensor,
     recv_tensor,
-    op: ReduceOp=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Reduces the tensor data across all machines in such a way that all get
@@ -437,7 +436,7 @@ def allreduce(
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
-        recv_tensor (torch.Tensor): Output of the collective, must have the same size and type with :attr:`send_tensor`.
+        recv_tensor (torch.Tensor): Output of the collective, must have the same size with :attr:`send_tensor`.
         op (ReduceOp, optional): One of the values from :class:`ReduceOp` enum. Specifies an operation used for element-wise reductions.
         comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
             work on. If ``None`` the global Bagua communicator will be used.
@@ -498,7 +497,7 @@ def allreduce(
 
 def allreduce_inplace(
     tensor,
-    op=ReduceOp.SUM,
+    op = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`allreduce`."""
@@ -525,7 +524,7 @@ def allgather(
     """Gathers send tensors from the whole communicator into :attr:`recv_tensor`.
 
     Args:
-        send_tensor (torch.Tensor): Input of the collective, tensor to be broadcast from current process.
+        send_tensor (torch.Tensor): Input of the collective.
         recv_tensor (torch.Tensor): Output of the collective, must have a size of ``comm.nranks * send_tensor.size()`` elements.
         comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
             work on. If ``None`` the global Bagua communicator will be used.
@@ -548,7 +547,7 @@ def allgather(
     with torch.cuda.stream(comm.cuda_stream):
         comm.allgather(
             send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensors.to_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
         )
 
     torch.cuda.synchronize()
@@ -725,7 +724,7 @@ def scatter_inplace(
 def reduce_scatter(
     send_tensor,
     recv_tensor,
-    op: ReduceOp=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Reduces, then scatters :attr:`send_tensor` to all processes in a communicator.
@@ -764,13 +763,13 @@ def reduce_scatter(
 
 def reduce_scatter_inplace(
     tensor,
-    op: ReduceOp=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`reduce_scatter`.
 
     Args:
-        tensor (torch.Tensor): Input and output of the collective, he size must be divisible by ``comm.nranks``.
+        tensor (torch.Tensor): Input and output of the collective, the size must be divisible by ``comm.nranks``.
         op (ReduceOp, optional): One of the values from :class:`ReduceOp` enum. Specifies an operation used for element-wise reductions.
         comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
             work on. If ``None`` the global Bagua communicator will be used.

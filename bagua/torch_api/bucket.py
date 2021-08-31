@@ -176,7 +176,7 @@ class BaguaBucket:
             average (bool): If ``True``, the gradients on each worker are averaged. Otherwise, they are summed.
             scattergather (bool): If ``True``, the communication between workers are done with scatter gather instead
                 of allreduce. This is required for using compression.
-            compression: If not ``None``, the tensors will be compressed for communication. Currently "MinMaxUInt8" is
+            compression: If not ``None``, the tensors will be compressed for communication. Currently ``"MinMaxUInt8"`` is
                 supported.
 
         Returns:
@@ -220,12 +220,12 @@ class BaguaBucket:
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): Can be "all" or "shift_one". "all" means all workers' weights are averaged
-                in each communication step. "shift_one" means each worker selects a different peer to do weights average
+            peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers' weights are averaged
+                in each communication step. ``"shift_one"`` means each worker selects a different peer to do weights average
                 in each communication step.
         Returns:
             The bucket itself.
@@ -258,7 +258,7 @@ class BaguaBucket:
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high. Must be the same with :attr:`hierarchical` argument in
@@ -290,17 +290,17 @@ class BaguaBucket:
 
         Args:
             weight (BaguaTensor): Model replica of current worker's local model. It should be of the same size
-                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
             left_peer_weight (BaguaTensor): Model replica of current worker's left peer. It should be of the same size
-                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor,
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor,
                 then copy the initializing weights of current worker's left peer to the tensor.
             right_peer_weight (BaguaTensor): Model replica of current worker's right peer. It should be of the same size
-                with the bucket tensors total size. Use :attr:`self.flattened_tensor().to_bagua_tensor(...)` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
                 then copy the initializing weights of current worker's right peer to the tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            compression (str): The way how tensors are compressed for communication. Currently "MinMaxUInt8" is supported.
+            compression (str): The way how tensors are compressed for communication. Currently ``"MinMaxUInt8"`` is supported.
         Returns:
             The bucket itself.
         """
@@ -338,8 +338,8 @@ class BaguaBucket:
         when all the tensors within the bucket are marked ready.
 
         Args:
-            peer_selection_mode (str): The way how workers communicate with each otehr. Currently "all" is supported.
-                "all" means all workers' weights are averaged during each communication.
+            peer_selection_mode (str): The way how workers communicate with each otehr. Currently ``"all"`` is supported.
+                ``"all"`` means all workers' weights are averaged during each communication.
         """
 
         self.backend_bucket.append_decentralized_asynchronous_op(

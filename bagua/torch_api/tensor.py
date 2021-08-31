@@ -112,7 +112,7 @@ class BaguaTensor:
 
     def bagua_mark_communication_ready_without_synchronization(self):
         """
-        Mark a Bagua tensor ready immediately, without CUDA event synchronization.
+        Mark a Bagua tensor ready immediately, without `CUDA event <https://pytorch.org/docs/stable/generated/torch.cuda.Event.html?highlight=event#torch.cuda.Event>`_ synchronization.
         """
         assert (
             self.bagua_backend is not None

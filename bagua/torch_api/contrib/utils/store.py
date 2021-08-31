@@ -16,7 +16,7 @@ class Store:
         pass
 
     def get(self, key: str) -> Optional[Union[str, bytes]]:
-        """Returns the value associated with ``key``, or ``None`` if the key doesn't exist."""
+        """Returns the value associated with :attr:`key`, or ``None`` if the key doesn't exist."""
         pass  # type: ignore
 
     def num_keys(self) -> int:
@@ -29,13 +29,13 @@ class Store:
 
     def mset(self, dictionary: Dict[str, Union[str, bytes]]):
         """
-        Set multiple entries at once with a dictionary. Each key-value pair in the ``dictionary`` will be set.
+        Set multiple entries at once with a dictionary. Each key-value pair in the :attr:`dictionary` will be set.
         """
         pass
 
     def mget(self, keys: List[str]) -> List[Optional[Union[str, bytes]]]:
         """
-        Retrieve each key's corresponding value and return them in a list with the same order as ``keys``.
+        Retrieve each key's corresponding value and return them in a list with the same order as :attr:`keys`.
         """
 
         pass  # type: ignore
