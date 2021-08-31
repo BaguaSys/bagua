@@ -21,10 +21,10 @@ The underlying communication execution engine is in [bagua-core](https://github.
 ## Performance
 
 <p align="center">
-    <img src="https://bagua-tutorials.kwai-seattle.com/benchmark/figures/scalability_vgg16.png" width="350"/>
+    <img src="https://bagua-tutorials.kwai-seattle.com/benchmark/figures/e2e_vgg16_128.png" width="600"/>
 </p>
 <p align="center">
-    The scalability of different systems on VGG16 with up to 128 GPUs.
+    The performance of different systems and algorithms on VGG16 with 128 GPUs under different network bandwidth.
 </p>
 
 <br/>
