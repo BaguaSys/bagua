@@ -115,6 +115,10 @@ With above setup, we created two identical clusters to benchmark a synthesized i
 * When communication is not a bottleneck in the training task, using Bagua communication algorithms will not provide significant performance improvement (unless you use other optimizations in Bagua such as fused optimizer).
 * Currently only tested on Linux and NVIDIA GPUs.
 
+## Discussion
+
+Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
+
 ## Links
 
 * [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
