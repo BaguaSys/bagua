@@ -25,7 +25,7 @@ def check_nccl_proto():
 
 class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(
-        self, peer_selection_mode: str = "all", sync_interval_ms: int = 100,
+        self, peer_selection_mode: str = "all", sync_interval_ms: int = 500,
     ):
         """
         Create an instance of the
