@@ -153,8 +153,13 @@ def train(args, train_dataset, model, tokenizer):
     elif args.algorithm == "qadam":
         from bagua.torch_api.algorithms import q_adam
 
-        optimizer = q_adam.QAdamOptimizer(model.parameters())
-        algorithm = q_adam.QAdamAlgorithm(optimizer, 10)
+        optimizer = q_adam.QAdamOptimizer(
+            model.parameters(),
+            lr=args.learning_rate,
+            warmup_steps=100,
+            eps=args.adam_epsilon,
+        )
+        algorithm = q_adam.QAdamAlgorithm(optimizer)
     elif args.algorithm == "async":
         from bagua.torch_api.algorithms import async_model_average
 
