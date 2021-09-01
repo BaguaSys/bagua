@@ -15,7 +15,7 @@ import bagua.torch_api as bagua
 import logging
 
 
-logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.ERROR)
+logging.basicConfig(format="%(asctime)s %(levelname)s:%(message)s", level=logging.ERROR)
 if bagua.get_rank() == 0:
     logging.getLogger().setLevel(logging.INFO)
 
@@ -61,6 +61,12 @@ parser.add_argument(
     type=str,
     default="gradient_allreduce",
     help="gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam or async",
+)
+parser.add_argument(
+    "--async-sync-interval",
+    default=50,
+    type=int,
+    help="Model synchronization interval(ms) for async algorithm",
 )
 parser.add_argument(
     "--amp",
@@ -130,7 +136,9 @@ elif args.algorithm == "qadam":
 elif args.algorithm == "async":
     from bagua.torch_api.algorithms import async_model_average
 
-    algorithm = async_model_average.AsyncModelAverageAlgorithm()
+    algorithm = async_model_average.AsyncModelAverageAlgorithm(
+        sync_interval_ms=args.async_sync_interval
+    )
 else:
     raise NotImplementedError
 

@@ -158,7 +158,9 @@ def train(args, train_dataset, model, tokenizer):
     elif args.algorithm == "async":
         from bagua.torch_api.algorithms import async_model_average
 
-        algorithm = async_model_average.AsyncModelAverageAlgorithm()
+        algorithm = async_model_average.AsyncModelAverageAlgorithm(
+            sync_interval_ms=args.async_sync_interval
+        )
     else:
         raise NotImplementedError
 
@@ -389,6 +391,10 @@ def train(args, train_dataset, model, tokenizer):
 
     if bagua.get_rank() == 0:
         tb_writer.close()
+
+    if args.algorithm == "async":
+        algorithm.abort(model)
+        torch.cuda.synchronize()
 
     return global_step, tr_loss / global_step
 
@@ -902,6 +908,12 @@ def main():
         default="gradient_allreduce",
         help="distributed algorithm: {gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam, async}",
     )
+    parser.add_argument(
+        "--async-sync-interval",
+        default=500,
+        type=int,
+        help="Model synchronization interval(ms) for async algorithm",
+    )
     args = parser.parse_args()
 
     if args.doc_stride >= args.max_seq_length - args.max_query_length:
@@ -1091,9 +1103,6 @@ def main():
             results.update(result)
 
     logger.info("Results: {}".format(results))
-
-    if args.algorithm == "async":
-        algorithm.abort(model)
 
     return results
 
