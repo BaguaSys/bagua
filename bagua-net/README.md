@@ -9,9 +9,8 @@ Bagua-Net is a high performance NCCL plugin for [Bagua](https://github.com/Bagua
 
 ```bash
 # Install Bagua-Net
-cargo build
 cd cc && make
-export BAGUA_NET_LIBRARY_PATH=$(readlink -f .):$(readlink -f ../target/debug)
+export BAGUA_NET_LIBRARY_PATH=$(readlink -f .)
 
 # Install nccl and nccl-test
 git clone https://github.com/NVIDIA/nccl.git && cd nccl && git checkout v2.10.3-1
