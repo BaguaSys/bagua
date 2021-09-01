@@ -79,7 +79,7 @@ python -m bagua.distributed.launch \
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam async)
 speeds=(185.0 180.0 150.0 115.0 170 200)
-losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.005000)
+losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.010000)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
@@ -95,6 +95,7 @@ do
         --num-iters 100 \
         --algorithm ${algorithms[$i]} \
         --deterministic \
+	--async-sync-interval 100 \
         2>&1 | tee ${logfile}
     if [[ ${algorithms[$i]} == "async" ]]; then
         check_benchmark_log_approximation ${logfile} ${algorithms[$i]} ${speeds[$i]} ${losses[$i]}
