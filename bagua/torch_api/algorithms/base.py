@@ -133,7 +133,7 @@ class Algorithm:
                 :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
-            A function that takes the optimizer and is called after ``step()``.
+            A function that gets called after an optimizer's ``step()`` method is called. The function takes the optimizer as its argument.
         """
 
         def hook(optimizer: torch.optim.Optimizer):
