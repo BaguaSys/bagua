@@ -131,8 +131,8 @@ elif args.algorithm == "bytegrad":
 elif args.algorithm == "qadam":
     from bagua.torch_api.algorithms import q_adam
 
-    optimizer = q_adam.QAdamOptimizer(model.parameters())
-    algorithm = q_adam.QAdamAlgorithm(optimizer, True)
+    optimizer = q_adam.QAdamOptimizer(model.parameters(), lr=0.01 * bagua.get_world_size(), warmup_steps=100)
+    algorithm = q_adam.QAdamAlgorithm(optimizer)
 elif args.algorithm == "async":
     from bagua.torch_api.algorithms import async_model_average
 
