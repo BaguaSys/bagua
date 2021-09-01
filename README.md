@@ -31,7 +31,7 @@ The underlying communication execution engine is in [bagua-core](https://github.
 <br/>
 
 <p align="center">
-    <img src="https://bagua-tutorials.kwai-seattle.com/benchmark/figures/tradeoff_network_bert-large-bandwidth.png" width="350"/><img src="https://bagua-tutorials.kwai-seattle.com/benchmark/figures/tradeoff_network_bert-large-latency.png" width="330"/>
+    <img src="https://bagua-tutorials.kwai-seattle.com/benchmark/figures/tradeoff_network_bert-large-bandwidth.png" width="250"/><img src="https://bagua-tutorials.kwai-seattle.com/benchmark/figures/tradeoff_network_bert-large-latency.png" width="250"/><img src="https://bagua-tutorials.kwai-seattle.com/benchmark/figures/tradeoff_network_legend.png" width="260"/>
 </p>
 <p align="center">
     Epoch time of BERT-Large Finetune under different network conditions for different systems.
