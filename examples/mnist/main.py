@@ -145,10 +145,16 @@ def main():
         help="gradient_allreduce, bytegrad, decentralized, low_precision_decentralized, qadam, async",
     )
     parser.add_argument(
-      "--set-deterministic",
-      action="store_true",
-      default=False,
-      help="whether set deterministic",
+        "--async-sync-interval",
+        default=500,
+        type=int,
+        help="Model synchronization interval(ms) for async algorithm",
+    )
+    parser.add_argument(
+        "--set-deterministic",
+        action="store_true",
+        default=False,
+        help="whether set deterministic",
     )
 
     args = parser.parse_args()
@@ -231,7 +237,9 @@ def main():
     elif args.algorithm == "async":
         from bagua.torch_api.algorithms import async_model_average
 
-        algorithm = async_model_average.AsyncModelAverageAlgorithm()
+        algorithm = async_model_average.AsyncModelAverageAlgorithm(
+            sync_interval_ms=args.async_sync_interval
+        )
     else:
         raise NotImplementedError
 
