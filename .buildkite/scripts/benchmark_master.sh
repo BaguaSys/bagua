@@ -12,8 +12,8 @@ function check_benchmark_log {
     speed=$3
     loss=$4
 
-    final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
-    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
+    final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $6}')
+    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $6}')
 
     echo "Checking ["${algorithm}"]..."
     if [ $final_batch_loss == $loss ]; then
@@ -39,8 +39,8 @@ function check_benchmark_log_approximation {
     speed=$3
     loss=$4
 
-    final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
-    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
+    final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $6}')
+    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $6}')
 
     echo "Checking ["${algorithm}"]..."
     if [ $final_batch_loss < $loss ]; then
