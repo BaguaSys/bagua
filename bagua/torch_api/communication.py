@@ -375,7 +375,7 @@ def reduce(
 
 
 def reduce_inplace(
-    tensor, dst, op = ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
+    tensor, dst, op=ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
 ):
     r"""The in-place version of :func:`reduce`."""
 
@@ -397,7 +397,7 @@ def reduce_inplace(
 
 def allreduce_coalesced_inplace(
     tensors,
-    op = ReduceOp.SUM,
+    op=ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     for tensor in tensors:
@@ -497,7 +497,7 @@ def allreduce(
 
 def allreduce_inplace(
     tensor,
-    op = ReduceOp.SUM,
+    op=ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`allreduce`."""
