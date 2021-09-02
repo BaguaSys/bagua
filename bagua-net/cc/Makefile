@@ -21,6 +21,6 @@ test:
 clean:
 	rm -f $(PLUGIN_SO) $(BAGUA_NET_SO)
 
-tar:
+tar: $(PLUGIN_SO) $(BAGUA_NET_SO)
 	mkdir build && mv $(PLUGIN_SO) $(BAGUA_NET_SO) build \
-		&& tar xzf build.tar.gz
+		&& tar czf build.tar.gz build
