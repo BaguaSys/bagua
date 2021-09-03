@@ -54,8 +54,8 @@ class CacheLoader:
             >>> loader = CacheLoader(backend="redis", hosts=None, cluster_mode=True, capacity_per_node=100000000)
 
         .. note::
-            Cache loaders with the same ``dataset_name`` will reuse and overwrite each other's cache.
-            Use a different ``dataset_name`` if this is not desired.
+            Cache loaders with the same :attr:`dataset_name` will reuse and overwrite each other's cache.
+            Use a different :attr:`dataset_name` if this is not desired.
 
         """
 
@@ -73,8 +73,8 @@ class CacheLoader:
 
     def get(self, key: str, load_fn: Callable[[str], None]):
         """
-        Returns the value associated with ``key`` in cache, use ``load_fn`` to create the entry if the key does not exist
-        in the cache. ``load_fn`` is a function taking ``key`` as its argument, and returning corresponding value to
+        Returns the value associated with :attr:`key` in cache, use  :attr:`load_fn` to create the entry if the key does not exist
+        in the cache. :attr:`load_fn` is a function taking :attr:`key` as its argument, and returning corresponding value to
         be cached.
         """
 

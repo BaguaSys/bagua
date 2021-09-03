@@ -30,20 +30,20 @@ _SYNC_BN_V4 = LooseVersion(torch.__version__) >= LooseVersion("1.9.0")
 
 class SyncBatchNorm(_BatchNorm):
     r"""Applies synchronous BatchNorm for distributed module with N-dimensional BatchNorm layer(s).
-    See https://pytorch.org/docs/stable/nn.html#batchnorm2d for more details about BatchNorm.
+    See `BatchNorm <https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm2d.html?highlight=batchnorm#torch.nn.BatchNorm2d>`_ for more details.
 
     Arguments:
-        num_features: number of channels `C` from the shape `(N, C, ...)`.
-        eps: a value added to the denominator for numerical stability. Default: 1e-5.
-        momentum: the value used for the running_mean and running_var
-            computation. Can be set to `None` for cumulative moving average
+        num_features: Number of channels :math:`C` from the shape :math:`(N, C, ...)`.
+        eps: A value added to the denominator for numerical stability. Default: 1e-5.
+        momentum: The value used for the running_mean and running_var
+            computation. Can be set to ``None`` for cumulative moving average
             (i.e. simple average). Default: 0.1.
-        affine: a boolean value that when set to `True`, this module has
-            learnable affine parameters. Default: `True`.
-        track_running_stats: a boolean value that when set to `True`, this
-            module tracks the running mean and variance, and when set to `False`,
+        affine: A boolean value that when set to ``True``, this module has
+            learnable affine parameters. Default: ``True``.
+        track_running_stats: A boolean value that when set to ``True``, this
+            module tracks the running mean and variance, and when set to ``False``,
             this module does not track such statistics and always uses batch
-            statistics in both training and eval modes. Default: `True`.
+            statistics in both training and eval modes. Default: ``True``.
 
     .. note:: Only GPU input tensors are supported in the training mode.
     """
@@ -86,10 +86,10 @@ class SyncBatchNorm(_BatchNorm):
     @classmethod
     def convert_sync_batchnorm(cls, module):
         r"""Helper function to convert all :attr:`BatchNorm*D` layers in the model to
-        :class:`torch.nn.SyncBatchNorm` layers.
+        `torch.nn.SyncBatchNorm <https://pytorch.org/docs/stable/generated/torch.nn.SyncBatchNorm.html?highlight=syncbatchnorm#torch.nn.SyncBatchNorm>`_ layers.
 
         Arguments:
-            module (nn.Module): module containing one or more :attr:`BatchNorm*D` layers
+            module (nn.Module): Module containing one or more :attr:`BatchNorm*D` layers
 
         Returns:
             The original :attr:`module` with the converted :class:`torch.nn.SyncBatchNorm`
@@ -97,7 +97,7 @@ class SyncBatchNorm(_BatchNorm):
             a new :class:`torch.nn.SyncBatchNorm` layer object will be returned
             instead.
 
-        .. note:: This porcess must be done before `module.with_bagua()`.
+        .. note:: This function must be called before :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Example::
             >>> # Network with nn.BatchNorm layer

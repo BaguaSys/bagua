@@ -9,6 +9,8 @@ import time
 import logging
 import os
 
+__all__ = ["AsyncModelAverageAlgorithm"]
+
 
 def check_nccl_proto():
     # TODO: remove nccl proto check
@@ -37,11 +39,11 @@ class AsyncModelAverageAlgorithm(Algorithm):
         the current implementation assumes that the dataset is an endless stream, and all workers continuously
         synchronize between each other.
 
-        Users should call :func:`abort` to manually stop the algorithm's continuous synchronization process.
+        Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
 
         Args:
-            peer_selection_mode (str): The way how workers communicate with each other. Currently "all" is supported.
-                "all" means all workers' weights are synchronized during each communication.
+            peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
+                ``"all"`` means all workers' weights are synchronized during each communication.
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
         """
 
@@ -62,7 +64,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         def hook(input):
             if not hasattr(self, "worker"):
                 self.worker = threading.Thread(
-                    target=self.run_async_loop, args=[bagua_module]
+                    target=self._run_async_loop, args=[bagua_module]
                 )
                 self.worker.start()
 
@@ -93,7 +95,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         Gracefully stop all workers.
 
         Args:
-            bagua_module: A PyTorch module initialized by ``with_bagua(...)`` method.
+            bagua_module: A PyTorch module initialized by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
             grace_period_seconds: Number of seconds a worker will wait before aborting its unfinished communication operations.
         """
         assert (
@@ -105,7 +107,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
         self.worker.join()  # pytype: disable=attribute-error
 
-    def run_async_loop(self, bagua_module: BaguaModule):
+    def _run_async_loop(self, bagua_module: BaguaModule):
         while not self.stop_event.is_set():
             if bagua_module.training:
                 for bucket in bagua_module.bagua_buckets:

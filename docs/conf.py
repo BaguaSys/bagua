@@ -127,6 +127,15 @@ _ignore_methods = [
     "bagua.torch_api.contrib.*LoadBalancingDistributedSampler.shuffle_chunks",
     "bagua.torch_api.contrib.*LoadBalancingDistributedBatchSampler.generate_batches",
     "bagua.torch_api.contrib.utils.store.ClusterStore.*",
+    "bagua.torch_api.algorithms.async_model_average.AsyncModelAverageAlgorithm.init*",
+    "bagua.torch_api.algorithms.bytegrad.ByteGradAlgorithm.init*",
+    "bagua.torch_api.algorithms.bytegrad.ByteGradAlgorithm.tensors_to_buckets",
+    "bagua.torch_api.algorithms.decentralized.DecentralizedAlgorithm.init*",
+    "bagua.torch_api.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm.init*",
+    "bagua.torch_api.algorithms.gradient_allreduce.GradientAllReduceAlgorithm.init*",
+    "bagua.torch_api.algorithms.q_adam.QAdamAlgorithm.init*",
+    "bagua.torch_api.algorithms.q_adam.QAdamAlgorithm.tensors_to_buckets",
+    "bagua.torch_api.algorithms.q_adam.QAdamAlgorithm.need_reset",
 ]
 _ignore_functions = [
     "bagua.torch_api.env.get_autotune_server_addr",
