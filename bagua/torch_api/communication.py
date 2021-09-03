@@ -298,7 +298,7 @@ def broadcast_coalesced(tensors, src=0, comm: B.BaguaSingleCommunicatorPy = None
 
 
 def broadcast(tensor, src=0, comm: B.BaguaSingleCommunicatorPy = None):
-    r"""Broadcasts the tensor to the whole communicator.
+    r"""Broadcasts the tensor to all processes associated with the communicator.
 
     :attr:`tensor` must have the same number of elements in all processes
     participating in the collective.
@@ -430,7 +430,7 @@ def allreduce(
     op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Reduces the tensor data across all machines in such a way that all get
+    """Reduces the tensor data across all processes associated with the communicator in such a way that all get
     the final result. After the call :attr:`recv_tensor` is going to be bitwise identical
     in all processes.
 
@@ -521,7 +521,7 @@ def allgather(
     recv_tensor,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Gathers send tensors from the whole communicator into :attr:`recv_tensor`.
+    """Gathers send tensors from all processes associated with the communicator into :attr:`recv_tensor`.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
@@ -579,7 +579,7 @@ def gather(
     dst,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Gathers send tensors from the whole communicator to :attr:`recv_tensor` in a single process.
+    """Gathers send tensors from all processes associated with the communicator to :attr:`recv_tensor` in a single process.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
@@ -652,7 +652,7 @@ def scatter(
     src,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Scatters send tensor to all processes in a communicator.
+    """Scatters send tensor to all processes associated with the communicator.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective, must have a size of ``comm.nranks * recv_tensor.size()`` elements.
@@ -727,7 +727,7 @@ def reduce_scatter(
     op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Reduces, then scatters :attr:`send_tensor` to all processes in a communicator.
+    """Reduces, then scatters :attr:`send_tensor` to all processes associated with the communicator.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective, must have a size of ``comm.nranks * recv_tensor.size()`` elements.
@@ -798,7 +798,7 @@ def alltoall(
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """
-    Each process scatters :attr:`send_tensor` to all processes in a communicator and return the gathered
+    Each process scatters :attr:`send_tensor` to all processes associated with the communicator and return the gathered
     data in :attr:`recv_tensor`.
 
     Args:
