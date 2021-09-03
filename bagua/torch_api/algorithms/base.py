@@ -17,7 +17,7 @@ class Algorithm:
         """
         Returns:
              ``True`` if all initialization methods of the current algorithms should be called again. \
-             This is useful for algorithms that has multiple stages where each stage needs different initializations.
+             This is useful for algorithms that have multiple stages where each stage needs different initializations.
         """
         return False
 
