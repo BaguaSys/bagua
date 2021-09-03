@@ -8,6 +8,7 @@ import threading
 import time
 import logging
 import os
+import torch
 
 
 def check_nccl_proto():
@@ -48,6 +49,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
         self.stop_event = threading.Event()
+        self.cuda_event = torch.cuda.Event()
         check_nccl_proto()
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
@@ -76,19 +78,30 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
         def hook():
-            pass
+            for bucket in bagua_module.bagua_buckets:
+                if hasattr(bucket, "_async_op"):
+                    bucket._async_op.execute_post_step(bucket.backend_bucket)
 
         return hook
+
+    def _init_states(self, bucket: BaguaBucket):
+        diff_tensor = torch.zeros_like(bucket.flattened_tensor())
+        bucket._diff_tensor = diff_tensor.to_bagua_tensor("diff_tensor")
 
     def init_operations(
         self,
         bagua_module: BaguaModule,
         bucket: BaguaBucket,
     ):
+        self._init_states(bucket)
+        torch.cuda.synchronize()
+
         bucket.clear_ops()
-        bucket.append_asynchronous_model_average_op(
+        async_op = bucket.append_asynchronous_model_average_op(
             peer_selection_mode=self.peer_selection_mode,
+            diff_tensor = bucket._diff_tensor
         )
+        bucket._async_op = async_op
 
     def abort(self, bagua_module: BaguaModule, grace_period_seconds=5):
         """
@@ -108,6 +121,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.worker.join()  # pytype: disable=attribute-error
 
     def run_async_loop(self, bagua_module: BaguaModule):
+        count = 0
         while not self.stop_event.is_set():
             if bagua_module.training:
                 for bucket in bagua_module.bagua_buckets:
@@ -116,4 +130,5 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
                 bagua_module._bagua_backend.wait_pending_comm_ops()
 
+            count += 1
             time.sleep(self.sync_interval_ms / 1000)
