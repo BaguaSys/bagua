@@ -9,6 +9,7 @@ import time
 import logging
 import os
 from bagua.torch_api import get_rank
+import torch
 
 __all__ = ["AsyncModelAverageAlgorithm"]
 
@@ -28,7 +29,10 @@ def check_nccl_proto():
 
 class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(
-        self, peer_selection_mode: str = "all", sync_interval_ms: int = 500, warmup_steps = 0,
+        self,
+        peer_selection_mode: str = "all",
+        sync_interval_ms: int = 500,
+        warmup_steps=0,
     ):
         """
         Create an instance of the
@@ -53,6 +57,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.stop_event = threading.Event()
         self.step_id = 0
         self.warmup_steps = warmup_steps
+        self.no_bucketing = True
         check_nccl_proto()
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
@@ -78,6 +83,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
                     target=self._run_async_loop, args=[bagua_module]
                 )
                 self.worker.start()
+
         return hook
 
     def init_backward_hook(self, bagua_module: BaguaModule):
@@ -91,33 +97,44 @@ class AsyncModelAverageAlgorithm(Algorithm):
         def hook():
             if self.step_id <= self.warmup_steps:
                 bagua_module._bagua_backend.wait_pending_comm_ops()
+            else:
+                for bucket in bagua_module.bagua_buckets:
+                    if hasattr(bucket, "_async_op"):
+                        bucket._async_op.execute_post_step(bucket.backend_bucket)
 
         return hook
 
     def need_reset(self):
         self.step_id += 1
         if self.warmup_steps > 0 and self.step_id == self.warmup_steps + 1:
-            print(
-                f"Async model average starts from step {self.step_id}"
-            )
+            print(f"Async model average starts from step {self.step_id}")
             return True
         else:
             return False
+
+    def _init_states(self, bucket: BaguaBucket):
+        diff_tensor = torch.zeros_like(bucket.flattened_tensor())
+        bucket._diff_tensor = diff_tensor.to_bagua_tensor("diff_tensor")
 
     def init_operations(
         self, bagua_module: BaguaModule, bucket: BaguaBucket,
     ):
         bagua_module._bagua_backend.wait_pending_comm_ops()
         bucket.clear_ops()
+
         if self.step_id < self.warmup_steps:
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
             )
         else:
-            bucket.append_asynchronous_model_average_op(
+            self._init_states(bucket)
+            torch.cuda.synchronize()
+            async_op = bucket.append_asynchronous_model_average_op(
                 peer_selection_mode=self.peer_selection_mode,
+                diff_tensor=bucket._diff_tensor,
             )
+            bucket._async_op = async_op
 
     def abort(self, bagua_module: BaguaModule, grace_period_seconds=5):
         """
@@ -127,7 +144,14 @@ class AsyncModelAverageAlgorithm(Algorithm):
             bagua_module: A PyTorch module initialized by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
             grace_period_seconds: Number of seconds a worker will wait before aborting its unfinished communication operations.
         """
-        if not hasattr(self, "worker") or not self.worker.is_alive():  # pytype: disable=attribute-error
+
+        if (
+            not hasattr(self, "worker")
+            or not self.worker.is_alive()  # pytype: disable=attribute-error
+        ):
+            print(
+                "Warning: cannot abort since the asynchronous communication thread is not started."
+            )
             return
 
         time.sleep(grace_period_seconds)
