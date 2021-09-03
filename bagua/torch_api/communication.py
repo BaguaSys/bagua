@@ -126,7 +126,7 @@ def init_process_group():
         ...    lr=0.01,
         ...    momentum=0.9
         ...    )
-        >>> model = model.with_bagua([optimizer])
+        >>> model = model.with_bagua([optimizer], ...)
     """
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server()
