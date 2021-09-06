@@ -57,7 +57,6 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.stop_event = threading.Event()
         self.step_id = 0
         self.warmup_steps = warmup_steps
-        self.no_bucketing = True
         check_nccl_proto()
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
