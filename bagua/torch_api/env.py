@@ -1,7 +1,7 @@
 import os
 
 
-def get_world_size():
+def get_world_size() -> int:
     """
     Get the number of processes in the current process group.
 
@@ -11,7 +11,7 @@ def get_world_size():
     return int(os.environ.get("WORLD_SIZE", 1))
 
 
-def get_rank():
+def get_rank() -> int:
     """
     Get the rank of current process group.
 
@@ -25,7 +25,7 @@ def get_rank():
     return int(os.environ.get("RANK", 0))
 
 
-def get_local_rank():
+def get_local_rank() -> int:
     """
     Get the rank of current node.
 
@@ -38,7 +38,7 @@ def get_local_rank():
     return int(os.environ.get("LOCAL_RANK", 0))
 
 
-def get_local_size():
+def get_local_size() -> int:
     """
     Get the number of processes in the node.
 
@@ -52,20 +52,20 @@ def get_default_bucket_size() -> int:
     """Get default communication bucket byte size.
 
     Returns:
-        int: default bucket size
+        The default bucket size.
     """
     return int(os.environ.get("BAGUA_DEFAULT_BUCKET_SIZE", 10 * 1024 ** 2))
 
 
-def get_master_addr():
+def get_master_addr() -> str:
     return os.environ.get("MASTER_ADDR", "127.0.0.1")
 
 
-def get_bagua_service_port():
+def get_bagua_service_port() -> int:
     return int(os.environ.get("BAGUA_SERVICE_PORT", -1))
 
 
-def is_report_metrics_switch_on():
+def is_report_metrics_switch_on() -> bool:
     """
     Whether bagua report switch is on or not.
     """
@@ -77,8 +77,9 @@ def is_report_metrics_switch_on():
 
 def get_autotune_level() -> int:
     """Get the autotune level.
+
     Returns:
-        int: The autotune level.
+        The autotune level.
     """
     return int(os.environ.get("BAGUA_AUTOTUNE", 0))
 

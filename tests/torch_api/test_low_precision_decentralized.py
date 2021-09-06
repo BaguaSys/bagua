@@ -3,11 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tests.internal.common_utils import find_free_port
 from tests.internal.compressor import MinMaxUInt8
-import unittest
-import torch.multiprocessing as mp
 import os
+import unittest
+import multiprocessing
 from bagua.torch_api.utils import apply_flattened_call, flatten
 import bagua.torch_api as bagua
+from tests import skip_if_cuda_not_available
 
 
 class Net(nn.Module):
@@ -25,22 +26,44 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def _init_env(rank):
+def _init_bagua_env(rank, env):
     # set deterministic
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     torch.manual_seed(rank)
     # initialize subprocess env
+    os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
+    os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
+    os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
+    os.environ["MASTER_PORT"] = env["MASTER_PORT"]
+    os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
+
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
-
-
-def run_model(rank, nprocs, hierarchical, communication_interval, results):
-    _init_env(rank)
 
     # init bagua distributed process group
     torch.cuda.set_device(rank)
     bagua.init_process_group()
+
+
+def _init_torch_env(rank, nprocs, backend):
+    # set deterministic
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.manual_seed(rank)
+
+    # init torch distributed process group
+    torch.cuda.set_device(rank)
+    torch.distributed.init_process_group(
+        world_size=nprocs,
+        rank=rank,
+        backend=backend,
+        init_method="file:///tmp/.bagua.test.filestore",
+    )
+
+
+def run_model(rank, nprocs, hierarchical, communication_interval, results, env):
+    _init_bagua_env(rank, env)
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -79,16 +102,9 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results):
 
 
 def run_torch_model(
-    rank, nprocs, hierarchical, communication_interval, results, backend
+    rank, nprocs, hierarchical, communication_interval, results, backend, env
 ):
-    _init_env(rank)
-
-    # init torch distributed process group
-    torch.cuda.set_device(rank)
-    store = torch.distributed.FileStore("/tmp/filestore", nprocs)
-    torch.distributed.init_process_group(
-        world_size=nprocs, rank=rank, store=store, backend=backend
-    )
+    _init_torch_env(rank, nprocs, backend)
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -150,9 +166,9 @@ class LowPrecDecentralizedAlgor(nn.Module):
         for param in self.module.parameters():
             torch.distributed.broadcast(param.data, src=0)
 
-        self.weight = flatten(self._build_params()).cuda()
-        self.left_peer_weight = self.weight.detach().clone().cuda()
-        self.right_peer_weight = self.weight.detach().clone().cuda()
+        self.weight = flatten(self._build_params())
+        self.left_peer_weight = self.weight.detach().clone()
+        self.right_peer_weight = self.weight.detach().clone()
 
     def _build_params(self):
         return [param.data for param in list(self.module.parameters()).__reversed__()]
@@ -192,6 +208,7 @@ class LowPrecDecentralizedAlgor(nn.Module):
             return left_tensor.cuda(), right_tensor.cuda()
 
         def update_weight_fn(x, comm_size):
+
             x += 1 / 3 * self.left_peer_weight
             x += 1 / 3 * self.right_peer_weight
             x -= 5 / 3 * self.weight
@@ -229,28 +246,34 @@ class LowPrecDecentralizedAlgor(nn.Module):
                 apply_flattened_call(
                     weights, lambda x: update_weight_fn(x, self.world_size)
                 )
+
         self.step_count += 1
 
 
 class TestLowPrecisionDecentralized(unittest.TestCase):
     def run_test_locally(self, hierarchical, communication_interval):
-        if not torch.cuda.is_available():
-            print("skip tests since cuda is not available")
-            return
-
         nprocs = torch.cuda.device_count()
-        os.environ["WORLD_SIZE"] = str(nprocs)
-        os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
-        os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port())
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+        env = {
+            "WORLD_SIZE": str(nprocs),
+            "LOCAL_WORLD_SIZE": str(nprocs),
+            "MASTER_ADDR": "127.0.0.1",
+            "MASTER_PORT": str(find_free_port(8000, 8100)),
+            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
+        }
 
+        mp = multiprocessing.get_context("spawn")
         results = [Result() for _ in range(nprocs)]
-        mp.spawn(
-            run_model,
-            nprocs=nprocs,
-            args=(nprocs, hierarchical, communication_interval, results),
-        )
+        processes = []
+        for i in range(nprocs):
+            p = mp.Process(
+                target=run_model,
+                args=(i, nprocs, hierarchical, communication_interval, results, env),
+            )
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=60)
 
         for rank in range(nprocs):
             left_peer_rank = (rank + nprocs - 1) % nprocs
@@ -277,30 +300,57 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                 )
 
     def run_diff_locally(self, hierarchical, communication_interval, backend):
-        if not torch.cuda.is_available():
-            print("skip tests since cuda is not available")
-            return
-
         nprocs = torch.cuda.device_count()
-        os.environ["WORLD_SIZE"] = str(nprocs)
-        os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
-        os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port())
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+        env = {}
 
+        mp = multiprocessing.get_context("spawn")
         torch_results = [Result() for _ in range(nprocs)]
-        mp.spawn(
-            run_torch_model,
-            nprocs=nprocs,
-            args=(nprocs, hierarchical, communication_interval, torch_results, backend),
-        )
+        processes = []
+        for i in range(nprocs):
+            p = mp.Process(
+                target=run_torch_model,
+                args=(
+                    i,
+                    nprocs,
+                    hierarchical,
+                    communication_interval,
+                    torch_results,
+                    backend,
+                    env,
+                ),
+            )
+            p.start()
+            processes.append(p)
 
+        for p in processes:
+            p.join(timeout=60)
+
+        env = {
+            "WORLD_SIZE": str(nprocs),
+            "LOCAL_WORLD_SIZE": str(nprocs),
+            "MASTER_ADDR": "127.0.0.1",
+            "MASTER_PORT": str(find_free_port(8000, 8100)),
+            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
+        }
         bagua_results = [Result() for _ in range(nprocs)]
-        mp.spawn(
-            run_model,
-            nprocs=nprocs,
-            args=(nprocs, hierarchical, communication_interval, bagua_results),
-        )
+        processes = []
+        for i in range(nprocs):
+            p = mp.Process(
+                target=run_model,
+                args=(
+                    i,
+                    nprocs,
+                    hierarchical,
+                    communication_interval,
+                    bagua_results,
+                    env,
+                ),
+            )
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=60)
 
         for rank in range(nprocs):
             self.assertTrue(
@@ -317,15 +367,17 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                     torch.isclose(
                         bagua_results[rank].bucket_weight,
                         torch_results[rank].bucket_weight,
+                        atol=1e-5,
                     )
                 ).item()
             )
 
+    @skip_if_cuda_not_available()
     def test_algorithm(self):
         self.run_test_locally(hierarchical=False, communication_interval=1)
-        self.run_test_locally(hierarchical=False, communication_interval=2)
         self.run_test_locally(hierarchical=True, communication_interval=1)
 
+    @skip_if_cuda_not_available()
     def test_compare(self):
         self.run_diff_locally(
             hierarchical=False, communication_interval=1, backend="gloo"

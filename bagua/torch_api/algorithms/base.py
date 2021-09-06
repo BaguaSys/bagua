@@ -16,20 +16,19 @@ class Algorithm:
     def need_reset(self) -> bool:
         """
         Returns:
-            True if all initialization methods of the current algorithms should
-            be called again. This is useful for algorithms that has multiple
-            stages where each stage needs different initializations.
+             ``True`` if all initialization methods of the current algorithms should be called again. \
+             This is useful for algorithms that have multiple stages where each stage needs different initializations.
         """
         return False
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         """
-        Given a BaguaModule, return Bagua tensors to be used in Bagua for later
+        Given a :class:`~bagua.torch_api.distributed.BaguaModule`, return Bagua tensors to be used in Bagua for later
         operations.
 
         Args:
             bagua_module: A PyTorch module initialized by
-                ``with_bagua(...)`` method.
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
             A list of Bagua tensors for communication.
@@ -71,12 +70,12 @@ class Algorithm:
         return bagua_buckets
 
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
-        """Given a `BaguaModule`, return a hook function that will be executed before the
+        """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, return a hook function that will be executed before the
         forward process.
 
         Args:
             bagua_module: A PyTorch module initialized by
-                ``with_bagua(...)`` method.
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
             A function that takes the model's input.
@@ -88,16 +87,15 @@ class Algorithm:
         return hook
 
     def init_backward_hook(self, bagua_module: BaguaModule):
-        """Given a `BaguaModule`, return a hook function that will be executed on every
+        """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, return a hook function that will be executed on every
         parameter's gradient computation completion.
 
         Args:
             bagua_module: A PyTorch module initialized by
-                ``with_bagua(...)`` method.
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
-            A function that takes the name of a parameter (as in
-            torch.nn.Module.named_parameters()) and the parameter itself.
+            A function that takes the name of a parameter (as in ``torch.nn.Module.named_parameters``) and the parameter itself.
         """
 
         def hook(parameter_name, parameter):
@@ -110,12 +108,12 @@ class Algorithm:
         return hook
 
     def init_post_backward_hook(self, bagua_module: BaguaModule):
-        """Given a `BaguaModule`, return a hook function that will be executed when the
+        """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, return a hook function that will be executed when the
         backward pass is done.
 
         Args:
             bagua_module: A PyTorch module initialized by
-                ``with_bagua(...)`` method.
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
             A function that takes no argument.
@@ -127,15 +125,15 @@ class Algorithm:
         return hook
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
-        """Given a `BaguaModule`, return a hook function that will be executed when the
+        """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, return a hook function that will be executed when the
         ``optimizer.step()`` is done.
 
         Args:
             bagua_module: A PyTorch module initialized by
-                ``with_bagua(...)`` method.
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         Returns:
-            A function that takes the optimizer that is called step().
+            A function that gets called after an optimizer's ``step()`` method is called. The function takes the optimizer as its argument.
         """
 
         def hook(optimizer: torch.optim.Optimizer):
@@ -148,11 +146,11 @@ class Algorithm:
         bagua_module: BaguaModule,
         bucket: BaguaBucket,
     ):
-        """Given a `BaguaModule`, and a Bagua bucket, register operations to be
-        executed on the bucket.
+        """Given a :class:`~bagua.torch_api.distributed.BaguaModule`, and a :class:`~bagua.torch_api.bucket.BaguaBucket`,
+        register operations to be executed on the bucket.
 
         Args:
             bagua_module: A PyTorch module initialized by
-                ``with_bagua(...)`` method.
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
             bucket: A single bucket to register operations.
         """

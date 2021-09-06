@@ -16,6 +16,7 @@
 
 
 # -- Project information -----------------------------------------------------
+import re
 
 project = "Bagua API Documentation"
 copyright = "2021, Kuaishou AI Platform and DS3 Lab"
@@ -123,10 +124,18 @@ html_show_copyright = True
 
 
 _ignore_methods = [
-    "bagua.torch_api.contrib.LoadBalancingDistributedSampler.shuffle_chunks",
-    "bagua.torch_api.contrib.LoadBalancingDistributedBatchSampler.generate_batches",
-    "bagua.torch_api.contrib.load_balancing_data_loader.LoadBalancingDistributedSampler.shuffle_chunks",
-    "bagua.torch_api.contrib.load_balancing_data_loader.LoadBalancingDistributedBatchSampler.generate_batches",
+    "bagua.torch_api.contrib.*LoadBalancingDistributedSampler.shuffle_chunks",
+    "bagua.torch_api.contrib.*LoadBalancingDistributedBatchSampler.generate_batches",
+    "bagua.torch_api.contrib.utils.store.ClusterStore.*",
+    "bagua.torch_api.algorithms.async_model_average.AsyncModelAverageAlgorithm.init*",
+    "bagua.torch_api.algorithms.bytegrad.ByteGradAlgorithm.init*",
+    "bagua.torch_api.algorithms.bytegrad.ByteGradAlgorithm.tensors_to_buckets",
+    "bagua.torch_api.algorithms.decentralized.DecentralizedAlgorithm.init*",
+    "bagua.torch_api.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm.init*",
+    "bagua.torch_api.algorithms.gradient_allreduce.GradientAllReduceAlgorithm.init*",
+    "bagua.torch_api.algorithms.q_adam.QAdamAlgorithm.init*",
+    "bagua.torch_api.algorithms.q_adam.QAdamAlgorithm.tensors_to_buckets",
+    "bagua.torch_api.algorithms.q_adam.QAdamAlgorithm.need_reset",
 ]
 _ignore_functions = [
     "bagua.torch_api.env.get_autotune_server_addr",
@@ -160,9 +169,12 @@ _ignore_classes = [
 
 
 def skip_methods(app, what, name, obj, skip, options):
-    if what == "method" and name in _ignore_methods:
-        skip = True
-        return skip
+    if what == "method":
+        for to_ignore in _ignore_methods:
+            p = re.compile(to_ignore)
+            if p.match(name):
+                skip = True
+                return skip
 
     if what == "function" and name in _ignore_functions:
         skip = True

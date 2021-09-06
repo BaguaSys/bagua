@@ -2,7 +2,6 @@ import logging
 import multiprocessing
 import bagua_core as B
 from bagua.service import AutotuneService
-from collections import defaultdict
 from . import env
 from .env import (
     get_master_addr,
@@ -24,7 +23,8 @@ from functools import lru_cache
 
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 class ReduceOp(IntEnum):
-    """An enum-like class for available reduction operations: SUM, PRODUCT, MIN, MAX, BAND, BOR, BXOR and AVG."""
+    """An enum-like class for available reduction operations: ``SUM``, ``PRODUCT``, ``MIN``, ``MAX``, ``BAND``,
+    ``BOR``, ``BXOR`` and ``AVG``."""
 
     SUM = 0
     PRODUCT = 1
@@ -96,7 +96,7 @@ _autotune_server = None
 
 
 def start_autotune_server():
-    """Start autotune server in background."""
+    """Starts autotune server in background."""
     global _autotune_server
 
     _autotune_server = multiprocessing.Process(target=run_flask_app)
@@ -107,14 +107,15 @@ def start_autotune_server():
 def init_process_group():
     """Initializes the PyTorch builtin distributed process group, and this will
     also initialize the distributed package, should be executed before all the
-    APIs of bagua.
-
-    Raises:
-        RepeatedInitializationError: If you run this function repeatedly
+    APIs of Bagua.
 
     Examples::
+        >>> import torch
         >>> import bagua.torch_api as bagua
+        >>>
+        >>> torch.cuda.set_device(bagua.get_local_rank())
         >>> bagua.init_process_group()
+        >>>
         >>> model = torch.nn.Sequential(
         ...    torch.nn.Linear(D_in, H),
         ...    torch.nn.ReLU(),
@@ -125,15 +126,15 @@ def init_process_group():
         ...    lr=0.01,
         ...    momentum=0.9
         ...    )
-        >>> model, optimizer = bagua_init(model, optimizer)
+        >>> model = model.with_bagua([optimizer], ...)
     """
+    if get_rank() == 0 and _autotune_server is None:
+        start_autotune_server()
+
     if not dist.is_initialized():
         torch.distributed.init_process_group(
             backend="nccl", init_method="env://"
         )  # fmt: off
-
-    if get_rank() == 0 and _autotune_server is None:
-        start_autotune_server()
 
 
 def gen_nccl_unique_id(comm_type: str, root=0, store=None):
@@ -227,13 +228,13 @@ def init_bagua_communicator(model_name: str, stream, store=None, device_id=None)
 
 
 def send(tensor, dst, comm: B.BaguaSingleCommunicatorPy = None):
-    r"""Sends a tensor to dst synchronously.
+    r"""Sends a tensor to :attr:`dst` synchronously.
 
     Args:
-        tensor (torch.Tensor): Data to be sent.
+        tensor (torch.Tensor): Tensor to send.
         dst (int): Destination rank.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
-            to work on. If None, the global bagua communicator will be used.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator
+            to work on. If ``None``, the global Bagua communicator will be used.
     """
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -256,8 +257,8 @@ def recv(tensor, src, comm: B.BaguaSingleCommunicatorPy = None):
     Args:
         tensor (torch.Tensor): Tensor to fill with received data.
         src (int): Source rank.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
-            to work on. If None, the global bagua communicator will be used.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator
+            to work on. If ``None``, the global Bagua communicator will be used.
     """
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -297,20 +298,20 @@ def broadcast_coalesced(tensors, src=0, comm: B.BaguaSingleCommunicatorPy = None
 
 
 def broadcast(tensor, src=0, comm: B.BaguaSingleCommunicatorPy = None):
-    r"""Broadcasts the tensor to the whole communicator.
+    r"""Broadcasts the tensor to all processes associated with the communicator.
 
-    `tensor` must have the same number of elements in all processes
+    :attr:`tensor` must have the same number of elements in all processes
     participating in the collective.
 
     Args:
-        tensor (torch.Tensor): Data to be sent if `root` is the rank of
+        tensor (torch.Tensor): Data to be sent if :attr:`src` is the rank of
             current process, and tensor to be used to save received data
             otherwise.
-        src (int, optional): Source rank. Defaults to 0.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator
-            to work on. If None, the global bagua communicator will be used.
-            Defaults to None.
-    """  # noqa: W293
+        src (int, optional): Source rank. Default: 0.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator
+            to work on. If ``None``, the global Bagua communicator will be used.
+            Default: ``None``.
+    """
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
@@ -331,23 +332,23 @@ def reduce(
     send_tensor,
     recv_tensor,
     dst,
-    op=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    r"""Reduces the tensor across all processes.
+    r"""Reduces the tensor data across all processes.
 
-    Only the process whit rank `dst` is going to receive the final result.
+    Only the process whit rank :attr:`dst` is going to receive the final result.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
-        recv_tensor (torch.Tensor): Output of the collective, must have the same size of send_tensor.
+        recv_tensor (torch.Tensor): Output of the collective, must have the same size with :attr:`send_tensor`.
         dst (int): Destination rank.
-        op (optional): one of the values from `bagua.ReduceOp`
+        op (ReduceOp, optional): One of the values from :class:`ReduceOp`
             enum. Specifies an operation used for element-wise reductions.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
-    """  # noqa: W293
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
+    """
 
     assert send_tensor.device != torch.device(
         "cpu"
@@ -374,9 +375,9 @@ def reduce(
 
 
 def reduce_inplace(
-    tensor, dst, op=ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
+    tensor, dst, op: ReduceOp = ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
 ):
-    r"""The inplace version of reduce."""
+    r"""The in-place version of :func:`reduce`."""
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
@@ -396,7 +397,7 @@ def reduce_inplace(
 
 def allreduce_coalesced_inplace(
     tensors,
-    op=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
     for tensor in tensors:
@@ -426,23 +427,25 @@ def allreduce_coalesced_inplace(
 def allreduce(
     send_tensor,
     recv_tensor,
-    op=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Reduces the tensor data across all machines in such a way that all get
-    the final result. After the call recv_tensor is going to be bitwise identical
+    """Reduces the tensor data across all processes associated with the communicator in such a way that all get
+    the final result. After the call :attr:`recv_tensor` is going to be bitwise identical
     in all processes.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
-        recv_tensor (torch.Tensor): Output of the collective, must have the same size of send_tensor.
-        op (optional): one of the values from `bagua.ReduceOp` enum. Specifies an operation used for element-wise reductions.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        recv_tensor (torch.Tensor): Output of the collective, must have the same size with :attr:`send_tensor`.
+        op (ReduceOp, optional): One of the values from :class:`ReduceOp` enum. Specifies an operation used for element-wise reductions.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
 
-    Examples:
+    Examples::
+
         >>> from bagua.torch_api import allreduce
+        >>>
         >>> # All tensors below are of torch.int64 type.
         >>> # We have 2 process groups, 2 ranks.
         >>> send_tensor = torch.arange(2, dtype=torch.int64) + 1 + 2 * rank
@@ -466,7 +469,7 @@ def allreduce(
         >>> recv_tensor
         tensor([4.+4.j, 6.+6.j]) # Rank 0
         tensor([4.+4.j, 6.+6.j]) # Rank 1
-    """  # noqa: E501
+    """
 
     assert send_tensor.device != torch.device(
         "cpu"
@@ -494,10 +497,10 @@ def allreduce(
 
 def allreduce_inplace(
     tensor,
-    op=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of allreduce."""
+    """The in-place version of :func:`allreduce`."""
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
@@ -518,14 +521,14 @@ def allgather(
     recv_tensor,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Gathers send_tensors from all machines to recv_tensor.
+    """Gathers send tensors from all processes associated with the communicator into :attr:`recv_tensor`.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
-        recv_tensor (torch.Tensor): Output of the collective, must have size send_tensor.size()*comm.nranks.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        recv_tensor (torch.Tensor): Output of the collective, must have a size of ``comm.nranks * send_tensor.size()`` elements.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert send_tensor.device != torch.device(
@@ -554,7 +557,7 @@ def allgather_inplace(
     tensor,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of allgather."""
+    """The in-place version of :func:`allgather`."""
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
@@ -576,15 +579,15 @@ def gather(
     dst,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Gathers send_tensors from all machines to recv_tensor in a single process.
+    """Gathers send tensors from all processes associated with the communicator to :attr:`recv_tensor` in a single process.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective.
-        recv_tensor (torch.Tensor): Output of the collective, must have size send_tensor.size()*comm.nranks.
+        recv_tensor (torch.Tensor): Output of the collective, must have a size of ``comm.nranks * send_tensor.size()`` elements.
         dst (int): Destination rank.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert send_tensor.device != torch.device(
@@ -616,17 +619,17 @@ def gather_inplace(
     dst,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of gather.
+    """The in-place version of :func:`gather`.
 
     Args:
-        tensor (torch.Tensor): Input and output of the collective, For dst process,
-            has size count*comm.nranks() and acts as recv_tensor above. For non-dst processes,
-            has size count and acts as send_tensor above.
-        count (int): The per-rank data count.
+        tensor (torch.Tensor): Input and output of the collective, On the :attr:`dst` rank, it
+            must have a size of ``comm.nranks * count`` elements. On non-dst ranks, its size must
+            be equal to :attr:``count``.
+        count (int): The per-rank data count to gather.
         dst (int): Destination rank.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -649,15 +652,15 @@ def scatter(
     src,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Scatters send_tensor to all machines.
+    """Scatters send tensor to all processes associated with the communicator.
 
     Args:
-        send_tensor (torch.Tensor): Input of the collective, must have size recv_tensor.size()*comm.nranks.
+        send_tensor (torch.Tensor): Input of the collective, must have a size of ``comm.nranks * recv_tensor.size()`` elements.
         recv_tensor (torch.Tensor): Output of the collective.
         src (int): Source rank.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert send_tensor.device != torch.device(
@@ -689,17 +692,17 @@ def scatter_inplace(
     src,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of gather.
+    """The in-place version of :func:`scatter`.
 
     Args:
-        tensor (torch.Tensor): Input and output of the collective, For src process,
-            has size count*comm.nranks() and acts as send_tensor above. For non-src processes,
-            has size count and acts as recv_tensor above.
-        count (int): The per-rank data count.
+        tensor (torch.Tensor): Input and output of the collective, On the :attr:`src` rank,
+            it must have a size of ``comm.nranks * count`` elements. On non-src ranks,
+            its size must be equal to :attr:`count`.
+        count (int): The per-rank data count to scatter.
         src (int): Source rank.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -721,18 +724,18 @@ def scatter_inplace(
 def reduce_scatter(
     send_tensor,
     recv_tensor,
-    op=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """Reduces on send_tensor, then scatters send_tensor to all machines.
+    """Reduces, then scatters :attr:`send_tensor` to all processes associated with the communicator.
 
     Args:
-        send_tensor (torch.Tensor): Input of the collective, must have size recv_tensor.size()*comm.nranks.
+        send_tensor (torch.Tensor): Input of the collective, must have a size of ``comm.nranks * recv_tensor.size()`` elements.
         recv_tensor (torch.Tensor): Output of the collective.
-        op (optional): one of the values from `bagua.ReduceOp` enum. Specifies an operation used for element-wise reductions.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        op (ReduceOp, optional): One of the values from :class:`ReduceOp` enum. Specifies an operation used for element-wise reductions.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert send_tensor.device != torch.device(
@@ -760,17 +763,17 @@ def reduce_scatter(
 
 def reduce_scatter_inplace(
     tensor,
-    op=ReduceOp.SUM,
+    op: ReduceOp = ReduceOp.SUM,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of reduce_scatter.
+    """The in-place version of :func:`reduce_scatter`.
 
     Args:
-        send_tensor (torch.Tensor): Input and output of the collective, must satisfy: `tensor.size() % comm.nranks == 0`.
-        op (optional): one of the values from `bagua.ReduceOp` enum. Specifies an operation used for element-wise reductions.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        tensor (torch.Tensor): Input and output of the collective, the size must be divisible by ``comm.nranks``.
+        op (ReduceOp, optional): One of the values from :class:`ReduceOp` enum. Specifies an operation used for element-wise reductions.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
@@ -794,14 +797,16 @@ def alltoall(
     recv_tensor,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """All processes send data to all processes.
+    """
+    Each process scatters :attr:`send_tensor` to all processes associated with the communicator and return the gathered
+    data in :attr:`recv_tensor`.
 
     Args:
-        send_tensor (torch.Tensor): Input of the collective, must satisfy: `send_tensor.size() % comm.nranks == 0`.
-        recv_tensor (torch.Tensor): Output of the collective, must have the same size of send_tensor.
-        comm (B.BaguaSingleCommunicatorPy, optional): The bagua communicator to
-            work on. If None the global bagua communicator will be used.
-            Defaults to None.
+        send_tensor (torch.Tensor): Input of the collective, the size must be divisible by ``comm.nranks``.
+        recv_tensor (torch.Tensor): Output of the collective, must have equal size with :attr:`send_tensor`.
+        comm (B.BaguaSingleCommunicatorPy, optional): The Bagua communicator to
+            work on. If ``None`` the global Bagua communicator will be used.
+            Default: ``None``.
     """
 
     assert send_tensor.device != torch.device(
@@ -830,7 +835,7 @@ def alltoall_inplace(
     tensor,
     comm: B.BaguaSingleCommunicatorPy = None,
 ):
-    """The inplace version of alltoall."""
+    """The in-place version of :func:`alltoall`."""
 
     assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
 

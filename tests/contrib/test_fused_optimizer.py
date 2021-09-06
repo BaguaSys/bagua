@@ -4,6 +4,7 @@ import torch.optim as optim
 import unittest
 import os
 from tests.internal.common_utils import find_free_port
+from tests import skip_if_cuda_available, skip_if_cuda_not_available
 
 
 def run_step(opt, flag_param, fuse, wrap, device):
@@ -119,26 +120,24 @@ class TestFusedOptimizer(unittest.TestCase):
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
 
+    @skip_if_cuda_available()
     def test_fused_optimizer(self):
         self.run_all_optimizers_once(device="cpu", wrap=False)
 
+    @skip_if_cuda_not_available()
     def test_fused_optimizer_with_bagua_wrapper(self):
-        if not torch.cuda.is_available():
-            print("skip tests since cuda is not available")
-            return
-
         # init env
         os.environ["WORLD_SIZE"] = "1"
         os.environ["LOCAL_WORLD_SIZE"] = "1"
         os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port())
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port())
+        os.environ["MASTER_PORT"] = str(find_free_port(8000, 8100))
+        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port(9000, 9100))
 
         os.environ["RANK"] = "0"
         os.environ["LOCAL_RANK"] = "0"
 
         # init bagua distributed process group
-        torch.cuda.set_device(bagua.get_local_rank())
+        torch.cuda.set_device(0)
         bagua.init_process_group()
 
         self.run_all_optimizers_once(device="cuda:0", wrap=True)

@@ -25,13 +25,13 @@ class QAdamOptimizer(Optimizer):
         `QAdam <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_ algorithm.
 
         Args:
-            params (iterable): iterable of parameters to optimize or dicts defining
-                parameter groups
-            lr: learning rate
-            warmup_steps: number of steps to do warm up in the begining of training.
-            betas: coefficients used for computing running averages of gradient and its square
-            eps: term added to the denominator to improve numerical stability
-            weight_decay: weight decay (L2 penalty)
+            params (iterable): Iterable of parameters to optimize or dicts defining
+                parameter groups.
+            lr: Learning rate.
+            warmup_steps: Number of steps to do warm up in the begining of training.
+            betas: Coefficients used for computing running averages of gradient and its square.
+            eps: Term added to the denominator to improve numerical stability.
+            weight_decay: Weight decay (L2 penalty).
         """
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))

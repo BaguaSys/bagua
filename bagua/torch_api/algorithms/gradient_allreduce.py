@@ -14,7 +14,7 @@ class GradientAllReduceAlgorithm(Algorithm):
 
         Args:
             hierarchical (bool): Enable hierarchical communication.
-            average (bool): If True, the gradients on each worker are averaged.
+            average (bool): If ``True``, the gradients on each worker are averaged.
                 Otherwise, they are summed.
         """
         self.hierarchical = hierarchical

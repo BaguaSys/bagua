@@ -5,11 +5,12 @@ from bagua.torch_api.contrib import (
     LoadBalancingDistributedSampler,
     LoadBalancingDistributedBatchSampler,
 )
+from tests import skip_if_cuda_available
 
 
 class TestLoadBalancingDataLoader(unittest.TestCase):
+    @skip_if_cuda_available()
     def test_load_balancing_distributed_sampler(self):
-        return
         n = 10
         dataset = TensorDataset(torch.randn(n, 2), torch.randperm(n))
         sampler = LoadBalancingDistributedSampler(
@@ -26,6 +27,7 @@ class TestLoadBalancingDataLoader(unittest.TestCase):
         for i, data in enumerate(dataloader):
             self.assertTrue(i == data[1].item())
 
+    @skip_if_cuda_available()
     def test_load_balancing_distributed_batch_sampler(self):
         num_replicas = 1
         total_batch = 5
