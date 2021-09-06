@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch.nn.modules.batchnorm import _BatchNorm
 
 import bagua.torch_api as bagua
-from bagua.torch_api.communication import allgather, allreduce
+from bagua.torch_api.communication import allgather, allreduce_inplace
 
 # Backward compat for old PyTorch
 if not hasattr(torch.jit, "unused"):
@@ -205,8 +205,10 @@ class _SyncBatchNorm(Function):
 
         if need_input_grad:
             # synchronizing stats used to calculate input gradient.
-            allreduce(sum_dy, sum_dy)
-            allreduce(sum_dy_xmu, sum_dy_xmu)
+            num_channels = sum_dy.shape[0]
+            combined = torch.cat([sum_dy, sum_dy_xmu], dim=0)
+            allreduce_inplace(combined)
+            sum_dy, sum_dy_xmu = torch.split(combined, num_channels)
 
             if _SYNC_BN_V4:
                 # from 1.9.0 on we need a count tensor on all devices
