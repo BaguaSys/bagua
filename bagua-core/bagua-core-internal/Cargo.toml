@@ -34,7 +34,7 @@ opentelemetry = { version = "0.15", features = ["serialize", "metrics"] }
 bagua-opentelemetry = { path = "../bagua-opentelemetry" }
 
 [dependencies.pyo3]
-version = "0.14.4"
+version = "0.14.5"
 features = ["auto-initialize"]
 
 [build-dependencies]
