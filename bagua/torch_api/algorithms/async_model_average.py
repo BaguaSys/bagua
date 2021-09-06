@@ -8,7 +8,6 @@ import threading
 import time
 import logging
 import os
-from bagua.torch_api import get_rank
 import torch
 
 __all__ = ["AsyncModelAverageAlgorithm"]
@@ -50,6 +49,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
                 ``"all"`` means all workers' weights are synchronized during each communication.
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
+            warmup_steps (int): Number of steps to warm up by gradient allreduce at the beginning of training.
         """
 
         self.peer_selection_mode = peer_selection_mode
@@ -116,7 +116,9 @@ class AsyncModelAverageAlgorithm(Algorithm):
         bucket._diff_tensor = diff_tensor.to_bagua_tensor("diff_tensor")
 
     def init_operations(
-        self, bagua_module: BaguaModule, bucket: BaguaBucket,
+        self,
+        bagua_module: BaguaModule,
+        bucket: BaguaBucket,
     ):
         bagua_module._bagua_backend.wait_pending_comm_ops()
         bucket.clear_ops()
@@ -146,7 +148,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
         if (
             not hasattr(self, "worker")
-            or not self.worker.is_alive()  # pytype: disable=attribute-error
+            or not self.worker.is_alive()  # pytype: disable=attribute-error # noqa: W503
         ):
             print(
                 "Warning: cannot abort since the asynchronous communication thread is not started."
