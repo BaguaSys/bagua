@@ -10,7 +10,7 @@ SYNTHETIC_SCRIPT="/bagua/examples/benchmark/synthetic_benchmark.py"
 function check_benchmark_log {
     logfile=$1
 
-    final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
+    final_img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $6}')
     threshold="70.0"
 
     python -c "import sys; sys.exit(0 if float($final_img_per_sec) > float($threshold) else 1)"
