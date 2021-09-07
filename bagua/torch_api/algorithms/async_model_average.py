@@ -4,9 +4,9 @@ from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
 from typing import List
 from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api.env import get_rank
 import threading
 import time
-import logging
 import os
 import torch
 
@@ -21,8 +21,8 @@ def check_nccl_proto():
         or ("^" not in proto_str and "LL128" in proto_str)  # noqa: W503
         or ("^" in proto_str and "LL128" not in proto_str)  # noqa: W503
     ):
-        logging.warn(
-            "`LL128` proto for NCCL backend is not stable for async algorithms. Set `NCCL_PROTO=^LL128` to exclude it."
+        print(
+            "Warning: `LL128` proto for NCCL backend is not stable for async algorithms. Set `NCCL_PROTO=^LL128` to exclude it."
         )  # TODO; remove this after https://github.com/NVIDIA/nccl/issues/549 gets solved
 
 
@@ -57,6 +57,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.stop_event = threading.Event()
         self.step_id = 0
         self.warmup_steps = warmup_steps
+        self.no_bucketing = True
         check_nccl_proto()
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
@@ -77,7 +78,11 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
         def hook(input):
-            if self.step_id > self.warmup_steps and not hasattr(self, "worker"):
+            if (
+                self.step_id > self.warmup_steps
+                and not hasattr(self, "worker")
+                and self.sync_interval_ms > 0
+            ):
                 self.worker = threading.Thread(
                     target=self._run_async_loop, args=[bagua_module]
                 )
@@ -156,6 +161,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             return
 
         time.sleep(grace_period_seconds)
+        print("Process {} ready to abort async communication.".format(get_rank()))
         self.stop_event.set()
         bagua_module._bagua_backend.global_communicator.abort()
         self.worker.join()  # pytype: disable=attribute-error
