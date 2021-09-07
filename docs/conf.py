@@ -128,6 +128,7 @@ _ignore_methods = [
     "bagua.torch_api.contrib.*LoadBalancingDistributedBatchSampler.generate_batches",
     "bagua.torch_api.contrib.utils.store.ClusterStore.*",
     "bagua.torch_api.algorithms.async_model_average.AsyncModelAverageAlgorithm.init*",
+    "bagua.torch_api.algorithms.async_model_average.AsyncModelAverageAlgorithm.need_reset",
     "bagua.torch_api.algorithms.bytegrad.ByteGradAlgorithm.init*",
     "bagua.torch_api.algorithms.bytegrad.ByteGradAlgorithm.tensors_to_buckets",
     "bagua.torch_api.algorithms.decentralized.DecentralizedAlgorithm.init*",
