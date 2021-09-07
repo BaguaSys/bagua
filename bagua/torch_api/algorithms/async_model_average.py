@@ -80,8 +80,8 @@ class AsyncModelAverageAlgorithm(Algorithm):
         def hook(input):
             if (
                 self.step_id > self.warmup_steps
-                and not hasattr(self, "worker")
-                and self.sync_interval_ms > 0
+                and not hasattr(self, "worker")  # noqa: W503
+                and self.sync_interval_ms > 0  # noqa: W503
             ):
                 self.worker = threading.Thread(
                     target=self._run_async_loop, args=[bagua_module]
@@ -156,7 +156,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             or not self.worker.is_alive()  # pytype: disable=attribute-error # noqa: W503
         ):
             print(
-                "Warning: cannot abort since the asynchronous communication thread is not started."
+                "Warning: skip abort since the asynchronous communication thread is not started."
             )
             return
 
