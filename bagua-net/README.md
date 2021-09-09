@@ -83,4 +83,6 @@ Img/sec per GPU: 85.8 +-3.8
 Total img/sec on 32 GPU(s): 2744.9 +-122.3
 ```
 
-> As a reminder, this implementation is not good at send/recv hybrid communication with too many link relationships, such as alltoall. So if your need is to use NCCL to implement algorithms like alltoall, bagua-net is not your thing.
+## Limitations
+
+Bagua-Net currently only accelerates AllReduce on TCP. Support for other operations and RDMA are still under development.
