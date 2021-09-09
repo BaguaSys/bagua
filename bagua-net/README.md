@@ -85,4 +85,4 @@ Total img/sec on 32 GPU(s): 2744.9 +-122.3
 
 ## Limitations
 
-Bagua-Net currently only accelerates AllReduce on TCP. Support for other operations and RDMA are still under development.
+Bagua-Net currently only accelerates AllReduce on TCP. Support for other operations and RDMA is still under development.
