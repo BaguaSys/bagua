@@ -235,8 +235,7 @@ class BaguaModule:
                 self._bagua_init_algorithm()
 
         def algorithm_forward_pre_hook(self, input):
-            if self.training:
-                self.bagua_algorithm.init_forward_pre_hook(self)(input)
+            self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
         def record_speed_metrics_event(self, _):
             if not self._speed_metrics_switch_on:

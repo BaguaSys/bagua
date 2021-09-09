@@ -9,6 +9,7 @@ import threading
 import time
 import os
 import torch
+import logging
 
 __all__ = ["AsyncModelAverageAlgorithm"]
 
@@ -31,7 +32,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self,
         peer_selection_mode: str = "all",
         sync_interval_ms: int = 500,
-        warmup_steps=0,
+        warmup_steps: int = 0,
     ):
         """
         Create an instance of the
@@ -80,13 +81,13 @@ class AsyncModelAverageAlgorithm(Algorithm):
         def hook(input):
             if (
                 self.step_id > self.warmup_steps
-                and not hasattr(self, "worker")  # noqa: W503
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
-                self.worker = threading.Thread(
-                    target=self._run_async_loop, args=[bagua_module]
-                )
-                self.worker.start()
+                if not hasattr(self, "worker"):  # noqa: W503
+                    self.worker = threading.Thread(
+                        target=self._run_async_loop, args=[bagua_module]
+                    )
+                    self.worker.start()
 
         return hook
 
@@ -111,7 +112,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
     def need_reset(self):
         self.step_id += 1
         if self.warmup_steps > 0 and self.step_id == self.warmup_steps + 1:
-            print(f"Async model average starts from step {self.step_id}")
+            logging.info(f"Async model average starts from step {self.step_id}")
             return True
         else:
             return False
@@ -155,7 +156,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             not hasattr(self, "worker")
             or not self.worker.is_alive()  # pytype: disable=attribute-error # noqa: W503
         ):
-            print(
+            logging.info(
                 "Warning: skip abort since the asynchronous communication thread is not started."
             )
             return
@@ -167,12 +168,21 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.worker.join()  # pytype: disable=attribute-error
 
     def _run_async_loop(self, bagua_module: BaguaModule):
+        comm_step = 0
         while not self.stop_event.is_set():
-            if bagua_module.training:
-                for bucket in bagua_module.bagua_buckets:
-                    for tensor in bucket.tensors:
-                        tensor.bagua_mark_communication_ready_without_synchronization()
+            start_time = time.time()
+            for bucket in bagua_module.bagua_buckets:
+                for tensor in bucket.tensors:
+                    tensor.bagua_mark_communication_ready_without_synchronization()
 
-                bagua_module._bagua_backend.wait_pending_comm_ops()
+            bagua_module._bagua_backend.wait_pending_comm_ops()
+            duration = (time.time() - start_time) * 1000
 
+            logging.debug(
+                "Process {} async communication cost {}ms, comm_step={}".format(
+                    get_rank(), duration, comm_step
+                )
+            )
+
+            comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
