@@ -197,6 +197,13 @@ pub fn parse_user_pass_and_addr(raw_url: &str) -> Option<(String, String, String
     }
 }
 
+pub fn chunk_size(total: usize, min_chunksize: usize, expected_nchunks: usize) -> usize {
+    let chunk_size = (total + expected_nchunks - 1) / expected_nchunks;
+    let chunk_size = std::cmp::max(chunk_size, min_chunksize);
+
+    chunk_size
+}
+
 /// Creates a `SockAddr` struct from libc's sockaddr.
 ///
 /// Supports only the following address families: Unix, Inet (v4 & v6), Netlink and System.
@@ -256,6 +263,7 @@ pub(crate) unsafe fn from_libc_sockaddr(addr: *const libc::sockaddr) -> Option<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nix::sys::socket::{InetAddr, IpAddr, SockAddr};
 
     #[test]
     fn test_parse() {
@@ -263,7 +271,8 @@ mod tests {
         let password = "1984";
         let address = "127.0.0.1:9090";
 
-        let (user, pass, addr) = parse_user_pass_and_addr(&format!("{}:{}@{}", username, password, address)).unwrap();
+        let (user, pass, addr) =
+            parse_user_pass_and_addr(&format!("{}:{}@{}", username, password, address)).unwrap();
         assert_eq!(user, username);
         assert_eq!(pass, password);
         assert_eq!(addr, address);
@@ -272,16 +281,34 @@ mod tests {
         assert_eq!(user, "");
         assert_eq!(pass, "");
         assert_eq!(addr, address);
+    }
 
-        match parse_user_pass_and_addr("106.12.175.12:19091") {
-            Some(ret) => {
-                println!("ret={:?}", ret);
-            },
-            None => {
-                println!("abc");
-            }
+    #[test]
+    fn test_socket_handle() {
+        let addr = InetAddr::new(IpAddr::new_v4(127, 0, 0, 1), 8123);
+        let addr = SockAddr::new_inet(addr);
+        let addr = unsafe {
+            let (c_sockaddr, _) = addr.as_ffi_pair();
+            from_libc_sockaddr(c_sockaddr).unwrap()
         };
 
-        println!("{:?}", parse_user_pass_and_addr("106.12.175.12:19091").unwrap());
+        assert_eq!(addr.to_str(), "127.0.0.1:8123");
+    }
+
+    #[test]
+    fn test_chunks() {
+        let chunks = |total: usize, min_chunksize: usize, expected_nchunks: usize| -> usize {
+            let size = chunk_size(total, min_chunksize, expected_nchunks);
+
+            let mut chunk_count = total / size;
+            if total % size != 0 {
+                chunk_count += 1;
+            }
+
+            chunk_count
+        };
+
+        assert_eq!(chunks(1024, 1, 20), 20);
+        assert_eq!(chunks(1024, 1000, 20), 2);
     }
 }

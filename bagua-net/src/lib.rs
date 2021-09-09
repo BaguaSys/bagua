@@ -1,21 +1,32 @@
 #[macro_use]
 extern crate lazy_static;
 
-mod bagua_net;
+mod implement;
+mod interface;
 mod utils;
 
-use bagua_net::{BaguaNet, NCCLNetProperties, SocketHandle};
 use ffi_convert::{AsRust, CDrop, CReprOf};
+use implement::{nthread_per_socket_backend, tokio_backend};
+use interface::{NCCLNetProperties, Net, SocketHandle};
 use libc;
 use std::sync::{Arc, Mutex};
 
 pub struct BaguaNetC {
-    inner: Arc<Mutex<BaguaNet>>,
+    inner: Arc<Mutex<Box<dyn Net>>>,
 }
 
 #[no_mangle]
 pub extern "C" fn bagua_net_c_create() -> *mut BaguaNetC {
-    let bagua_net = BaguaNet::new().unwrap();
+    let config = std::env::var("BAGUA_NET_IMPLEMENT")
+        .unwrap_or("BASIC".to_owned())
+        .to_uppercase();
+    let bagua_net: Box<dyn Net> = match &config[..] {
+        "TOKIO" => Box::new(tokio_backend::BaguaNet::new().unwrap()),
+        "BASIC" => Box::new(nthread_per_socket_backend::BaguaNet::new().unwrap()),
+        _ => {
+            return std::ptr::null_mut();
+        }
+    };
     let obj = BaguaNetC {
         inner: Arc::new(Mutex::new(bagua_net)),
     };
@@ -280,6 +291,7 @@ pub extern "C" fn bagua_net_c_irecv(
 /// 0: success
 /// -1: null pointer
 /// -2: invalid parameter
+/// -3: bagua-net inner error
 #[no_mangle]
 pub extern "C" fn bagua_net_c_test(
     ptr: *mut BaguaNetC,
@@ -297,10 +309,17 @@ pub extern "C" fn bagua_net_c_test(
     }
 
     unsafe {
-        let (let_done, let_bytes) = (*ptr).inner.lock().unwrap().test(request_id).unwrap();
-        *done = let_done;
-        if let_done && !bytes.is_null() {
-            *bytes = let_bytes;
+        match (*ptr).inner.lock().unwrap().test(request_id) {
+            Ok((let_done, let_bytes)) => {
+                *done = let_done;
+                if let_done && !bytes.is_null() {
+                    *bytes = let_bytes;
+                }
+            }
+            Err(err) => {
+                tracing::warn!("{:?}", err);
+                return -3;
+            }
         }
     }
     return 0;

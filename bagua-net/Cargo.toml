@@ -6,7 +6,7 @@ edition = "2018"
 license = "MIT License Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]
 
 [dependencies]
 nix = "0.22.1"
@@ -33,3 +33,5 @@ openssl = { version = "0.10", features = ["vendored"] }
 prometheus = { version = "0.12", features = ["push"] }
 lazy_static = "1.4"
 regex = "1.5"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"

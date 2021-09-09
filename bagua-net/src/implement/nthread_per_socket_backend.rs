@@ -1,3 +1,8 @@
+use crate::interface;
+use crate::interface::{
+    BaguaNetError, NCCLNetProperties, Net, SocketHandle, SocketListenCommID, SocketRecvCommID,
+    SocketRequestID, SocketSendCommID,
+};
 use crate::utils;
 use crate::utils::NCCLSocketDev;
 use nix::sys::socket::{InetAddr, SockAddr};
@@ -11,29 +16,12 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net;
 use std::sync::{Arc, Mutex};
-use thiserror::Error;
 
 const NCCL_PTR_HOST: i32 = 1;
 const NCCL_PTR_CUDA: i32 = 2;
 
 lazy_static! {
     static ref HANDLER_ALL: [KeyValue; 1] = [KeyValue::new("handler", "all")];
-}
-
-#[derive(Debug)]
-pub struct NCCLNetProperties {
-    pub name: String,
-    pub pci_path: String,
-    pub guid: u64,
-    pub ptr_support: i32, // NCCL_PTR_HOST or NCCL_PTR_HOST|NCCL_PTR_CUDA
-    pub speed: i32,       // Port speed in Mbps.
-    pub port: i32,
-    pub max_comms: i32,
-}
-
-#[derive(Debug)]
-pub struct SocketHandle {
-    pub addr: nix::sys::socket::SockAddr,
 }
 
 pub struct SocketListenComm {
@@ -53,16 +41,6 @@ pub struct SocketRecvComm {
     pub msg_sender: flume::Sender<(&'static mut [u8], Arc<Mutex<RequestState>>)>,
 }
 
-#[derive(Error, Debug)]
-pub enum BaguaNetError {
-    #[error("io error")]
-    IOError(String),
-    #[error("tcp error")]
-    TCPError(String),
-    #[error("inner error")]
-    InnerError(String),
-}
-
 pub struct SocketSendRequest {
     pub state: Arc<Mutex<RequestState>>,
     pub trace_span: opentelemetry::global::BoxedSpan,
@@ -78,6 +56,7 @@ pub struct RequestState {
     pub nsubtasks: usize,
     pub completed_subtasks: usize,
     pub nbytes_transferred: usize,
+    pub err: Option<BaguaNetError>,
 }
 
 pub enum SocketRequest {
@@ -99,11 +78,6 @@ struct AppState {
     uploader: std::thread::JoinHandle<()>,
 }
 
-type SocketListenCommID = usize;
-type SocketSendCommID = usize;
-type SocketRecvCommID = usize;
-type SocketRequestID = usize;
-
 pub struct BaguaNet {
     pub socket_devs: Vec<NCCLSocketDev>,
     pub listen_comm_next_id: usize,
@@ -119,7 +93,7 @@ pub struct BaguaNet {
     pub rank: i32,
     state: Arc<AppState>,
     nstreams: usize,
-    task_split_threshold: usize,
+    min_chunksize: usize,
 }
 
 impl BaguaNet {
@@ -255,18 +229,20 @@ impl BaguaNet {
                 .unwrap_or("2".to_owned())
                 .parse()
                 .unwrap(),
-            task_split_threshold: std::env::var("BAGUA_NET_TASK_SPLIT_THRESHOLD")
+            min_chunksize: std::env::var("BAGUA_NET_MIN_CHUNKSIZE")
                 .unwrap_or("1048576".to_owned())
                 .parse()
                 .unwrap(),
         })
     }
+}
 
-    pub fn devices(&self) -> Result<usize, BaguaNetError> {
+impl Net for BaguaNet {
+    fn devices(&self) -> Result<usize, BaguaNetError> {
         Ok(self.socket_devs.len())
     }
 
-    pub fn get_properties(&self, dev_id: usize) -> Result<NCCLNetProperties, BaguaNetError> {
+    fn get_properties(&self, dev_id: usize) -> Result<NCCLNetProperties, BaguaNetError> {
         let socket_dev = &self.socket_devs[dev_id];
 
         Ok(NCCLNetProperties {
@@ -280,7 +256,7 @@ impl BaguaNet {
         })
     }
 
-    pub fn listen(
+    fn listen(
         &mut self,
         dev_id: usize,
     ) -> Result<(SocketHandle, SocketListenCommID), BaguaNetError> {
@@ -326,14 +302,14 @@ impl BaguaNet {
         Ok((socket_handle, id))
     }
 
-    pub fn connect(
+    fn connect(
         &mut self,
         _dev_id: usize,
         socket_handle: SocketHandle,
     ) -> Result<SocketSendCommID, BaguaNetError> {
         let mut parallel_streams = Vec::new();
         let mut streams_input = Vec::new();
-        for _ in 0..self.nstreams {
+        for stream_id in 0..self.nstreams {
             let mut stream = match net::TcpStream::connect(socket_handle.addr.clone().to_str()) {
                 Ok(stream) => stream,
                 Err(err) => {
@@ -348,6 +324,8 @@ impl BaguaNet {
                     )));
                 }
             };
+            stream.write_all(&stream_id.to_be_bytes()[..]).unwrap();
+
             stream.set_nodelay(true).unwrap();
             stream.set_nonblocking(true).unwrap();
 
@@ -384,8 +362,9 @@ impl BaguaNet {
             streams_input.push(msg_sender);
         }
 
-        let mut master_stream = match net::TcpStream::connect(socket_handle.addr.clone().to_str()) {
-            Ok(master_stream) => master_stream,
+        let nstreams = self.nstreams;
+        let mut ctrl_stream = match net::TcpStream::connect(socket_handle.addr.clone().to_str()) {
+            Ok(ctrl_stream) => ctrl_stream,
             Err(err) => {
                 tracing::warn!(
                     "net::TcpStream::connect failed, err={:?}, socket_handle={:?}",
@@ -398,11 +377,12 @@ impl BaguaNet {
                 )));
             }
         };
-        master_stream.set_nodelay(true).unwrap();
-        master_stream.set_nonblocking(true).unwrap();
+        ctrl_stream.write_all(&nstreams.to_be_bytes()[..]).unwrap();
+        ctrl_stream.set_nodelay(true).unwrap();
+        ctrl_stream.set_nonblocking(true).unwrap();
 
         let (msg_sender, msg_receiver) = flume::unbounded();
-        let task_split_threshold = self.task_split_threshold;
+        let min_chunksize = self.min_chunksize;
         let id = self.send_comm_next_id;
         self.send_comm_next_id += 1;
         self.send_comm_map.insert(
@@ -413,17 +393,18 @@ impl BaguaNet {
                     let mut downstream_id = 0;
                     for (data, state) in msg_receiver.iter() {
                         let send_nbytes = data.len().to_be_bytes();
-                        utils::nonblocking_write_all(&mut master_stream, &send_nbytes[..]).unwrap();
+                        if let Err(err) =
+                            utils::nonblocking_write_all(&mut ctrl_stream, &send_nbytes[..])
+                        {
+                            state.lock().unwrap().err =
+                                Some(BaguaNetError::IOError(format!("{:?}", err)));
+                            break;
+                        }
 
                         if data.len() != 0 {
-                            let bucket_size = if data.len() >= task_split_threshold
-                                && data.len() > parallel_streams.len()
-                            {
-                                data.len() + (parallel_streams.len() - 1) / parallel_streams.len()
-                            } else {
-                                data.len()
-                            };
-                            for bucket in data.chunks(bucket_size) {
+                            let chunk_size = utils::chunk_size(data.len(), min_chunksize, nstreams);
+
+                            for bucket in data.chunks(chunk_size) {
                                 state.lock().unwrap().nsubtasks += 1;
                                 streams_input[downstream_id]
                                     .send((bucket, state.clone()))
@@ -441,20 +422,30 @@ impl BaguaNet {
         Ok(id)
     }
 
-    pub fn accept(
+    fn accept(
         &mut self,
         listen_comm_id: SocketListenCommID,
     ) -> Result<SocketRecvCommID, BaguaNetError> {
         let listen_comm = self.listen_comm_map.get(&listen_comm_id).unwrap();
         let mut parallel_streams = Vec::new();
-        let mut streams_input = Vec::new();
-        for _ in 0..self.nstreams {
+        let mut ctrl_stream = None;
+        let mut streams_input = std::collections::BTreeMap::new();
+        for _ in 0..=self.nstreams {
             let (mut stream, _addr) = match listen_comm.tcp_listener.lock().unwrap().accept() {
                 Ok(listen) => listen,
                 Err(err) => {
                     return Err(BaguaNetError::TCPError(format!("{:?}", err)));
                 }
             };
+            let mut stream_id = (0 as usize).to_be_bytes();
+            stream.read_exact(&mut stream_id[..]).unwrap();
+            let stream_id = usize::from_be_bytes(stream_id);
+
+            if stream_id == self.nstreams {
+                ctrl_stream = Some(stream);
+                continue;
+            }
+
             stream.set_nodelay(true).unwrap();
             stream.set_nonblocking(true).unwrap();
 
@@ -477,20 +468,20 @@ impl BaguaNet {
                     };
                 }
             }));
-            streams_input.push(msg_sender);
+            streams_input.insert(stream_id, msg_sender);
         }
+        let mut ctrl_stream = ctrl_stream.unwrap();
+        let streams_input: Vec<_> = streams_input
+            .into_iter()
+            .map(|(_, stream)| stream)
+            .collect();
 
-        let (mut master_stream, _addr) = match listen_comm.tcp_listener.lock().unwrap().accept() {
-            Ok(listen) => listen,
-            Err(err) => {
-                return Err(BaguaNetError::TCPError(format!("{:?}", err)));
-            }
-        };
-        master_stream.set_nodelay(true).unwrap();
-        master_stream.set_nonblocking(true).unwrap();
+        ctrl_stream.set_nodelay(true).unwrap();
+        ctrl_stream.set_nonblocking(true).unwrap();
 
+        let nstreams = self.nstreams;
         let (msg_sender, msg_receiver) = flume::unbounded();
-        let task_split_threshold = self.task_split_threshold;
+        let min_chunksize = self.min_chunksize;
         let id = self.recv_comm_next_id;
         self.recv_comm_next_id += 1;
         self.recv_comm_map.insert(
@@ -501,20 +492,19 @@ impl BaguaNet {
                     let mut downstream_id = 0;
                     for (data, state) in msg_receiver.iter() {
                         let mut target_nbytes = data.len().to_be_bytes();
-                        utils::nonblocking_read_exact(&mut master_stream, &mut target_nbytes[..]).unwrap();
+                        if let Err(err) =
+                            utils::nonblocking_read_exact(&mut ctrl_stream, &mut target_nbytes[..])
+                        {
+                            state.lock().unwrap().err =
+                                Some(BaguaNetError::IOError(format!("{:?}", err)));
+                            break;
+                        }
                         let target_nbytes = usize::from_be_bytes(target_nbytes);
 
                         if target_nbytes != 0 {
-                            let bucket_size = if target_nbytes >= task_split_threshold
-                                && target_nbytes > parallel_streams.len()
-                            {
-                                target_nbytes
-                                    + (parallel_streams.len() - 1) / parallel_streams.len()
-                            } else {
-                                target_nbytes
-                            };
-
-                            for bucket in data[..target_nbytes].chunks_mut(bucket_size) {
+                            let chunk_size =
+                                utils::chunk_size(target_nbytes, min_chunksize, nstreams);
+                            for bucket in data[..target_nbytes].chunks_mut(chunk_size) {
                                 state.lock().unwrap().nsubtasks += 1;
                                 streams_input[downstream_id]
                                     .send((&mut bucket[..], state.clone()))
@@ -531,7 +521,7 @@ impl BaguaNet {
         Ok(id)
     }
 
-    pub fn isend(
+    fn isend(
         &mut self,
         send_comm_id: SocketSendCommID,
         data: &'static [u8],
@@ -552,6 +542,7 @@ impl BaguaNet {
             nsubtasks: 1,
             completed_subtasks: 0,
             nbytes_transferred: 0,
+            err: None,
         }));
         self.socket_request_map.insert(
             id,
@@ -566,7 +557,7 @@ impl BaguaNet {
         Ok(id)
     }
 
-    pub fn irecv(
+    fn irecv(
         &mut self,
         recv_comm_id: SocketRecvCommID,
         data: &'static mut [u8],
@@ -586,6 +577,7 @@ impl BaguaNet {
             nsubtasks: 1,
             completed_subtasks: 0,
             nbytes_transferred: 0,
+            err: None,
         }));
         self.socket_request_map.insert(
             id,
@@ -600,13 +592,16 @@ impl BaguaNet {
         Ok(id)
     }
 
-    pub fn test(&mut self, request_id: SocketRequestID) -> Result<(bool, usize), BaguaNetError> {
+    fn test(&mut self, request_id: SocketRequestID) -> Result<(bool, usize), BaguaNetError> {
         let request = self.socket_request_map.get_mut(&request_id).unwrap();
         let ret = match request {
             SocketRequest::SendRequest(send_req) => {
                 let state = send_req.state.lock().unwrap();
-                let task_completed = state.nsubtasks == state.completed_subtasks;
+                if let Some(err) = state.err.clone() {
+                    return Err(err);
+                }
 
+                let task_completed = state.nsubtasks == state.completed_subtasks;
                 if task_completed {
                     send_req.trace_span.end();
                 }
@@ -614,8 +609,11 @@ impl BaguaNet {
             }
             SocketRequest::RecvRequest(recv_req) => {
                 let state = recv_req.state.lock().unwrap();
-                let task_completed = state.nsubtasks == state.completed_subtasks;
+                if let Some(err) = state.err.clone() {
+                    return Err(err);
+                }
 
+                let task_completed = state.nsubtasks == state.completed_subtasks;
                 if task_completed {
                     recv_req.trace_span.end();
                 }
@@ -632,22 +630,19 @@ impl BaguaNet {
         ret
     }
 
-    pub fn close_send(&mut self, send_comm_id: SocketSendCommID) -> Result<(), BaguaNetError> {
+    fn close_send(&mut self, send_comm_id: SocketSendCommID) -> Result<(), BaguaNetError> {
         self.send_comm_map.remove(&send_comm_id);
 
         Ok(())
     }
 
-    pub fn close_recv(&mut self, recv_comm_id: SocketRecvCommID) -> Result<(), BaguaNetError> {
+    fn close_recv(&mut self, recv_comm_id: SocketRecvCommID) -> Result<(), BaguaNetError> {
         self.recv_comm_map.remove(&recv_comm_id);
 
         Ok(())
     }
 
-    pub fn close_listen(
-        &mut self,
-        listen_comm_id: SocketListenCommID,
-    ) -> Result<(), BaguaNetError> {
+    fn close_listen(&mut self, listen_comm_id: SocketListenCommID) -> Result<(), BaguaNetError> {
         self.listen_comm_map.remove(&listen_comm_id);
 
         Ok(())
@@ -659,34 +654,5 @@ impl Drop for BaguaNet {
         // TODO: make shutdown global
         self.trace_span_context.span().end();
         opentelemetry::global::shutdown_tracer_provider();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use nix::sys::socket::{InetAddr, IpAddr, SockAddr};
-
-    #[test]
-    fn it_works() {
-        let bagua_net = BaguaNet::new().unwrap();
-        println!("bagua_net.socket_devs={:?}", bagua_net.socket_devs);
-
-        assert_eq!(2 + 2, 4);
-    }
-
-    #[test]
-    fn test_socket_handle() {
-        let addr = InetAddr::new(IpAddr::new_v4(127, 0, 0, 1), 8123);
-        let socket_handle = SocketHandle {
-            addr: SockAddr::new_inet(addr),
-        };
-
-        let addr = unsafe {
-            let (c_sockaddr, _) = socket_handle.addr.as_ffi_pair();
-            utils::from_libc_sockaddr(c_sockaddr).unwrap()
-        };
-
-        println!("socket_handle={:?}", addr.to_str());
     }
 }
