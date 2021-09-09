@@ -5,6 +5,10 @@ Bagua-Net
 
 Bagua-Net is a high performance NCCL plugin for [Bagua](https://github.com/BaguaSys/bagua). By optimizing the fairness among multiple TCP streams, Bagua-Net can improve the overall throughput under TCP network by more than 30% for typical distributed learning tasks.
 
+## Requirement
+
+ - NCCL >= v2.6.4
+
 ## Quick Start
 
 ```bash
@@ -50,18 +54,18 @@ In an [end-to-end test](https://github.com/BaguaSys/examples/blob/main/benchmark
 ```
 # VGG16 on 4x8xV100 bagua-net
 Running benchmark...
-Iter #0: 3643.4 img/sec GPU
-Iter #1: 3648.4 img/sec GPU
-Iter #2: 3544.0 img/sec GPU
-Iter #3: 3656.5 img/sec GPU
-Iter #4: 3684.8 img/sec GPU
-Iter #5: 3641.1 img/sec GPU
-Iter #6: 3643.4 img/sec GPU
-Iter #7: 3590.5 img/sec GPU
-Iter #8: 3635.0 img/sec GPU
-Iter #9: 3694.8 img/sec GPU
-Img/sec per GPU: 113.7 +-2.5
-Total img/sec on 32 GPU(s): 3638.2 +-80.9
+Iter #0: 4081.0 img/sec GPU
+Iter #1: 4072.0 img/sec GPU
+Iter #2: 4106.4 img/sec GPU
+Iter #3: 4081.7 img/sec GPU
+Iter #4: 4064.8 img/sec GPU
+Iter #5: 4122.1 img/sec GPU
+Iter #6: 3857.7 img/sec GPU
+Iter #7: 4128.3 img/sec GPU
+Iter #8: 4125.5 img/sec GPU
+Iter #9: 3826.6 img/sec GPU
+Img/sec per GPU: 126.5 +-6.4
+Total img/sec on 32 GPU(s): 4046.6 +-205.2
 
 # VGG16 on 4x8xV100 baseline
 Running benchmark...
@@ -78,3 +82,5 @@ Iter #9: 2796.6 img/sec GPU
 Img/sec per GPU: 85.8 +-3.8
 Total img/sec on 32 GPU(s): 2744.9 +-122.3
 ```
+
+> As a reminder, this implementation is not good at send/recv hybrid communication with too many link relationships, such as alltoall. So if your need is to use NCCL to implement algorithms like alltoall, bagua-net is not your thing.
