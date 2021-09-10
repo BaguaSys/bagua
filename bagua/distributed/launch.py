@@ -128,10 +128,10 @@ def parse_args():
         "--default_bucket_size", type=int, default=10 * 1024 ** 2
     )  # noqa: E501
     parser.add_argument(
-        "--bagua-net_switch_on", action="store_true",
-        default=False, help="Turning on this switch will load the NCCL network"
-        " plug-in bagua-net, you can find the introduction of bagua-net here: "
-        "https://github.com/BaguaSys/bagua-net")
+        "--enable-bagua-net", action="store_true",
+        default=False, help="Enable Bagua-Net optimization for faster "
+        "communication performance. See https://github.com/BaguaSys/bagua-net"
+        " for more details.")
 
     parser.add_argument("--host_list", type=str)
     parser.add_argument("--ssh_port", type=int)
@@ -169,7 +169,7 @@ def set_bagua_env(args, current_env):
             args.master_addr, args.bagua_service_port
         )
 
-    if args.bagua_net_switch_on:
+    if args.enable_bagua_net:
         current_env["LD_LIBRARY_PATH"] = "{}:{}".format(
             pkg_resources.resource_filename('bagua_core', './data/bagua-net'),
             current_env["LD_LIBRARY_PATH"])
