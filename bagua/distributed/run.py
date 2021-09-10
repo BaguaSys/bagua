@@ -388,6 +388,10 @@ def get_args_parser() -> ArgumentParser:
         default=False,
         help="Whether autotune output log or not. default is False",
     )
+    parser.add_argument("--bagua-net_switch_on", action="store_true",
+        default=False, help="Turning on this switch will load the NCCL network"
+        " plug-in bagua-net, you can find the introduction of bagua-net here: "
+        "https://github.com/BaguaSys/bagua-net")
 
     #
     # Positional arguments.
@@ -568,6 +572,8 @@ def run_script_path(training_script: str, *training_script_args: str):
 
 
 def set_bagua_env(args, current_env):
+    import pkg_resources
+
     current_env["BAGUA_SERVICE_PORT"] = str(args.bagua_service_port)
     current_env["BAGUA_DEFAULT_BUCKET_SIZE"] = str(args.default_bucket_size)
     current_env["BAGUA_AUTOTUNE"] = str(args.autotune_level)
@@ -582,6 +588,11 @@ def set_bagua_env(args, current_env):
         current_env["AUTO_TUNE_SERVER_ADDR"] = "{}:{}".format(
             args.master_addr, args.bagua_service_port
         )
+
+    if args.bagua_net_switch_on:
+        current_env["LD_LIBRARY_PATH"] = "{}:{}".format(
+            pkg_resources.resource_filename('bagua_core', './data/bagua-net'),
+            current_env["LD_LIBRARY_PATH"])
 
 
 def run(args):
