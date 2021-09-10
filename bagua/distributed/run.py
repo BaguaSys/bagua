@@ -392,7 +392,7 @@ def get_args_parser() -> ArgumentParser:
         "--enable-bagua-net",
         action="store_true",
         default=False,
-        help="Enable Bagua-Net optimization for faster "
+        help="Enable Bagua-Net optimization for better "
         "communication performance. See https://github.com/BaguaSys/bagua-net"
         " for more details.",
     )
