@@ -58,7 +58,6 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.stop_event = threading.Event()
         self.step_id = 0
         self.warmup_steps = warmup_steps
-        self.no_bucketing = True
         check_nccl_proto()
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
@@ -113,6 +112,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.step_id += 1
         if self.warmup_steps > 0 and self.step_id == self.warmup_steps + 1:
             logging.info(f"Async model average starts from step {self.step_id}")
+            self.no_bucketing = True
             return True
         else:
             return False
@@ -149,7 +149,12 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
         Args:
             bagua_module: A PyTorch module initialized by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
-            grace_period_seconds: Number of seconds a worker will wait before aborting its unfinished communication operations.
+            grace_period_seconds: Number of seconds a worker will wait before stop.
+
+        .. note::
+            This function will abort all unfinished communication operations as well as the underlying NCCL communicator.
+            Should not call it more than once.
+
         """
 
         if (
