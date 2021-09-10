@@ -389,10 +389,13 @@ def get_args_parser() -> ArgumentParser:
         help="Whether autotune output log or not. default is False",
     )
     parser.add_argument(
-        "--enable-bagua-net", action="store_true",
-        default=False, help="Enable Bagua-Net optimization for faster "
+        "--enable-bagua-net",
+        action="store_true",
+        default=False,
+        help="Enable Bagua-Net optimization for faster "
         "communication performance. See https://github.com/BaguaSys/bagua-net"
-        " for more details.")
+        " for more details.",
+    )
 
     #
     # Positional arguments.
@@ -592,8 +595,9 @@ def set_bagua_env(args, current_env):
 
     if args.enable_bagua_net:
         current_env["LD_LIBRARY_PATH"] = "{}:{}".format(
-            pkg_resources.resource_filename('bagua_core', './data/bagua-net'),
-            current_env["LD_LIBRARY_PATH"])
+            pkg_resources.resource_filename("bagua_core", "./data/bagua-net"),
+            current_env["LD_LIBRARY_PATH"],
+        )
 
 
 def run(args):
