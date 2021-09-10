@@ -389,8 +389,10 @@ def get_args_parser() -> ArgumentParser:
         help="Whether autotune output log or not. default is False",
     )
     parser.add_argument(
-        "--bagua-net_switch_on", action="store_true",
-        default=False, help="Turning on this switch will load the NCCL network"
+        "--bagua-net_switch_on",
+        action="store_true",
+        default=False,
+        help="Turning on this switch will load the NCCL network"
         " plug-in bagua-net, you can find the introduction of bagua-net here: "
         "https://github.com/BaguaSys/bagua-net",
     )

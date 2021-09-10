@@ -128,8 +128,10 @@ def parse_args():
         "--default_bucket_size", type=int, default=10 * 1024 ** 2
     )  # noqa: E501
     parser.add_argument(
-        "--bagua-net_switch_on", action="store_true",
-        default=False, help="Turning on this switch will load the NCCL network"
+        "--bagua-net_switch_on",
+        action="store_true",
+        default=False,
+        help="Turning on this switch will load the NCCL network"
         " plug-in bagua-net, you can find the introduction of bagua-net here: "
         "https://github.com/BaguaSys/bagua-net",
     )
