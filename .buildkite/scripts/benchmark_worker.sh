@@ -22,7 +22,7 @@ python -m bagua.distributed.launch \
     ${COMMUNICATION_SCRIPT}
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
-algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
+algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do

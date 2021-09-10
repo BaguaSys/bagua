@@ -12,8 +12,8 @@ function check_benchmark_log {
     speed=$3
     loss=$4
 
-    final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $4}')
-    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $4}')
+    final_batch_loss=$(cat ${logfile} | grep "TrainLoss" | tail -n 1 | awk '{print $6}')
+    img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $6}')
 
     echo "Checking ["${algorithm}"]..."
     if [ $final_batch_loss == $loss ]; then
@@ -50,7 +50,7 @@ python -m bagua.distributed.launch \
     ${COMMUNICATION_SCRIPT}
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
-algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized qadam)
+algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized)
 speeds=(185.0 180.0 150.0 115.0 170 0)
 losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.00000)
 length=${#algorithms[@]}
