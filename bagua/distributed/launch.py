@@ -131,7 +131,8 @@ def parse_args():
         "--bagua-net_switch_on", action="store_true",
         default=False, help="Turning on this switch will load the NCCL network"
         " plug-in bagua-net, you can find the introduction of bagua-net here: "
-        "https://github.com/BaguaSys/bagua-net")
+        "https://github.com/BaguaSys/bagua-net",
+    )
 
     parser.add_argument("--host_list", type=str)
     parser.add_argument("--ssh_port", type=int)
@@ -171,8 +172,9 @@ def set_bagua_env(args, current_env):
 
     if args.bagua_net_switch_on:
         current_env["LD_LIBRARY_PATH"] = "{}:{}".format(
-            pkg_resources.resource_filename('bagua_core', './data/bagua-net'),
-            current_env["LD_LIBRARY_PATH"])
+            pkg_resources.resource_filename("bagua_core", "./data/bagua-net"),
+            current_env["LD_LIBRARY_PATH"],
+        )
 
 
 def main():
