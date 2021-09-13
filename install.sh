@@ -29,7 +29,7 @@ check_os_version
 
 if [ "$OS_NAME" == "Ubuntu" ]; then
   # install cmake & python3-pip
-  apt-get update && apt-get install -y curl software-properties-common wget
+  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y curl software-properties-common wget
   wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
   if [ $VERSION_ID == "16.04" ]; then
     apt-add-repository 'deb https://apt.kitware.com/ubuntu/ xenial main'
@@ -38,14 +38,14 @@ if [ "$OS_NAME" == "Ubuntu" ]; then
   elif [ $VERSION_ID == "20.04" ]; then
     apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
   fi
-  apt-get update && apt remove --purge cmake -y && hash -r && apt-get install -y cmake python3-pip
+  apt-get update && apt remove --purge cmake -y && hash -r && DEBIAN_FRONTEND=noninteractive apt-get install -y cmake python3-pip
 
   # install some utils
   python3 -m pip install --upgrade pip -i https://pypi.org/simple
   python3 -m pip install setuptools-rust colorama tqdm wheel -i https://pypi.org/simple
 
   # install zlib, ssl, openmpi
-  apt-get install -y zlib1g-dev libssl-dev openmpi-bin openmpi-doc libopenmpi-dev
+  DEBIAN_FRONTEND=noninteractive apt-get install -y zlib1g-dev libssl-dev openmpi-bin openmpi-doc libopenmpi-dev
 elif [ "$OS_NAME" == "CentOS Linux" ]; then
   if [ $VERSION_ID == "7" ]; then
     yum install centos-release-scl-rh -y && yum install devtoolset-8-toolchain -y
