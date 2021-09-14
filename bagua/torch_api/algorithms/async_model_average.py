@@ -5,10 +5,12 @@ from bagua.torch_api.algorithms import Algorithm
 from typing import List
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.env import get_rank
+from enum import IntEnum
 import threading
 import time
 import os
 import torch
+import atexit
 import logging
 
 __all__ = ["AsyncModelAverageAlgorithm"]
@@ -25,6 +27,12 @@ def check_nccl_proto():
         print(
             "Warning: `LL128` proto for NCCL backend is not stable for async algorithms. Set `NCCL_PROTO=^LL128` to exclude it."
         )  # TODO; remove this after https://github.com/NVIDIA/nccl/issues/549 gets solved
+
+
+class _AsyncInternalState(IntEnum):
+    RESUME = 0
+    ABORT = 1
+    END = 2
 
 
 class AsyncModelAverageAlgorithm(Algorithm):
@@ -55,10 +63,19 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
-        self.stop_event = threading.Event()
         self.step_id = 0
         self.warmup_steps = warmup_steps
-        check_nccl_proto()
+
+        self.cuda_event = torch.cuda.Event()
+
+        self.abort_event = threading.Event()
+        self.end_event = threading.Event()
+        self.dummy_tensor = torch.Tensor([0]).byte()
+        self.main_group = torch.distributed.new_group(backend="gloo")
+        self.thread_group = torch.distributed.new_group(backend="gloo")
+
+        if self.warmup_steps <= 0:
+            self.no_bucketing = True
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -82,6 +99,11 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 self.step_id > self.warmup_steps
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
+                torch.cuda.current_stream().record_event(self.cuda_event)
+                self.cuda_event.synchronize()
+                assert len(bagua_module.bagua_buckets) == 1
+                bagua_module.bagua_buckets[0]._async_op.lock_weight()
+
                 if not hasattr(self, "worker"):  # noqa: W503
                     self.worker = threading.Thread(
                         target=self._run_async_loop, args=[bagua_module]
@@ -102,24 +124,22 @@ class AsyncModelAverageAlgorithm(Algorithm):
             if self.step_id <= self.warmup_steps:
                 bagua_module._bagua_backend.wait_pending_comm_ops()
             else:
-                for bucket in bagua_module.bagua_buckets:
-                    if hasattr(bucket, "_async_op"):
-                        bucket._async_op.execute_post_step(bucket.backend_bucket)
+                torch.cuda.current_stream().record_event(self.cuda_event)
+                self.cuda_event.synchronize()
+                assert len(bagua_module.bagua_buckets) == 1
+                bagua_module.bagua_buckets[0]._async_op.unlock_weight()
 
         return hook
 
     def need_reset(self):
         self.step_id += 1
+
         if self.warmup_steps > 0 and self.step_id == self.warmup_steps + 1:
             logging.info(f"Async model average starts from step {self.step_id}")
             self.no_bucketing = True
             return True
         else:
             return False
-
-    def _init_states(self, bucket: BaguaBucket):
-        diff_tensor = torch.zeros_like(bucket.flattened_tensor())
-        bucket._diff_tensor = diff_tensor.to_bagua_tensor("diff_tensor")
 
     def init_operations(
         self,
@@ -135,27 +155,62 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 average=True,
             )
         else:
-            self._init_states(bucket)
-            torch.cuda.synchronize()
             async_op = bucket.append_asynchronous_model_average_op(
                 peer_selection_mode=self.peer_selection_mode,
-                diff_tensor=bucket._diff_tensor,
             )
             bucket._async_op = async_op
 
-    def abort(self, bagua_module: BaguaModule, grace_period_seconds=5):
-        """
-        Gracefully stop all workers.
+    def _negotiate(self):
+        if self.end_event.is_set():
+            self.dummy_tensor[0] = _AsyncInternalState.END
+        elif self.abort_event.is_set():
+            self.dummy_tensor[0] = _AsyncInternalState.ABORT
+        else:
+            self.dummy_tensor[0] = _AsyncInternalState.RESUME
 
-        Args:
-            bagua_module: A PyTorch module initialized by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
-            grace_period_seconds: Number of seconds a worker will wait before stop.
+        torch.distributed.broadcast(self.dummy_tensor, src=0, group=self.thread_group)
+        return self.dummy_tensor.item()
 
-        .. note::
-            This function will abort all unfinished communication operations as well as the underlying NCCL communicator.
-            Should not call it more than once.
+    def _run_async_loop(self, bagua_module: BaguaModule):
+        comm_step = 0
+        while True:
+            state = self._negotiate()
 
-        """
+            if state == _AsyncInternalState.END:
+                break
+
+            if state == _AsyncInternalState.RESUME:
+                start_time = time.time()
+                for bucket in bagua_module.bagua_buckets:
+                    for tensor in bucket.tensors:
+                        tensor.bagua_mark_communication_ready_without_synchronization()
+
+                bagua_module._bagua_backend.wait_pending_comm_ops()
+                duration = (time.time() - start_time) * 1000
+
+                logging.debug(
+                    "Process {} async communication cost {}ms, comm_step={}".format(
+                        get_rank(), duration, comm_step
+                    )
+                )
+
+                comm_step += 1
+            time.sleep(self.sync_interval_ms / 1000)
+
+    def abort(self):
+        """Abort async communications after training."""
+
+        torch.distributed.barrier(group=self.main_group)
+        self.abort_event.set()
+
+    def resume(self):
+        """Resume async communications before training."""
+
+        torch.distributed.barrier(group=self.main_group)
+        self.abort_event.clear()
+
+    def destroy(self):
+        """Cleanup resources at the end of your training."""
 
         if (
             not hasattr(self, "worker")
@@ -166,28 +221,6 @@ class AsyncModelAverageAlgorithm(Algorithm):
             )
             return
 
-        time.sleep(grace_period_seconds)
-        print("Process {} ready to abort async communication.".format(get_rank()))
-        self.stop_event.set()
-        bagua_module._bagua_backend.global_communicator.abort()
+        torch.distributed.barrier(group=self.main_group)
+        self.end_event.set()
         self.worker.join()  # pytype: disable=attribute-error
-
-    def _run_async_loop(self, bagua_module: BaguaModule):
-        comm_step = 0
-        while not self.stop_event.is_set():
-            start_time = time.time()
-            for bucket in bagua_module.bagua_buckets:
-                for tensor in bucket.tensors:
-                    tensor.bagua_mark_communication_ready_without_synchronization()
-
-            bagua_module._bagua_backend.wait_pending_comm_ops()
-            duration = (time.time() - start_time) * 1000
-
-            logging.debug(
-                "Process {} async communication cost {}ms, comm_step={}".format(
-                    get_rank(), duration, comm_step
-                )
-            )
-
-            comm_step += 1
-            time.sleep(self.sync_interval_ms / 1000)

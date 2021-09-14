@@ -330,9 +330,7 @@ class BaguaBucket:
 
         return self
 
-    def append_asynchronous_model_average_op(
-        self, peer_selection_mode: str, diff_tensor: BaguaTensor
-    ):
+    def append_asynchronous_model_average_op(self, peer_selection_mode: str):
 
         """
         Append an asynchronous model average operation to a bucket. This operation will enable continuous model averaging between workers
@@ -350,8 +348,6 @@ class BaguaBucket:
             None,
             peer_selection_mode=peer_selection_mode,
             torch_stream=torch.cuda.current_stream().cuda_stream,
-            weight=self.backend_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            diff_tensor=diff_tensor._bagua_backend_tensor,
         )
 
     def clear_ops(self) -> BaguaBucket:
@@ -362,6 +358,5 @@ class BaguaBucket:
         return self
 
     def bytes(self) -> int:
-        """Returns the total number of bytes occupied by the bucket.
-        """
+        """Returns the total number of bytes occupied by the bucket."""
         return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)
