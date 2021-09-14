@@ -8,25 +8,10 @@ from bagua.torch_api.env import get_rank
 from enum import IntEnum
 import threading
 import time
-import os
 import torch
-import atexit
 import logging
 
 __all__ = ["AsyncModelAverageAlgorithm"]
-
-
-def check_nccl_proto():
-    # TODO: remove nccl proto check
-    proto_str = os.environ.get("NCCL_PROTO", "")
-    if (
-        proto_str == ""
-        or ("^" not in proto_str and "LL128" in proto_str)  # noqa: W503
-        or ("^" in proto_str and "LL128" not in proto_str)  # noqa: W503
-    ):
-        print(
-            "Warning: `LL128` proto for NCCL backend is not stable for async algorithms. Set `NCCL_PROTO=^LL128` to exclude it."
-        )  # TODO; remove this after https://github.com/NVIDIA/nccl/issues/549 gets solved
 
 
 class _AsyncInternalState(IntEnum):
@@ -198,19 +183,24 @@ class AsyncModelAverageAlgorithm(Algorithm):
             time.sleep(self.sync_interval_ms / 1000)
 
     def abort(self):
-        """Abort async communications after training."""
+        """Temporarily stop asynchronous communications. Should be called before evaluating."""
 
         torch.distributed.barrier(group=self.main_group)
         self.abort_event.set()
 
     def resume(self):
-        """Resume async communications before training."""
+        """
+        Resume asynchronous communications after :meth:`abort`. Should be called before training.
+
+        .. note::
+            :meth:`resume` and :meth:`abort` are used in pairs.
+        """
 
         torch.distributed.barrier(group=self.main_group)
         self.abort_event.clear()
 
     def destroy(self):
-        """Cleanup resources at the end of your training."""
+        """Stop communication thread. Should be called when the training process is done."""
 
         if (
             not hasattr(self, "worker")
