@@ -10,6 +10,7 @@ import threading
 import time
 import torch
 import logging
+import concurrent
 
 __all__ = ["AsyncModelAverageAlgorithm"]
 
@@ -17,7 +18,6 @@ __all__ = ["AsyncModelAverageAlgorithm"]
 class _AsyncInternalState(IntEnum):
     RESUME = 0
     ABORT = 1
-    END = 2
 
 
 class AsyncModelAverageAlgorithm(Algorithm):
@@ -54,10 +54,12 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.cuda_event = torch.cuda.Event()
 
         self.abort_event = threading.Event()
-        self.end_event = threading.Event()
         self.dummy_tensor = torch.Tensor([0]).byte()
         self.main_group = torch.distributed.new_group(backend="gloo")
         self.thread_group = torch.distributed.new_group(backend="gloo")
+
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.has_aborted = False
 
         if self.warmup_steps <= 0:
             self.no_bucketing = True
@@ -85,11 +87,11 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
                 self._lock_model(bagua_module)
-                if not hasattr(self, "worker"):  # noqa: W503
-                    self.worker = threading.Thread(
-                        target=self._run_async_loop, args=[bagua_module]
+
+                if not hasattr(self, "future"):
+                    self.future = self.executor.submit(
+                        self._run_async_loop, bagua_module
                     )
-                    self.worker.start()
 
         return hook
 
@@ -153,9 +155,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             bucket._async_op.unlock_weight()
 
     def _negotiate(self):
-        if self.end_event.is_set():
-            self.dummy_tensor[0] = _AsyncInternalState.END
-        elif self.abort_event.is_set():
+        if self.abort_event.is_set():
             self.dummy_tensor[0] = _AsyncInternalState.ABORT
         else:
             self.dummy_tensor[0] = _AsyncInternalState.RESUME
@@ -168,56 +168,55 @@ class AsyncModelAverageAlgorithm(Algorithm):
         while True:
             state = self._negotiate()
 
-            if state == _AsyncInternalState.END:
+            if state == _AsyncInternalState.ABORT:
                 break
 
-            if state == _AsyncInternalState.RESUME:
-                start_time = time.time()
-                for bucket in bagua_module.bagua_buckets:
-                    for tensor in bucket.tensors:
-                        tensor.bagua_mark_communication_ready_without_synchronization()
+            start_time = time.time()
+            for bucket in bagua_module.bagua_buckets:
+                for tensor in bucket.tensors:
+                    tensor.bagua_mark_communication_ready_without_synchronization()
 
-                bagua_module._bagua_backend.wait_pending_comm_ops()
-                duration = (time.time() - start_time) * 1000
+            bagua_module._bagua_backend.wait_pending_comm_ops()
+            duration = (time.time() - start_time) * 1000
 
-                logging.debug(
-                    "Process {} async communication cost {}ms, comm_step={}".format(
-                        get_rank(), duration, comm_step
-                    )
+            logging.debug(
+                "Process {} async communication cost {}ms, comm_step={}".format(
+                    get_rank(), duration, comm_step
                 )
-
-                comm_step += 1
+            )
+            comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
 
-    def abort(self):
-        """Temporarily stop asynchronous communications. Should be called before evaluating."""
+    def abort(self, bagua_module: BaguaModule):
+        """
+        Stop asynchronous communications. Should be called after training.
+
+        Args:
+            bagua_module: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
+        """
 
         torch.distributed.barrier(group=self.main_group)
         self.abort_event.set()
+        if not hasattr(self, "future"):
+            logging.warn("Could not abort, communication has not started yet.")
+        else:
+            self.future.result()  # pytype: disable=attribute-error
+            self.has_aborted = True
 
-    def resume(self):
+    def resume(self, bagua_module: BaguaModule):
         """
         Resume asynchronous communications after :meth:`abort`. Should be called before training.
+
+        Args:
+            bagua_module: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
 
         .. note::
             :meth:`resume` and :meth:`abort` are used in pairs.
         """
 
-        torch.distributed.barrier(group=self.main_group)
-        self.abort_event.clear()
-
-    def destroy(self):
-        """Stop communication thread. Should be called when the training process is done."""
-
-        if (
-            not hasattr(self, "worker")
-            or not self.worker.is_alive()  # pytype: disable=attribute-error # noqa: W503
-        ):
-            logging.info(
-                "Warning: skip abort since the asynchronous communication thread is not started."
-            )
-            return
-
-        torch.distributed.barrier(group=self.main_group)
-        self.end_event.set()
-        self.worker.join()  # pytype: disable=attribute-error
+        if self.has_aborted:
+            torch.distributed.barrier(group=self.main_group)
+            self.abort_event.clear()
+            self.future = self.executor.submit(self._run_async_loop, bagua_module)
