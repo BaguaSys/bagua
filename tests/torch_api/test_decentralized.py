@@ -285,6 +285,7 @@ class TestDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
 
         for rank in range(nprocs):
             if peer_selection_mode == "all":
@@ -340,6 +341,7 @@ class TestDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
 
         env = {
             "WORLD_SIZE": str(nprocs),
@@ -369,6 +371,7 @@ class TestDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
 
         for rank in range(nprocs):
             self.assertTrue(

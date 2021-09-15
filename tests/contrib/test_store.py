@@ -70,6 +70,7 @@ class TestRedisStore(unittest.TestCase):
 
         for p in processes:
             p.join()
+            self.assertTrue(p.exitcode == 0)
 
         store = RedisStore(hosts=hosts, cluster_mode=True)
         self.check(store)

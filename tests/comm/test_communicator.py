@@ -134,6 +134,7 @@ def run_test_locally(fn):
 
     for p in processes:
         p.join(timeout=60)
+        self.assertTrue(p.exitcode == 0)
 
     return results
 
