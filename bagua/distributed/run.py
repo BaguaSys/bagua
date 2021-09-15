@@ -388,6 +388,14 @@ def get_args_parser() -> ArgumentParser:
         default=False,
         help="Whether autotune output log or not. default is False",
     )
+    parser.add_argument(
+        "--enable-bagua-net",
+        action="store_true",
+        default=False,
+        help="Enable Bagua-Net optimization for better "
+        "communication performance. See https://github.com/BaguaSys/bagua-net"
+        " for more details.",
+    )
 
     #
     # Positional arguments.
@@ -568,6 +576,8 @@ def run_script_path(training_script: str, *training_script_args: str):
 
 
 def set_bagua_env(args, current_env):
+    import pkg_resources
+
     current_env["BAGUA_SERVICE_PORT"] = str(args.bagua_service_port)
     current_env["BAGUA_DEFAULT_BUCKET_SIZE"] = str(args.default_bucket_size)
     current_env["BAGUA_AUTOTUNE"] = str(args.autotune_level)
@@ -581,6 +591,12 @@ def set_bagua_env(args, current_env):
     if args.autotune_level > 0:
         current_env["AUTO_TUNE_SERVER_ADDR"] = "{}:{}".format(
             args.master_addr, args.bagua_service_port
+        )
+
+    if args.enable_bagua_net:
+        current_env["LD_LIBRARY_PATH"] = "{}:{}".format(
+            pkg_resources.resource_filename("bagua_core", "./data/bagua-net"),
+            current_env["LD_LIBRARY_PATH"],
         )
 
 

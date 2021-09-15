@@ -1,0 +1,5 @@
+bagua>=0.6,<0.7
+torch
+tqdm
+transformers
+tensorboardX

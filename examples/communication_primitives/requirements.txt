@@ -1,0 +1,2 @@
+bagua>=0.7
+torch

@@ -127,6 +127,14 @@ def parse_args():
     parser.add_argument(
         "--default_bucket_size", type=int, default=10 * 1024 ** 2
     )  # noqa: E501
+    parser.add_argument(
+        "--enable-bagua-net",
+        action="store_true",
+        default=False,
+        help="Enable Bagua-Net optimization for better "
+        "communication performance. See https://github.com/BaguaSys/bagua-net"
+        " for more details.",
+    )
 
     parser.add_argument("--host_list", type=str)
     parser.add_argument("--ssh_port", type=int)
@@ -147,6 +155,8 @@ def parse_args():
 
 
 def set_bagua_env(args, current_env):
+    import pkg_resources
+
     current_env["BAGUA_SERVICE_PORT"] = str(args.bagua_service_port)
     current_env["BAGUA_DEFAULT_BUCKET_SIZE"] = str(args.default_bucket_size)
     current_env["BAGUA_AUTOTUNE"] = str(args.autotune_level)
@@ -160,6 +170,12 @@ def set_bagua_env(args, current_env):
     if args.autotune_level > 0:
         current_env["AUTO_TUNE_SERVER_ADDR"] = "{}:{}".format(
             args.master_addr, args.bagua_service_port
+        )
+
+    if args.enable_bagua_net:
+        current_env["LD_LIBRARY_PATH"] = "{}:{}".format(
+            pkg_resources.resource_filename("bagua_core", "./data/bagua-net"),
+            current_env["LD_LIBRARY_PATH"],
         )
 
 

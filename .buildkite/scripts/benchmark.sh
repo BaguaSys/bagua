@@ -5,7 +5,11 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
-SYNTHETIC_SCRIPT="/bagua/examples/benchmark/synthetic_benchmark.py"
+cp -a /upstream /workdir
+
+export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
+
+SYNTHETIC_SCRIPT="examples/benchmark/synthetic_benchmark.py"
 
 function check_benchmark_log {
     logfile=$1
@@ -15,12 +19,6 @@ function check_benchmark_log {
 
     python -c "import sys; sys.exit(0 if float($final_img_per_sec) > float($threshold) else 1)"
 }
-
-export HOME=/workdir
-cd /workdir && pip install .
-curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
-source $HOME/.cargo/env
-pip install git+https://github.com/BaguaSys/bagua-core@master
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
 python -m bagua.distributed.run \

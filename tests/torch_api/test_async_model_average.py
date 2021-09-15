@@ -88,6 +88,7 @@ class TestAsyncModelAverage(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
 
 
 if __name__ == "__main__":

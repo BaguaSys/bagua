@@ -274,6 +274,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
 
         for rank in range(nprocs):
             left_peer_rank = (rank + nprocs - 1) % nprocs
@@ -324,6 +325,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
 
         env = {
             "WORLD_SIZE": str(nprocs),
@@ -351,6 +353,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
 
         for rank in range(nprocs):
             self.assertTrue(

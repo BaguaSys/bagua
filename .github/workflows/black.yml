@@ -1,4 +1,4 @@
-name: black-action
+name: black
 on: [push, pull_request]
 jobs:
   black:
