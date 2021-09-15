@@ -84,11 +84,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 self.step_id > self.warmup_steps
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
-                torch.cuda.current_stream().record_event(self.cuda_event)
-                self.cuda_event.synchronize()
-                assert len(bagua_module.bagua_buckets) == 1
-                bagua_module.bagua_buckets[0]._async_op.lock_weight()
-
+                self._lock_model(bagua_module)
                 if not hasattr(self, "worker"):  # noqa: W503
                     self.worker = threading.Thread(
                         target=self._run_async_loop, args=[bagua_module]
@@ -109,10 +105,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             if self.step_id <= self.warmup_steps:
                 bagua_module._bagua_backend.wait_pending_comm_ops()
             else:
-                torch.cuda.current_stream().record_event(self.cuda_event)
-                self.cuda_event.synchronize()
-                assert len(bagua_module.bagua_buckets) == 1
-                bagua_module.bagua_buckets[0]._async_op.unlock_weight()
+                self._unlock_model(bagua_module)
 
         return hook
 
@@ -144,6 +137,20 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 peer_selection_mode=self.peer_selection_mode,
             )
             bucket._async_op = async_op
+
+    def _lock_model(self, bagua_module: BaguaModule):
+        torch.cuda.current_stream().record_event(self.cuda_event)
+        self.cuda_event.synchronize()
+
+        for bucket in bagua_module.bagua_buckets:
+            bucket._async_op.lock_weight()
+
+    def _unlock_model(self, bagua_module: BaguaModule):
+        torch.cuda.current_stream().record_event(self.cuda_event)
+        self.cuda_event.synchronize()
+
+        for bucket in bagua_module.bagua_buckets:
+            bucket._async_op.unlock_weight()
 
     def _negotiate(self):
         if self.end_event.is_set():
