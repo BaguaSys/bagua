@@ -76,14 +76,14 @@ python -m bagua.distributed.launch \
 
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async)
-speeds=(185.0 180.0 150.0 115.0 200 170)
-losses=(0.001763 0.001694 0.002583 0.001821 0.002000 0.000010)
+speeds=(185.0 180.0 150.0 115.0 190 170)
+losses=(0.001763 0.001694 0.002583 0.001821 0.004000 0.000010)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
     echo "begin to test ["${algorithms[$i]}]
     logfile=$(mktemp /tmp/bagua_benchmark_${algorithms[$i]}.XXXXXX.log)
-    python -m bagua.distributed.launch \
+    GLOO_SOCKET_IFNAME=enp96s0f0 python -m bagua.distributed.launch \
         --nnodes=2 \
         --nproc_per_node 4 \
         --node_rank=0 \

@@ -26,7 +26,7 @@ for ((i=0;i<$length;i++))
 do
     echo "begin to test ["${algorithms[$i]}]
     logfile=$(mktemp /tmp/bagua_benchmark_${algorithms[$i]}.XXXXXX.log)
-    python -m bagua.distributed.launch \
+    GLOO_SOCKET_IFNAME=enp96s0f0 python -m bagua.distributed.launch \
         --nnodes=2 \
         --nproc_per_node 4 \
         --node_rank=1 \
