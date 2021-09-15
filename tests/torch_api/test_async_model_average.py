@@ -33,7 +33,6 @@ def run_model(rank, env):
     os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
-    os.environ["NCCL_PROTO"] = "^LL128"  # FIXME
 
     # init bagua distributed process group
     torch.cuda.set_device(rank)
@@ -45,21 +44,27 @@ def run_model(rank, env):
     loss_fn = nn.MSELoss()
 
     # wrap model
-    algorithm = bagua.algorithms.async_model_average.AsyncModelAverageAlgorithm()
+    algorithm = bagua.algorithms.async_model_average.AsyncModelAverageAlgorithm(
+        warmup_steps=10
+    )
     model = model.with_bagua([optimizer], algorithm)
 
-    for _ in range(10):
-        data = torch.randn(4, 2).cuda()
-        target = torch.randn(4, 4).cuda()
+    def train_epoch(epoch):
+        for _ in range(10):
+            data = torch.randn(4, 2).cuda()
+            target = torch.randn(4, 4).cuda()
 
-        optimizer.zero_grad()
-        output = model(data)
-        loss = loss_fn(output, target)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = loss_fn(output, target)
 
-        loss.backward()
-        optimizer.step()
+            loss.backward()
+            optimizer.step()
 
-    algorithm.abort(model)
+    for epoch in range(2):
+        algorithm.resume(model)
+        train_epoch(epoch)
+        algorithm.abort(model)
 
 
 class TestAsyncModelAverage(unittest.TestCase):
