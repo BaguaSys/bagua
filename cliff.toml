@@ -1,0 +1,38 @@
+[changelog]
+header = "# CHANGELOG\n\n"
+body = """
+{% if version %}\
+    ## [{{ version | replace(from="v", to="") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | upper_first }}
+    {% for commit in commits %}
+        - {{ commit.message | upper_first }}\
+    {% endfor %}
+{% endfor %}\n
+"""
+
+
+[git]
+# allow only conventional commits
+# https://www.conventionalcommits.org
+conventional_commits = true
+# regex for parsing and grouping commits
+commit_parsers = [
+    { message = "^feat*", group = "Features"},
+    { message = "^fix*", group = "Bug Fixes"},
+    { message = "^doc*", group = "Documentation", skip = true},
+    { message = "^perf*", group = "Performance"},
+    { message = "^refactor*", group = "Refactor", skip = true},
+    { message = "^style*", group = "Styling", skip = true},
+    { message = "^test*", group = "Testing", skip = true},
+    { message = "^chore\\(release\\): prepare for*", skip = true},
+    { message = "^chore*", group = "Miscellaneous Tasks", skip = true},
+    { body = ".*security", group = "Security", skip = true},
+]
+# filter out the commits that are not matched by commit parsers
+filter_commits = true
+# glob pattern for matching git tags
+tag_pattern = "*[0-9].[0-9].[0-9]"
