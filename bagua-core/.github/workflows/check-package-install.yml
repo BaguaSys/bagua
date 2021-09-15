@@ -1,0 +1,20 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+name: check package install
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: ikzk/bagua-ci:latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - run: rustup default stable
+      - run: pip install .

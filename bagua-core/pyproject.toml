@@ -1,0 +1,8 @@
+[build-system]
+requires = ["setuptools >= 43.0.0", "wheel", "setuptools-rust", "colorama", "tqdm", "setuptools_scm[toml]>=6.0"]
+build-backend = 'setuptools.build_meta'
+
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
+write_to = "python/bagua_core/version.py"
+write_to_template = "__version__ = \"{version}\""
