@@ -21,7 +21,7 @@ function check_benchmark_log {
     if [ $final_batch_loss == $loss ]; then
         echo "Check ["${algorithm}"] success, final_batch_loss is equal."
     else
-        result="Check ["${algorithm}"] fail, final_batch_loss["$final_batch_loss"] is not equal with "$loss"."
+        result="Check ["${algorithm}"] fail, final_batch_loss["$final_batch_loss"] is not equal with "$loss
         echo $result
         CHECK_RESULT[${#CHECK_RESULT[*]}]="${result}\n"
     fi
@@ -45,10 +45,11 @@ function check_benchmark_log_approximation {
     img_per_sec=$(cat ${logfile} | grep "Img/sec per " | tail -n 1 | awk '{print $6}')
 
     echo "Checking ["${algorithm}"]..."
-    if [ $final_batch_loss < $loss ]; then
-        echo "Check ["${algorithm}"] success, final_batch_loss is smaller than "$loss
+    var=$(awk 'BEGIN{ print "'$final_batch_loss'"<"'$loss'" }')
+    if [ "$var" -eq 1 ]; then
+        echo "Check ["${algorithm}"] success, final_batch_loss["$final_batch_loss"] is smaller than "$loss
     else
-        result="Check ["${algorithm}"] fail, final_batch_loss["$final_batch_loss"] is greater than "$loss"."
+        result="Check ["${algorithm}"] fail, final_batch_loss["$final_batch_loss"] is greater than "$loss
         echo $result
         CHECK_RESULT[${#CHECK_RESULT[*]}]="${result}\n"
     fi
