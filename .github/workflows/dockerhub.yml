@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: "Build:checkout"
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
