@@ -45,9 +45,9 @@ mpirun \
 
 ## Benchmark
 
-On 4 nodes, each one equipped with 8 V100 GPUs and 100Gb ethernet connection, [the throughput of AllReduce can be improved by 50%](https://github.com/BaguaSys/bagua-net/wiki/NCCL-benchmark-bagua-net-vs-google-fastsocket-vs-baseline).
+On 4 nodes, each one equipped with 8 V100 GPUs and 100Gb ethernet connection, [the throughput of AllReduce can be improved by 50%](https://github.com/BaguaSys/bagua/wiki/NCCL-benchmark:-Bagua-Net-vs-google-fastsocket-vs-baseline).
 
-In an [end-to-end test](https://github.com/BaguaSys/examples/blob/main/benchmark/synthetic_benchmark.py) with VGG16 as the model to be trained, with Bagua-Net enabled, Bagua can be more than 35% faster than other distributed solutions (such as PyTorch DDP):
+In an [end-to-end test](https://github.com/BaguaSys/bagua/blob/master/examples/benchmark/synthetic_benchmark.py) with VGG16 as the model to be trained, with Bagua-Net enabled, Bagua can be more than 35% faster than other distributed solutions (such as PyTorch DDP):
 
 ```
 # VGG16 on 4x8xV100 bagua-net
