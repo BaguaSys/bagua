@@ -1,4 +1,4 @@
-name: ci
+name: bagua-net ci
 
 on:
   push:
@@ -17,4 +17,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Unit Test
-      run: cd cc && make test
+      run: cd rust/bagua-net/cc && make test

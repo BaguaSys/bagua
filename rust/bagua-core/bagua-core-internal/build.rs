@@ -16,7 +16,7 @@ fn main() {
         .cuda(true)
         .include("cpp/include")
         .include("third_party/cub-1.8.0")
-        .include("../python/bagua_core/.data/include")
+        .include("../../../bagua_core/.data/include")
         .flag("-std=c++14")
         .flag("-cudart=shared");
 
@@ -34,7 +34,7 @@ fn main() {
     let third_party_path = std::env::current_dir().unwrap();
     let bagua_data_path = std::env::current_dir().unwrap();
     let third_party_path = third_party_path.join("third_party");
-    let bagua_data_path = bagua_data_path.join("../python/bagua_core/.data");
+    let bagua_data_path = bagua_data_path.join("../../../bagua_core/.data");
     let _al_builder = cmake::Config::new("third_party/Aluminum")
         .define("ALUMINUM_ENABLE_NCCL", "YES")
         .define("CUB_INCLUDE_PATH", third_party_path.join("cub-1.8.0"))

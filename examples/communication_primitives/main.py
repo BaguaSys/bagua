@@ -9,7 +9,7 @@ import bagua.torch_api as bagua
 def main():
     torch.set_printoptions(precision=20)
     parser = argparse.ArgumentParser(description="Communication Primitives Example")
-    args = parser.parse_args()
+    parser.parse_args()
 
     assert bagua.get_world_size() >= 2, "world size must be at least 2"
 
