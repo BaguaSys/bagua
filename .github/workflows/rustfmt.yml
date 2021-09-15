@@ -18,6 +18,9 @@ jobs:
             toolchain: stable
             components: rustfmt
             override: true
-      - uses: mbrobbel/rustfmt-check@master
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: rustfmt bagua-core
+        run: |
+          cd rust/bagua-core && cargo + fmt -- --check
+      - name: rustfmt bagua-net
+        run: |
+          cd rust/bagua-net && cargo + fmt -- --check

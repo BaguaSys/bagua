@@ -1,0 +1,15 @@
+include rust/bagua-core/Cargo.toml
+include rust/bagua-core/bagua-core-internal/Cargo.toml
+include rust/bagua-core/bagua-core-internal/build.rs
+recursive-include rust/bagua-core/bagua-core-internal/src *
+recursive-include rust/bagua-core/bagua-core-internal/kernels *
+recursive-include rust/bagua-core/bagua-core-internal/cpp *
+recursive-include rust/bagua-core/bagua-core-internal/third_party *
+include rust/bagua-core/bagua-core-py/Cargo.toml
+include rust/bagua-core/bagua-core-py/build.rs
+recursive-include rust/bagua-core/bagua-core-py/src *
+include rust/bagua-core/bagua-core-c/Cargo.toml
+include rust/bagua-core/bagua-core-c/build.rs
+recursive-include rust/bagua-core/bagua-core-c/src *
+recursive-include rust/bagua-core/python *
+exclude rust/bagua-core/bagua-core-internal/third_party/Aluminum/.git

@@ -6,7 +6,6 @@ docs/build
 .idea/
 __pycache__/
 **/**/*.log
-**/**/*.sh
 **/**/*.nvvp
 **/**/*.csv
 **/**/*.qdrep
@@ -18,6 +17,6 @@ bagua.egg-info/
 dbg.h
 /public/**/*.html
 /public/index.js
-/bagua/.data/
+.data/
 /_build/
 /venv/

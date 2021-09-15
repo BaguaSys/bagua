@@ -1,8 +1,6 @@
 Bagua-Net
 =====
 
-[![GitHub license](https://img.shields.io/github/license/BaguaSys/bagua-core)](https://github.com/BaguaSys/bagua-core/blob/master/LICENSE)
-
 Bagua-Net is a high performance NCCL plugin for [Bagua](https://github.com/BaguaSys/bagua). By optimizing the fairness among multiple TCP streams, Bagua-Net can improve the overall throughput under TCP network by more than 30% for typical distributed learning tasks.
 
 ## Requirement

@@ -5,11 +5,9 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
-export HOME=/workdir
-cd /workdir && pip install . && git clone https://github.com/BaguaSys/examples.git
-curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
-source $HOME/.cargo/env
-pip install git+https://github.com/BaguaSys/bagua-core@master
+cp -a /upstream /workdir
+
+export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
 
 echo "begin to test [communication_primitives]"
 COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
