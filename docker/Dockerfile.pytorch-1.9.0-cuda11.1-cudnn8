@@ -49,7 +49,7 @@ RUN add-apt-repository ppa:redislabs/redis
 RUN apt-get update && apt-get install -y redis
 RUN yes | python3 -m pip install -U redis
 
-RUN mkdir /bagua && git clone https://github.com/BaguaSys/examples.git /bagua/examples
-
+RUN mkdir /bagua 
+COPY examples/ /bagua/examples
 COPY ./ /var/tmp/bagua
 RUN cd /var/tmp/bagua && python3 -m pip install . && cd - && rm -rf /var/tmp/bagua
