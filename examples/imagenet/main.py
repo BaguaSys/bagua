@@ -149,9 +149,16 @@ parser.add_argument(
 
 parser.add_argument(
     "--async-sync-interval",
-    default=100,
+    default=500,
     type=int,
     help="Model synchronization interval(ms) for async algorithm",
+)
+
+parser.add_argument(
+    "--async-warmup-steps",
+    default=100,
+    type=int,
+    help="Warmup(allreduce) steps for async algorithm",
 )
 
 best_acc1 = 0
@@ -240,7 +247,8 @@ def main_worker(args):
         from bagua.torch_api.algorithms import async_model_average
 
         algorithm = async_model_average.AsyncModelAverageAlgorithm(
-            sync_interval_ms=args.async_sync_interval
+            sync_interval_ms=args.async_sync_interval,
+            warmup_steps=args.async_warmup_steps,
         )
     else:
         raise NotImplementedError
@@ -337,8 +345,14 @@ def main_worker(args):
         if args.distributed:
             train_sampler.set_epoch(epoch)
 
+        if args.algorithm == "async":
+            algorithm.resume(model)
+
         # train for one epoch
         train(train_loader, model, criterion, optimizer, scaler, epoch, args)
+
+        if args.algorithm == "async":
+            algorithm.abort(model)
 
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, epoch, args)
@@ -358,9 +372,6 @@ def main_worker(args):
                 },
                 is_best,
             )
-
-    if args.algorithm == "async":
-        algorithm.abort(model)
 
 
 def train(train_loader, model, criterion, optimizer, scaler, epoch, args):
@@ -417,10 +428,17 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, args):
         top5.update(acc5[0], images.size(0))
 
         if args.prof >= 0:
-            torch.cuda.nvtx.range_push("optimizer.step()")
+            torch.cuda.nvtx.range_push("backward")
 
         # compute gradient and do SGD step
         scaler.scale(loss).backward()
+
+        if args.prof >= 0:
+            torch.cuda.nvtx.range_pop()
+
+        if args.prof >= 0:
+            torch.cuda.nvtx.range_push("optimizer.step()")
+
         scaler.step(optimizer)
         scaler.update()
 
@@ -441,6 +459,9 @@ def train(train_loader, model, criterion, optimizer, scaler, epoch, args):
         if args.prof >= 0 and i == args.prof + 10:
             print("Profiling ended at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStop()
+
+            if args.algorithm == "async":
+                model.bagua_algorithm.abort(model)
             quit()
 
 
