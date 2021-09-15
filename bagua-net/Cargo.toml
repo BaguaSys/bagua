@@ -1,0 +1,37 @@
+[package]
+name = "bagua-net"
+version = "0.1.0"
+authors = ["Jianbin Chang <shjwudp@gmail.com>"]
+edition = "2018"
+license = "MIT License Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+nix = "0.22.1"
+tracing = "0.1"
+tracing-subscriber = "0.2"
+thiserror = "1"
+bytes = "1.1"
+libc = "0.2"
+ffi-convert = "0.5"
+flume = "0.10"
+socket2 = "0.4"
+opentelemetry = { version = "0.16", features = [
+    "trace",
+    "metrics",
+    "rt-async-std",
+] }
+opentelemetry-jaeger = { version = "*", features = [
+    "rt-async-std",
+    "collector_client",
+    "isahc_collector_client",
+] }
+opentelemetry-prometheus = { version = "*" }
+openssl = { version = "0.10", features = ["vendored"] }
+prometheus = { version = "0.12", features = ["push"] }
+lazy_static = "1.4"
+regex = "1.5"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
