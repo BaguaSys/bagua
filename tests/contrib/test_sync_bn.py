@@ -141,6 +141,7 @@ class Test_Sync_Bn(unittest.TestCase):
 
         for p in processes:
             p.join()
+            self.assertTrue(p.exitcode == 0)
 
         env = {
             "WORLD_SIZE": str(nprocs),
@@ -168,6 +169,7 @@ class Test_Sync_Bn(unittest.TestCase):
             processes.append(p)
         for p in processes:
             p.join()
+            self.assertTrue(p.exitcode == 0)
 
         for rank in range(nprocs):
             self.assertTrue(
