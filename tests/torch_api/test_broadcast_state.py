@@ -13,11 +13,11 @@ from tests.internal.common_utils import find_free_port
 import torch
 
 def _init_bagua_env(rank, env):
-    # set deterministic
+    # Set deterministic
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     torch.manual_seed(rank)
-    # initialize subprocess env
+    # Initialize subprocess env
     os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
     os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
     os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
@@ -27,7 +27,7 @@ def _init_bagua_env(rank, env):
     os.environ["RANK"] = str(rank)
     os.environ["LOCAL_RANK"] = str(rank)
 
-    # init bagua distributed process group
+    # Init bagua distributed process group
     torch.cuda.set_device(rank)
     bagua.init_process_group()
 
