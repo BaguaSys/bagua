@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from bagua.torch_api.communication import get_backend
 import collections
 import io
 import cloudpickle
