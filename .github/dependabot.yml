@@ -5,7 +5,15 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "cargo" # See documentation for possible values
+    directory: "/rust/bagua-core/" # Location of package manifests
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/rust/bagua-net/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
       interval: "daily"

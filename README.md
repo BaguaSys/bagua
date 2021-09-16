@@ -123,5 +123,5 @@ Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
 
 * [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
 * [Bagua Tutorials](https://bagua-tutorials.kwai-seattle.com/)
-* [Bagua Examples](https://github.com/BaguaSys/examples)
+* [Bagua Examples](https://github.com/BaguaSys/bagua/tree/master/examples)
 * [Bagua API Documentation](https://bagua.readthedocs.io/)

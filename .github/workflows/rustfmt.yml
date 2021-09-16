@@ -1,0 +1,26 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+name: Rustfmt
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            components: rustfmt
+            override: true
+      - name: rustfmt bagua-core
+        run: |
+          cd rust/bagua-core && cargo + fmt -- --check
+      - name: rustfmt bagua-net
+        run: |
+          cd rust/bagua-net && cargo + fmt -- --check

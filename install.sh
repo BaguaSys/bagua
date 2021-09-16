@@ -74,4 +74,4 @@ then
 fi
 
 # install bagua
-python3 -m pip install --upgrade bagua -f https://repo.arrayfire.com/python/wheels/3.8.0/
+python3 -m pip install --upgrade bagua

@@ -1,0 +1,12 @@
+.idea/
+target/
+/data/
+scratchpad.org
+build.sh
+push.sh
+__pycache__/
+*.egg-info/
+/dist/
+/.eggs/
+/build/
+.data/

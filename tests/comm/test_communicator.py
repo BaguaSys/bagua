@@ -111,47 +111,47 @@ def run_allgather(rank, nprocs, results, env):
     results[rank].ret[0] = ret
 
 
-def run_test_locally(fn):
-    nprocs = torch.cuda.device_count()
-    env = {
-        "WORLD_SIZE": str(nprocs),
-        "LOCAL_WORLD_SIZE": str(nprocs),
-        "MASTER_ADDR": "127.0.0.1",
-        "MASTER_PORT": str(find_free_port(8000, 8100)),
-        "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
-    }
-
-    mp = multiprocessing.get_context("spawn")
-    results = [Result() for _ in range(nprocs)]
-    processes = []
-    for i in range(nprocs):
-        p = mp.Process(
-            target=fn,
-            args=(i, nprocs, results, env),
-        )
-        p.start()
-        processes.append(p)
-
-    for p in processes:
-        p.join(timeout=60)
-
-    return results
-
-
 class TestCommunication(unittest.TestCase):
+    def run_test_locally(self, fn):
+        nprocs = torch.cuda.device_count()
+        env = {
+            "WORLD_SIZE": str(nprocs),
+            "LOCAL_WORLD_SIZE": str(nprocs),
+            "MASTER_ADDR": "127.0.0.1",
+            "MASTER_PORT": str(find_free_port(8000, 8100)),
+            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
+        }
+
+        mp = multiprocessing.get_context("spawn")
+        results = [Result() for _ in range(nprocs)]
+        processes = []
+        for i in range(nprocs):
+            p = mp.Process(
+                target=fn,
+                args=(i, nprocs, results, env),
+            )
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=60)
+            self.assertTrue(p.exitcode == 0)
+
+        return results
+
     @skip_if_cuda_not_available()
     def test_abort(self):
-        run_test_locally(run_abort)
+        self.run_test_locally(run_abort)
 
     @skip_if_cuda_not_available()
     def test_allreduce(self):
-        results = run_test_locally(run_allreduce)
+        results = self.run_test_locally(run_allreduce)
         for ret in results:
             self.assertTrue(ret.ret.item())
 
     @skip_if_cuda_not_available()
     def test_p2p(self):
-        results = run_test_locally(run_p2p)
+        results = self.run_test_locally(run_p2p)
 
         i = 1
         while i < len(results):
@@ -160,7 +160,7 @@ class TestCommunication(unittest.TestCase):
 
     @skip_if_cuda_not_available()
     def test_allgather(self):
-        results = run_test_locally(run_allgather)
+        results = self.run_test_locally(run_allgather)
         for ret in results:
             self.assertTrue(ret.ret.item())
 
