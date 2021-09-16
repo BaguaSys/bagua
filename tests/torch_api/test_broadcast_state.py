@@ -106,7 +106,9 @@ class Test_Broadcast_Module(unittest.TestCase):
             dict(lr=0.2),
         ]
 
-        for (opt_name, opt_class), opt_hyper_param in itertools.product(optimizers, optimizer_hyper_param):
+        for (opt_name, opt_class), opt_hyper_param in itertools.product(
+            optimizers, optimizer_hyper_param
+        ):
             env = {
                 "WORLD_SIZE": str(nprocs),
                 "LOCAL_WORLD_SIZE": str(nprocs),
@@ -117,7 +119,9 @@ class Test_Broadcast_Module(unittest.TestCase):
             with Manager() as manager:
                 # For each rank, set a two dimensional list. One is used to save model_params,
                 # while the second save optimizer_params.
-                bagua_params = manager.list([[manager.list() for _ in range(2)] for _ in range(nprocs)])
+                bagua_params = manager.list(
+                    [[manager.list() for _ in range(2)] for _ in range(nprocs)]
+                )
                 mp = multiprocessing.get_context("spawn")
                 processes = []
                 for i in range(nprocs):
@@ -149,13 +153,13 @@ class Test_Broadcast_Module(unittest.TestCase):
                         )
                         # assert tensor
                         self.assertTrue(
-                                torch.equal(
-                                    torch.tensor(bagua_params[0][0][i][1]),
-                                    torch.tensor(bagua_params[rank][0][i][1]),
-                                )
+                            torch.equal(
+                                torch.tensor(bagua_params[0][0][i][1]),
+                                torch.tensor(bagua_params[rank][0][i][1]),
                             )
+                        )
                     # Optimizer parameters could be empty in some situations.
-                    if len(bagua_params[0][1])!=0:
+                    if len(bagua_params[0][1]) != 0:
                         for j in range(len(bagua_params[0][1])):
                             # assert name
                             self.assertEqual(
@@ -164,11 +168,15 @@ class Test_Broadcast_Module(unittest.TestCase):
                             )
                             # assert tensor/scalar
                             self.assertTrue(
-                                    torch.equal(
-                                        torch.tensor(bagua_params[0][1][j][1]),
-                                        torch.tensor(bagua_params[rank][1][j][1]),
-                                    )
+                                torch.equal(
+                                    torch.tensor(bagua_params[0][1][j][1]),
+                                    torch.tensor(bagua_params[rank][1][j][1]),
                                 )
+<<<<<<< HEAD
+=======
+                            )
+
+>>>>>>> b35ecd03c1ca584b2b2db73ed2e260e93b6dcd5d
 
 if __name__ == "__main__":
     unittest.main()

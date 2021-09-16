@@ -122,12 +122,13 @@ class BaguaModule:
         def _state_param_callback(param_id, param_name):
             def _assign_state(v):
                 optimizer_state_dict["state"][param_id][param_name] = v
-            return _assign_state
+
+
+
 
         def _hyper_param_callback(index, group_key):
             def _assign_hyper(v):
                 optimizer.param_groups[index][group_key] = v
-            
             return _assign_hyper
 
         params = []
@@ -139,9 +140,9 @@ class BaguaModule:
         # guarteen the scalar's record order samely in differet ranks.
         for index, param_group in enumerate(optimizer_state_dict["param_groups"]):
             for group_key, group_value in sorted(
-                param_group.items(), key = lambda item: item[0]
+                param_group.items(), key=lambda item: item[0]
             ):
-                # Hyper-parameters like learning rate are scalars, we need to broadcast them separately. 
+                # Hyper-parameters like learning rate are scalars, we need to broadcast them separately.
                 if group_key != "params":
                     key = "%s_%d" % (group_key, index)
                     scalars[key] = group_value
@@ -151,7 +152,7 @@ class BaguaModule:
                     continue
                 param_state = optimizer_state_dict["state"][param_id]
                 for param_name, inner_state in sorted(
-                    param_state.items(), key = lambda item: item[0]
+                    param_state.items(), key=lambda item: item[0]
                 ):
                     # Some parameter names, e.g., step, may appear more than once, in which
                     # case we ensure they have a unique identifier defined by
