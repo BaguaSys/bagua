@@ -149,10 +149,9 @@ class Test_Broadcast_Module(unittest.TestCase):
                         )
                         # assert tensor
                         self.assertTrue(
-                                torch.equal(
-                                    torch.tensor(bagua_params[0][0][i][1]),
-                                    torch.tensor(bagua_params[rank][0][i][1]),
-                                )
+                            torch.equal(
+                                torch.tensor(bagua_params[0][0][i][1]),
+                                torch.tensor(bagua_params[rank][0][i][1]),
                             )
                         )
                     # Optimizer parameters could be empty in some situations.
