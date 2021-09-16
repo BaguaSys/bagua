@@ -33,3 +33,10 @@ jobs:
           push: true
           tags: baguasys/bagua:latest-pytorch-1.9.0-cuda10.2-cudnn7
           file: docker/Dockerfile.pytorch-1.9.0-cuda10.2-cudnn7 
+      - name: build and push bagua/manylinux-cuda102
+        uses: docker/build-push-action@v2.6.1
+        with:
+          context: .
+          push: true
+          tags: baguasys/bagua:manylinux-cuda102
+          file: docker/Dockerfile.pytorch-1.9.0-cuda10.2-cudnn7 
