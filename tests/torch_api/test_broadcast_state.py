@@ -155,7 +155,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                                 )
                             )
                     # Optimizer parameters could be empty in some situations.
-                    if len(bagua_params[0][1])!=0:
+                    if len(bagua_params[0][1]) != 0:
                         for j in range(len(bagua_params[0][1])):
                             # assert name
                             self.assertEqual(
