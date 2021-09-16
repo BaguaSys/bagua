@@ -106,7 +106,9 @@ class Test_Broadcast_Module(unittest.TestCase):
             dict(lr=0.2),
         ]
 
-        for (opt_name, opt_class), opt_hyper_param in itertools.product(optimizers, optimizer_hyper_param):
+        for (opt_name, opt_class), opt_hyper_param in itertools.product(
+            optimizers, optimizer_hyper_param
+        ):
             env = {
                 "WORLD_SIZE": str(nprocs),
                 "LOCAL_WORLD_SIZE": str(nprocs),
