@@ -258,7 +258,7 @@ class AutotuneService:
                 check_board = hp_manager.check_board
                 if (
                     self.autotune_level >= 1
-                    and check_board.count(check_board[0])
+                    and check_board.count(check_board[0])  # noqa: W503
                     == len(check_board)  # noqa: W503
                     and check_board[rank] < train_iter  # noqa: W503
                 ):
