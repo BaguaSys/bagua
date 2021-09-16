@@ -141,7 +141,7 @@ class BaguaModule:
             for group_key, group_value in sorted(
                 param_group.items(), key = lambda item: item[0]
             ):
-                # Hyper-parameters like learning rate are scalars, we need to broadcast them separately. 
+                # Hyper-parameters like learning rate are scalars, we need to broadcast them separately.
                 if group_key != "params":
                     key = "%s_%d" % (group_key, index)
                     scalars[key] = group_value
