@@ -139,7 +139,7 @@ class BaguaModule:
         # guarteen the scalar's record order samely in differet ranks.
         for index, param_group in enumerate(optimizer_state_dict["param_groups"]):
             for group_key, group_value in sorted(
-                param_group.items(), key = lambda item: item[0]
+                param_group.items(), key=lambda item: item[0]
             ):
                 # Hyper-parameters like learning rate are scalars, we need to broadcast them separately.
                 if group_key != "params":
