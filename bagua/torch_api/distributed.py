@@ -103,30 +103,31 @@ class BaguaModule:
             # L-BFGS cannot be easily supported without serializing
             # the entire state_dict, as its structure is deeply nested and contains
             # None type parameter values.
-            raise ValueError('cannot broadcast torch.optim.LBFGS state')
+            raise ValueError("cannot broadcast torch.optim.LBFGS state")
         optimizer_state_dict = optimizer.state_dict()
 
         # Initialize newly created optimizers.
-        if len(optimizer_state_dict['state']) == 0:
+        if len(optimizer_state_dict["state"]) == 0:
             for group in optimizer.param_groups:
-                for p in group['params']:
-                    if p.requires_grad and id(p) not in optimizer_state_dict['state']:
+                for p in group["params"]:
+                    if p.requires_grad and id(p) not in optimizer_state_dict["state"]:
                         p.grad = p.data.new(p.size()).zero_()
                         if isinstance(optimizer, torch.optim.SparseAdam):
                             p.grad = p.grad.to_sparse()
             optimizer.step()
             optimizer_state_dict = optimizer.state_dict()
-        if len(optimizer_state_dict['state']) == 0:
+        if len(optimizer_state_dict["state"]) == 0:
             return
 
         def _state_param_callback(param_id, param_name):
             def _assign_state(v):
-                optimizer_state_dict['state'][param_id][param_name] = v
+                optimizer_state_dict["state"][param_id][param_name] = v
             return _assign_state
 
         def _hyper_param_callback(index, group_key):
             def _assign_hyper(v):
                 optimizer.param_groups[index][group_key] = v
+            
             return _assign_hyper
 
         params = []
@@ -137,7 +138,9 @@ class BaguaModule:
         # All "sorted()" operations in this module are used to
         # guarteen the scalar's record order samely in differet ranks.
         for index, param_group in enumerate(optimizer_state_dict["param_groups"]):
-            for group_key, group_value in sorted(param_group.items(), key = lambda item: item[0]):
+            for group_key, group_value in sorted(
+                param_group.items(), key = lambda item: item[0]
+            ):
                 # Hyper-parameters like learning rate are scalars, we need to broadcast them separately. 
                 if group_key != "params":
                     key = "%s_%d" % (group_key, index)
@@ -147,7 +150,9 @@ class BaguaModule:
                 if param_id not in optimizer_state_dict["state"]:
                     continue
                 param_state = optimizer_state_dict["state"][param_id]
-                for param_name, inner_state in sorted(param_state.items(), key = lambda item: item[0]):
+                for param_name, inner_state in sorted(
+                    param_state.items(), key = lambda item: item[0]
+                ):
                     # Some parameter names, e.g., step, may appear more than once, in which
                     # case we ensure they have a unique identifier defined by
                     # their order.
@@ -157,7 +162,9 @@ class BaguaModule:
                         params.append((key, inner_state))
                     else:
                         scalars[key] = inner_state
-                        call_back_param[key] = _state_param_callback(param_id, param_name)
+                        call_back_param[key] = _state_param_callback(
+                            param_id, param_name
+                        )
         for key, param in params:
             broadcast(param, src=0)
         scalars = self._bagua_broadcast_scalars(scalars, src=0)
@@ -170,7 +177,7 @@ class BaguaModule:
         cloudpickle.dump(scalars, b)
         t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
         broadcast(t, src=0)
-        if get_rank()!=src:
+        if get_rank() != src:
             buf = io.BytesIO(t.cpu().numpy().tobytes())
             scalars = cloudpickle.load(buf)
 

@@ -3,14 +3,14 @@ import unittest
 import multiprocessing
 import itertools
 import inspect
-from multiprocessing import Process, Manager, Array
+from multiprocessing import Manager
 import time
-import copy
 
 import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
 
 import torch
+
 
 def _init_bagua_env(rank, env):
     # Set deterministic
@@ -31,31 +31,39 @@ def _init_bagua_env(rank, env):
     torch.cuda.set_device(rank)
     bagua.init_process_group()
 
+
 def create_model_and_optimizer(opt_class, opt_param):
     C_in, C_out = 3, 10
     model = torch.nn.Sequential(
         torch.nn.Conv2d(C_in, 32, kernel_size=5, stride=1),
         torch.nn.BatchNorm2d(32),
         torch.nn.ReLU(),
-        torch.nn.Linear(8*8*32, C_out),
-        )
+        torch.nn.Linear(8 * 8 * 32, C_out),
+    )
     model = model.cuda()
-    hyper_param = {k: v for k, v in opt_param.items() if k in inspect.getargspec(opt_class.__init__).args}
+    hyper_param = {
+        k: v
+        for k, v in opt_param.items()
+        if k in inspect.getargspec(opt_class.__init__).args
+    }
     optimizer = opt_class(model.parameters(), **hyper_param)
     return model, optimizer
+
 
 def get_optimizer_param_values(optimizer):
     results = []
     state_dict = optimizer.state_dict()
-    for group in state_dict['param_groups']:
-        for param_id in group['params']:
-            if param_id not in state_dict['state']:
+    for group in state_dict["param_groups"]:
+        for param_id in group["params"]:
+            if param_id not in state_dict["state"]:
                 continue
-            params = sorted(state_dict['state'][param_id].items())
+            params = sorted(state_dict["state"][param_id].items())
             for k, v in params:
                 results.append(
-                    (k, v.clone().detach().cpu().numpy() if torch.is_tensor(v) else v))
+                    (k, v.clone().detach().cpu().numpy() if torch.is_tensor(v) else v)
+                )
     return results
+
 
 def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param):
     _init_bagua_env(rank, envs)
@@ -70,13 +78,17 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
         bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
     except Exception as ex:
         time.sleep(0.1)
-    
-    model_params = [(k, v.clone().detach().cpu().numpy()) for k, v in sorted(bagua_model.state_dict().items())]
+
+    model_params = [
+        (k, v.clone().detach().cpu().numpy())
+        for k, v in sorted(bagua_model.state_dict().items())
+    ]
     optimizer_params = get_optimizer_param_values(bagua_optimizer)
 
     # Put "model_params" in dimension 1, while "optimizer_params" in dimension 2.
     bagua_params[rank][0].extend(model_params)
     bagua_params[rank][1].extend(optimizer_params)
+
 
 class Test_Broadcast_Module(unittest.TestCase):
     def test_broadcast_module(self):
@@ -84,14 +96,14 @@ class Test_Broadcast_Module(unittest.TestCase):
         optimizers = [
             (subclass.__name__, subclass)
             for subclass in torch.optim.Optimizer.__subclasses__()
-            if subclass.__module__.startswith("torch.optim") and
-                subclass != torch.optim.LBFGS and
-             subclass != torch.optim.SparseAdam
+            if subclass.__module__.startswith("torch.optim")
+            and subclass != torch.optim.LBFGS
+            and subclass != torch.optim.SparseAdam
         ]
 
         optimizer_hyper_param = [
             dict(lr=0.2, momentum=0.9, weight_decay=0.1, centered=True),
-            dict(lr=0.2)
+            dict(lr=0.2),
         ]
 
         for (opt_name, opt_class), opt_hyper_param in itertools.product(optimizers, optimizer_hyper_param):
@@ -124,7 +136,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                     processes.append(p)
                 for p in processes:
                     p.join(timeout=60)
-                
+
                 for rank in range(1, nprocs):
                     # Both "model_params" and "optimizer_params" are saved in (name, tensor/scalar) form,
                     # so we need to assert the two dimensional separately.
