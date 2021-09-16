@@ -38,5 +38,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: baguasys/bagua:manylinux-cuda102
-          file: docker/Dockerfile.pytorch-1.9.0-cuda10.2-cudnn7 
+          tags: baguasys/manylinux-cuda:102
+          file: docker/Dockerfile.manylinux-cuda102
