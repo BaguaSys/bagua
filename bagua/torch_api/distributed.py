@@ -127,7 +127,6 @@ class BaguaModule:
         def _hyper_param_callback(index, group_key):
             def _assign_hyper(v):
                 optimizer.param_groups[index][group_key] = v
-            
             return _assign_hyper
 
         params = []
