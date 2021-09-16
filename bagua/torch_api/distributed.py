@@ -151,7 +151,7 @@ class BaguaModule:
                     continue
                 param_state = optimizer_state_dict["state"][param_id]
                 for param_name, inner_state in sorted(
-                    param_state.items(), key = lambda item: item[0]
+                    param_state.items(), key=lambda item: item[0]
                 ):
                     # Some parameter names, e.g., step, may appear more than once, in which
                     # case we ensure they have a unique identifier defined by
