@@ -169,6 +169,6 @@ class Test_Broadcast_Module(unittest.TestCase):
                                         torch.tensor(bagua_params[rank][1][j][1]),
                                     )
                                 )
-                    
+
 if __name__ == "__main__":
     unittest.main()
