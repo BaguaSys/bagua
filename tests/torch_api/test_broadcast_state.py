@@ -117,7 +117,9 @@ class Test_Broadcast_Module(unittest.TestCase):
             with Manager() as manager:
                 # For each rank, set a two dimensional list. One is used to save model_params,
                 # while the second save optimizer_params.
-                bagua_params = manager.list([[manager.list() for _ in range(2)] for _ in range(nprocs)])
+                bagua_params = manager.list(
+                    [[manager.list() for _ in range(2)] for _ in range(nprocs)]
+                )
                 mp = multiprocessing.get_context("spawn")
                 processes = []
                 for i in range(nprocs):
