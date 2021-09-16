@@ -164,10 +164,9 @@ class Test_Broadcast_Module(unittest.TestCase):
                             )
                             # assert tensor/scalar
                             self.assertTrue(
-                                    torch.equal(
-                                        torch.tensor(bagua_params[0][1][j][1]),
-                                        torch.tensor(bagua_params[rank][1][j][1]),
-                                    )
+                                torch.equal(
+                                    torch.tensor(bagua_params[0][1][j][1]),
+                                    torch.tensor(bagua_params[rank][1][j][1]),
                                 )
                             )
 
