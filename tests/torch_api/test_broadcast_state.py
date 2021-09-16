@@ -154,6 +154,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                                     torch.tensor(bagua_params[rank][0][i][1]),
                                 )
                             )
+                        )
                     # Optimizer parameters could be empty in some situations.
                     if len(bagua_params[0][1]) != 0:
                         for j in range(len(bagua_params[0][1])):
