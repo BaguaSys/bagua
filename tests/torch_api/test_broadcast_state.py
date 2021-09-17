@@ -51,7 +51,6 @@ def create_model_and_optimizer(opt_class, opt_param):
     return model, optimizer
 
 
-
 def get_optimizer_param_values(optimizer):
     results = []
     state_dict = optimizer.state_dict()
