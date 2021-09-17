@@ -206,14 +206,11 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
     def resume(self, bagua_module: BaguaModule):
         """
-        Resume background asynchronous communications after :meth:`abort`. Should be called before training.
+        Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
         Args:
             bagua_module: A PyTorch module initialized by
                 :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
-
-        .. note::
-            :meth:`resume` and :meth:`abort` are used in pairs.
         """
 
         if self.has_aborted:
