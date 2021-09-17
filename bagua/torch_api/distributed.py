@@ -99,10 +99,10 @@ class BaguaModule:
         return parameters
 
     def _bagua_broadcast_optimizer_state(self, optimizer):
+        # L-BFGS cannot be easily supported without serializing
+        # the entire state_dict, as its structure is deeply nested and contains
+        # None type parameter values.
         if isinstance(optimizer, torch.optim.LBFGS):
-            # L-BFGS cannot be easily supported without serializing
-            # the entire state_dict, as its structure is deeply nested and contains
-            # None type parameter values.
             raise ValueError("cannot broadcast torch.optim.LBFGS state")
         optimizer_state_dict = optimizer.state_dict()
 
@@ -128,7 +128,7 @@ class BaguaModule:
             def _assign_hyper(v):
                 optimizer.param_groups[index][group_key] = v
             return _assign_hyper
-        
+
         params = []
         scalars = collections.OrderedDict()
         call_back_param = {}
