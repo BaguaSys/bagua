@@ -78,7 +78,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
     bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
     try:
         bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
-    except Exception:   # noqa: F401
+    except Exception:
         time.sleep(0.1)
 
     model_params = [
@@ -98,9 +98,7 @@ class Test_Broadcast_Module(unittest.TestCase):
         optimizers = [
             (subclass.__name__, subclass)
             for subclass in torch.optim.Optimizer.__subclasses__()
-            if subclass.__module__.startswith("torch.optim") and
-            subclass != torch.optim.LBFGS and
-            subclass != torch.optim.SparseAdam
+            if subclass.__module__.startswith("torch.optim") and subclass != torch.optim.LBFGS and subclass != torch.optim.SparseAdam
         ]
 
         optimizer_hyper_param = [
