@@ -35,10 +35,10 @@ def _init_bagua_env(rank, env):
 def create_model_and_optimizer(opt_class, opt_param):
     C_in, C_out = 3, 10
     model = torch.nn.Sequential(
-        torch.nn.Conv2d(C_in, 32, kernel_size=5, stride=1),
-        torch.nn.BatchNorm2d(32),
+        torch.nn.Conv2d(C_in, 16, kernel_size=5, stride=1),
+        torch.nn.BatchNorm2d(16),
         torch.nn.ReLU(),
-        torch.nn.Linear(8 * 8 * 32, C_out),
+        torch.nn.Linear(3 * 3 * 16, C_out),
     )
     model = model.cuda()
     hyper_param = {
@@ -141,7 +141,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                 for p in processes:
                     p.join(timeout=60)
 
-                for rank in range(1, nprocs):
+                for rank in range(0, nprocs):
                     # Both "model_params" and "optimizer_params" are saved in (name, tensor/scalar) form,
                     # so we need to assert the two dimensional separately.
                     # This is compare the "model_params".
@@ -154,8 +154,8 @@ class Test_Broadcast_Module(unittest.TestCase):
                         # assert tensor
                         self.assertTrue(
                             torch.equal(
-                                torch.tensor(bagua_params[0][0][i][1]),
-                                torch.tensor(bagua_params[rank][0][i][1]),
+                                torch.tensor(bagua_params[0][0][i][1], dtype=torch.float),
+                                torch.tensor(bagua_params[rank][0][i][1], dtype=torch.float),
                             )
                         )
 
@@ -167,12 +167,15 @@ class Test_Broadcast_Module(unittest.TestCase):
                                 bagua_params[rank][1][j][0],
                             )
                             # assert tensor/scalar
-                            self.assertTrue(
-                                torch.equal(
-                                    torch.tensor(bagua_params[0][1][j][1]),
-                                    torch.tensor(bagua_params[rank][1][j][1]),
+                            if bagua_params[0][1][j][1] is None: # this is for "torch.optim.sgd.SGD" and dict(lr=0.2)
+                                continue
+                            else:
+                                self.assertTrue(
+                                    torch.equal(
+                                        torch.tensor(bagua_params[0][1][j][1], dtype=torch.float),
+                                        torch.tensor(bagua_params[rank][1][j][1], dtype=torch.float),
+                                    )
                                 )
-                            )
 
 
 if __name__ == "__main__":
