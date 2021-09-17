@@ -68,7 +68,9 @@ def get_optimizer_param_values(optimizer):
 def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param):
     _init_bagua_env(rank, envs)
 
-    bagua_model, bagua_optimizer = create_model_and_optimizer(opt_class, opt_hyper_param)
+    bagua_model, bagua_optimizer = create_model_and_optimizer(
+        opt_class, opt_hyper_param
+    )
 
     from bagua.torch_api.algorithms import gradient_allreduce
 
