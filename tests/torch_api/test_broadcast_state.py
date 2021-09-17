@@ -78,7 +78,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
     bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
     try:
         bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
-    except Exception as ex:
+    except Exception as ex:   # noqa: F401
         time.sleep(0.1)
 
     model_params = [
