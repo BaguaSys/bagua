@@ -28,4 +28,4 @@ jobs:
     - name: Test with pytest
       run: |
         rm -rf bagua bagua_core
-        pytest --timeout=240 --timeout_method=thread
+        pytest --timeout=300 --timeout_method=thread
