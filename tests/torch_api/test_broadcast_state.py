@@ -71,7 +71,8 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
     bagua_model, bagua_optimizer = create_model_and_optimizer(opt_class, opt_hyper_param)
 
     from bagua.torch_api.algorithms import gradient_allreduce
-    algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
+
+    
     bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
     try:
         bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
