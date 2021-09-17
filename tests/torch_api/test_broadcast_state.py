@@ -67,7 +67,6 @@ def get_optimizer_param_values(optimizer):
     return results
 
 
-
 def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param):
     _init_bagua_env(rank, envs)
 
