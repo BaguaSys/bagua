@@ -118,9 +118,6 @@ class AutotuneService:
             return
 
         if hp_manager.sampling_count == 0:
-            sampling_time -= self.warmup_time_s
-
-        if hp_manager.sampling_count == 0:
             confidence_skip = (
                 sampling_time < self.warmup_time_s + self.sampling_confidence_time_s
             )
