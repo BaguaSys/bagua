@@ -12,6 +12,7 @@ from tests.internal.common_utils import find_free_port
 import torch
 
 
+
 def _init_bagua_env(rank, env):
     # Set deterministic
     torch.backends.cudnn.benchmark = False
