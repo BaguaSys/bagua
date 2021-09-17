@@ -12,7 +12,6 @@ from tests.internal.common_utils import find_free_port
 import torch
 
 
-
 def _init_bagua_env(rank, env):
     # Set deterministic
     torch.backends.cudnn.benchmark = False
@@ -33,7 +32,6 @@ def _init_bagua_env(rank, env):
     bagua.init_process_group()
 
 
-
 def create_model_and_optimizer(opt_class, opt_param):
     C_in, C_out = 3, 10
     model = torch.nn.Sequential(
@@ -52,7 +50,6 @@ def create_model_and_optimizer(opt_class, opt_param):
     return model, optimizer
 
 
-
 def get_optimizer_param_values(optimizer):
     results = []
     state_dict = optimizer.state_dict()
@@ -68,16 +65,17 @@ def get_optimizer_param_values(optimizer):
     return results
 
 
-
 def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param):
     _init_bagua_env(rank, envs)
 
-    bagua_model, bagua_optimizer = create_model_and_optimizer(opt_class, opt_hyper_param)
+    bagua_model, bagua_optimizer = create_model_and_optimizer(
+        opt_class, opt_hyper_param
+    )
 
     from bagua.torch_api.algorithms import gradient_allreduce
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
+
     bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
-    
     try:
         bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
     except Exception as ex:
@@ -177,6 +175,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                                     torch.tensor(bagua_params[rank][1][j][1]),
                                 )
                             )
+
 
 if __name__ == "__main__":
     unittest.main()
