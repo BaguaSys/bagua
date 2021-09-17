@@ -3,27 +3,7 @@ from typing import List
 import copy
 import logging
 from functools import reduce
-
-
-def get_flattened_tensor(tensors: List[torch.Tensor]) -> torch.Tensor:
-    if len(tensors) == 0:
-        return
-
-    total_size = 0
-    for tensor in tensors:
-        total_size += tensor.numel()
-
-    flatten_tensor = torch.zeros(total_size, dtype=tensors[0].dtype).to(
-        tensors[0].device
-    )
-
-    offset = 0
-    for tensor in tensors:
-        # copy data
-        flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
-        offset += tensor.numel()
-
-    return flatten_tensor
+from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 
 
 def flatten_module_param_groups(optimizer: torch.optim.Optimizer):
@@ -78,15 +58,6 @@ def flatten_module_param_groups(optimizer: torch.optim.Optimizer):
             grads = [p.grad for p in params]
             assert check_contiguous(weights)
             assert check_contiguous(grads)
-
-
-def check_contiguous(tensors: List[torch.Tensor]) -> bool:
-    data_ptr = None
-    for t in tensors:
-        if data_ptr is not None and t.data_ptr() != data_ptr:
-            return False
-        data_ptr = t.data_ptr() + t.numel() * t.element_size()
-    return True
 
 
 def _is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
