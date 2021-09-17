@@ -7,6 +7,7 @@ import multiprocessing
 import os
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
+import logging
 
 
 class Net(nn.Module):
