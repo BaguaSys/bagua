@@ -167,7 +167,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                                 bagua_params[rank][1][j][0],
                             )
                             # assert tensor/scalar
-                            if bagua_params[0][1][j][1] is None: # this is for "torch.optim.sgd.SGD" and dict(lr=0.2)
+                            if bagua_params[0][1][j][1] is None:  # this is for "torch.optim.sgd.SGD" and dict(lr=0.2)
                                 continue
                             else:
                                 self.assertTrue(
