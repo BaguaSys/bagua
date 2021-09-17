@@ -43,7 +43,8 @@ class AsyncModelAverageAlgorithm(Algorithm):
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
                 ``"all"`` means all workers' weights are synchronized during each communication.
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
-            warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous model averaging. Use 0 to disable.
+            warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous
+                model averaging. Use 0 to disable.
         """
 
         self.peer_selection_mode = peer_selection_mode
@@ -59,7 +60,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.thread_group = torch.distributed.new_group(backend="gloo")
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        self.has_aborted = False
+        self.scheduled = False
 
         if self.warmup_steps <= 0:
             self.no_bucketing = True
@@ -91,6 +92,10 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 if not hasattr(self, "future"):
                     self.future = self.executor.submit(
                         self._run_async_loop, bagua_module
+                    )
+                    self.scheduled = True
+                    logging.debug(
+                        "Process {} async communication started.".format(get_rank())
                     )
 
         return hook
@@ -196,13 +201,12 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
         """
 
-        torch.distributed.barrier(group=self.main_group)
-        self.abort_event.set()
-        if not hasattr(self, "future"):
-            logging.warn("Could not abort, communication has not started yet.")
-        else:
+        if self.scheduled:
+            torch.distributed.barrier(group=self.main_group)
+            self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
-            self.has_aborted = True
+            self.scheduled = False
+            logging.debug("Process {} async communication aborted.".format(get_rank()))
 
     def resume(self, bagua_module: BaguaModule):
         """
@@ -213,7 +217,9 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
         """
 
-        if self.has_aborted:
+        if not self.scheduled and hasattr(self, "future"):
             torch.distributed.barrier(group=self.main_group)
             self.abort_event.clear()
             self.future = self.executor.submit(self._run_async_loop, bagua_module)
+            self.scheduled = True
+            logging.debug("Process {} async communication resumed.".format(get_rank()))
