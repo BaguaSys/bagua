@@ -158,8 +158,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                                 torch.tensor(bagua_params[rank][0][i][1]),
                             )
                         )
-                        )
-                                torch.tensor(bagua_params[0][0][i][1]),
+
                     if len(bagua_params[0][1]) != 0:
                         for j in range(len(bagua_params[0][1])):
                             # assert name
@@ -173,11 +172,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                                     torch.tensor(bagua_params[0][1][j][1]),
                                     torch.tensor(bagua_params[rank][1][j][1]),
                                 )
-<<<<<<< HEAD
-=======
                             )
-
->>>>>>> b35ecd03c1ca584b2b2db73ed2e260e93b6dcd5d
 
 if __name__ == "__main__":
     unittest.main()
