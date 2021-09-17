@@ -32,7 +32,6 @@ def _init_bagua_env(rank, env):
     bagua.init_process_group()
 
 
-
 def create_model_and_optimizer(opt_class, opt_param):
     C_in, C_out = 3, 10
     model = torch.nn.Sequential(
