@@ -43,7 +43,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
                 ``"all"`` means all workers' weights are synchronized during each communication.
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
-            warmup_steps (int): Number of steps to warm up by gradient allreduce at the beginning of training.
+            warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous model averaging. Use 0 to disable.
         """
 
         self.peer_selection_mode = peer_selection_mode
@@ -189,7 +189,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
     def abort(self, bagua_module: BaguaModule):
         """
-        Stop asynchronous communications. Should be called after training.
+        Stop background asynchronous communications. Should be called after training.
 
         Args:
             bagua_module: A PyTorch module initialized by
@@ -206,7 +206,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
     def resume(self, bagua_module: BaguaModule):
         """
-        Resume asynchronous communications after :meth:`abort`. Should be called before training.
+        Resume background asynchronous communications after :meth:`abort`. Should be called before training.
 
         Args:
             bagua_module: A PyTorch module initialized by
