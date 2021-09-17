@@ -4,9 +4,10 @@ import copy
 import logging
 from functools import reduce
 from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
+import gorilla
 
 
-def flatten_module_param_groups(optimizer: torch.optim.Optimizer):
+def flatten_param_and_states(optimizer: torch.optim.Optimizer):
     _supported_params_types = [
         "torch.cuda.FloatTensor",
         "torch.cuda.HalfTensor",
@@ -58,6 +59,29 @@ def flatten_module_param_groups(optimizer: torch.optim.Optimizer):
             grads = [p.grad for p in params]
             assert check_contiguous(weights)
             assert check_contiguous(grads)
+
+            _flatten_states(optimizer, params)
+
+
+def _flatten_states(optimizer: torch.optim.Optimizer, params):
+    # flatten states
+    state_tensors, _, rc = _get_states(optimizer, params)
+
+    if not rc:
+        return
+
+    for name, tensors in state_tensors.items():
+        flattened_tensor = get_flattened_tensor(tensors)
+        flattened_storage = flattened_tensor.storage()
+
+        offset = 0
+
+        with torch.no_grad():
+            for t in tensors:
+                t.set_(flattened_storage, offset, t.shape)
+                offset += t.numel()
+
+        assert check_contiguous(tensors)
 
 
 def _is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
@@ -134,7 +158,7 @@ def _collocate(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
     return colocated_tensors
 
 
-class FusedOptimizer(torch.optim.Optimizer):
+def fuse_optimizer(optimizer, do_flatten: bool = False):
     """Convert any optimizer into a fused optimizer.
 
     This fused optimizer fuses multiple module parameter update kernel launches
@@ -157,151 +181,168 @@ class FusedOptimizer(torch.optim.Optimizer):
         To use in conjunction with :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
-        >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer)
+        >>> optimizer = bagua.torch_api.contrib.fuse_optimizer(optimizer)
         >>> model = model.with_bagua([optimizer], GradientAllReduceAlgorithm())
 
         To use alone or with `torch.nn.parallel.DistributedDataParallel <https://pytorch.org/docs/stable/generated/torch.nn.parallel.DistributedDataParallel.html?highlight=distributeddataparallel#torch.nn.parallel.DistributedDataParallel>`_,
         set :attr:`do_flatten=True`:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
-        >>> optimizer = bagua.torch_api.contrib.FusedOptimizer(optimizer, do_flatten=True)
+        >>> optimizer = bagua.torch_api.contrib.fuse_optimizer(optimizer, do_flatten=True)
     """
 
-    def __init__(self, optimizer: torch.optim.Optimizer, do_flatten: bool = False):
-        self.optimizer = copy.copy(optimizer)
-        super(FusedOptimizer, self).__init__(optimizer.param_groups, optimizer.defaults)
+    fused_optimizer = copy.copy(optimizer)
 
-        if do_flatten:
-            flatten_module_param_groups(optimizer)
+    # FIXME
+    fused_optimizer.step_counter = 0
+    optimizer._fused_optimizer = fused_optimizer
 
-        self.step_counter = 0
+    if do_flatten:
+        flatten_param_and_states(optimizer)
 
-    def step(self, closure=None):
-        r"""Performs a single optimization step (parameter update).
+    if not hasattr(optimizer, "fuse_step"):
+        patch = gorilla.Patch(optimizer.__class__, "fuse_step", fuse_step)
+        gorilla.apply(patch)
 
-        Args:
-            closure (Callable): A closure that reevaluates the model and
-                returns the loss. Optional for most optimizers.
+    return optimizer
 
-        .. note::
-            Unless otherwise specified, this function should not modify the
-            ``.grad`` field of the parameters.
-        """
-        self.step_counter += 1
-        self.fuse()
-        return self.optimizer.step(closure)
 
-    def fuse(self):
-        for index, group in enumerate(self.optimizer.param_groups):
-            params = group["params"]
+def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
+    r"""Performs a single optimization step (parameter update).
 
-            weights = [p.data for p in params]
-            grads = [p.grad for p in params]
+    Args:
+        closure (Callable): A closure that reevaluates the model and
+            returns the loss. Optional for most optimizers.
 
-            grouped_weight_indices = _group_continuous_tensors(weights)
-            grouped_grad_indices = _group_continuous_tensors(grads)
+    .. note::
+        Unless otherwise specified, this function should not modify the
+        ``.grad`` field of the parameters.
+    """
+    assert hasattr(
+        optimizer, "_fused_optimizer"
+    ), "Should init fused optimizer by calling `fuse_optimizer`."
 
-            grouped_indices = _get_intersection(
-                grouped_weight_indices, grouped_grad_indices
-            )
+    optimizer._fused_optimizer.step_counter += 1
+    _fuse(optimizer._fused_optimizer)
+    return optimizer._fused_optimizer.step(closure)
 
+
+def _fuse(optimizer: torch.optim.Optimizer):
+    for index, group in enumerate(optimizer.param_groups):
+        params = group["params"]
+
+        weights = [p.data for p in params]
+        grads = [p.grad for p in params]
+
+        grouped_weight_indices = _group_continuous_tensors(weights)
+        grouped_grad_indices = _group_continuous_tensors(grads)
+
+        grouped_indices = _get_intersection(
+            grouped_weight_indices, grouped_grad_indices
+        )
+
+        if len(grouped_indices) == 0:
+            break
+
+        print(
+            f"step #{optimizer.step_counter}: grouped indices: {grouped_weight_indices}, {grouped_grad_indices}"
+        )
+
+        state_tensors, state_scalars, rc = _get_states(optimizer, params)
+
+        if rc:
+            for name, tensors in state_tensors.items():
+                indices = _group_continuous_tensors(tensors)
+                grouped_indices = _get_intersection(grouped_indices, indices)
+                print(
+                    f"step #{optimizer.step_counter}: state: {name}, indices: {indices}, grouped_indices: {grouped_indices}"
+                )
+
+        if len(grouped_indices) > 0:
+            # collocate params
+            collocated_weights = _collocate(weights, grouped_indices)
+            collocated_grads = _collocate(grads, grouped_indices)
+
+            collocated_states = {}
+            for name, tensors in state_tensors.items():
+                ts = _collocate(tensors, grouped_indices)
+                collocated_states[name] = ts
+
+            new_params = []
+            for i in range(len(collocated_weights)):
+                with torch.no_grad():
+                    p = torch.nn.Parameter(collocated_weights[i], requires_grad=False)
+                    p.grad = collocated_grads[i]
+
+                new_params.append(p)
+
+                for name, ts in collocated_states.items():
+                    optimizer.state[p][name] = ts[i]
+
+                for name, v in state_scalars.items():
+                    optimizer.state[p][name] = v
+
+            # add other params and remove dup states
+            grouped_indices_flat = list(reduce(lambda x, y: x + y, grouped_indices))
+            for idx, param in enumerate(params):
+                if idx not in grouped_indices_flat:
+                    new_params.append(param)
+                    del optimizer.state[param]
+
+            group["params"] = new_params
             print(
-                f"step #{self.step_counter}: grouped indices: {grouped_weight_indices}, {grouped_grad_indices}"
+                f"Final at step #{optimizer.step_counter}, param_groups: {optimizer.param_groups}, states: {optimizer.state}"
             )
 
-            if len(grouped_indices) == 0:
-                break
 
-            state_tensors = {}
-            state_scalars = {}
+def _get_states(optimizer: torch.optim.Optimizer, params):
+    state_tensors = {}
+    state_scalars = {}
 
-            if len(self.optimizer.state) > 0:
-                state_tensors = {
-                    name: []
-                    for name, value in self.optimizer.state[params[0]].items()
-                    if isinstance(value, torch.Tensor)
-                }
-                state_scalars = {
-                    name: value
-                    for name, value in self.optimizer.state[params[0]].items()
-                    if not isinstance(value, torch.Tensor)
-                }
+    if len(optimizer.state) > 0:
+        state_tensors = {
+            name: []
+            for name, value in optimizer.state[params[0]].items()
+            if isinstance(value, torch.Tensor)
+        }
+        state_scalars = {
+            name: value
+            for name, value in optimizer.state[params[0]].items()
+            if not isinstance(value, torch.Tensor)
+        }
 
-                for p in params:
-                    st = self.optimizer.state[p]
+        for p in params:
+            st = optimizer.state[p]
 
-                    for name, value in st.items():
-                        if isinstance(value, torch.Tensor):
-                            if state_tensors.get(name) is None:
-                                logging.error(
-                                    f"Unexpected tensor in state {name}, could not fuse optimizer."
-                                )
-                                return
+            for name, value in st.items():
+                if isinstance(value, torch.Tensor):
+                    if state_tensors.get(name) is None:
+                        logging.error(
+                            f"Unexpected tensor in state {name}, could not fuse optimizer."
+                        )
+                        return None, None, False
 
-                            state_tensors[name].append(value)
-                        else:
-                            if state_scalars.get(name) is None:
-                                logging.error(
-                                    f"Unexpected scalar value in state {name}, could not fuse optimizer."
-                                )
-                                return
+                    state_tensors[name].append(value)
+                else:
+                    if state_scalars.get(name) is None:
+                        logging.error(
+                            f"Unexpected scalar value in state {name}, could not fuse optimizer."
+                        )
+                        return None, None, False
 
-                            if value != state_scalars[name]:
-                                logging.error(
-                                    f"Parameter state '{name}' does not match, could not fuse optimizer."
-                                )
-                                return
-
-                print(f"state tensors: {state_tensors}, state scalars: {state_scalars}")
-
-                for name, tensors in state_tensors.items():
-                    if len(tensors) != len(params):
+                    if value != state_scalars[name]:
                         logging.error(
                             f"Parameter state '{name}' does not match, could not fuse optimizer."
                         )
-                        return
+                        return None, None, False
 
-                for name, tensors in state_tensors.items():
-                    indices = _group_continuous_tensors(tensors)
-                    grouped_indices = _get_intersection(grouped_indices, indices)
-                    print(
-                        f"step #{self.step_counter}: state: {name}, indices: {indices}, grouped_indices: {grouped_indices}"
-                    )
+        print(f"state tensors: {state_tensors}, state scalars: {state_scalars}")
 
-            if len(grouped_indices) > 0:
-                # collocate params
-                collocated_weights = _collocate(weights, grouped_indices)
-                collocated_grads = _collocate(grads, grouped_indices)
-
-                collocated_states = {}
-                for name, tensors in state_tensors.items():
-                    ts = _collocate(tensors, grouped_indices)
-                    collocated_states[name] = ts
-
-                new_params = []
-                for i in range(len(collocated_weights)):
-                    with torch.no_grad():
-                        p = torch.nn.Parameter(
-                            collocated_weights[i], requires_grad=False
-                        )
-                        p.grad = collocated_grads[i]
-
-                    new_params.append(p)
-
-                    for name, ts in collocated_states.items():
-                        self.optimizer.state[p][name] = ts[i]
-
-                    for name, v in state_scalars.items():
-                        self.optimizer.state[p][name] = v
-
-                # add other params and remove dup states
-                grouped_indices_flat = list(reduce(lambda x, y: x + y, grouped_indices))
-                for idx, param in enumerate(params):
-                    if idx not in grouped_indices_flat:
-                        new_params.append(param)
-                        del self.optimizer.state[param]
-
-                group["params"] = new_params
-                print(
-                    f"Final at step #{self.step_counter}, param_groups: {self.optimizer.param_groups}, states: {self.optimizer.state}"
+        for name, tensors in state_tensors.items():
+            if len(tensors) != len(params):
+                logging.error(
+                    f"Parameter state '{name}' does not match, could not fuse optimizer."
                 )
+                return None, None, False
+
+    return state_tensors, state_scalars, True

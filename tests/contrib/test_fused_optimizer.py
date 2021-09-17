@@ -7,7 +7,7 @@ from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_available, skip_if_cuda_not_available
 
 
-def run_step(opt, flag_param, fuse, wrap, device):
+def construct_model_and_optimizer(opt, flag_param, device):
     weight = torch.tensor(
         [[-0.2109, -0.4976], [-0.1413, -0.3420], [-0.2524, 0.6976]],
         requires_grad=True,
@@ -39,15 +39,10 @@ def run_step(opt, flag_param, fuse, wrap, device):
     model = model.to(device)
     optimizer = opt(model.parameters(), **flag_param)
 
-    if fuse:
-        bagua.contrib.FusedOptimizer(optimizer, do_flatten=not wrap)
+    return model, optimizer
 
-    if wrap:
-        model.with_bagua(
-            [optimizer],
-            bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
-        )
 
+def train_model(model, optimizer, device):
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
 
     for _ in range(1001):
@@ -58,11 +53,70 @@ def run_step(opt, flag_param, fuse, wrap, device):
 
         optimizer.step()
 
+
+def train_model_with_fuse_step(model, optimizer, device):
+    input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
+
+    for _ in range(1001):
+        optimizer.zero_grad()
+        output = model(input)
+        loss = output.sum()
+        loss.backward()
+
+        optimizer.fuse_step()
+
+
+def run(opt, flag_param, device):
+    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+
+    train_model(model, optimizer, device)
+    return model.parameters()
+
+
+def run_fuse_step(opt, flag_param, device):
+    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
+
+    train_model_with_fuse_step(model, optimizer, device)
+    return model.parameters()
+
+
+def run_step(opt, flag_param, device):
+    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
+
+    train_model(model, optimizer, device)
+    return model.parameters()
+
+
+def run_fuse_step_with_bagua(opt, flag_param, device):
+    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=False)
+
+    model.with_bagua(
+        [optimizer],
+        bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
+    )
+
+    train_model_with_fuse_step(model, optimizer, device)
+    return model.parameters()
+
+
+def run_fuse_step_with_bagua_v2(opt, flag_param, device):
+    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
+
+    model.with_bagua(
+        [optimizer],
+        bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
+    )
+
+    train_model_with_fuse_step(model, optimizer, device)
     return model.parameters()
 
 
 class TestFusedOptimizer(unittest.TestCase):
-    def run_all_optimizers_once(self, wrap, device):
+    def run_all_optimizers_once(self, fn1, fn2, device):
         optimizer_list = [
             optim.Adam,
             optim.Adam,
@@ -114,15 +168,16 @@ class TestFusedOptimizer(unittest.TestCase):
         ]
 
         for opt, flag_param in zip(optimizer_list, flag_params):
-            res1 = run_step(opt, flag_param, fuse=True, wrap=wrap, device=device)
-            res2 = run_step(opt, flag_param, fuse=False, wrap=wrap, device=device)
+            res1 = fn1(opt, flag_param, device=device)
+            res2 = fn2(opt, flag_param, device=device)
 
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
 
-    @skip_if_cuda_available()
+    # @skip_if_cuda_available()
     def test_fused_optimizer(self):
-        self.run_all_optimizers_once(device="cpu", wrap=False)
+        self.run_all_optimizers_once(fn1=run, fn2=run_fuse_step, device="cpu")
+        self.run_all_optimizers_once(fn1=run_step, fn2=run_fuse_step, device="cpu")
 
     @skip_if_cuda_not_available()
     def test_fused_optimizer_with_bagua_wrapper(self):
@@ -140,7 +195,12 @@ class TestFusedOptimizer(unittest.TestCase):
         torch.cuda.set_device(0)
         bagua.init_process_group()
 
-        self.run_all_optimizers_once(device="cuda:0", wrap=True)
+        self.run_all_optimizers_once(
+            fn1=run, fn2=run_fuse_step_with_bagua, device="cuda:0"
+        )
+        self.run_all_optimizers_once(
+            fn1=run, fn2=run_fuse_step_with_bagua_v2, device="cuda:0"
+        )
 
 
 if __name__ == "__main__":
