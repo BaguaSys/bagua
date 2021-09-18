@@ -179,7 +179,7 @@ def main():
         "--num-local-experts",
         default=0,
         type=int,
-        help='number of experts (moe) per gpu',
+        help="number of experts (moe) per gpu",
     )
 
     args = parser.parse_args()
