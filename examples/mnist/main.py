@@ -24,8 +24,15 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(9216, 128)
         if self.num_local_experts:
             self.fc2 = nn.Linear(128, 128)
-            experts = torch.nn.ModuleList([copy.deepcopy(self.fc2) for i in range(self.num_local_experts)])
-            self.fc2 = bagua.moe.MOELayer(bagua.moe.Top2Gate(128, bagua.get_world_size() * self.num_local_experts), experts)
+            experts = torch.nn.ModuleList(
+                [copy.deepcopy(self.fc2) for i in range(self.num_local_experts)]
+            )
+            self.fc2 = bagua.moe.MOELayer(
+                bagua.moe.Top2Gate(
+                    128, bagua.get_world_size() * self.num_local_experts
+                ),
+                experts,
+            )
             self.fc3 = nn.Linear(128, 10)
         else:
             self.fc2 = nn.Linear(128, 10)
