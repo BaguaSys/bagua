@@ -21,70 +21,61 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
             params = [param for param in group["params"] if param.type() == param_type]
 
             weights = [p.data for p in params]
-            grads = [
-                p.grad if p.grad is not None else torch.zeros_like(p.data)
-                for p in params
-            ]
+            grads = [p.bagua_ensure_grad() for p in params]
 
-            flattened_weight = get_flattened_tensor(weights)
-            flattened_grad = get_flattened_tensor(grads)
-
-            print(
-                f"{param_type} before flattened: weight={weights}, after flattened: weight={flattened_weight}"
-            )
-            print(
-                f"{param_type} before flattened: grads={grads}, after flattened: weight={flattened_grad}"
+            state_tensors, state_scalars, succ = _get_state_by_name(
+                optimizer.state, params
             )
 
-            def set_storage(param, weight_storage, grad_storage, storage_offset):
-                with torch.no_grad():
-                    z = torch.zeros_like(param.data)
-                    z.set_(weight_storage, storage_offset, param.shape)
-                    param.data = z
+            if not succ:
+                continue
 
-                    t = torch.zeros_like(param.data)
-                    t.set_(grad_storage, storage_offset, param.shape)
-                    param.grad = t
+            grouped_indices = calculate_mutual_groups(
+                [weights, grads] + list(state_tensors.values()), op=union
+            )
 
-            offset = 0
-            for p in params:
-                set_storage(
-                    p, flattened_weight.storage(), flattened_grad.storage(), offset
-                )
-                offset += p.numel()
+            print(f"param type: {param_type}, grouped indices: {grouped_indices}")
+            if len(grouped_indices) > 0:
+                if not check_duplicated(grouped_indices):
+                    flatten_tensors(params, grouped_indices)
+                    flatten_tensors(grads, grouped_indices)
 
-                print(f"flatten param done {offset}")
-
-            weights = [p.data for p in params]
-            grads = [p.grad for p in params]
-            assert check_contiguous(weights)
-            assert check_contiguous(grads)
-
-            _flatten_states(optimizer, params)
+                    for name, tensors in state_tensors.items():
+                        flatten_tensors(tensors, grouped_indices)
 
 
-def _flatten_states(optimizer: torch.optim.Optimizer, params):
-    # flatten states
-    state_tensors, _, rc = _get_states(optimizer, params)
+def flatten_module(module: torch.nn.Module):
+    weights = [p.data for p in module.parameters()]
+    grads = [p.bagua_ensure_grad() for p in module.parameters()]
 
-    if not rc:
-        return
+    grouped_indices = calculate_mutual_groups([weights, grads], op=union)
+    if len(grouped_indices) > 0:
+        if not check_duplicated(grouped_indices):
+            flatten_tensors(params, grouped_indices)
+            flatten_tensors(grads, grouped_indices)
 
-    for name, tensors in state_tensors.items():
-        flattened_tensor = get_flattened_tensor(tensors)
+
+def flatten_tensors(tensors, grouped_indices: List[List[int]]):
+    tensors_grouped_indices = group_continuous_tensors(tensors)
+
+    grouped_indices = difference(grouped_indices, tensors_grouped_indices)
+    for indices in grouped_indices:
+        to_flatten = [tensors[i] for i in indices]
+        flattened_tensor = get_flattened_tensor(to_flatten)
         flattened_storage = flattened_tensor.storage()
 
+        print(f"before flatten: {to_flatten}, after flatten: {flattened_tensor}")
         offset = 0
-
         with torch.no_grad():
-            for t in tensors:
-                t.set_(flattened_storage, offset, t.shape)
-                offset += t.numel()
+            for tensor in to_flatten:
+                tensor.set_(flattened_storage, offset, tensor.shape)
+                offset += tensor.numel()
+                print(f"flatten param done {offset}")
 
-        assert check_contiguous(tensors)
+        assert check_contiguous(to_flatten)
 
 
-def _is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
+def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
     allocate_size_a = (
         a.bagua_tensor.num_elem_allocated() if hasattr(a, "bagua_tensor") else a.numel()
     )
@@ -96,18 +87,18 @@ def _is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
     )
 
 
-def _group_continuous_tensors(tensors: List[torch.Tensor]):
+def group_continuous_tensors(tensors: List[torch.Tensor]):
     tensor_list = zip(tensors, list(range(len(tensors))))
     sorted_tensor_list = sorted(tensor_list, key=lambda x: x[0].storage_offset())
 
-    grouped = []
+    grouped_indices = []
     tmp_tensors = []
     tmp_indices = []
 
     for tensor, idx in sorted_tensor_list:
-        if len(tmp_tensors) > 0 and not _is_contiguous_tensor(tensor, tmp_tensors[-1]):
+        if len(tmp_tensors) > 0 and not is_contiguous_tensor(tensor, tmp_tensors[-1]):
             if len(tmp_tensors) > 1:
-                grouped.append(tmp_indices)
+                grouped_indices.append(tmp_indices)
             tmp_tensors = []
             tmp_indices = []
 
@@ -115,20 +106,66 @@ def _group_continuous_tensors(tensors: List[torch.Tensor]):
         tmp_indices.append(idx)
 
     if len(tmp_tensors) > 1:
-        grouped.append(tmp_indices)
+        grouped_indices.append(tmp_indices)
 
-    return grouped
+    return grouped_indices
 
 
-def _get_intersection(a: List[List[int]], b: List[List[int]]):
+def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]], op):
+    constraints = []
+
+    size = len(tensors_list[0])
+    for tensors in tensors_list:
+        assert size == len(
+            tensors
+        ), "Tensors to calculate mutual groups must have equal size."
+
+        grouped_indices = group_continuous_tensors(tensors)
+        constraints.append(grouped_indices)
+
+    # no constraints, group them all
+    if len(constraints) == 0:
+        return [list(range(size))] if size > 0 else constraints
+
+    grouped_indices = constraints[0]
+    for i in range(1, len(constraints)):
+        grouped_indices = intersect(grouped_indices, constraints[i])
+
+    return grouped_indices
+
+
+def intersect(a: List[List[int]], b: List[List[int]]):
     c = [value for value in a if value in b]
     return c
 
 
-def _collocate(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
+def union(a: List[List[int]], b: List[List[int]]):
+    c1 = [value for value in a]
+    c2 = [value for value in b if value not in a]
+
+    return c1 + c2
+
+
+def difference(a: List[List[int]], b: List[List[int]]):
+    c = [value for value in a if value not in b]
+    return c
+
+
+def check_duplicated(values_list: List[List[int]]):
+    values_list_flat = []
+
+    for values in values_list:
+        for v in values:
+            if v in values_list_flat:
+                return True
+            values_list_flat.append(v)
+    return False
+
+
+def collocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
     tensor_map = {idx: tensor for idx, tensor in enumerate(tensors)}
 
-    colocated_tensors = []
+    colocated = []
     for indices in grouped_indices:
         start = -1
         offset = 0
@@ -153,9 +190,9 @@ def _collocate(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
             )
             tensor_view.set_(tensors[0].data.storage(), start, tensor_view.shape)
 
-            colocated_tensors.append(tensor_view)
+            colocated.append(tensor_view)
 
-    return colocated_tensors
+    return colocated
 
 
 def fuse_optimizer(optimizer, do_flatten: bool = False):
@@ -223,49 +260,36 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
     ), "Should init fused optimizer by calling `fuse_optimizer`."
 
     optimizer._fused_optimizer.step_counter += 1
-    _fuse(optimizer._fused_optimizer)
+    do_fuse(optimizer._fused_optimizer)
     return optimizer._fused_optimizer.step(closure)
 
 
-def _fuse(optimizer: torch.optim.Optimizer):
+def do_fuse(optimizer: torch.optim.Optimizer):
     for index, group in enumerate(optimizer.param_groups):
         params = group["params"]
 
         weights = [p.data for p in params]
         grads = [p.grad for p in params]
 
-        grouped_weight_indices = _group_continuous_tensors(weights)
-        grouped_grad_indices = _group_continuous_tensors(grads)
+        state_tensors, state_scalars, succ = _get_state_by_name(optimizer.state, params)
 
-        grouped_indices = _get_intersection(
-            grouped_weight_indices, grouped_grad_indices
+        if not succ:
+            continue
+
+        grouped_indices = calculate_mutual_groups(
+            [weights, grads] + list(state_tensors.values()), op=intersect
         )
 
-        if len(grouped_indices) == 0:
-            break
-
-        print(
-            f"step #{optimizer.step_counter}: grouped indices: {grouped_weight_indices}, {grouped_grad_indices}"
-        )
-
-        state_tensors, state_scalars, rc = _get_states(optimizer, params)
-
-        if rc:
-            for name, tensors in state_tensors.items():
-                indices = _group_continuous_tensors(tensors)
-                grouped_indices = _get_intersection(grouped_indices, indices)
-                print(
-                    f"step #{optimizer.step_counter}: state: {name}, indices: {indices}, grouped_indices: {grouped_indices}"
-                )
+        print("grouped indices: ", grouped_indices)
 
         if len(grouped_indices) > 0:
             # collocate params
-            collocated_weights = _collocate(weights, grouped_indices)
-            collocated_grads = _collocate(grads, grouped_indices)
+            collocated_weights = collocate_tensors(weights, grouped_indices)
+            collocated_grads = collocate_tensors(grads, grouped_indices)
 
             collocated_states = {}
             for name, tensors in state_tensors.items():
-                ts = _collocate(tensors, grouped_indices)
+                ts = collocate_tensors(tensors, grouped_indices)
                 collocated_states[name] = ts
 
             new_params = []
@@ -295,24 +319,24 @@ def _fuse(optimizer: torch.optim.Optimizer):
             )
 
 
-def _get_states(optimizer: torch.optim.Optimizer, params):
+def _get_state_by_name(optimizer_state, params):
     state_tensors = {}
     state_scalars = {}
 
-    if len(optimizer.state) > 0:
+    if len(optimizer_state) > 0:
         state_tensors = {
             name: []
-            for name, value in optimizer.state[params[0]].items()
+            for name, value in optimizer_state[params[0]].items()
             if isinstance(value, torch.Tensor)
         }
         state_scalars = {
             name: value
-            for name, value in optimizer.state[params[0]].items()
+            for name, value in optimizer_state[params[0]].items()
             if not isinstance(value, torch.Tensor)
         }
 
         for p in params:
-            st = optimizer.state[p]
+            st = optimizer_state[p]
 
             for name, value in st.items():
                 if isinstance(value, torch.Tensor):

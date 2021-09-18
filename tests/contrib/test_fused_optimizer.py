@@ -5,6 +5,7 @@ import unittest
 import os
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_available, skip_if_cuda_not_available
+from optimizer import fuse_optimizer
 
 
 def construct_model_and_optimizer(opt, flag_param, device):
@@ -45,7 +46,7 @@ def construct_model_and_optimizer(opt, flag_param, device):
 def train_model(model, optimizer, device):
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
 
-    for _ in range(1001):
+    for _ in range(3):
         optimizer.zero_grad()
         output = model(input)
         loss = output.sum()
@@ -57,7 +58,7 @@ def train_model(model, optimizer, device):
 def train_model_with_fuse_step(model, optimizer, device):
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
 
-    for _ in range(1001):
+    for _ in range(3):
         optimizer.zero_grad()
         output = model(input)
         loss = output.sum()
@@ -173,6 +174,8 @@ class TestFusedOptimizer(unittest.TestCase):
 
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
+
+            return
 
     # @skip_if_cuda_available()
     def test_fused_optimizer(self):
