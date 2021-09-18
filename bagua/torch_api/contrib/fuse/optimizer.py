@@ -31,7 +31,8 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
                 continue
 
             grouped_indices = calculate_mutual_groups(
-                [weights, grads] + list(state_tensors.values()), op=union
+                [weights, grads] + list(state_tensors.values()),
+                op=union,
             )
 
             logging.debug(
@@ -81,20 +82,17 @@ def flatten_tensors(tensors, grouped_indices: List[List[int]]):
 
 
 def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
-    allocate_size_a = (
-        a.bagua_tensor.num_elem_allocated() if hasattr(a, "bagua_tensor") else a.numel()
-    )
-    allocate_size_b = (
-        b.bagua_tensor.num_elem_allocated() if hasattr(b, "bagua_tensor") else b.numel()
-    )
-    return (a.data.storage_offset() == b.data.storage_offset() + allocate_size_b) or (
-        b.data.storage_offset() == a.data.storage_offset() + allocate_size_a
+    allocate_size_a = a.numel() * a.element_size()
+    allocate_size_b = b.numel() * b.element_size()
+
+    return (a.data_ptr() == b.data_ptr() + allocate_size_b) or (
+        b.data_ptr() == a.data_ptr() + allocate_size_a
     )
 
 
 def group_continuous_tensors(tensors: List[torch.Tensor]):
     tensor_list = zip(tensors, list(range(len(tensors))))
-    sorted_tensor_list = sorted(tensor_list, key=lambda x: x[0].storage_offset())
+    sorted_tensor_list = sorted(tensor_list, key=lambda x: x[0].data_ptr())
 
     grouped_indices = []
     tmp_tensors = []

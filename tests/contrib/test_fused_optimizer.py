@@ -5,7 +5,10 @@ import unittest
 import os
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_available, skip_if_cuda_not_available
-from optimizer import fuse_optimizer
+
+import logging
+
+# logging.getLogger().setLevel(logging.DEBUG)
 
 
 def construct_model_and_optimizer(opt, flag_param, device):
@@ -46,7 +49,7 @@ def construct_model_and_optimizer(opt, flag_param, device):
 def train_model(model, optimizer, device):
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
 
-    for _ in range(3):
+    for _ in range(1001):
         optimizer.zero_grad()
         output = model(input)
         loss = output.sum()
@@ -58,7 +61,7 @@ def train_model(model, optimizer, device):
 def train_model_with_fuse_step(model, optimizer, device):
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
 
-    for _ in range(3):
+    for _ in range(1001):
         optimizer.zero_grad()
         output = model(input)
         loss = output.sum()
@@ -175,9 +178,7 @@ class TestFusedOptimizer(unittest.TestCase):
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
 
-            return
-
-    # @skip_if_cuda_available()
+    @skip_if_cuda_available()
     def test_fused_optimizer(self):
         self.run_all_optimizers_once(fn1=run, fn2=run_fuse_step, device="cpu")
         self.run_all_optimizers_once(fn1=run_step, fn2=run_fuse_step, device="cpu")
@@ -204,6 +205,78 @@ class TestFusedOptimizer(unittest.TestCase):
         self.run_all_optimizers_once(
             fn1=run, fn2=run_fuse_step_with_bagua_v2, device="cuda:0"
         )
+
+    @skip_if_cuda_available()
+    def test_calculate_mutual_groups(self):
+        from bagua.torch_api.contrib.fuse.optimizer import (
+            calculate_mutual_groups,
+            intersect,
+            union,
+        )
+
+        tensor = torch.rand(100)
+
+        tensor_pieces = []
+        for i in range(10):
+            tensor_pieces.append(tensor[i * 10 : (i + 1) * 10])
+
+        g1 = [
+            tensor_pieces[3],
+            tensor_pieces[1],
+            tensor_pieces[2],
+            tensor_pieces[0],
+            tensor_pieces[8],
+            tensor_pieces[9],
+            torch.rand(10),
+        ]
+        g2 = [torch.rand(10) for i in range(len(g1))]
+        g3 = [
+            tensor_pieces[3],
+            tensor_pieces[1],
+            tensor_pieces[2],
+            tensor_pieces[0],
+            torch.rand(10),
+            torch.rand(10),
+            torch.rand(10),
+        ]
+        g4 = [
+            torch.rand(10),
+            tensor_pieces[1],
+            tensor_pieces[2],
+            tensor_pieces[0],
+            tensor_pieces[8],
+            tensor_pieces[9],
+            torch.rand(10),
+        ]
+        g5 = [
+            tensor_pieces[3],
+            tensor_pieces[1],
+            tensor_pieces[2],
+            tensor_pieces[0],
+            tensor_pieces[8],
+            tensor_pieces[9],
+            torch.rand(10),
+        ]
+
+        ret = calculate_mutual_groups([g1, g2], intersect)
+        self.assertTrue(ret == [[3, 1, 2, 0], [4, 5]])
+        ret = calculate_mutual_groups([g1, g2], union)
+        self.assertTrue(ret == [[3, 1, 2, 0], [4, 5]])
+
+        ret = calculate_mutual_groups([g1, g3], intersect)
+        self.assertTrue(ret == [[3, 1, 2, 0]])
+        ret = calculate_mutual_groups([g1, g3], union)
+        self.assertTrue(ret == [[3, 1, 2, 0], [4, 5]])
+
+        ret = calculate_mutual_groups([g1, g4], intersect)
+        self.assertTrue(ret == [[4, 5]])
+        ret = calculate_mutual_groups([g1, g4], union)
+        self.assertTrue(ret == [[3, 1, 2, 0], [4, 5], [3, 1, 2]])  # FIXME: to improve
+
+        ret = calculate_mutual_groups([g1, g5], intersect)
+        self.assertTrue(ret == [[3, 1, 2, 0], [4, 5]])
+        ret = calculate_mutual_groups([g1, g5], union)
+        self.assertTrue(ret == [[3, 1, 2, 0], [4, 5]])
 
 
 if __name__ == "__main__":
