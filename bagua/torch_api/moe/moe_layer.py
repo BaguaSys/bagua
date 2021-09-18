@@ -71,9 +71,9 @@ class MOELayer(Base):
         self.num_local_experts = len(self.experts)
 
     def forward(self, *input: Tensor, **kwargs: Any) -> Tensor:
-        #assert len(input) == 1, "only single input Tensor supported"
-        #assert len(input[0].shape) == 3, "input Tensor must have dimensions: (s)equence, (t)oken, (m)odel"
-        #assert input[0].shape[0] % len(self.experts) == 0, "num tokens must be order of number of local experts"
+        # assert len(input) == 1, "only single input Tensor supported"
+        # assert len(input[0].shape) == 3, "input Tensor must have dimensions: (s)equence, (t)oken, (m)odel"
+        # assert input[0].shape[0] % len(self.experts) == 0, "num tokens must be order of number of local experts"
 
         # Implement Algorithm 2 from GShard paper.
         d_model = input[0].shape[-1]
