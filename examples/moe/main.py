@@ -169,7 +169,7 @@ def main():
         help="whether set deterministic",
     )
     parser.add_argument(
-        '--num-local-experts',
+        "--num-local-experts",
         default=4,
         type=int,
         help='number of experts (moe) per gpu',
