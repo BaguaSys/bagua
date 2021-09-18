@@ -5,9 +5,24 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
+# 0. install bagua
 cp -a /upstream /workdir
+export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
 
-CHECK_RESULT=()
+
+# 1. test communication_primitives api
+echo "begin to test [communication_primitives]"
+COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
+python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 4 \
+    --node_rank=0 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${COMMUNICATION_SCRIPT}
+
+
+# 2. benchmark test with all communication algorithms
 function check_benchmark_log {
     logfile=$1
     algorithm=$2
@@ -35,23 +50,13 @@ function check_benchmark_log {
     fi
 }
 
-export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
-
-echo "begin to test [communication_primitives]"
-COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
-python -m bagua.distributed.launch \
-    --nnodes=2 \
-    --nproc_per_node 4 \
-    --node_rank=0 \
-    --master_addr="10.158.66.134" \
-    --master_port=1234 \
-    ${COMMUNICATION_SCRIPT}
-
+CHECK_RESULT=()
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized)
 speeds=(185.0 180.0 150.0 115.0 170 0)
 losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.00000)
 length=${#algorithms[@]}
+length=0
 for ((i=0;i<$length;i++))
 do
     echo "begin to test ["${algorithms[$i]}]
@@ -81,3 +86,18 @@ if [ ${#CHECK_RESULT[*]} -gt 0 ]; then
   echo -e ${CHECK_RESULT[*]}
   exit 1
 fi
+
+# 3. test moe
+MOE_SCRIPT="/workdir/examples/mnist/main.py"
+logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
+python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 2 \
+    --node_rank=0 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${MOE_SCRIPT} \
+    --algorithm gradient_allreduce \
+    --num-local-experts 2 \
+    --deterministic \
+    2>&1 | tee ${logfile}
