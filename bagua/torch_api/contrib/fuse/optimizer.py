@@ -34,7 +34,9 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
                 [weights, grads] + list(state_tensors.values()), op=union
             )
 
-            print(f"param type: {param_type}, grouped indices: {grouped_indices}")
+            logging.debug(
+                f"#flatten_param_and_states# param type: {param_type}, grouped indices: {grouped_indices}"
+            )
             if len(grouped_indices) > 0:
                 if not check_duplicated(grouped_indices):
                     flatten_tensors(params, grouped_indices)
@@ -45,7 +47,7 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
 
 
 def flatten_module(module: torch.nn.Module):
-    print("Ready to flatten module")
+    logging.info("Ready to flatten module")
     weights = [p for p in module.parameters()]
     grads = [p.bagua_ensure_grad() for p in module.parameters()]
 
@@ -60,21 +62,20 @@ def flatten_tensors(tensors, grouped_indices: List[List[int]]):
     tensors_grouped_indices = group_continuous_tensors(tensors)
 
     grouped_indices = difference(grouped_indices, tensors_grouped_indices)
-    print(
-        f"ready to flatten tensors, result grouped indices: {grouped_indices}, tensors grouped indices: {tensors_grouped_indices}"
+    logging.debug(
+        f"Ready to flatten tensors, result grouped indices: {grouped_indices}, tensors grouped indices: {tensors_grouped_indices}"
     )
     for indices in grouped_indices:
         to_flatten = [tensors[i] for i in indices]
         flattened_tensor = get_flattened_tensor(to_flatten)
         flattened_storage = flattened_tensor.storage()
 
-        print(f"before flatten: {to_flatten}, after flatten: {flattened_tensor}")
         offset = 0
         with torch.no_grad():
             for tensor in to_flatten:
                 tensor.set_(flattened_storage, offset, tensor.shape)
                 offset += tensor.numel()
-                print(f"flatten param done {offset}")
+                logging.debug(f"flatten param done {offset}")
 
         assert check_contiguous(to_flatten)
 
@@ -125,19 +126,22 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]], op):
         ), "Tensors to calculate mutual groups must have equal size."
 
         grouped_indices = group_continuous_tensors(tensors)
+        logging.debug(f"calculate mutual group, grouped_indices={grouped_indices}")
 
-        if len(grouped_indices) > 1:
+        if len(grouped_indices) > 0:
             constraints.append(grouped_indices)
 
-    print(f"calculate mutual group, constraints={constraints}, op={op}")
     # no constraints, group them all
     if len(constraints) == 0:
-        return [list(range(size))] if size > 0 else constraints
+        return [list(range(size))] if size > 1 else constraints
 
     grouped_indices = constraints[0]
     for i in range(1, len(constraints)):
         grouped_indices = op(grouped_indices, constraints[i])
 
+    logging.debug(
+        f"calculate mutual group, constraints={constraints}, op={op}, grouped_indices={grouped_indices}"
+    )
     return grouped_indices
 
 
@@ -169,7 +173,9 @@ def check_duplicated(values_list: List[List[int]]):
     return False
 
 
-def collocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
+def colocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
+    logging.debug(f"Ready to colocate tensors, grouped indices: {grouped_indices}.")
+
     tensor_map = {idx: tensor for idx, tensor in enumerate(tensors)}
 
     colocated = []
@@ -291,27 +297,25 @@ def do_fuse(optimizer: torch.optim.Optimizer):
             [weights, grads] + list(state_tensors.values()), op=intersect
         )
 
-        print("grouped indices: ", grouped_indices)
-
         if len(grouped_indices) > 0:
-            # collocate params
-            collocated_weights = collocate_tensors(weights, grouped_indices)
-            collocated_grads = collocate_tensors(grads, grouped_indices)
+            # colocate params
+            colocated_weights = colocate_tensors(weights, grouped_indices)
+            colocated_grads = colocate_tensors(grads, grouped_indices)
 
-            collocated_states = {}
+            colocated_states = {}
             for name, tensors in state_tensors.items():
-                ts = collocate_tensors(tensors, grouped_indices)
-                collocated_states[name] = ts
+                ts = colocate_tensors(tensors, grouped_indices)
+                colocated_states[name] = ts
 
             new_params = []
-            for i in range(len(collocated_weights)):
+            for i in range(len(colocated_weights)):
                 with torch.no_grad():
-                    p = torch.nn.Parameter(collocated_weights[i], requires_grad=False)
-                    p.grad = collocated_grads[i]
+                    p = torch.nn.Parameter(colocated_weights[i], requires_grad=False)
+                    p.grad = colocated_grads[i]
 
                 new_params.append(p)
 
-                for name, ts in collocated_states.items():
+                for name, ts in colocated_states.items():
                     optimizer.state[p][name] = ts[i]
 
                 for name, v in state_scalars.items():
@@ -325,7 +329,7 @@ def do_fuse(optimizer: torch.optim.Optimizer):
                     del optimizer.state[param]
 
             group["params"] = new_params
-            print(
+            logging.debug(
                 f"Final at step #{optimizer.step_counter}, param_groups: {optimizer.param_groups}, states: {optimizer.state}"
             )
 
@@ -370,8 +374,6 @@ def _get_state_by_name(optimizer_state, params):
                             f"Parameter state '{name}' does not match, could not fuse optimizer."
                         )
                         return None, None, False
-
-        print(f"state tensors: {state_tensors}, state scalars: {state_scalars}")
 
         for name, tensors in state_tensors.items():
             if len(tensors) != len(params):
