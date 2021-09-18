@@ -7,6 +7,7 @@ from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
 )
+from bagua.torch_api.contrib import is_fused_optimizer, flatten_module
 import gorilla
 import time
 import logging
@@ -344,6 +345,10 @@ class BaguaModule:
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
         self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
+
+        need_flatten = any([is_fused_optimizer(opt) for opt in self.bagua_optimizers])
+        if need_flatten:
+            flatten_module(self)
 
         for name, param in self.named_parameters():
 

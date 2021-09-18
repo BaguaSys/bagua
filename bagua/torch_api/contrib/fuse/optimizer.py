@@ -45,13 +45,14 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
 
 
 def flatten_module(module: torch.nn.Module):
-    weights = [p.data for p in module.parameters()]
+    print("Ready to flatten module")
+    weights = [p for p in module.parameters()]
     grads = [p.bagua_ensure_grad() for p in module.parameters()]
 
     grouped_indices = calculate_mutual_groups([weights, grads], op=union)
     if len(grouped_indices) > 0:
         if not check_duplicated(grouped_indices):
-            flatten_tensors(params, grouped_indices)
+            flatten_tensors(weights, grouped_indices)
             flatten_tensors(grads, grouped_indices)
 
 
@@ -59,6 +60,9 @@ def flatten_tensors(tensors, grouped_indices: List[List[int]]):
     tensors_grouped_indices = group_continuous_tensors(tensors)
 
     grouped_indices = difference(grouped_indices, tensors_grouped_indices)
+    print(
+        f"ready to flatten tensors, result grouped indices: {grouped_indices}, tensors grouped indices: {tensors_grouped_indices}"
+    )
     for indices in grouped_indices:
         to_flatten = [tensors[i] for i in indices]
         flattened_tensor = get_flattened_tensor(to_flatten)
@@ -121,15 +125,18 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]], op):
         ), "Tensors to calculate mutual groups must have equal size."
 
         grouped_indices = group_continuous_tensors(tensors)
-        constraints.append(grouped_indices)
 
+        if len(grouped_indices) > 1:
+            constraints.append(grouped_indices)
+
+    print(f"calculate mutual group, constraints={constraints}, op={op}")
     # no constraints, group them all
     if len(constraints) == 0:
         return [list(range(size))] if size > 0 else constraints
 
     grouped_indices = constraints[0]
     for i in range(1, len(constraints)):
-        grouped_indices = intersect(grouped_indices, constraints[i])
+        grouped_indices = op(grouped_indices, constraints[i])
 
     return grouped_indices
 
@@ -242,6 +249,10 @@ def fuse_optimizer(optimizer, do_flatten: bool = False):
         gorilla.apply(patch)
 
     return optimizer
+
+
+def is_fused_optimizer(optimizer: torch.optim.Optimizer):
+    return hasattr(optimizer, "fuse_step")
 
 
 def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
