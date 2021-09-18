@@ -10,17 +10,25 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import logging
 import bagua.torch_api as bagua
+import copy
 
 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, num_local_experts):
         super(Net, self).__init__()
+        self.num_local_experts = num_local_experts
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.dropout1 = nn.Dropout(0.25)
         self.dropout2 = nn.Dropout(0.5)
         self.fc1 = nn.Linear(9216, 128)
-        self.fc2 = nn.Linear(128, 10)
+        if self.num_local_experts:
+            self.fc2 = nn.Linear(128, 128)
+            experts = torch.nn.ModuleList([copy.deepcopy(self.fc2) for i in range(self.num_local_experts)])
+            self.fc2 = bagua.moe.MOELayer(bagua.moe.Top2Gate(128, bagua.get_world_size() * self.num_local_experts), experts)
+            self.fc3 = nn.Linear(128, 10)
+        else:
+            self.fc2 = nn.Linear(128, 10)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -33,7 +41,11 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
-        x = self.fc2(x)
+        if self.num_local_experts:
+            x = self.fc2(x)
+            x = self.fc3(x)
+        else:
+            x = self.fc2(x)
         output = F.log_softmax(x, dim=1)
         return output
 
@@ -156,6 +168,12 @@ def main():
         default=False,
         help="whether set deterministic",
     )
+    parser.add_argument(
+        "--num-local-experts",
+        default=0,
+        type=int,
+        help='number of experts (moe) per gpu',
+    )
 
     args = parser.parse_args()
     if args.set_deterministic:
@@ -210,7 +228,7 @@ def main():
     train_loader = torch.utils.data.DataLoader(dataset1, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
-    model = Net().cuda()
+    model = Net(args.num_local_experts).cuda()
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     if args.algorithm == "gradient_allreduce":
