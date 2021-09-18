@@ -58,6 +58,7 @@ python -m bagua.distributed.launch \
     --master_port=1234 \
     ${MOE_SCRIPT} \
     --algorithm gradient_allreduce \
+    --epochs 5 \
     --num-local-experts 2 \
-    --deterministic \
+    --set-deterministic \
     2>&1 | tee ${logfile}
