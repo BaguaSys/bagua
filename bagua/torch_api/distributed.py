@@ -1,7 +1,7 @@
 from __future__ import annotations
 import collections
 import io
-import cloudpickle
+import pickle
 
 from bagua.torch_api.communication import get_backend, broadcast
 from .env import get_rank
@@ -98,6 +98,9 @@ class BaguaModule:
 
         return parameters
 
+    # Copyright (c) Uber Technologies, Inc. and its affiliates.
+    # Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
+    # All rights reserved.
     def _bagua_broadcast_optimizer_state(self, optimizer):
         # L-BFGS cannot be easily supported without serializing
         # the entire state_dict, as its structure is deeply nested and contains
@@ -114,11 +117,6 @@ class BaguaModule:
                         p.grad = p.data.new(p.size()).zero_()
                         if isinstance(optimizer, torch.optim.SparseAdam):
                             p.grad = p.grad.to_sparse()
-            # Some states will be initialized in the first `optimizer.step` call as shown in
-            # https://github.com/pytorch/pytorch/blob/1b1f1e36b42fd9042ba7b7c37f4a717b6631edff/torch/optim/sgd.py#L105 and
-            # https://github.com/pytorch/pytorch/blob/1b1f1e36b42fd9042ba7b7c37f4a717b6631edff/torch/optim/adam.py#L86,
-            # so this should be necessary.
-            optimizer.step()
             optimizer_state_dict = optimizer.state_dict()
         if len(optimizer_state_dict["state"]) == 0:
             return
@@ -176,16 +174,13 @@ class BaguaModule:
 
     def _bagua_broadcast_scalars(self, scalars, src):
         # Serializes and broadcast scalars by converting them to "ByteTensor".
-        # According to the 2nd paragraph of
-        # https://github.com/cloudpipe/cloudpickle#overriding-pickles-serialization-mechanism-for-importable-constructs,
-        # cloudpickle seems more suitable for distributed execution environment.
         b = io.BytesIO()
-        cloudpickle.dump(scalars, b)
+        pickle.dump(scalars, b)
         t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
         broadcast(t, src=0)
         if get_rank() != src:
             buf = io.BytesIO(t.cpu().numpy().tobytes())
-            scalars = cloudpickle.load(buf)
+            scalars = pickle.load(buf)
 
         return scalars
 

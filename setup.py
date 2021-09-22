@@ -242,7 +242,6 @@ if __name__ == "__main__":
             "gorilla",
             "gevent",
             "xxhash==v2.0.2",
-            "cloudpickle",
         ],
         entry_points={
             "console_scripts": [
