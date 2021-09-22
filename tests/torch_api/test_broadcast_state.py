@@ -8,7 +8,7 @@ import time
 
 import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
-
+from tests import skip_if_cuda_not_available
 import torch
 
 
@@ -93,6 +93,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
 
 
 class Test_Broadcast_Module(unittest.TestCase):
+    @skip_if_cuda_not_available()
     def test_broadcast_module(self):
         nprocs = torch.cuda.device_count()
         optimizers = [
@@ -140,7 +141,7 @@ class Test_Broadcast_Module(unittest.TestCase):
                     processes.append(p)
                 for p in processes:
                     p.join(timeout=60)
-
+                    self.assertTrue(p.exitcode == 0)
                 for rank in range(0, nprocs):
                     # Both "model_params" and "optimizer_params" are saved in (name, tensor/scalar) form,
                     # so we need to assert the two dimensional separately.
