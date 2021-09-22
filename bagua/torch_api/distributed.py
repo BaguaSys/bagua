@@ -1,5 +1,10 @@
 from __future__ import annotations
-from bagua.torch_api.communication import get_backend
+import collections
+import io
+import pickle
+
+from bagua.torch_api.communication import get_backend, broadcast
+from .env import get_rank
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
@@ -93,23 +98,114 @@ class BaguaModule:
 
         return parameters
 
+    # Copyright 2020 Uber Technologies, Inc. All Rights Reserved.
+    # Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
+    #
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    #     http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    # ==============================================================================
+    def _bagua_broadcast_optimizer_state(self, optimizer):
+        # L-BFGS cannot be easily supported without serializing
+        # the entire state_dict, as its structure is deeply nested and contains
+        # None type parameter values.
+        if isinstance(optimizer, torch.optim.LBFGS):
+            raise ValueError("cannot broadcast torch.optim.LBFGS state")
+        optimizer_state_dict = optimizer.state_dict()
+
+        # Initialize newly created optimizers.
+        if len(optimizer_state_dict["state"]) == 0:
+            for group in optimizer.param_groups:
+                for p in group["params"]:
+                    if p.requires_grad and id(p) not in optimizer_state_dict["state"]:
+                        p.grad = p.data.new(p.size()).zero_()
+                        if isinstance(optimizer, torch.optim.SparseAdam):
+                            p.grad = p.grad.to_sparse()
+            optimizer_state_dict = optimizer.state_dict()
+        if len(optimizer_state_dict["state"]) == 0:
+            return
+
+        def _state_param_callback(param_id, param_name):
+            def _assign_state(v):
+                optimizer_state_dict["state"][param_id][param_name] = v
+            return _assign_state
+
+        def _hyper_param_callback(index, group_key):
+            def _assign_hyper(v):
+                optimizer.param_groups[index][group_key] = v
+            return _assign_hyper
+
+        params = []
+        scalars = collections.OrderedDict()
+        call_back_param = {}
+        repeat_param_count = collections.defaultdict(int)
+
+        # All "sorted()" operations in this module are used to
+        # guarteen the scalar's record order samely in differet ranks.
+        for index, param_group in enumerate(optimizer_state_dict["param_groups"]):
+            for group_key, group_value in sorted(
+                param_group.items(), key=lambda item: item[0]
+            ):
+                # Hyper-parameters like learning rate are scalars, we need to broadcast them separately.
+                if group_key != "params":
+                    key = "%s_%d" % (group_key, index)
+                    scalars[key] = group_value
+                    call_back_param[key] = _hyper_param_callback(index, group_key)
+            for param_id in sorted(param_group["params"]):
+                if param_id not in optimizer_state_dict["state"]:
+                    continue
+                param_state = optimizer_state_dict["state"][param_id]
+                for param_name, inner_state in sorted(
+                    param_state.items(), key=lambda item: item[0]
+                ):
+                    # Some parameter names, e.g., step, may appear more than once, in which
+                    # case we ensure they have a unique identifier defined by
+                    # their order.
+                    repeat_param_count[param_name] += 1
+                    key = "%s_%d" % (str(param_name), repeat_param_count[param_name])
+                    if isinstance(inner_state, torch.Tensor):
+                        params.append((key, inner_state))
+                    else:
+                        scalars[key] = inner_state
+                        call_back_param[key] = _state_param_callback(
+                            param_id, param_name
+                        )
+        for key, param in params:
+            broadcast(param, src=0)
+        scalars = self._bagua_broadcast_scalars(scalars, src=0)
+        for key, p in scalars.items():
+            call_back_param[key](p)
+
+    def _bagua_broadcast_scalars(self, scalars, src):
+        # Serializes and broadcast scalars by converting them to "ByteTensor".
+        b = io.BytesIO()
+        pickle.dump(scalars, b)
+        t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
+        broadcast(t, src=0)
+        if get_rank() != src:
+            buf = io.BytesIO(t.cpu().numpy().tobytes())
+            scalars = pickle.load(buf)
+
+        return scalars
+
     def _bagua_broadcast_parameters(self):
         """
         Broadcast model and optimizer states.
         """
-        from bagua.torch_api.communication import broadcast
 
         module_states = self.bagua_build_params()
         for name, state in module_states:
             broadcast(state, src=0)
         for optimizer in self.bagua_optimizers:
-            optimizer_state_dict = optimizer.state_dict()["state"]
-            for state in optimizer_state_dict.values():
-                for inner_state in state.values():
-                    if isinstance(
-                        inner_state, torch.Tensor
-                    ):  # TODO: consider the case where this is a scalar
-                        broadcast(inner_state, src=0)
+            self._bagua_broadcast_optimizer_state(optimizer)
 
     def _bagua_autotune_step(self):
         CYCLE_STEP = 100
