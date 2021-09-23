@@ -41,12 +41,16 @@ class Net(nn.Module):
 def train(args, model, train_loader, optimizer, epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
+
         data, target = data.cuda(), target.cuda()
         optimizer.zero_grad()
         output = model(data)
         loss = F.nll_loss(output, target)
         loss.backward()
-        optimizer.step()
+        if args.fuse_optimizer:
+            optimizer.fuse_step()
+        else:
+            optimizer.step()
         if batch_idx % args.log_interval == 0:
             logging.info(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
@@ -154,7 +158,13 @@ def main():
         "--set-deterministic",
         action="store_true",
         default=False,
-        help="whether set deterministic",
+        help="set deterministic or not",
+    )
+    parser.add_argument(
+        "--fuse-optimizer",
+        action="store_true",
+        default=False,
+        help="fuse optimizer or not",
     )
 
     args = parser.parse_args()
@@ -213,6 +223,9 @@ def main():
     model = Net().cuda()
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
+    if args.fuse_optimizer:
+        optimizer = bagua.contrib.fuse_optimizer(optimizer)
+
     if args.algorithm == "gradient_allreduce":
         from bagua.torch_api.algorithms import gradient_allreduce
 
@@ -248,6 +261,7 @@ def main():
     model = model.with_bagua(
         [optimizer],
         algorithm,
+        do_flatten=not args.fuse_optimizer,
     )
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)

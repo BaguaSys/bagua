@@ -8,7 +8,7 @@ import bagua_core as B
 import torch
 
 from bagua.torch_api.tensor import BaguaTensor
-from bagua.torch_api.utils import check_contiguous
+from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 from bagua.torch_api.communication import broadcast
 
 
@@ -77,20 +77,7 @@ class BaguaBucket:
         Returns a tensor contiguous in memory which contains the same data as :attr:`self` tensors and padding tensor (if exists).
         """
 
-        total_size = 0
-        for tensor in self._all_tensors:
-            total_size += tensor.numel()
-
-        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
-            self._all_tensors[0].device
-        )
-
-        offset = 0
-        for tensor in self._all_tensors:
-            # copy data
-            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
-            offset += tensor.numel()
-        return flatten_tensor
+        return get_flattened_tensor(self._all_tensors)
 
     def _flatten_(self):
         """
@@ -358,6 +345,5 @@ class BaguaBucket:
         return self
 
     def bytes(self) -> int:
-        """Returns the total number of bytes occupied by the bucket.
-        """
+        """Returns the total number of bytes occupied by the bucket."""
         return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)

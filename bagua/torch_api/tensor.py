@@ -45,7 +45,11 @@ class BaguaTensor:
             return
         self.bagua_tensor_name = name if name is not None else ""
         self.bagua_module_name = module_name
-        self.bagua_backend = get_backend(self.bagua_module_name) if self.bagua_module_name is not None else None
+        self.bagua_backend = (
+            get_backend(self.bagua_module_name)
+            if self.bagua_module_name is not None
+            else None
+        )
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
             torch_tensor=self,
@@ -88,6 +92,10 @@ class BaguaTensor:
         if not exist.
         """
         if hasattr(self, "grad") and self.grad is not None:
+            with torch.no_grad():
+                t = torch.zeros_like(self.data)
+                t.set_(self.grad.storage(), self.grad.storage_offset(), self.grad.shape)
+                self.grad = t
             return self.grad
         elif isinstance(self, torch.nn.Parameter):
             with torch.no_grad():

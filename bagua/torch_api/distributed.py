@@ -7,7 +7,6 @@ from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
 )
-from bagua.torch_api.contrib import is_fused_optimizer, flatten_module
 import gorilla
 import time
 import logging
@@ -147,6 +146,7 @@ class BaguaModule:
         self,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
+        do_flatten: bool = True,
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html?highlight=module#torch.nn.Module>`_.
@@ -156,6 +156,7 @@ class BaguaModule:
                 module. It can contain one or more PyTorch optimizers.
             algorithm: Distributed algorithm
                 used to do the actual communication and update.
+            do_flatten: Whether to flatten the Bagua buckets. Default: ``True``.
 
         Returns:
             The original module, with Bagua related environments initialized.
@@ -199,6 +200,8 @@ class BaguaModule:
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
+
+        self.bagua_do_flatten = do_flatten
 
         self.bagua_train_step_counter = 0
         """
@@ -344,11 +347,9 @@ class BaguaModule:
     def _bagua_reset_algorithm_buckets(self):
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
-
-        need_flatten = any([is_fused_optimizer(opt) for opt in self.bagua_optimizers])
-        if need_flatten:
-            flatten_module(self)
+        self.bagua_buckets.extend(
+            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.bagua_do_flatten)
+        )
 
         for name, param in self.named_parameters():
 

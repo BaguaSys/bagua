@@ -20,6 +20,9 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
         for param_type in _supported_params_types:
             params = [param for param in group["params"] if param.type() == param_type]
 
+            if len(params) == 0:
+                continue
+
             weights = [p.data for p in params]
             grads = [p.bagua_ensure_grad() for p in params]
 
@@ -30,55 +33,27 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
             if not succ:
                 continue
 
-            grouped_indices = calculate_mutual_groups(
-                [weights, grads] + list(state_tensors.values()),
-                op=union,
-            )
+            flatten_tensors(params)
+            flatten_tensors(grads)
 
-            logging.debug(
-                f"#flatten_param_and_states# param type: {param_type}, grouped indices: {grouped_indices}"
-            )
-            if len(grouped_indices) > 0:
-                if not check_duplicated(grouped_indices):
-                    flatten_tensors(params, grouped_indices)
-                    flatten_tensors(grads, grouped_indices)
-
-                    for name, tensors in state_tensors.items():
-                        flatten_tensors(tensors, grouped_indices)
+            for name, tensors in state_tensors.items():
+                flatten_tensors(tensors)
 
 
-def flatten_module(module: torch.nn.Module):
-    logging.info("Ready to flatten module")
-    weights = [p for p in module.parameters()]
-    grads = [p.bagua_ensure_grad() for p in module.parameters()]
+def flatten_tensors(tensors):
+    logging.debug(f"Ready to flatten tensors")
 
-    grouped_indices = calculate_mutual_groups([weights, grads], op=union)
-    if len(grouped_indices) > 0:
-        if not check_duplicated(grouped_indices):
-            flatten_tensors(weights, grouped_indices)
-            flatten_tensors(grads, grouped_indices)
+    flattened_tensor = get_flattened_tensor(tensors)
+    flattened_storage = flattened_tensor.storage()
 
+    offset = 0
+    with torch.no_grad():
+        for tensor in tensors:
+            tensor.set_(flattened_storage, offset, tensor.shape)
+            offset += tensor.numel()
+            logging.debug(f"flatten param done {offset}")
 
-def flatten_tensors(tensors, grouped_indices: List[List[int]]):
-    tensors_grouped_indices = group_continuous_tensors(tensors)
-
-    grouped_indices = difference(grouped_indices, tensors_grouped_indices)
-    logging.debug(
-        f"Ready to flatten tensors, result grouped indices: {grouped_indices}, tensors grouped indices: {tensors_grouped_indices}"
-    )
-    for indices in grouped_indices:
-        to_flatten = [tensors[i] for i in indices]
-        flattened_tensor = get_flattened_tensor(to_flatten)
-        flattened_storage = flattened_tensor.storage()
-
-        offset = 0
-        with torch.no_grad():
-            for tensor in to_flatten:
-                tensor.set_(flattened_storage, offset, tensor.shape)
-                offset += tensor.numel()
-                logging.debug(f"flatten param done {offset}")
-
-        assert check_contiguous(to_flatten)
+    assert check_contiguous(tensors)
 
 
 def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
@@ -114,7 +89,7 @@ def group_continuous_tensors(tensors: List[torch.Tensor]):
     return grouped_indices
 
 
-def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]], op):
+def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]]):
     constraints = []
 
     size = len(tensors_list[0])
@@ -124,21 +99,19 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]], op):
         ), "Tensors to calculate mutual groups must have equal size."
 
         grouped_indices = group_continuous_tensors(tensors)
-        logging.debug(f"calculate mutual group, grouped_indices={grouped_indices}")
 
-        if len(grouped_indices) > 0:
-            constraints.append(grouped_indices)
+        constraints.append(grouped_indices)
 
     # no constraints, group them all
     if len(constraints) == 0:
-        return [list(range(size))] if size > 1 else constraints
+        return constraints
 
     grouped_indices = constraints[0]
     for i in range(1, len(constraints)):
-        grouped_indices = op(grouped_indices, constraints[i])
+        grouped_indices = intersect(grouped_indices, constraints[i])
 
     logging.debug(
-        f"calculate mutual group, constraints={constraints}, op={op}, grouped_indices={grouped_indices}"
+        f"calculate mutual group, constraints={constraints}, grouped_indices={grouped_indices}"
     )
     return grouped_indices
 
@@ -146,29 +119,6 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]], op):
 def intersect(a: List[List[int]], b: List[List[int]]):
     c = [value for value in a if value in b]
     return c
-
-
-def union(a: List[List[int]], b: List[List[int]]):
-    c1 = [value for value in a]
-    c2 = [value for value in b if value not in a]
-
-    return c1 + c2
-
-
-def difference(a: List[List[int]], b: List[List[int]]):
-    c = [value for value in a if value not in b]
-    return c
-
-
-def check_duplicated(values_list: List[List[int]]):
-    values_list_flat = []
-
-    for values in values_list:
-        for v in values:
-            if v in values_list_flat:
-                return True
-            values_list_flat.append(v)
-    return False
 
 
 def colocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
@@ -206,7 +156,7 @@ def colocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int
     return colocated
 
 
-def fuse_optimizer(optimizer, do_flatten: bool = False):
+def fuse_optimizer(optimizer, do_flatten: bool = True):
     """Convert any optimizer into a fused optimizer.
 
     This fused optimizer fuses multiple module parameter update kernel launches
@@ -219,7 +169,7 @@ def fuse_optimizer(optimizer, do_flatten: bool = False):
 
     Args:
         optimizer (torch.optim.Optimizer): Any PyTorch optimizer.
-        do_flatten (bool): Whether to flatten the parameters. Default: ``False``.
+        do_flatten (bool): Whether to flatten the parameters. Default: ``True``.
 
     Returns:
         Fused optimizer.
@@ -255,10 +205,6 @@ def fuse_optimizer(optimizer, do_flatten: bool = False):
     return optimizer
 
 
-def is_fused_optimizer(optimizer: torch.optim.Optimizer):
-    return hasattr(optimizer, "fuse_step")
-
-
 def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
     r"""Performs a single optimization step (parameter update).
 
@@ -292,7 +238,7 @@ def do_fuse(optimizer: torch.optim.Optimizer):
             continue
 
         grouped_indices = calculate_mutual_groups(
-            [weights, grads] + list(state_tensors.values()), op=intersect
+            [weights, grads] + list(state_tensors.values())
         )
 
         if len(grouped_indices) > 0:
@@ -323,6 +269,7 @@ def do_fuse(optimizer: torch.optim.Optimizer):
             grouped_indices_flat = list(reduce(lambda x, y: x + y, grouped_indices))
             for idx, param in enumerate(params):
                 if idx not in grouped_indices_flat:
+                    print(f"ready to delete state for param {idx}")
                     new_params.append(param)
                     del optimizer.state[param]
 

@@ -1,8 +1,4 @@
-from .fuse.optimizer import (  # noqa: F401
-    fuse_optimizer,
-    is_fused_optimizer,
-    flatten_module,
-)
+from .fuse.optimizer import fuse_optimizer  # noqa: F401
 from .load_balancing_data_loader import (  # noqa: F401
     LoadBalancingDistributedSampler,
     LoadBalancingDistributedBatchSampler,

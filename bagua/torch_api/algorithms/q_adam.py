@@ -152,11 +152,13 @@ class QAdamAlgorithm(Algorithm):
         tensor_groups.sort(key=lambda x: x._q_adam_idx)
         return tensor_groups
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
             bagua_bucket = BaguaBucket(
-                bucket, flatten=True, name=str(idx), alignment=get_world_size()
+                bucket, flatten=do_flatten, name=str(idx), alignment=get_world_size()
             )
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
