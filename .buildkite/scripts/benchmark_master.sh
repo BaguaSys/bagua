@@ -88,6 +88,21 @@ if [ ${#CHECK_RESULT[*]} -gt 0 ]; then
 fi
 
 # 3. test moe
+function check_moe_log {
+    logfile=$1
+    loss=$2
+
+    final_batch_loss=$(cat ${logfile} | grep "Loss" | tail -n 1 | awk '{print $NF}')
+
+    if [ $final_batch_loss == $loss ]; then
+        echo "Check moe success, final_batch_loss is equal."
+    else
+        result="Check moe fail, final_batch_loss["$final_batch_loss"] is not equal with "$loss"."
+        echo $result
+        exit 1
+    fi
+}
+
 MOE_SCRIPT="/workdir/examples/mnist/main.py"
 logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
 CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
@@ -102,3 +117,4 @@ CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
     --num-local-experts 2 \
     --set-deterministic \
     2>&1 | tee ${logfile}
+check_moe_log ${logfile} 0.000071
