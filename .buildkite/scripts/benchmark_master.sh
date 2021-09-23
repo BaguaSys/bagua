@@ -90,7 +90,7 @@ fi
 # 3. test moe
 MOE_SCRIPT="/workdir/examples/mnist/main.py"
 logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
-python -m bagua.distributed.launch \
+CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
     --nnodes=2 \
     --nproc_per_node 2 \
     --node_rank=0 \
