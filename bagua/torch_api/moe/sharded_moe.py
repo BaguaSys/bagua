@@ -282,6 +282,7 @@ class TopKGate(torch.nn.Module):
         used_token: torch.Tensor = None
     ) -> Tuple[Tensor,
                Tensor,
+               Tensor,
                Tensor]:  # type: ignore
         if self.wg.weight.dtype != torch.float32:
             self.wg = self.wg.float()
