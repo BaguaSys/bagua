@@ -63,19 +63,6 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.scheduled = False
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
-        """
-        Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
-        The default implementation follows the suggestion to do the bucketing.
-
-        Args:
-            tensors: Bagua tensors grouped in different
-                lists, representing Bagua's suggestion on how to bucketing the
-                tensors.
-
-        Returns:
-            A list of Bagua buckets.
-        """
-
         if self.step_id < self.warmup_steps:
             return super().tensors_to_buckets(tensors)
 
