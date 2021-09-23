@@ -324,8 +324,9 @@ class BaguaBucket:
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
 
-        This operation is intended to run in parallel with the computation process, and a lock is used for exclusively
-        access the model. Call ``op.lock_weight()`` to acquire the lock and ``op.unlock_weight()`` to release it.
+        This operation is intended to run in parallel with the computation process. It returns a reference
+        to the op. The op features a lock to exclusively access the model. Call ``op.lock_weight()`` to
+        acquire the lock and ``op.unlock_weight()`` to release it.
 
         Args:
             peer_selection_mode (str): The way how workers communicate with each otehr. Currently ``"all"`` is supported.
