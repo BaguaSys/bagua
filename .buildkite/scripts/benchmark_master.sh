@@ -56,7 +56,6 @@ algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralize
 speeds=(185.0 180.0 150.0 115.0 170 0)
 losses=(0.001763 0.001694 0.002583 0.001821 0.000010 0.00000)
 length=${#algorithms[@]}
-length=0
 for ((i=0;i<$length;i++))
 do
     echo "begin to test ["${algorithms[$i]}]

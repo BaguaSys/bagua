@@ -26,7 +26,6 @@ python -m bagua.distributed.launch \
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized)
 length=${#algorithms[@]}
-length=0
 for ((i=0;i<$length;i++))
 do
     echo "begin to test ["${algorithms[$i]}]
