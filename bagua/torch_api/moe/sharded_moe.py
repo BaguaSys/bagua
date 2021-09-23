@@ -94,6 +94,7 @@ def top1gating(logits: torch.Tensor,
                used_token: torch.Tensor = None,
                noisy_gate_policy: Optional[str] = None) -> Tuple[Tensor,
                                                                  Tensor,
+                                                                 Tensor,
                                                                  Tensor]:
     """Implements Top1Gating on logits."""
     if noisy_gate_policy == 'RSample':
@@ -164,6 +165,7 @@ def top1gating(logits: torch.Tensor,
 
 def top2gating(logits: torch.Tensor,
                capacity_factor: float) -> Tuple[Tensor,
+                                                Tensor,
                                                 Tensor,
                                                 Tensor]:
     """Implements Top2Gating on logits."""
