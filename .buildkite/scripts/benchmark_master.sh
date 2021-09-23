@@ -117,4 +117,4 @@ CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
     --num-local-experts 2 \
     --set-deterministic \
     2>&1 | tee ${logfile}
-check_moe_log ${logfile} 0.000071
+check_moe_log ${logfile} 0.000293
