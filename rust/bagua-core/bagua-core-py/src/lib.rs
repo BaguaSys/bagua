@@ -1,5 +1,6 @@
 #![allow(clippy::needless_return)]
 
+use bagua_core_internal::comm_ops::decentralized_full_precision_asynchronous::DecentralizedFullPrecisionAsynchronous;
 use bagua_core_internal::communicators::BaguaSingleCommunicator;
 use bagua_core_internal::datatypes::{
     BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype,
@@ -10,6 +11,7 @@ use numpy::{IntoPyArray, PyArray1};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::PyNativeType;
+use std::sync::Arc;
 
 #[pyclass(dict)]
 pub struct BaguaSingleCommunicatorPy {
@@ -190,6 +192,22 @@ impl BaguaSingleCommunicatorPy {
     #[staticmethod]
     pub fn generate_nccl_unique_id_str() -> String {
         BaguaSingleCommunicator::generate_nccl_unique_id_str()
+    }
+}
+
+#[pyclass(dict)]
+pub struct DecentralizedFullPrecisionAsynchronousPy {
+    inner: Arc<DecentralizedFullPrecisionAsynchronous>,
+}
+
+#[pymethods]
+impl DecentralizedFullPrecisionAsynchronousPy {
+    pub fn lock_weight(&self) {
+        self.inner.lock_weight()
+    }
+
+    pub fn unlock_weight(&self) {
+        self.inner.unlock_weight()
     }
 }
 
@@ -456,14 +474,15 @@ impl BaguaBucketPy {
         communicator_intranode: Option<&BaguaSingleCommunicatorPy>,
         peer_selection_mode: String,
         torch_stream: u64,
-    ) -> PyResult<()> {
-        self.inner.append_decentralized_asynchronous_op(
-            communicator_internode.map(|x| &x.inner),
-            communicator_intranode.map(|x| &x.inner),
-            peer_selection_mode,
-            torch_stream,
-        );
-        Ok(())
+    ) -> DecentralizedFullPrecisionAsynchronousPy {
+        DecentralizedFullPrecisionAsynchronousPy {
+            inner: self.inner.append_decentralized_asynchronous_op(
+                communicator_internode.map(|x| &x.inner),
+                communicator_intranode.map(|x| &x.inner),
+                peer_selection_mode,
+                torch_stream,
+            ),
+        }
     }
 
     pub fn print_ops(&self) -> PyResult<()> {
@@ -507,6 +526,7 @@ fn bagua_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BaguaTensorPy>()?;
     m.add_class::<BaguaBucketPy>()?;
     m.add_class::<BaguaSingleCommunicatorPy>()?;
+    m.add_class::<DecentralizedFullPrecisionAsynchronousPy>()?;
 
     #[pyfn(m, "show_version")]
     fn show_version(_py: Python) {

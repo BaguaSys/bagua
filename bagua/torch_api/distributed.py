@@ -397,7 +397,8 @@ class BaguaModule:
         ]
 
         rsp = self._bagua_autotune_client.register_tensors(
-            model_name=self.bagua_module_name, tensor_list=autotune_tensor_list
+            model_name=self.bagua_module_name,
+            tensor_list=autotune_tensor_list,
         )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 

@@ -129,7 +129,7 @@ class BaguaBucket:
         """
         return check_contiguous(self._all_tensors)
 
-    def append_python_op(self, python_function: Callable[[str], None]) -> BaguaBucket:
+    def append_python_op(self, python_function: Callable[[str], None]):
         """
         Append a Python operation to a bucket. A Python operation is a Python function that
         takes the bucket's name and returns ``None``. It can do arbitrary things within the
@@ -140,9 +140,6 @@ class BaguaBucket:
 
         Args:
             python_function: The Python operation function.
-
-        Returns:
-            The bucket itself.
         """
 
         def wrapper_function_factory(pyop):
@@ -153,7 +150,6 @@ class BaguaBucket:
             return wrapped_pyop
 
         self.backend_bucket.append_python_op(wrapper_function_factory(python_function))
-        return self
 
     def append_centralized_synchronous_op(
         self,
@@ -161,7 +157,7 @@ class BaguaBucket:
         average: bool = True,
         scattergather: bool = False,
         compression: Optional[str] = None,
-    ) -> BaguaBucket:
+    ):
         """
         Append a centralized synchronous operation to a bucket. It will sum or average the tensors in the bucket
         for all workers.
@@ -178,9 +174,6 @@ class BaguaBucket:
                 of allreduce. This is required for using compression.
             compression: If not ``None``, the tensors will be compressed for communication. Currently ``"MinMaxUInt8"`` is
                 supported.
-
-        Returns:
-            The bucket itself.
         """
         if hierarchical:
             self.backend_bucket.append_centralized_synchronous_op(
@@ -200,14 +193,13 @@ class BaguaBucket:
                 scattergather=scattergather,
                 compression=compression,
             )
-        return self
 
     def append_decentralized_synchronous_op(
         self,
         peer_weight: BaguaTensor,
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
-    ) -> BaguaBucket:
+    ):
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
@@ -227,8 +219,6 @@ class BaguaBucket:
             peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers' weights are averaged
                 in each communication step. ``"shift_one"`` means each worker selects a different peer to do weights average
                 in each communication step.
-        Returns:
-            The bucket itself.
         """
 
         if hierarchical:
@@ -247,7 +237,6 @@ class BaguaBucket:
                 peer_selection_mode=peer_selection_mode,
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
-        return self
 
     def decentralized_synchronous_op_copy_back_peer_weight(
         self, peer_weight: BaguaTensor, hierarchical: bool = True
@@ -280,7 +269,7 @@ class BaguaBucket:
         right_peer_weight: BaguaTensor,
         hierarchical: bool = True,
         compression: str = "MinMaxUInt8",
-    ) -> BaguaBucket:
+    ):
         """
         Append a low precision decentralized synchronous operation to a bucket. It will compress the difference
         of local models between two successive iterations and exchange them among workers.
@@ -301,8 +290,6 @@ class BaguaBucket:
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
             compression (str): The way how tensors are compressed for communication. Currently ``"MinMaxUInt8"`` is supported.
-        Returns:
-            The bucket itself.
         """
 
         if hierarchical:
@@ -328,27 +315,32 @@ class BaguaBucket:
                 right_peer_weight=right_peer_weight._bagua_backend_tensor,
             )
 
-        return self
-
     def append_asynchronous_model_average_op(self, peer_selection_mode: str):
+
         """
-        Append an asynchronous model average operation to a bucket. This operation will enable continuous model averaging between workers
-        while training a model.
+        Append an asynchronous model average operation to a bucket. This operation will enable continuous
+        model averaging between workers while training a model.
+
         The operations will be executed by the Bagua backend in the order they are appended
         when all the tensors within the bucket are marked ready.
+
+        This operation is intended to run in parallel with the computation process. It returns a reference
+        to the op. The op features a lock to exclusively access the model. Call ``op.lock_weight()`` to
+        acquire the lock and ``op.unlock_weight()`` to release it.
 
         Args:
             peer_selection_mode (str): The way how workers communicate with each otehr. Currently ``"all"`` is supported.
                 ``"all"`` means all workers' weights are averaged during each communication.
+        Returns:
+            The asynchronous model average operation itself.
         """
 
-        self.backend_bucket.append_decentralized_asynchronous_op(
+        return self.backend_bucket.append_decentralized_asynchronous_op(
             self._bagua_backend.global_communicator,
             None,
             peer_selection_mode=peer_selection_mode,
             torch_stream=torch.cuda.current_stream().cuda_stream,
         )
-        return self
 
     def clear_ops(self) -> BaguaBucket:
         """
@@ -358,6 +350,5 @@ class BaguaBucket:
         return self
 
     def bytes(self) -> int:
-        """Returns the total number of bytes occupied by the bucket.
-        """
+        """Returns the total number of bytes occupied by the bucket."""
         return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)

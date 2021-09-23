@@ -64,9 +64,15 @@ parser.add_argument(
 )
 parser.add_argument(
     "--async-sync-interval",
-    default=50,
+    default=500,
     type=int,
     help="Model synchronization interval(ms) for async algorithm",
+)
+parser.add_argument(
+    "--async-warmup-steps",
+    default=0,
+    type=int,
+    help="Warmup(allreduce) steps for async algorithm",
 )
 parser.add_argument(
     "--amp",
@@ -139,7 +145,8 @@ elif args.algorithm == "async":
     from bagua.torch_api.algorithms import async_model_average
 
     algorithm = async_model_average.AsyncModelAverageAlgorithm(
-        sync_interval_ms=args.async_sync_interval
+        sync_interval_ms=args.async_sync_interval,
+        warmup_steps=args.async_warmup_steps,
     )
 else:
     raise NotImplementedError
@@ -188,6 +195,7 @@ logging.info("Number of %ss: %d" % (device, bagua.get_world_size()))
 
 # Warm-up
 logging.info("Running warmup...")
+
 timeit.timeit(benchmark_step, number=args.num_warmup_batches)
 
 # Benchmark
