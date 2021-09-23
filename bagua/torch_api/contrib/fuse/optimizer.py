@@ -33,27 +33,51 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
             if not succ:
                 continue
 
-            flatten_tensors(params)
-            flatten_tensors(grads)
+            flatten_weight_tensor = get_flattened_tensor(weights)
+            flatten_grad_tensor = get_flattened_tensor(grads)
+
+            offset = 0
+            for p in params:
+                with torch.no_grad():
+                    z = torch.zeros_like(p.data)
+                    z.set_(flatten_weight_tensor.storage(), offset, p.shape)
+                    p.data = z
+
+                    t = torch.zeros_like(p.data)
+                    t.set_(flatten_grad_tensor.storage(), offset, p.shape)
+                    p.grad = t
+
+                offset += p.numel()
+                logging.debug(f"flatten param done {offset}")
 
             for name, tensors in state_tensors.items():
-                flatten_tensors(tensors)
+                flatten_state_tensor = get_flattened_tensor(tensors)
 
+                offset = 0
+                for p in params:
+                    state = optimizer.state[p]
 
-def flatten_tensors(tensors):
-    logging.debug(f"Ready to flatten tensors")
+                    with torch.no_grad():
+                        t = torch.zeros_like(state[name])
+                        t.set_(
+                            flatten_state_tensor.storage(), offset, state[name].shape
+                        )
+                        state[name] = t
 
-    flattened_tensor = get_flattened_tensor(tensors)
-    flattened_storage = flattened_tensor.storage()
+                    offset += state[name].numel()
+                    logging.debug(f"flatten state {name} done {offset}")
 
-    offset = 0
-    with torch.no_grad():
-        for tensor in tensors:
-            tensor.set_(flattened_storage, offset, tensor.shape)
-            offset += tensor.numel()
-            logging.debug(f"flatten param done {offset}")
+            weights = [p.data for p in params]
+            grads = [p.grad.data for p in params]
 
-    assert check_contiguous(tensors)
+            state_tensors, state_scalars, succ = _get_state_by_name(
+                optimizer.state, params
+            )
+
+            check_contiguous(weights)
+            check_contiguous(grads)
+            for name, tensors in state_tensors.items():
+                check_contiguous(tensors)
 
 
 def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
@@ -269,8 +293,9 @@ def do_fuse(optimizer: torch.optim.Optimizer):
             grouped_indices_flat = list(reduce(lambda x, y: x + y, grouped_indices))
             for idx, param in enumerate(params):
                 if idx not in grouped_indices_flat:
-                    print(f"ready to delete state for param {idx}")
                     new_params.append(param)
+                else:
+                    logging.debug(f"ready to delete state for param {idx}")
                     del optimizer.state[param]
 
             group["params"] = new_params

@@ -58,59 +58,39 @@ def train_model(model, optimizer, device, num_epochs):
         optimizer.step()
 
 
-def train_model_with_fuse_optimizer(model, optimizer, device, num_epochs):
+def train_model_fused(model, optimizer, device, num_epochs):
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
-    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)  # FIXME
 
-    for _ in range(num_epochs):
+    for epoch in range(num_epochs):
         optimizer.zero_grad()
         output = model(input)
         loss = output.sum()
         loss.backward()
 
-        optimizer.fuse_step()
+        if epoch % 2 == 0:
+            optimizer.step()
+        else:
+            optimizer.fuse_step()
 
 
-def run(opt, flag_param, device):
+def run(opt, flag_param, device, num_epochs):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
 
-    train_model(model, optimizer, device, num_epochs=3)
+    train_model(model, optimizer, device, num_epochs=num_epochs)
     return model.parameters()
 
 
-def run_with_states(opt, flag_param, device):
+def run_fused(opt, flag_param, device, num_epochs):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
 
-    # init optimizer states
-    train_model(model, optimizer, device, num_epochs=1)
-    optimizer.step()
-
-    train_model(model, optimizer, device, num_epochs=3)
+    train_model_fused(model, optimizer, device, num_epochs=num_epochs)
     return model.parameters()
 
 
-def run_fuse_step(opt, flag_param, device):
+def run_fused_bagua(opt, flag_param, device, num_epochs):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
-
-    train_model_with_fuse_optimizer(model, optimizer, device, num_epochs=3)
-    return model.parameters()
-
-
-def run_fuse_step_with_states(opt, flag_param, device):
-    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
-
-    # init optimizer states
-    train_model(model, optimizer, device, num_epochs=1)
-    optimizer.step()
-
-    print("init: ", optimizer.state)
-
-    train_model_with_fuse_optimizer(model, optimizer, device, num_epochs=3)
-    return model.parameters()
-
-
-def run_fuse_step_bagua(opt, flag_param, device):
-    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
 
     model.with_bagua(
         [optimizer],
@@ -118,12 +98,13 @@ def run_fuse_step_bagua(opt, flag_param, device):
         do_flatten=False,
     )
 
-    train_model_with_fuse_optimizer(model, optimizer, device, num_epochs=3)
+    train_model_fused(model, optimizer, device, num_epochs=num_epochs)
     return model.parameters()
 
 
-def run_fuse_step_bagua_v2(opt, flag_param, device):
+def run_fused_bagua_v2(opt, flag_param, device, num_epochs):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
 
     model.with_bagua(
         [optimizer],
@@ -131,40 +112,38 @@ def run_fuse_step_bagua_v2(opt, flag_param, device):
         do_flatten=True,
     )
 
-    train_model_with_fuse_optimizer(model, optimizer, device, num_epochs=3)
+    train_model_fused(model, optimizer, device, num_epochs)
     return model.parameters()
 
 
-def run_fuse_step_bagua_with_states(opt, flag_param, device):
+def run_fused_bagua_with_states(opt, flag_param, device, num_epochs):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+    train_model(model, optimizer, device, 1)
 
-    # init optimizer states
-    train_model(model, optimizer, device, num_epochs=1)
-    optimizer.step()
-
+    optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
     model.with_bagua(
         [optimizer],
         bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
-        do_flatten=True,
+        do_flatten=False,
     )
 
-    train_model_with_fuse_optimizer(model, optimizer, device, num_epochs=3)
+    train_model_fused(model, optimizer, device, num_epochs - 1)
     return model.parameters()
 
 
 class TestFusedOptimizer(unittest.TestCase):
-    def run_all_optimizers_once(self, fn1, fn2, device):
+    def run_all_optimizers_once(self, fn1, fn2, device, num_epochs):
         optimizer_list = [
-            optim.Adam,
-            optim.Adam,
-            optim.Adam,
-            optim.Adam,
-            optim.AdamW,
-            optim.AdamW,
-            optim.AdamW,
-            optim.AdamW,
             optim.SGD,
             optim.SGD,
+            optim.Adam,
+            optim.Adam,
+            optim.Adam,
+            optim.Adam,
+            optim.AdamW,
+            optim.AdamW,
+            optim.AdamW,
+            optim.AdamW,
             optim.RMSprop,
             optim.RMSprop,
             optim.RMSprop,
@@ -179,6 +158,10 @@ class TestFusedOptimizer(unittest.TestCase):
         ]
 
         flag_params = [
+            dict(lr=0.2, momentum=1, dampening=0, weight_decay=1, nesterov=True),  # SGD
+            dict(
+                lr=0.2, momentum=1, dampening=0.5, weight_decay=1, nesterov=False
+            ),  # SGD
             dict(weight_decay=1.0, amsgrad=True),  # Adam
             dict(weight_decay=1.0, amsgrad=False),  # Adam
             dict(weight_decay=0.0, amsgrad=True),  # Adam
@@ -187,10 +170,6 @@ class TestFusedOptimizer(unittest.TestCase):
             dict(weight_decay=1.0, amsgrad=False),  # AdamW
             dict(weight_decay=0.0, amsgrad=True),  # AdamW
             dict(weight_decay=0.0, amsgrad=False),  # AdamW
-            dict(lr=0.2, momentum=1, dampening=0, weight_decay=1, nesterov=True),  # SGD
-            dict(
-                lr=0.2, momentum=1, dampening=0.5, weight_decay=1, nesterov=False
-            ),  # SGD
             dict(weight_decay=1, momentum=1, centered=True),  # RMSprop
             dict(weight_decay=1, momentum=0, centered=True),  # RMSprop
             dict(weight_decay=1, momentum=1, centered=False),  # RMSprop
@@ -205,20 +184,15 @@ class TestFusedOptimizer(unittest.TestCase):
         ]
 
         for opt, flag_param in zip(optimizer_list, flag_params):
-            res1 = fn1(opt, flag_param, device=device)
-            res2 = fn2(opt, flag_param, device=device)
+            res1 = fn1(opt, flag_param, device=device, num_epochs=num_epochs)
+            res2 = fn2(opt, flag_param, device=device, num_epochs=num_epochs)
 
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
 
-            return
-
     @skip_if_cuda_available()
     def test_fused_optimizer(self):
-        self.run_all_optimizers_once(fn1=run, fn2=run_fuse_step, device="cpu")
-        self.run_all_optimizers_once(
-            fn1=run_with_states, fn2=run_fuse_step_with_states, device="cpu"
-        )
+        self.run_all_optimizers_once(fn1=run, fn2=run_fused, device="cpu", num_epochs=3)
 
     @skip_if_cuda_not_available()
     def test_fused_optimizer_with_bagua_wrapper(self):
@@ -236,13 +210,14 @@ class TestFusedOptimizer(unittest.TestCase):
         torch.cuda.set_device(0)
         bagua.init_process_group()
 
-        #        self.run_all_optimizers_once(fn1=run, fn2=run_fuse_step_bagua, device="cuda:0")
         self.run_all_optimizers_once(
-            fn1=run, fn2=run_fuse_step_bagua_v2, device="cuda:0"
+            fn1=run, fn2=run_fused_bagua, device="cuda:0", num_epochs=3
         )
-        return
         self.run_all_optimizers_once(
-            fn1=run_with_states, fn2=run_fuse_step_bagua_with_states, device="cuda:0"
+            fn1=run, fn2=run_fused_bagua_v2, device="cuda:0", num_epochs=3
+        )
+        self.run_all_optimizers_once(
+            fn1=run, fn2=run_fused_bagua_with_states, device="cuda:0", num_epochs=3
         )
 
     @skip_if_cuda_available()

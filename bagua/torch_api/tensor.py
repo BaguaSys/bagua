@@ -92,10 +92,6 @@ class BaguaTensor:
         if not exist.
         """
         if hasattr(self, "grad") and self.grad is not None:
-            with torch.no_grad():
-                t = torch.zeros_like(self.data)
-                t.set_(self.grad.storage(), self.grad.storage_offset(), self.grad.shape)
-                self.grad = t
             return self.grad
         elif isinstance(self, torch.nn.Parameter):
             with torch.no_grad():
