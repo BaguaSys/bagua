@@ -18,7 +18,6 @@ import torch
 
 from torch import Tensor
 from torch.nn import Module
-from torch import nn
 from typing import Callable, Dict, TYPE_CHECKING, Any, Optional, Tuple
 
 
@@ -342,7 +341,7 @@ class MOELayer(Base):
         # Reshape into G groups so that each group can distribute tokens equally
         # group_size = kwargs['group_size'] if 'group_size' in kwargs.keys() else 1
         reshaped_input = input[0].reshape(-1, d_model)
-        self.l_aux, combine_weights, dispatch_mask, self.exp_counts  = self.gate(reshaped_input, input[1])
+        self.l_aux, combine_weights, dispatch_mask, self.exp_counts = self.gate(reshaped_input, input[1])
         dispatched_input = torch.einsum("sec,sm->ecm",
                                         dispatch_mask.type_as(input[0]),
                                         reshaped_input)
