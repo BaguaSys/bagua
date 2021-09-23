@@ -10,14 +10,17 @@
 # This source code is licensed under the BSD license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Dict, TYPE_CHECKING, Any, Optional, Tuple, Union, cast
 
-import time
-from time import perf_counter
-import torch
-from torch import Tensor
+import math
 import torch.distributed as dist
-from torch.nn import Module, ModuleList
+import torch.nn.functional as F
+import torch
+
+from torch import Tensor
+from torch.nn import Module
+from torch import nn
+from typing import Callable, Dict, TYPE_CHECKING, Any, Optional, Tuple
+
 
 if TYPE_CHECKING:
     Base = Module[Tensor]
@@ -65,8 +68,6 @@ def gumbel_rsample(shape: Tuple, device: torch.device) -> Tensor:
     return gumbel(shape)
 
 
-import torch.distributed as dist
-
 # einsum dimensions: (g)roup, (s)equence, (e)xpert, (m)odel, (c)apacity
 # See https://arxiv.org/pdf/2006.16668.pdf for details.
 
@@ -86,12 +87,6 @@ class _AllToAll(torch.autograd.Function):
     @staticmethod
     def backward(ctx: Any, *grad_output: Tensor) -> Tuple[None, Tensor]:
         return (None, _AllToAll.apply(ctx.group, *grad_output))
-
-
-from torch import nn
-import torch.nn.functional as F
-
-import math
 
 
 def top1gating(logits: torch.Tensor,
@@ -352,17 +347,17 @@ class MOELayer(Base):
                                         dispatch_mask.type_as(input[0]),
                                         reshaped_input)
 
-        #print(f"alltoall called at rank:{dist.get_rank()} with dispatched_input shape:{dispatched_input.shape}")
-        a = time.perf_counter()
+        # print(f"alltoall called at rank:{dist.get_rank()} with dispatched_input shape:{dispatched_input.shape}")
+        # a = time.perf_counter()
         dispatched_input = _AllToAll.apply(self.group, dispatched_input)
-        b = time.perf_counter()
-        #print(f"alltoall took {b-a} seconds at rank:{dist.get_rank()}")
+        # b = time.perf_counter()
+        # print(f"alltoall took {b-a} seconds at rank:{dist.get_rank()}")
         # Re-shape after all-to-all: ecm -> gecm
         dispatched_input = dispatched_input.reshape(self.world_size,
                                                     self.num_local_experts,
                                                     -1,
                                                     d_model)
-        #print(f"reshaped input after alltoall called at rank:{dist.get_rank()} is dispatched_input shape:{dispatched_input.shape}")
+        # print(f"reshaped input after alltoall called at rank:{dist.get_rank()} is dispatched_input shape:{dispatched_input.shape}")
         expert_output = self.experts(dispatched_input)
         expert_output = _AllToAll.apply(self.group, expert_output)
         # Re-shape back: gecm -> ecm

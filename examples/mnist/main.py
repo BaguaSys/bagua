@@ -10,7 +10,6 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import logging
 import bagua.torch_api as bagua
-import copy
 
 
 class Net(nn.Module):

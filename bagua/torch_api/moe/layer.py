@@ -7,16 +7,11 @@
 
 import bagua.torch_api as bagua
 import logging
-import torch.nn.init as init
 import torch
 import torch.distributed as dist
 
-#from deepspeed.utils import logger, log_dist
-
-#import deepspeed.utils.groups as groups
 from .sharded_moe import MOELayer, TopKGate
 from .experts import Experts
-import copy
 import typing
 
 

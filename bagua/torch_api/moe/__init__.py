@@ -1,1 +1,1 @@
-from .layer import MoE
+from .layer import MoE  # noqa: F401
