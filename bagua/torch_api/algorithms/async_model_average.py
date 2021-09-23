@@ -62,8 +62,30 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.scheduled = False
 
-        if self.warmup_steps <= 0:
-            self.no_bucketing = True
+    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+        """
+        Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
+        The default implementation follows the suggestion to do the bucketing.
+
+        Args:
+            tensors: Bagua tensors grouped in different
+                lists, representing Bagua's suggestion on how to bucketing the
+                tensors.
+
+        Returns:
+            A list of Bagua buckets.
+        """
+
+        if self.step_id < self.warmup_steps:
+            return super().tensors_to_buckets(tensors)
+
+        all_tensors = []
+        for idx, bucket in enumerate(tensors):
+            all_tensors.extend(bucket)
+
+        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
+
+        return [bagua_bucket]
 
     def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
         parameters = bagua_module.bagua_build_params()
@@ -121,7 +143,6 @@ class AsyncModelAverageAlgorithm(Algorithm):
 
         if self.warmup_steps > 0 and self.step_id == self.warmup_steps + 1:
             logging.info(f"Async model average starts from step {self.step_id}")
-            self.no_bucketing = True
             return True
         else:
             return False

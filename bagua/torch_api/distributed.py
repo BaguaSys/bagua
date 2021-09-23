@@ -303,9 +303,6 @@ class BaguaModule:
         rsp = self._bagua_autotune_client.register_tensors(
             model_name=self.bagua_module_name,
             tensor_list=autotune_tensor_list,
-            whether_to_bucket=True
-            if not hasattr(self.bagua_algorithm, "no_bucketing")
-            else not self.bagua_algorithm.no_bucketing,
         )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
