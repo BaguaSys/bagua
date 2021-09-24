@@ -16,8 +16,6 @@ So far, Bagua has integrated communication primitives including
 
 Its effectiveness has been evaluated in various scenarios, including VGG and ResNet on ImageNet, BERT Large and many industrial applications at Kuaishou.
 
-The underlying communication execution engine is in [bagua-core](https://github.com/BaguaSys/bagua-core), a library written in Rust.
-
 ## Performance
 
 <p align="center">
@@ -118,6 +116,9 @@ With above setup, we created two identical clusters to benchmark a synthesized i
 ## Discussion
 
 Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
+
+You can also scan the following QR code to join our WeChat group :)
+![image](https://user-images.githubusercontent.com/18649508/134354722-74d9cca2-8803-45ba-b19d-0fb26358ff0d.png)
 
 ## Links
 
