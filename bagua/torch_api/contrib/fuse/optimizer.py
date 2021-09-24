@@ -7,7 +7,8 @@ from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 import gorilla
 
 
-__all__ = ['fuse_optimizer', 'fuse_step']
+__all__ = ["fuse_optimizer", "fuse_step"]
+
 
 def flatten_param_and_states(optimizer: torch.optim.Optimizer):
     _supported_params_types = [
