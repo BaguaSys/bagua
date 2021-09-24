@@ -7,6 +7,8 @@ from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 import gorilla
 
 
+__all__ = ['fuse_optimizer', 'fuse_step']
+
 def flatten_param_and_states(optimizer: torch.optim.Optimizer):
     _supported_params_types = [
         "torch.cuda.FloatTensor",
@@ -180,37 +182,55 @@ def colocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int
     return colocated
 
 
-def fuse_optimizer(optimizer, do_flatten: bool = True):
-    """Convert any optimizer into a fused optimizer.
+def fuse_optimizer(optimizer: torch.optim.Optimizer, do_flatten: bool = True):
+    """
+    Convert any optimizer into a fused optimizer.
 
-    This fused optimizer fuses multiple module parameter update kernel launches
-    into one or a few, by flattening parameter tensors into one or more
-    contiguous buckets.
+    A fused optimizer can fuse multiple parameter updates into one. To achieve this, users need to:
+    1) flatten parameter tensors in the same group into contiguous ones by setting :attr:`do_flatten=True`,
+    which is also the default behavior of a fused optimizer; 2) fuse multiple parameter tensors contiguous in memory
+    into one and perform fused parameter updates by calling :meth:`fuse_step`.
 
-    It can be used in conjunction with :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method. In this case,
-    Bagua will do the fusions automatically, otherwise, you need to explicitly
-    set :attr:`do_flatten=True`.
+    This fused optimizer is implemented for general use. It can be used used in conjunction with
+    a :class:`~bagua.torch_api.distributed.BaguaModule` as well as a
+    `torch.nn.parallel.DistributedDataParallel <https://pytorch.org/docs/stable/generated/torch.nn.parallel.DistributedDataParallel.html?highlight=distributeddataparallel#torch.nn.parallel.DistributedDataParallel>`_
+    wrapped module, or some other cases (not listed here).
 
     Args:
         optimizer (torch.optim.Optimizer): Any PyTorch optimizer.
-        do_flatten (bool): Whether to flatten the parameters. Default: ``True``.
+        do_flatten (bool): Whether to flatten the parameters. The flatten operation will reset data pointers of
+            parameter tensors so that they could perform fused updates.  Default: ``True``.
 
     Returns:
         Fused optimizer.
 
-
     Example::
-        To use in conjunction with :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method:
+        To use in conjunction with a :class:`~bagua.torch_api.distributed.BaguaModule`:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
         >>> optimizer = bagua.torch_api.contrib.fuse_optimizer(optimizer)
-        >>> model = model.with_bagua([optimizer], GradientAllReduceAlgorithm())
+        >>> model = model.with_bagua([optimizer], GradientAllReduceAlgorithm(), do_flatten=False)
+        >>>
+        >>> optimizer.fuse_step()
+        >>>
 
-        To use alone or with `torch.nn.parallel.DistributedDataParallel <https://pytorch.org/docs/stable/generated/torch.nn.parallel.DistributedDataParallel.html?highlight=distributeddataparallel#torch.nn.parallel.DistributedDataParallel>`_,
-        set :attr:`do_flatten=True`:
+        Otherwise:
 
         >>> optimizer = torch.optim.Adadelta(model.parameters(), ....)
-        >>> optimizer = bagua.torch_api.contrib.fuse_optimizer(optimizer, do_flatten=True)
+        >>> optimizer = bagua.torch_api.contrib.fuse_optimizer(optimizer)
+        >>>
+        >>> optimizer.fuse_step()
+        >>>
+
+    .. note::
+        This function and :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method both will reset data
+        pointers of module parameters by default. In order to perform fused parameter updates, you need to set
+        set :attr:`do_flatten=False` in :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` when initializing
+        the :class:`~bagua.torch_api.distributed.BaguaModule`.
+
+    .. note::
+        A fuse optimizer will not change the original behaviors of its :attr:`optimizer`, but enabling it to perform
+        fused parameter updates by calling :meth:`fuse_step`.
     """
 
     fused_optimizer = copy.copy(optimizer)
@@ -228,15 +248,18 @@ def fuse_optimizer(optimizer, do_flatten: bool = True):
 
 
 def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
-    r"""Performs a single optimization step (parameter update).
+    r"""Fuse parameters and perform a single optimization step (parameter update).
+
+    This operation will create a tensor view for multiple contiguous parameter tensors and perform
+    parameter update using this view. If none of the parameter tensors are contiguous, this operation
+    is equivalent to :meth:`step`.
 
     Args:
         closure (Callable): A closure that reevaluates the model and
             returns the loss. Optional for most optimizers.
 
     .. note::
-        Unless otherwise specified, this function should not modify the
-        ``.grad`` field of the parameters.
+        This function will not modify metadata of parameter tensors.
     """
     assert hasattr(
         optimizer, "_fused_optimizer"

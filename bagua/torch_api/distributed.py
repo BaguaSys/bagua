@@ -136,11 +136,13 @@ class BaguaModule:
         def _state_param_callback(param_id, param_name):
             def _assign_state(v):
                 optimizer_state_dict["state"][param_id][param_name] = v
+
             return _assign_state
 
         def _hyper_param_callback(index, group_key):
             def _assign_hyper(v):
                 optimizer.param_groups[index][group_key] = v
+
             return _assign_hyper
 
         params = []
@@ -252,7 +254,8 @@ class BaguaModule:
                 module. It can contain one or more PyTorch optimizers.
             algorithm: Distributed algorithm
                 used to do the actual communication and update.
-            do_flatten: Whether to flatten the Bagua buckets. Default: ``True``.
+            do_flatten: Whether to flatten the Bagua buckets. The flatten operation will reset data pointer of bucket
+                tensors so that they can use faster code paths. Default: ``True``.
 
         Returns:
             The original module, with Bagua related environments initialized.
