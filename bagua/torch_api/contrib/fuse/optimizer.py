@@ -134,9 +134,6 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]]):
     for i in range(1, len(constraints)):
         grouped_indices = intersect(grouped_indices, constraints[i])
 
-    logging.debug(
-        f"calculate mutual group, constraints={constraints}, grouped_indices={grouped_indices}"
-    )
     return grouped_indices
 
 
