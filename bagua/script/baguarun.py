@@ -67,6 +67,8 @@ def pssh_bagua_launch(
         )  # noqa: E501
     if args.no_python:
         bypass_args.append("--no_python")
+    if args.enable_bagua_net:
+        bypass_args.append("--enable_bagua_net")
 
     host_config = [HostConfig(port=port) for (_, port) in args.host_list]
 
@@ -138,6 +140,14 @@ def parse_args():
         "--bagua_service_port",
         default=None,
         type=int,
+    )
+    parser.add_argument(
+        "--enable_bagua_net",
+        action="store_true",
+        default=False,
+        help="Enable Bagua-Net optimization for better "
+        "communication performance. See https://github.com/BaguaSys/bagua/tree/master/rust/bagua-net"
+        " for more details.",
     )
     parser.add_argument(
         "-x",
