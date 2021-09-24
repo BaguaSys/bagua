@@ -180,7 +180,11 @@ def colocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int
     return colocated
 
 
-def fuse_optimizer(optimizer: torch.optim.Optimizer, do_flatten: bool = True):
+def fuse_optimizer(
+    optimizer: torch.optim.Optimizer,
+    do_flatten: bool = True,
+    check_flatten: bool = True,
+):
     """
     Convert any optimizer into a fused optimizer.
 
@@ -198,6 +202,9 @@ def fuse_optimizer(optimizer: torch.optim.Optimizer, do_flatten: bool = True):
         optimizer (torch.optim.Optimizer): Any PyTorch optimizer.
         do_flatten (bool): Whether to flatten the parameters. The flatten operation will reset data pointers of
             parameter tensors so that they could perform fused updates.  Default: ``True``.
+        check_flatten (bool): When setting to ``True``, it enables fused optimizer to automatically check if
+            parameter tensors are flattened as they are required to, i.e. by setting :attr:`do_flatten=True`.
+            You can disable this check under production. Default: ``True``.
 
     Returns:
         Fused optimizer.
@@ -232,6 +239,8 @@ def fuse_optimizer(optimizer: torch.optim.Optimizer, do_flatten: bool = True):
     """
 
     fused_optimizer = copy.copy(optimizer)
+    fused_optimizer._do_flatten = do_flatten
+    fused_optimizer._check_flatten = check_flatten
 
     optimizer._fused_optimizer = fused_optimizer
 
@@ -278,6 +287,25 @@ def do_fuse(optimizer: torch.optim.Optimizer):
 
         if not succ:
             continue
+
+        if optimizer._do_flatten and optimizer._check_flatten:
+            if not check_contiguous(weights):
+                logging.warn(
+                    "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
+                )
+
+            if not check_contiguous(grads):
+                logging.warn(
+                    "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
+                )
+
+            for name, tensors in state_tensors.items():
+                if not check_contiguous(weights):
+                    logging.warn(
+                        "Parameter state {} are not contiguous in memory, should not change the data pointers elsewhere.".format(
+                            name
+                        )
+                    )
 
         grouped_indices = calculate_mutual_groups(
             [weights, grads] + list(state_tensors.values())
