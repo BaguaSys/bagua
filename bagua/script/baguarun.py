@@ -68,7 +68,7 @@ def pssh_bagua_launch(
     if args.no_python:
         bypass_args.append("--no_python")
     if args.enable_bagua_net:
-        bypass_args.append("--enable-bagua-net")
+        bypass_args.append("--enable_bagua_net")
 
     host_config = [HostConfig(port=port) for (_, port) in args.host_list]
 
