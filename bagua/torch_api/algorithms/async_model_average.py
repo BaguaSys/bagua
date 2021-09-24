@@ -66,7 +66,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self, tensors: List[List[BaguaTensor]], do_flatten: bool
     ) -> List[BaguaBucket]:
         if self.step_id < self.warmup_steps:
-            return super().tensors_to_buckets(tensors)
+            return super().tensors_to_buckets(tensors, do_flatten)
 
         all_tensors = []
         for idx, bucket in enumerate(tensors):
