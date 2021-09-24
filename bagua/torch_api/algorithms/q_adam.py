@@ -28,7 +28,8 @@ class QAdamOptimizer(Optimizer):
             params (iterable): Iterable of parameters to optimize or dicts defining
                 parameter groups.
             lr: Learning rate.
-            warmup_steps: Number of steps to do warm up in the begining of training.
+            warmup_steps: Number of steps to warm up by doing gradient allreduce before
+                doing asynchronous model averaging. Use 0 to disable.
             betas: Coefficients used for computing running averages of gradient and its square.
             eps: Term added to the denominator to improve numerical stability.
             weight_decay: Weight decay (L2 penalty).

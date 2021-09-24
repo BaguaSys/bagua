@@ -19,6 +19,7 @@ use pyo3::types::IntoPyDict;
 use sized_object_pool::DynamicPoolItem;
 use std::ffi::c_void;
 use std::fmt::Debug;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 // must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
@@ -164,6 +165,7 @@ pub trait RawBaguaTensor: Debug {
             );
         }
     }
+
     fn substract_inplace(&mut self, other: &dyn RawBaguaTensor, stream_ptr: u64) {
         assert_eq!(self.dtype(), other.dtype());
         assert_eq!(self.num_elements(), other.num_elements());
@@ -1232,25 +1234,29 @@ impl BaguaBucket {
         communicator_intranode: Option<&BaguaSingleCommunicator>,
         peer_selection_mode: String,
         torch_stream: u64,
-    ) {
+    ) -> Arc<DecentralizedFullPrecisionAsynchronous> {
         let communicator =
             BaguaCommunicator::new(communicator_internode, communicator_intranode, false)
                 .expect("cannot create communicator");
 
-        let comm_op: Arc<dyn CommOpTrait + Send + Sync> = Arc::new(
-            DecentralizedFullPrecisionAsynchronous {
-                communicator,
-                peer_selection_mode: match peer_selection_mode.as_str() {
-                    "all" => PeerSelectionMode::All,
-                    &_ => {
-                        unimplemented!("unsupported peer_selection_mode for decentralized asynchronous algorithm (should be `all`)")
-                    }
-                },
-                torch_stream,
+        let comm_op = Arc::new(DecentralizedFullPrecisionAsynchronous {
+            communicator,
+            peer_selection_mode: match peer_selection_mode.as_str() {
+                "all" => PeerSelectionMode::All,
+                &_ => {
+                    unimplemented!("unsupported peer_selection_mode for decentralized asynchronous algorithm (should be `all`)")
+                }
             },
-        );
+            torch_stream,
+            weight_mutex: Arc::new(Mutex::new(true)),
+        });
 
-        self.inner.lock().comm_ops.push(comm_op);
+        self.inner
+            .lock()
+            .comm_ops
+            .push(comm_op.clone() as Arc<dyn CommOpTrait + Send + Sync>);
+
+        comm_op
     }
 
     pub fn ready_for_comm(&self) -> bool {

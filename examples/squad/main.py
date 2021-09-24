@@ -167,7 +167,8 @@ def train(args, train_dataset, model, tokenizer):
         from bagua.torch_api.algorithms import async_model_average
 
         algorithm = async_model_average.AsyncModelAverageAlgorithm(
-            sync_interval_ms=args.async_sync_interval
+            sync_interval_ms=args.async_sync_interval,
+            warmup_steps=args.async_warmup_steps,
         )
     else:
         raise NotImplementedError
@@ -405,7 +406,6 @@ def train(args, train_dataset, model, tokenizer):
 
     if args.algorithm == "async":
         algorithm.abort(model)
-        torch.cuda.synchronize()
 
     return global_step, tr_loss / global_step
 
@@ -914,6 +914,12 @@ def main():
         help="multiple threads for converting example to features",
     )
     parser.add_argument(
+        "--set-deterministic",
+        action="store_true",
+        default=False,
+        help="set deterministic or not",
+    )
+    parser.add_argument(
         "--algorithm",
         type=str,
         default="gradient_allreduce",
@@ -926,16 +932,16 @@ def main():
         help="Model synchronization interval(ms) for async algorithm",
     )
     parser.add_argument(
+        "--async-warmup-steps",
+        default=100,
+        type=int,
+        help="Warmup(allreduce) steps for async algorithm",
+    )
+    parser.add_argument(
         "--fuse-optimizer",
         action="store_true",
         default=False,
         help="fuse optimizer or not",
-    )
-    parser.add_argument(
-        "--set-deterministic",
-        action="store_true",
-        default=False,
-        help="whether set deterministic",
     )
 
     args = parser.parse_args()

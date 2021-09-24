@@ -118,9 +118,13 @@ class AutotuneService:
             return
 
         if hp_manager.sampling_count == 0:
-            sampling_time -= self.warmup_time_s
+            confidence_skip = (
+                sampling_time < self.warmup_time_s + self.sampling_confidence_time_s
+            )
+        else:
+            confidence_skip = sampling_time < self.sampling_confidence_time_s
 
-        if sampling_time < self.sampling_confidence_time_s:
+        if confidence_skip:
             logging.debug(
                 "The sampling time is not up, time={}, last={}, "
                 "sampling_confidence_time_s={}".format(
@@ -251,7 +255,8 @@ class AutotuneService:
                 check_board = hp_manager.check_board
                 if (
                     self.autotune_level >= 1
-                    and check_board.count(check_board[0]) == len(check_board)  # noqa: W503
+                    and check_board.count(check_board[0])  # noqa: W503
+                    == len(check_board)  # noqa: W503
                     and check_board[rank] < train_iter  # noqa: W503
                 ):
                     self.autotune(hp_manager, rank, train_iter, tensor_partial_order)
