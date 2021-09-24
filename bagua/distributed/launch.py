@@ -128,7 +128,7 @@ def parse_args():
         "--default_bucket_size", type=int, default=10 * 1024 ** 2
     )  # noqa: E501
     parser.add_argument(
-        "--enable-bagua-net",
+        "--enable_bagua_net",
         action="store_true",
         default=False,
         help="Enable Bagua-Net optimization for better "

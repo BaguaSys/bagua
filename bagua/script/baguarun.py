@@ -142,7 +142,7 @@ def parse_args():
         type=int,
     )
     parser.add_argument(
-        "--enable-bagua-net",
+        "--enable_bagua_net",
         action="store_true",
         default=False,
         help="Enable Bagua-Net optimization for better "
