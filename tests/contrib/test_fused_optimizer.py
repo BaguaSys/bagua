@@ -8,7 +8,7 @@ from tests import skip_if_cuda_available, skip_if_cuda_not_available
 
 import logging
 
-logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger().setLevel(logging.INFO)
 
 
 def construct_model_and_optimizer(opt, flag_param, device):
@@ -68,9 +68,9 @@ def train_model_fused(model, optimizer, device, num_epochs):
         loss.backward()
 
         if epoch % 2 == 0:
-            optimizer.step()
-        else:
             optimizer.fuse_step()
+        else:
+            optimizer.step()
 
 
 def run(opt, flag_param, device, num_epochs):
@@ -183,6 +183,7 @@ class TestFusedOptimizer(unittest.TestCase):
             dict(weight_decay=1),  # Adadelta
         ]
 
+        count = 0
         for opt, flag_param in zip(optimizer_list, flag_params):
             res1 = fn1(opt, flag_param, device=device, num_epochs=num_epochs)
             res2 = fn2(opt, flag_param, device=device, num_epochs=num_epochs)
@@ -190,9 +191,14 @@ class TestFusedOptimizer(unittest.TestCase):
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
 
+            count += 1
+            logging.info(f"Tests Passed [{count}/{len(optimizer_list)}]")
+
     @skip_if_cuda_available()
     def test_fused_optimizer(self):
-        self.run_all_optimizers_once(fn1=run, fn2=run_fused, device="cpu", num_epochs=3)
+        self.run_all_optimizers_once(
+            fn1=run, fn2=run_fused, device="cpu", num_epochs=1001
+        )
 
     @skip_if_cuda_not_available()
     def test_fused_optimizer_with_bagua_wrapper(self):
@@ -211,13 +217,13 @@ class TestFusedOptimizer(unittest.TestCase):
         bagua.init_process_group()
 
         self.run_all_optimizers_once(
-            fn1=run, fn2=run_fused_bagua, device="cuda:0", num_epochs=3
+            fn1=run, fn2=run_fused_bagua, device="cuda:0", num_epochs=1001
         )
         self.run_all_optimizers_once(
-            fn1=run, fn2=run_fused_bagua_v2, device="cuda:0", num_epochs=3
+            fn1=run, fn2=run_fused_bagua_v2, device="cuda:0", num_epochs=1001
         )
         self.run_all_optimizers_once(
-            fn1=run, fn2=run_fused_bagua_with_states, device="cuda:0", num_epochs=3
+            fn1=run, fn2=run_fused_bagua_with_states, device="cuda:0", num_epochs=1001
         )
 
     @skip_if_cuda_available()

@@ -215,8 +215,6 @@ def fuse_optimizer(optimizer, do_flatten: bool = True):
 
     fused_optimizer = copy.copy(optimizer)
 
-    # FIXME
-    fused_optimizer.step_counter = 0
     optimizer._fused_optimizer = fused_optimizer
 
     if do_flatten:
@@ -244,7 +242,6 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
         optimizer, "_fused_optimizer"
     ), "Should init fused optimizer by calling `fuse_optimizer`."
 
-    optimizer._fused_optimizer.step_counter += 1
     do_fuse(optimizer._fused_optimizer)
     return optimizer._fused_optimizer.step(closure)
 
@@ -294,14 +291,11 @@ def do_fuse(optimizer: torch.optim.Optimizer):
             for idx, param in enumerate(params):
                 if idx not in grouped_indices_flat:
                     new_params.append(param)
-                else:
-                    logging.debug(f"ready to delete state for param {idx}")
+                elif optimizer.state.get(param) is not None:
+                    logging.debug(f"Ready to delete state for param {idx}")
                     del optimizer.state[param]
 
             group["params"] = new_params
-            logging.debug(
-                f"Final at step #{optimizer.step_counter}, param_groups: {optimizer.param_groups}, states: {optimizer.state}"
-            )
 
 
 def _get_state_by_name(optimizer_state, params):
