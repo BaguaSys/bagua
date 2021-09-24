@@ -62,7 +62,9 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.scheduled = False
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         if self.step_id < self.warmup_steps:
             return super().tensors_to_buckets(tensors)
 
@@ -70,7 +72,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         for idx, bucket in enumerate(tensors):
             all_tensors.extend(bucket)
 
-        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
+        bagua_bucket = BaguaBucket(all_tensors, flatten=do_flatten, name=str(0))
 
         return [bagua_bucket]
 
