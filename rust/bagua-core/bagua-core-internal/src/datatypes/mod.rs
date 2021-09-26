@@ -682,14 +682,14 @@ impl MinMaxUInt8CompressionParameters {
             BaguaTensorDtype::F32 => {
                 let align_bytes = 32;
                 // Note chunk_size is already aligned outside
-                let compressed_align_bytes = align_size(chunk_size * n_chunks, align_bytes);
+                let compressed_align_bytes = align_size(chunk_size, align_bytes) * n_chunks;
                 let min_max_align_bytes = align_size(4 * 2, align_bytes) * n_chunks; // assume min max are both f32
                 return compressed_align_bytes + min_max_align_bytes;
             }
             BaguaTensorDtype::F16 => {
                 let align_bytes = 32;
                 // Note chunk_size is already aligned outside
-                let compressed_align_bytes = align_size(chunk_size * n_chunks, align_bytes);
+                let compressed_align_bytes = align_size(chunk_size, align_bytes) * n_chunks;
                 let min_max_align_bytes = align_size(2 * 2, align_bytes) * n_chunks; // assume min max are both f16
                 return compressed_align_bytes + min_max_align_bytes;
             }
