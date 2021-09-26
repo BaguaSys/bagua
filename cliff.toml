@@ -8,11 +8,16 @@ body = """
 {% endif %}\
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | upper_first }}
-    {% for commit in commits %}
-        - {{ commit.message | upper_first }}\
-    {% endfor %}
+    {% for group, commits in commits | group_by(attribute="scope") %}
+        #### {{ group | upper_first }}
+        {% for commit in commits %}
+            - {{ commit.message | upper_first }}\
+        {% endfor %}
+    {% endfor %}\
 {% endfor %}\n
 """
+# remove the leading and trailing whitespaces from the template
+trim = true
 
 
 [git]
@@ -21,10 +26,10 @@ body = """
 conventional_commits = true
 # regex for parsing and grouping commits
 commit_parsers = [
-    { message = "^feat*", group = "Features"},
-    { message = "^fix*", group = "Bug Fixes"},
+    { message = "^feat*", group = "Features", default_scope = "other"},
+    { message = "^fix*", group = "Bug Fixes", default_scope = "other"},
     { message = "^doc*", group = "Documentation", skip = true},
-    { message = "^perf*", group = "Performance"},
+    { message = "^perf*", group = "Performance", default_scope = "other"},
     { message = "^refactor*", group = "Refactor", skip = true},
     { message = "^style*", group = "Styling", skip = true},
     { message = "^test*", group = "Testing", skip = true},
