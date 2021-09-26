@@ -193,7 +193,7 @@ if __name__ == "__main__":
     if (
         int(os.getenv("BAGUA_NO_INSTALL_DEPS", 0)) == 0
         and len(sys.argv) > 1
-        and sys.argv[1] in ["install", "bdist_wheel"]
+        and sys.argv[1] in ["build", "install", "develop", "bdist_wheel"]  # noqa: W503
     ):
         print(
             colorama.Fore.BLACK
