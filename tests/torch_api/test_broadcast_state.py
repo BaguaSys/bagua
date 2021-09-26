@@ -73,6 +73,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
     )
 
     from bagua.torch_api.algorithms import gradient_allreduce
+
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
 
     bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
@@ -99,7 +100,9 @@ class Test_Broadcast_Module(unittest.TestCase):
         optimizers = [
             (subclass.__name__, subclass)
             for subclass in torch.optim.Optimizer.__subclasses__()
-            if subclass.__module__.startswith("torch.optim") and subclass != torch.optim.LBFGS and subclass != torch.optim.SparseAdam
+            if subclass.__module__.startswith("torch.optim")
+            and subclass != torch.optim.LBFGS
+            and subclass != torch.optim.SparseAdam
         ]
 
         optimizer_hyper_param = [
@@ -155,8 +158,12 @@ class Test_Broadcast_Module(unittest.TestCase):
                         # assert tensor
                         self.assertTrue(
                             torch.equal(
-                                torch.tensor(bagua_params[0][0][i][1], dtype=torch.float),
-                                torch.tensor(bagua_params[rank][0][i][1], dtype=torch.float),
+                                torch.tensor(
+                                    bagua_params[0][0][i][1], dtype=torch.float
+                                ),
+                                torch.tensor(
+                                    bagua_params[rank][0][i][1], dtype=torch.float
+                                ),
                             )
                         )
 
@@ -168,13 +175,20 @@ class Test_Broadcast_Module(unittest.TestCase):
                                 bagua_params[rank][1][j][0],
                             )
                             # assert tensor/scalar
-                            if bagua_params[0][1][j][1] is None:  # this is for "torch.optim.sgd.SGD" and dict(lr=0.2)
+                            if (
+                                bagua_params[0][1][j][1] is None
+                            ):  # this is for "torch.optim.sgd.SGD" and dict(lr=0.2)
                                 continue
                             else:
                                 self.assertTrue(
                                     torch.equal(
-                                        torch.tensor(bagua_params[0][1][j][1], dtype=torch.float),
-                                        torch.tensor(bagua_params[rank][1][j][1], dtype=torch.float),
+                                        torch.tensor(
+                                            bagua_params[0][1][j][1], dtype=torch.float
+                                        ),
+                                        torch.tensor(
+                                            bagua_params[rank][1][j][1],
+                                            dtype=torch.float,
+                                        ),
                                     )
                                 )
 

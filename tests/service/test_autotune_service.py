@@ -31,8 +31,9 @@ def metrics(buckets, is_hierarchical_reduce):
     # convex function with peak at bucket_size=20MB
     score = 0.0
     for bucket in buckets:
-        score += -abs(sum([get_tensor_declaration_bytes(td)
-                      for td in bucket]) - 20 * 1024 ** 2)
+        score += -abs(
+            sum([get_tensor_declaration_bytes(td) for td in bucket]) - 20 * 1024 ** 2
+        )
 
     if not is_hierarchical_reduce:
         score += abs(score) * 0.1
@@ -58,10 +59,8 @@ class MockBaguaProcess:
 
     def run(self):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
-        assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(
-            rsp)
-        hp = BaguaHyperparameter().update(
-            rsp.json()["recommended_hyperparameters"])
+        assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
+        hp = BaguaHyperparameter().update(rsp.json()["recommended_hyperparameters"])
 
         train_iter = 0
         while True:
@@ -124,80 +123,86 @@ class TestAutotuneService(unittest.TestCase):
         server.start()
 
         model_dict = {
-            "basic": ([
-                TensorDeclaration(
-                    {
-                        "name": "basic.A",
-                        "num_elements": 1 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "basic.B",
-                        "num_elements": 2 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "basic.C",
-                        "num_elements": 3 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "basic.D",
-                        "num_elements": 4 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "basic.E",
-                        "num_elements": 5 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-            ], []),
-            "Mixed_precision_test": ([
-                TensorDeclaration(
-                    {
-                        "name": "Mixed_precision_test.A",
-                        "num_elements": 1 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "Mixed_precision_test.B",
-                        "num_elements": 3 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "Mixed_precision_test.C",
-                        "num_elements": 5 * 1024 ** 2,
-                        "dtype": "f16",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "Mixed_precision_test.D",
-                        "num_elements": 7 * 1024 ** 2,
-                        "dtype": "f16",
-                    }
-                ),
-                TensorDeclaration(
-                    {
-                        "name": "Mixed_precision_test.E",
-                        "num_elements": 11 * 1024 ** 2,
-                        "dtype": "f32",
-                    }
-                ),
-            ], []),
+            "basic": (
+                [
+                    TensorDeclaration(
+                        {
+                            "name": "basic.A",
+                            "num_elements": 1 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "basic.B",
+                            "num_elements": 2 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "basic.C",
+                            "num_elements": 3 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "basic.D",
+                            "num_elements": 4 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "basic.E",
+                            "num_elements": 5 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                ],
+                [],
+            ),
+            "Mixed_precision_test": (
+                [
+                    TensorDeclaration(
+                        {
+                            "name": "Mixed_precision_test.A",
+                            "num_elements": 1 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "Mixed_precision_test.B",
+                            "num_elements": 3 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "Mixed_precision_test.C",
+                            "num_elements": 5 * 1024 ** 2,
+                            "dtype": "f16",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "Mixed_precision_test.D",
+                            "num_elements": 7 * 1024 ** 2,
+                            "dtype": "f16",
+                        }
+                    ),
+                    TensorDeclaration(
+                        {
+                            "name": "Mixed_precision_test.E",
+                            "num_elements": 11 * 1024 ** 2,
+                            "dtype": "f32",
+                        }
+                    ),
+                ],
+                [],
+            ),
             "out_of_order_tensor": (
                 [
                     TensorDeclaration(
