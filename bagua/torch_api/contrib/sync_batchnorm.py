@@ -47,25 +47,48 @@ class SyncBatchNorm(_BatchNorm):
 
     .. note:: Only GPU input tensors are supported in the training mode.
     """
-    def __init__(self, num_features, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True):
+
+    def __init__(
+        self,
+        num_features,
+        eps=1e-5,
+        momentum=0.1,
+        affine=True,
+        track_running_stats=True,
+    ):
         super().__init__(num_features, eps, momentum, affine, track_running_stats)
 
     def _check_input_dim(self, input):
         if input.dim() < 2:
-            raise ValueError('expected at least 2D input (got {}D input)'.format(input.dim()))
+            raise ValueError(
+                "expected at least 2D input (got {}D input)".format(input.dim())
+            )
 
     def _run_bn(self, input):
         return F.batch_norm(
-            input, self.running_mean, self.running_var, self.weight, self.bias,
-            self.training or not self.track_running_stats, self.momentum, self.eps)
+            input,
+            self.running_mean,
+            self.running_var,
+            self.weight,
+            self.bias,
+            self.training or not self.track_running_stats,
+            self.momentum,
+            self.eps,
+        )
 
     @torch.jit.unused
     def _maybe_run_sync_bn(self, input):
         if bagua.get_world_size() == 1:
             return self._run_bn(input)
         return _SyncBatchNorm.apply(
-            input, self.weight, self.bias, self.running_mean, self.running_var,
-            self.eps, self.momentum)
+            input,
+            self.weight,
+            self.bias,
+            self.running_mean,
+            self.running_var,
+            self.eps,
+            self.momentum,
+        )
 
     def forward(self, input):
         # currently only GPU input is supported by underlying kernel from PyTorch
@@ -134,9 +157,7 @@ class SyncBatchNorm(_BatchNorm):
             if hasattr(module, "qconfig"):
                 module_output.qconfig = module.qconfig
         for name, child in module.named_children():
-            module_output.add_module(
-                name, cls.convert_sync_batchnorm(child)
-            )
+            module_output.add_module(name, cls.convert_sync_batchnorm(child))
         del module
         return module_output
 
@@ -154,9 +175,15 @@ class _SyncBatchNorm(Function):
         count, mean, invstd = count.cuda(), mean.cuda(), invstd.cuda()
 
         nums_ranks = bagua.get_world_size()
-        count_all = torch.tensor([torch.empty_like(count).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
-        mean_all = torch.tensor([torch.empty_like(mean).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
-        invstd_all = torch.tensor([torch.empty_like(invstd).cpu().detach().numpy() for _ in range(nums_ranks)]).cuda()
+        count_all = torch.tensor(
+            [torch.empty_like(count).cpu().detach().numpy() for _ in range(nums_ranks)]
+        ).cuda()
+        mean_all = torch.tensor(
+            [torch.empty_like(mean).cpu().detach().numpy() for _ in range(nums_ranks)]
+        ).cuda()
+        invstd_all = torch.tensor(
+            [torch.empty_like(invstd).cpu().detach().numpy() for _ in range(nums_ranks)]
+        ).cuda()
 
         allgather(count.unsqueeze(0), count_all)
         allgather(mean.unsqueeze(0), mean_all)

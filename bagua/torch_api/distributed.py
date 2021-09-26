@@ -136,11 +136,13 @@ class BaguaModule:
         def _state_param_callback(param_id, param_name):
             def _assign_state(v):
                 optimizer_state_dict["state"][param_id][param_name] = v
+
             return _assign_state
 
         def _hyper_param_callback(index, group_key):
             def _assign_hyper(v):
                 optimizer.param_groups[index][group_key] = v
+
             return _assign_hyper
 
         params = []
