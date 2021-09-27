@@ -53,4 +53,5 @@ class ByteGradAlgorithm(Algorithm):
             average=self.average,
             scattergather=True,
             compression="MinMaxUInt8",
+            group=bagua_module._bagua_process_group,
         )

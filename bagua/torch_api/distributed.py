@@ -3,7 +3,7 @@ import collections
 import io
 import pickle
 
-from bagua.torch_api.communication import get_backend, broadcast
+from bagua.torch_api.communication import get_backend, broadcast, _get_default_group
 from .env import get_rank
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
@@ -244,6 +244,7 @@ class BaguaModule:
         self,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
+        process_group: bagua.torch_api.communication.BaguaProcessGroup = None,
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html?highlight=module#torch.nn.Module>`_.
@@ -253,6 +254,8 @@ class BaguaModule:
                 module. It can contain one or more PyTorch optimizers.
             algorithm: Distributed algorithm
                 used to do the actual communication and update.
+            process_group: The process group to be used for distributed data all-reduction. If ``None``, the default process group,
+                which is created by :func:`bagua.torch_api.init_process_group`, will be used. (default: ``None``)
 
         Returns:
             The original module, with Bagua related environments initialized.
@@ -369,11 +372,11 @@ class BaguaModule:
             ]
         )
 
-        # get communicators
-        self._bagua_inter_node_communicator = self._bagua_backend.internode_communicator
-        self._bagua_intra_node_communicator = self._bagua_backend.intranode_communicator
-        self._bagua_global_communicator = self._bagua_backend.global_communicator
-        self.bagua_communication_stream = self._bagua_backend.stream
+        # set bucket process group
+        if process_group is None:
+            self._bagua_process_group = _get_default_group()
+        else:
+            self._bagua_process_group = process_group
 
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client

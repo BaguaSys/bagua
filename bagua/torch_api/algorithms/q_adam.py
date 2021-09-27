@@ -172,6 +172,7 @@ class QAdamAlgorithm(Algorithm):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
+                group=bagua_module._bagua_process_group,
             )
         else:
 
@@ -186,6 +187,7 @@ class QAdamAlgorithm(Algorithm):
                 average=True,
                 scattergather=True,
                 compression="MinMaxUInt8",
+                group=bagua_module._bagua_process_group,
             )
 
     def init_backward_hook(self, bagua_module: BaguaModule):
