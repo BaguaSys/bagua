@@ -9,7 +9,7 @@ import torch
 
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.utils import check_contiguous
-from bagua.torch_api.communication import broadcast
+from bagua.torch_api.communication import broadcast, BaguaProcessGroup
 
 
 class BaguaBucket:

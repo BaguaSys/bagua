@@ -270,9 +270,10 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     also initialize the distributed package, should be executed before all the
     APIs of Bagua.
 
-    store: Key/value store accessible to all workers, used to exchange
-        connection/address information. If ``None``, a TCP-based store will be created.
-        Default: ``None``.
+    Args:
+        store: Key/value store accessible to all workers, used to exchange
+            connection/address information. If ``None``, a TCP-based store will be created.
+            Default: ``None``.
 
     Examples::
         >>> import torch
@@ -945,6 +946,7 @@ def alltoall(
     comm.cuda_stream.synchronize()
 
 
+# TODO combine **inplace API
 def alltoall_inplace(
     tensor: torch.Tensor,
     comm=None,
