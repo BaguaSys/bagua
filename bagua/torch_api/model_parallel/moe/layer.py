@@ -1,3 +1,7 @@
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab
+#
+# All rights reserved.
+#
 # The file has been adapted from DeepSpeed:
 #   https://github.com/microsoft/DeepSpeed/blob/master/deepspeed/moe/layer.py
 # Git commit hash: bff6126f0ddbd1a03da66867571ac87b11c21ac1

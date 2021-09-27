@@ -1,10 +1,13 @@
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab
+#
+# All rights reserved.
+#
 # The file has been adapted from DeepSpeed:
 #   https://github.com/microsoft/DeepSpeed/blob/master/deepspeed/moe/sharded_moe.py
 # Git commit hash: bff6126f0ddbd1a03da66867571ac87b11c21ac1
 # We retain the following license from the original files:
 
 # Copyright 2020 The Microsoft DeepSpeed Team
-
 # Copyright (c) Facebook, Inc. and its affiliates. All rights reserved.
 #
 # This source code is licensed under the BSD license found in the

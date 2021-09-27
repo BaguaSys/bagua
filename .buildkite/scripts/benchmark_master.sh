@@ -102,7 +102,7 @@ function check_moe_log {
     fi
 }
 
-MOE_SCRIPT="/workdir/examples/mnist/main.py"
+MOE_SCRIPT="/workdir/examples/moe/mnist_main.py"
 logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
 CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
     --nnodes=2 \
