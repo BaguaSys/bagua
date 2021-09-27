@@ -13,20 +13,14 @@ import bagua.torch_api as bagua
 
 
 class Net(nn.Module):
-    def __init__(self, num_local_experts):
+    def __init__(self):
         super(Net, self).__init__()
-        self.num_local_experts = num_local_experts
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.dropout1 = nn.Dropout(0.25)
         self.dropout2 = nn.Dropout(0.5)
         self.fc1 = nn.Linear(9216, 128)
-        if self.num_local_experts:
-            self.fc2 = nn.Linear(128, 128)
-            self.fc2 = bagua.moe.MoE(128, self.fc2, num_local_experts, 2)
-            self.fc3 = nn.Linear(128, 10)
-        else:
-            self.fc2 = nn.Linear(128, 10)
+        self.fc2 = nn.Linear(128, 10)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -39,11 +33,7 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
-        if self.num_local_experts:
-            x, _, _ = self.fc2(x)
-            x = self.fc3(x)
-        else:
-            x = self.fc2(x)
+        x = self.fc2(x)
         output = F.log_softmax(x, dim=1)
         return output
 
@@ -166,12 +156,6 @@ def main():
         default=False,
         help="whether set deterministic",
     )
-    parser.add_argument(
-        "--num-local-experts",
-        default=0,
-        type=int,
-        help="number of experts (moe) per gpu",
-    )
 
     args = parser.parse_args()
     if args.set_deterministic:
@@ -226,7 +210,7 @@ def main():
     train_loader = torch.utils.data.DataLoader(dataset1, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
-    model = Net(args.num_local_experts).cuda()
+    model = Net().cuda()
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     if args.algorithm == "gradient_allreduce":
