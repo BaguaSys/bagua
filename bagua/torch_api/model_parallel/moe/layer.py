@@ -29,7 +29,8 @@ class MoE(torch.nn.Module):
                  capacity_factor=1.,
                  eval_capacity_factor=1.,
                  min_capacity=4,
-                 noisy_gate_policy: typing.Optional[str] = None):
+                 noisy_gate_policy: typing.Optional[str] = None,
+                 disable_alltoall: bool = False):
         """Initialize an MoE layer.
 
         Arguments:
@@ -70,7 +71,8 @@ class MoE(torch.nn.Module):
                                                noisy_gate_policy),
                                       experts,
                                       num_local_experts,
-                                      group=dist.group.WORLD)
+                                      group=dist.group.WORLD,
+                                      disable_alltoall=disable_alltoall)
 
         self.dropout = torch.nn.Dropout(output_dropout_prob)
 
