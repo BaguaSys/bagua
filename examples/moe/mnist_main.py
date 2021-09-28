@@ -1,5 +1,6 @@
 from __future__ import print_function
 import argparse
+from typing import OrderedDict
 import numpy as np
 import random
 import torch
@@ -39,9 +40,14 @@ class Net(nn.Module):
         self.dropout2 = nn.Dropout(0.5)
         self.fc1 = nn.Linear(9216, 1024)
 
-        self.moe_layers = []
-        for i in range(24):
-            self.moe_layers.append(MyMoeLayer(1024, num_local_experts))
+        # moe_layers = []
+        # for i in range(24):
+        #     moe_layers.append(MyMoeLayer(1024, num_local_experts))
+
+        self.moe = nn.Sequential(OrderedDict([
+            ('moe{}'.format(i), MyMoeLayer(1024, num_local_experts))
+            for i in range(24)
+        ]))
 
     def forward(self, x):
         x = self.conv1(x)
@@ -54,9 +60,7 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
-
-        for moe_layer in self.moe_layers:
-            x = moe_layer(x)
+        x = self.moe(x)
 
         output = F.log_softmax(x, dim=1)
         return output
