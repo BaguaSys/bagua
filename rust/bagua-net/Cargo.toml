@@ -30,7 +30,7 @@ opentelemetry-jaeger = { version = "*", features = [
 ] }
 opentelemetry-prometheus = { version = "*" }
 openssl = { version = "0.10", features = ["vendored"] }
-prometheus = { version = "0.12", features = ["push"] }
+prometheus = { version = "0.13", features = ["push"] }
 lazy_static = "1.4"
 regex = "1.5"
 tokio = { version = "1", features = ["full"] }
