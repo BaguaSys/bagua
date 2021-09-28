@@ -120,6 +120,10 @@ def new_group(
         The global communicator is used for global communications involving all ranks in the process group.
         The inter-node communicator and the intra-node communicator is used for hierarchical communications
         in this process group.
+
+    .. note::
+        For a specific communicator ``comm``, ``comm.rank()`` returns the rank of current process and
+        ``comm.nranks()`` returns the size of the communicator.
     """
     global _group_count
     global _pg_group_ranks
@@ -612,9 +616,9 @@ def allreduce(
     in all processes.
 
     Args:
-        send_tensor (torch.Tensor): Input of the collective.
-        recv_tensor (torch.Tensor): Output of the collective, must have the same size with :attr:`send_tensor`.
-        op (ReduceOp, optional): One of the values from :class:`ReduceOp` enum. Specifies an operation used for element-wise reductions.
+        send_tensor: Input of the collective.
+        recv_tensor: Output of the collective, must have the same size with :attr:`send_tensor`.
+        op: One of the values from :class:`ReduceOp` enum. Specifies an operation used for element-wise reductions.
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
 
