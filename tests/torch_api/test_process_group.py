@@ -2,6 +2,7 @@ import bagua.torch_api as bagua
 import torch
 import unittest
 from tests.internal.multi_process import MultiProcessTestCase, setup_bagua_env
+from tests import skip_if_cuda_not_available
 
 
 class Result(object):
@@ -52,6 +53,7 @@ def run_from_torch_group(rank, nprocs, args, results, env):
 
 
 class TestProcessGroup(MultiProcessTestCase):
+    @skip_if_cuda_not_available()
     def test_new_group(self):
         nprocs = torch.cuda.device_count()
         results = [Result() for _ in range(nprocs)]
@@ -65,6 +67,7 @@ class TestProcessGroup(MultiProcessTestCase):
 
             self.assertTrue(torch.equal(results[rank].data, results[peer_rank].data))
 
+    @skip_if_cuda_not_available()
     def test_from_torch_group(self):
         nprocs = torch.cuda.device_count()
         self.run_test_locally(run_from_torch_group, nprocs, args={}, results=None)
