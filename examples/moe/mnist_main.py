@@ -12,6 +12,23 @@ import logging
 import bagua.torch_api as bagua
 
 
+class MyMoeLayer(nn.Module):
+    def __init__(self, in_features, num_local_experts) -> None:
+        super().__init__()
+        self.num_local_experts = num_local_experts
+        self.fc = nn.Linear(in_features, in_features)
+        self.moe = bagua.moe.MoE(in_features, self.fc, num_local_experts, 2)
+
+    def forward(self, x):
+        if self.num_local_experts:
+            x, _, _ = self.fc(x)
+            x = self.moe(x)
+        else:
+            x = self.fc(x)
+
+        return x
+
+
 class Net(nn.Module):
     def __init__(self, num_local_experts):
         super(Net, self).__init__()
@@ -20,13 +37,11 @@ class Net(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.dropout1 = nn.Dropout(0.25)
         self.dropout2 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(9216, 128)
-        if self.num_local_experts:
-            self.fc2 = nn.Linear(128, 128)
-            self.fc2 = bagua.moe.MoE(128, self.fc2, num_local_experts, 2)
-            self.fc3 = nn.Linear(128, 10)
-        else:
-            self.fc2 = nn.Linear(128, 10)
+        self.fc1 = nn.Linear(9216, 1024)
+
+        self.moe_layers = []
+        for i in range(24):
+            self.moe_layers.append(MyMoeLayer(1024, num_local_experts))
 
     def forward(self, x):
         x = self.conv1(x)
@@ -39,11 +54,10 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.dropout2(x)
-        if self.num_local_experts:
-            x, _, _ = self.fc2(x)
-            x = self.fc3(x)
-        else:
-            x = self.fc2(x)
+
+        for moe_layer in self.moe_layers:
+            x = moe_layer(x)
+
         output = F.log_softmax(x, dim=1)
         return output
 
