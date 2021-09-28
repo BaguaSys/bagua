@@ -11,6 +11,7 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import logging
 import bagua.torch_api as bagua
+import time
 
 
 class MyMoeLayer(nn.Module):
@@ -67,6 +68,8 @@ class Net(nn.Module):
 
 
 def train(args, model, train_loader, optimizer, epoch):
+    record_t = time.time()
+    iter_count = 0
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.cuda(), target.cuda()
@@ -75,16 +78,21 @@ def train(args, model, train_loader, optimizer, epoch):
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
+        iter_count += 1
+
         if batch_idx % args.log_interval == 0:
             logging.info(
-                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}, speed={:.2f}".format(
                     epoch,
                     batch_idx * len(data),
                     len(train_loader.dataset),
                     100.0 * batch_idx / len(train_loader),
                     loss.item(),
+                    data.shape[0] * iter_count / (time.time() - record_t)
                 )
             )
+            record_t = time.time()
+            iter_count = 0
 
 
 def test(model, test_loader):
