@@ -60,7 +60,9 @@ class MoE(torch.nn.Module):
             "None",
             "Jitter",
             "RSample",
-        ], ("Unsupported noisy_gate_policy: " + noisy_gate_policy)
+        ], (
+            "Unsupported noisy_gate_policy: " + noisy_gate_policy
+        )
 
         self.num_experts = num_local_experts * bagua.get_world_size()
         logging.info(
