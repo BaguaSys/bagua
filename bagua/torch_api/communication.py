@@ -194,7 +194,6 @@ class BaguaProcessGroup:
             )
         )
 
-
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
     def get_global_communicator(self):
@@ -369,13 +368,16 @@ def broadcast_nccl_unique_id(comm_key: str, root):
 
     return idstr
 
+
 class comm(object):
     WORLD = object()
+
 
 class CommMember(object):
     # Alias to group.WORLD for backward compatibility
     WORLD = comm.WORLD
     NON_COMM_MEMBER = object()
+
 
 def send(tensor: torch.Tensor, dst: int, comm=comm.WORLD):
     r"""Sends a tensor to :attr:`dst` synchronously.

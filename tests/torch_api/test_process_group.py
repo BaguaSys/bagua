@@ -1,12 +1,7 @@
 import bagua.torch_api as bagua
 import torch
-
 import unittest
 from tests.internal.multi_process import MultiProcessTestCase, setup_bagua_env
-
-import logging
-
-logging.getLogger().setLevel(logging.DEBUG)
 
 
 class Result(object):
@@ -45,14 +40,14 @@ def run_from_torch_group(rank, nprocs, args, results, env):
         assert torch.distributed.get_rank(g_1) == bg_1.get_global_communicator().rank()
         assert (
             torch.distributed.get_world_size(g_1)
-            == bg_1.get_global_communicator().nranks()
+            == bg_1.get_global_communicator().nranks()  # noqa: W503
         )
 
     if rank in ranks_2:
         assert torch.distributed.get_rank(g_2) == bg_2.get_global_communicator().rank()
         assert (
             torch.distributed.get_world_size(g_2)
-            == bg_2.get_global_communicator().nranks()
+            == bg_2.get_global_communicator().nranks()  # noqa: W503
         )
 
 
