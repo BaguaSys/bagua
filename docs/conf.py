@@ -150,18 +150,8 @@ _ignore_functions = [
     "bagua.torch_api.env.get_autotune_warmup_time_s",
     "bagua.torch_api.env.get_is_output_autotune_log",
     "bagua.torch_api.globals.is_initialized",
-    "bagua.torch_api.communication.get_bagua_hyperparameters",
-    "bagua.torch_api.communication.get_hyperparameters_service_client",
-    "bagua.torch_api.communication.broadcast_nccl_unique_id",
-    "bagua.torch_api.communication.*inplace",
-    "bagua.torch_api.communication.*coalesced",
-    "bagua.torch_api.communication.get_communicator",
-    "bagua.torch_api.communication.get_backend",
-    "bagua.torch_api.communication.start_autotune_server",
-    "bagua.torch_api.communication.run_flask_app",
 ]
 _ignore_classes = [
-    "bagua.torch_api.communication.BaguaProcessGroup",
     "bagua.torch_api.algorithms.BaguaModule",
     "bagua.torch_api.algorithms.BaguaBucket",
     "bagua.torch_api.algorithms.BaguaTensor",

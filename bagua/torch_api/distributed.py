@@ -3,8 +3,12 @@ import collections
 import io
 import pickle
 
-from bagua.torch_api.communication import get_backend, broadcast, _get_default_group
-from .env import get_rank
+from bagua.torch_api.communication import (
+    get_backend,
+    broadcast,
+    _get_default_group,
+    BaguaProcessGroup,
+)
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
@@ -18,7 +22,7 @@ import logging
 import torch
 import torch.nn
 import itertools
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -244,7 +248,7 @@ class BaguaModule:
         self,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
-        process_group: bagua.torch_api.communication.BaguaProcessGroup = None,
+        process_group: Optional[BaguaProcessGroup] = None,
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html?highlight=module#torch.nn.Module>`_.
