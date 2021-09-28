@@ -22,7 +22,7 @@ class MyMoeLayer(nn.Module):
 
     def forward(self, x):
         if self.num_local_experts:
-            x, _, _ = self.fc(x)
+            x = self.fc(x)
             x = self.moe(x)
         else:
             x = self.fc(x)
