@@ -83,7 +83,7 @@ class _AllToAll(torch.autograd.Function):
         ctx.group = group
         input = input.contiguous()
         output = torch.empty_like(input)
-        # dist.all_to_all_single(output, input, group=group)
+        dist.all_to_all_single(output, input, group=group)
         return output
 
     @staticmethod
