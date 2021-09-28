@@ -328,13 +328,15 @@ class MOELayer(Base):
                  gate: Module,
                  experts: Module,
                  num_local_experts: int,
-                 group: Optional[Any] = None) -> None:
+                 group: Optional[Any] = None,
+                 disable_alltoall: bool = False) -> None:
         super().__init__()
         self.gate = gate
         self.experts = experts
         self.group = group
         self.world_size = dist.get_world_size(group)
         self.num_local_experts = num_local_experts
+        self.disable_alltoall = disable_alltoall
 
     def forward(self, *input: Tensor, **kwargs: Any) -> Tensor:
         # assert len(input) == 1, "only single input Tensor supported"
@@ -354,7 +356,8 @@ class MOELayer(Base):
 
         # print(f"alltoall called at rank:{dist.get_rank()} with dispatched_input shape:{dispatched_input.shape}")
         # a = time.perf_counter()
-        dispatched_input = _AllToAll.apply(self.group, dispatched_input)
+        if not self.disable_alltoall:
+            dispatched_input = _AllToAll.apply(self.group, dispatched_input)
         # b = time.perf_counter()
         # print(f"alltoall took {b-a} seconds at rank:{dist.get_rank()}")
         # Re-shape after all-to-all: ecm -> gecm
@@ -364,7 +367,8 @@ class MOELayer(Base):
                                                     d_model)
         # print(f"reshaped input after alltoall called at rank:{dist.get_rank()} is dispatched_input shape:{dispatched_input.shape}")
         expert_output = self.experts(dispatched_input)
-        expert_output = _AllToAll.apply(self.group, expert_output)
+        if not self.disable_alltoall:
+            expert_output = _AllToAll.apply(self.group, expert_output)
         # Re-shape back: gecm -> ecm
         expert_output = expert_output.reshape(self.world_size * self.num_local_experts,
                                               -1,
