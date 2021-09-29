@@ -48,7 +48,7 @@ jobs:
       CIBW_BUILD: "${{ matrix.cibw.build || '*' }}"
       CIBW_MANYLINUX_X86_64_IMAGE: "${{ matrix.cibw.manylinux_image }}"
       CIBW_ARCHS_LINUX: "${{ matrix.cibw.arch || 'auto' }}"
-      CIBW_ENVIRONMENT: 'AUDITWHEEL_PLAT="manylinux2010_x86_64'
+      CIBW_ENVIRONMENT: 'AUDITWHEEL_PLAT="manylinux2010_x86_64"'
 
     strategy:
       fail-fast: false
