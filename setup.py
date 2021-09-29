@@ -77,6 +77,7 @@ library_records["nccl"] = _nccl_records
 
 
 def install_baguanet(url, destination):
+    return
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, os.path.basename(url))
         print("Downloading {}...".format(url))
