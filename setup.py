@@ -199,7 +199,8 @@ if __name__ == "__main__":
 
     if (
         int(os.getenv("BAGUA_NO_INSTALL_DEPS", 0)) == 0
-        and len(sys.argv) > 1 and check_args(sys.argv)
+        and len(sys.argv) > 1
+        and check_args(sys.argv)
     ):
         print(
             colorama.Fore.BLACK
