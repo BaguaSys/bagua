@@ -76,17 +76,9 @@ _nccl_records.append(
 library_records["nccl"] = _nccl_records
 
 
-def install_baguanet(url, destination):
-    return
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filename = os.path.join(tmpdir, os.path.basename(url))
-        print("Downloading {}...".format(url))
-        download_url(url, filename)
-        outdir = os.path.join(tmpdir, "extract")
-        shutil.unpack_archive(filename, outdir)
-        lib_dir = os.path.join(outdir, "build")
-        for filename in os.listdir(lib_dir):
-            shutil.move(os.path.join(lib_dir, filename), destination)
+def install_baguanet(destination):
+    os.system("cd rust/bagua-net/cc && make")
+    shutil.move("rust/bagua-net/cc/libnccl-net.so", destination)
 
 
 def install_lib(cuda, prefix, library):
@@ -144,10 +136,7 @@ The current platform ({}) is not supported.""".format(
             # Install bagua-net
             dst_dir = os.path.join(destination, "bagua-net")
             os.mkdir(dst_dir)
-            install_baguanet(
-                "https://github.com/BaguaSys/bagua-net/releases/download/v0.1.1/bagua-net_refs.tags.v0.1.1_x86_64.tar.gz",
-                dst_dir,
-            )
+            install_baguanet(dst_dir)
         else:
             assert False
         print("Cleaning up...")
@@ -231,7 +220,7 @@ if __name__ == "__main__":
                 path="rust/bagua-core/bagua-core-py/Cargo.toml",
                 binding=Binding.PyO3,
                 native=False,
-            )
+            ),
         ],
         author="Kuaishou AI Platform & DS3 Lab",
         author_email="admin@mail.xrlian.com",
