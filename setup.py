@@ -192,7 +192,6 @@ if __name__ == "__main__":
     cwd = os.path.dirname(os.path.abspath(__file__))
 
     def check_args(args: List[str]) -> bool:
-        print(args)
         for arg in ["build", "install", "develop", "bdist_wheel", "wheel"]:
             if arg in args:
                 return True
