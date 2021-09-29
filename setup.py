@@ -10,6 +10,7 @@ import sys
 import tempfile
 import urllib.request
 from tqdm import tqdm
+from typing import List
 
 
 _nccl_records = []
@@ -190,10 +191,17 @@ if __name__ == "__main__":
     colorama.init(autoreset=True)
     cwd = os.path.dirname(os.path.abspath(__file__))
 
+    def check_args(args: List[str]) -> bool:
+        print(args)
+        for arg in ["build", "install", "develop", "bdist_wheel", "wheel"]:
+            if arg in args:
+                return True
+        return False
+
     if (
         int(os.getenv("BAGUA_NO_INSTALL_DEPS", 0)) == 0
         and len(sys.argv) > 1
-        and sys.argv[1] in ["build", "install", "develop", "bdist_wheel"]  # noqa: W503
+        and check_args(sys.argv)
     ):
         print(
             colorama.Fore.BLACK
