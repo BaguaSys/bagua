@@ -277,7 +277,9 @@ def main():
         algorithm.abort(model)
 
     if args.save_model:
-        torch.save(model.state_dict(), "mnist_cnn.pt")
+        bagua.checkpoint.save_checkpoint(1000, "./", model, optimizer, scheduler)
+        bagua.checkpoint.load_checkpoint("./", model, optimizer, scheduler)
+        test(model, test_loader)
 
 
 if __name__ == "__main__":
