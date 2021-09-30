@@ -4,14 +4,11 @@
 
 import logging
 import os
-import random
 import re
 import sys
 import torch
 import torch.distributed as dist
-import bagua.torch_api as bagua
-import numpy as np
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 
 
 def _ensure_directory_exists(filename):
