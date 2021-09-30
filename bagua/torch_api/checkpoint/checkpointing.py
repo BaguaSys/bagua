@@ -57,11 +57,11 @@ def _get_model_ckpt_name(checkpoints_path, iteration, mp_rank=0, release=False):
     )
 
 
-def get_checkpoint_tracker_filename(checkpoints_path):
+def _get_checkpoint_tracker_filename(checkpoints_path):
     return os.path.join(checkpoints_path, "latest_checkpointed_iteration.txt")
 
 
-def read_metadata(tracker_filename):
+def _read_metadata(tracker_filename):
     iteration = 0
     release = False
     with open(tracker_filename, "r") as f:
@@ -85,6 +85,15 @@ def read_metadata(tracker_filename):
 def save_checkpoint(
     iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
 ):
+    """Save model checkpoint.
+
+    Args:
+        iteration: Training Iteration.
+        checkpoints_path: Path of checkpoints.
+        model: The model to save.
+        optimizer(optional): The optimizer to save. Default: ``None``.
+        lr_scheduler(optional): The LR scheduler to save. Default: ``None``.
+    """
     logging.info(
         "saving checkpoint at iterration {:7d} to {}".format(
             iteration, checkpoints_path
@@ -106,7 +115,7 @@ def save_checkpoint(
 
     # update the latest iteration
     if not dist.is_initialized() or dist.get_rank() == 0:
-        tracker_filename = get_checkpoint_tracker_filename(checkpoints_path)
+        tracker_filename = _get_checkpoint_tracker_filename(checkpoints_path)
         with open(tracker_filename, "w") as f:
             f.write(str(iteration))
 
@@ -201,19 +210,25 @@ def load_checkpoint(
     checkpoints_path, model, optimizer=None, lr_scheduler=None, strict=True
 ):
     """Load a model checkpoint and return the iteration.
-    strict (bool): whether to strictly enforce that the keys in
-        :attr:`state_dict` of the checkpoint match the names of
-        parameters and buffers in model.
+
+    Args:
+        checkpoints_path: Path of checkpoints.
+        model: The model to load on.
+        optimizer(optional): The optimizer to load on. Default: ``None``.
+        lr_scheduler(optional): The LR scheduler to load on. Default: ``None``.
+        strict (bool, optional): whether to strictly enforce that the keys in
+            ``state_dict`` of the checkpoint match the keys returned by this module's
+            state_dict() function. Default: ``True``.
     """
 
-    tracker_filename = get_checkpoint_tracker_filename(checkpoints_path)
+    tracker_filename = _get_checkpoint_tracker_filename(checkpoints_path)
 
     # If no tracker file, return iretation zero.
     if not os.path.isfile(tracker_filename):
         logging.warning(f"could not find checkpoint metadata file {tracker_filename}")
         return 0
 
-    iteration, release = read_metadata(tracker_filename)
+    iteration, release = _read_metadata(tracker_filename)
     logging.info(f"loading checkpoint from {checkpoints_path} at iteration {iteration}")
 
     _load_checkpoint(iteration, checkpoints_path, model, optimizer, lr_scheduler)
