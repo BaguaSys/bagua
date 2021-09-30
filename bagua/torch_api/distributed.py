@@ -19,6 +19,7 @@ import torch
 import torch.nn
 import itertools
 from typing import List, Tuple
+from bagua.torch_api.model_parallel.moe import MoE
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -382,6 +383,14 @@ class BaguaModule:
         self._bagua_autotune_client = get_hyperparameters_service_client()
 
         self._bagua_init_algorithm()
+
+        self.has_moe_layers = False
+        self.num_experts = 0
+        for name, module in self.named_modules():
+            if isinstance(module, MoE):
+                self.has_moe_layers = True
+                self.num_experts = module.num_experts
+                break
         return self
 
     def _bagua_autotune_register_tensors(self):

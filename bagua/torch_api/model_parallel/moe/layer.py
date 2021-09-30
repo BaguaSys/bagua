@@ -70,7 +70,7 @@ class MoE(torch.nn.Module):
         )
 
         experts = Experts(expert, num_local_experts)
-        self.deepspeed_moe = MOELayer(
+        self.bagua_moe = MOELayer(
             TopKGate(
                 hidden_size,
                 self.num_experts,
@@ -103,6 +103,6 @@ class MoE(torch.nn.Module):
 
             * exp_counts (int): expert count
         """
-        output = self.deepspeed_moe(hidden_states, used_token)
+        output = self.bagua_moe(hidden_states, used_token)
         output = self.dropout(output)
-        return output, self.deepspeed_moe.l_aux, self.deepspeed_moe.exp_counts
+        return output, self.bagua_moe.l_aux, self.bagua_moe.exp_counts
