@@ -46,9 +46,9 @@ jobs:
 
     env:
       CIBW_BUILD: "${{ matrix.cibw.build || '*' }}"
-      CIBW_MANYLINUX_X86_64_IMAGE: "${{ matrix.cibw.manylinux_image }}"
-      CIBW_ARCHS_LINUX: "${{ matrix.cibw.arch || 'auto' }}"
-      CIBW_ENVIRONMENT: 'AUDITWHEEL_PLAT="manylinux2014_x86_64"'
+      CIBW_MANYLINUX_X86_64_IMAGE: "baguasys/manylinux-cuda:${{ matrix.cuda-version }}"
+      CIBW_ARCHS_LINUX: "${{ matrix.arch || 'auto' }}"
+      CIBW_ENVIRONMENT: 'AUDITWHEEL_PLAT="manylinux2014_${{ matrix.arch }}"'
 
     strategy:
       fail-fast: false
@@ -57,39 +57,23 @@ jobs:
           # - "113"
           # - "111"
           - "102"
+        arch:
+          - x86_64
+        os:
+          - ubuntu-20.04
         include:
           - name: manylinux2010-cp37
-            os: ubuntu-20.04
             python-version: "3.7"
             cibw:
               build: "cp37*"
-              # manylinux_image: manylinux2010
-              manylinux_image: baguasys/manylinux-cuda:${{ matrix.cuda-version }}
-              arch: x86_64
           - name: manylinux2010-cp38
-            os: ubuntu-20.04
             python-version: "3.8"
             cibw:
               build: "cp38*"
-              # manylinux_image: manylinux2010
-              manylinux_image: baguasys/manylinux-cuda:${{ matrix.cuda-version }}
-              arch: x86_64
           - name: manylinux2010-cp39
-            os: ubuntu-20.04
             python-version: "3.9"
             cibw:
               build: "cp39*"
-              # manylinux_image: manylinux2010
-              manylinux_image: baguasys/manylinux-cuda:${{ matrix.cuda-version }}
-              arch: x86_64
-          # - name: manylinux2010-cp310
-          #   os: ubuntu-20.04
-          #   python-version: "3.10"
-          #   cibw:
-          #     build: "cp310*"
-          #     # manylinux_image: manylinux2010
-          #     manylinux_image: baguasys/manylinux-cuda:102
-          #     arch: x86_64
 
     steps:
       - uses: actions/checkout@v2
