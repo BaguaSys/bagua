@@ -182,24 +182,27 @@ def _get_moe_state_dict(full_state_dict, num_local_experts, expp_rank):
             moe_state_dict[key] = full_state_dict.pop(key)
     non_moe_state_dict = full_state_dict
 
-    moe_str_prefix = '.bagua_moe.experts.bagua_experts.'
+    moe_str_prefix = ".bagua_moe.experts.bagua_experts."
     for key in list(moe_state_dict.keys()):
         m = re.match(f".*{moe_str_prefix}([0-9]+).*", key)
         local_expert_id = None
         if not m:
-            logging.warning(f'No expert found in key {key}.')
+            logging.warning(f"No expert found in key {key}.")
         else:
             local_expert_id = m.group(1)
 
         global_expert_id = expp_rank * num_local_experts + int(local_expert_id)
-        expert_key = key.replace(f'{moe_str_prefix}{local_expert_id}',
-                                 f'{moe_str_prefix}{global_expert_id}')
+        expert_key = key.replace(
+            f"{moe_str_prefix}{local_expert_id}", f"{moe_str_prefix}{global_expert_id}"
+        )
         experts_state_dict[str(global_expert_id)][expert_key] = moe_state_dict.pop(key)
 
     return experts_state_dict, non_moe_state_dict
 
 
-def load_checkpoint(checkpoints_path, model, optimizer=None, lr_scheduler=None, strict=True):
+def load_checkpoint(
+    checkpoints_path, model, optimizer=None, lr_scheduler=None, strict=True
+):
     """Load a model checkpoint and return the iteration.
     strict (bool): whether to strictly enforce that the keys in
         :attr:`state_dict` of the checkpoint match the names of
@@ -221,45 +224,62 @@ def load_checkpoint(checkpoints_path, model, optimizer=None, lr_scheduler=None, 
     if dist.is_initialized():
         dist.barrier()
 
-    logging.info(f"successfully loaded checkpoint from {checkpoints_path} at {iteration}")
+    logging.info(
+        f"successfully loaded checkpoint from {checkpoints_path} at {iteration}"
+    )
     return iteration
 
 
-def _load_checkpoint(iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None, strict=True):
+def _load_checkpoint(
+    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None, strict=True
+):
     expp_rank = 1 if not dist.is_initialized() else dist.get_rank()
     checkpoint_name = _get_model_ckpt_name(checkpoints_path, iteration)
 
-    model_checkpoint = torch.load(checkpoint_name, map_location='cpu')
+    model_checkpoint = torch.load(checkpoint_name, map_location="cpu")
     if model.has_moe_layers:
         num_local_experts = model.num_experts // dist.get_world_size()
-        _load_moe_state_dict(checkpoints_path, iteration, num_local_experts, expp_rank, state_dict=model_checkpoint['model'])
+        _load_moe_state_dict(
+            checkpoints_path,
+            iteration,
+            num_local_experts,
+            expp_rank,
+            state_dict=model_checkpoint["model"],
+        )
 
     if model.has_moe_layers and optimizer is not None:
-        optim_load_path = _get_optimizer_ckpt_name(checkpoints_path, iteration, expp_rank)
-        optim_checkpoint = torch.load(optim_load_path, map_location=torch.device('cpu'))
+        optim_load_path = _get_optimizer_ckpt_name(
+            checkpoints_path, iteration, expp_rank
+        )
+        optim_checkpoint = torch.load(optim_load_path, map_location=torch.device("cpu"))
     else:
         optim_checkpoint = model_checkpoint
 
-
-    model.load_state_dict(model_checkpoint['model'], strict=strict)
+    model.load_state_dict(model_checkpoint["model"], strict=strict)
 
     # Optimizer.
     if optimizer is not None:
-        optimizer.load_state_dict(optim_checkpoint['optimizer'])
+        optimizer.load_state_dict(optim_checkpoint["optimizer"])
     if lr_scheduler is not None:
-        lr_scheduler.load_state_dict(model_checkpoint['lr_scheduler'])
+        lr_scheduler.load_state_dict(model_checkpoint["lr_scheduler"])
 
 
-def _load_moe_state_dict(checkpoint_path, iteration, num_local_experts, expp_rank, state_dict):
+def _load_moe_state_dict(
+    checkpoint_path, iteration, num_local_experts, expp_rank, state_dict
+):
     for local_expert_id in range(num_local_experts):
         global_expert_id = expp_rank * num_local_experts + local_expert_id
-        expert_state_dict = torch.load(_get_expert_ckpt_name(
-            checkpoint_path, global_expert_id, iteration), map_location=torch.device('cpu'))
+        expert_state_dict = torch.load(
+            _get_expert_ckpt_name(checkpoint_path, global_expert_id, iteration),
+            map_location=torch.device("cpu"),
+        )
 
         # Updating global -> local expert ids
-        moe_str_prefix = '.bagua_moe.experts.bagua_experts.'
+        moe_str_prefix = ".bagua_moe.experts.bagua_experts."
         for key in list(expert_state_dict.keys()):
-            local_key = key.replace(f'{moe_str_prefix}{global_expert_id}',
-                                    f'{moe_str_prefix}{local_expert_id}')
+            local_key = key.replace(
+                f"{moe_str_prefix}{global_expert_id}",
+                f"{moe_str_prefix}{local_expert_id}",
+            )
             expert_state_dict[local_key] = expert_state_dict.pop(key)
         state_dict.update(expert_state_dict)
