@@ -896,3 +896,25 @@ def alltoall_v(
         )
 
     torch.cuda.synchronize()
+
+
+def alltoall_v_inplace(
+    tensor,
+    counts,
+    displs,
+    comm: B.BaguaSingleCommunicatorPy = None,
+):
+    """The in-place version of :func:`alltoall`."""
+
+    assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None:
+        comm = get_backend("").global_communicator
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.alltoall_v_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), counts, displs)
+
+    torch.cuda.synchronize()
