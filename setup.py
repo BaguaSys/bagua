@@ -82,6 +82,18 @@ def install_baguanet(destination):
 
 
 def install_lib(cuda, prefix, library):
+    if prefix is None:
+        prefix = os.path.expanduser("~/.bagua_core/cuda_lib")
+
+    destination = os.path.join(prefix, ".data")
+
+    if library == "bagua-net":
+        dst_dir = os.path.join(destination, "bagua-net")
+        os.mkdir(dst_dir)
+        install_baguanet(dst_dir)
+        print("Done!")
+        return
+
     record = None
     lib_records = library_records
     for record in lib_records[library]:
@@ -95,9 +107,6 @@ Should be one of {}.""".format(
                 cuda, str([x["cuda"] for x in lib_records[library]])
             )
         )
-    if prefix is None:
-        prefix = os.path.expanduser("~/.bagua_core/cuda_lib")
-    destination = calculate_destination(prefix, cuda, library, record[library])
 
     if os.path.exists(destination):
         print("The destination directory {} already exists.".format(destination))
@@ -132,20 +141,10 @@ The current platform ({}) is not supported.""".format(
             subdir = os.listdir(outdir)
             assert len(subdir) == 1
             shutil.move(os.path.join(outdir, subdir[0]), destination)
-
-        if library == "bagua-net":
-            dst_dir = os.path.join(destination, "bagua-net")
-            os.mkdir(dst_dir)
-            install_baguanet(dst_dir)
         else:
             assert False
         print("Cleaning up...")
     print("Done!")
-
-
-def calculate_destination(prefix, cuda, lib, lib_ver):
-    """Calculates the installation directory."""
-    return os.path.join(prefix, ".data")
 
 
 def check_torch_version():
