@@ -53,6 +53,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        cuda-version:
+          # - "113"
+          # - "111"
+          - "102"
         include:
           - name: manylinux2010-cp37
             os: ubuntu-20.04
@@ -60,7 +64,7 @@ jobs:
             cibw:
               build: "cp37*"
               # manylinux_image: manylinux2010
-              manylinux_image: baguasys/manylinux-cuda:102
+              manylinux_image: baguasys/manylinux-cuda:${{ matrix.cuda-version }}
               arch: x86_64
           - name: manylinux2010-cp38
             os: ubuntu-20.04
@@ -68,7 +72,7 @@ jobs:
             cibw:
               build: "cp38*"
               # manylinux_image: manylinux2010
-              manylinux_image: baguasys/manylinux-cuda:102
+              manylinux_image: baguasys/manylinux-cuda:${{ matrix.cuda-version }}
               arch: x86_64
           - name: manylinux2010-cp39
             os: ubuntu-20.04
@@ -76,7 +80,7 @@ jobs:
             cibw:
               build: "cp39*"
               # manylinux_image: manylinux2010
-              manylinux_image: baguasys/manylinux-cuda:102
+              manylinux_image: baguasys/manylinux-cuda:${{ matrix.cuda-version }}
               arch: x86_64
           # - name: manylinux2010-cp310
           #   os: ubuntu-20.04
