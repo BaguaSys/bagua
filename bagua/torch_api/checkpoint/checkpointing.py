@@ -119,6 +119,9 @@ def save_checkpoint(
         with open(tracker_filename, "w") as f:
             f.write(str(iteration))
 
+    if dist.is_initialized():
+        dist.barrier()
+
 
 def _save_checkpoint(
     iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
@@ -136,8 +139,6 @@ def _save_checkpoint(
         _ensure_directory_exists(checkpoint_name)
         torch.save(state_dict, checkpoint_name)
 
-    if dist.is_initialized():
-        dist.barrier()
 
 
 def _save_moe_checkpoint(

@@ -147,12 +147,8 @@ MOE_SCRIPT="/workdir/examples/moe/mnist_main.py"
 
 # 4. test moe checkpoint
 logfile=$(mktemp /tmp/bagua_moe_checkpoint.XXXXXX.log)
-CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
-    --nnodes=2 \
-    --nproc_per_node 2 \
-    --node_rank=0 \
-    --master_addr="10.158.66.134" \
-    --master_port=1234 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m bagua.distributed.launch \
+    --nproc_per_node 4 \
     ${MOE_SCRIPT} \
     --algorithm gradient_allreduce \
     --epochs 5 \
