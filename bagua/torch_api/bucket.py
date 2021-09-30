@@ -9,7 +9,12 @@ import torch
 
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.utils import check_contiguous
-from bagua.torch_api.communication import broadcast, BaguaProcessGroup
+from bagua.torch_api.communication import (
+    broadcast,
+    BaguaProcessGroup,
+    _bagua_backend_comm,
+    _rank_not_in_comm,
+)
 
 
 class BaguaBucket:
@@ -182,8 +187,8 @@ class BaguaBucket:
 
         if hierarchical:
             self.backend_bucket.append_centralized_synchronous_op(
-                group.get_inter_node_communicator(),
-                group.get_intra_node_communicator(),
+                _bagua_backend_comm(group.get_inter_node_communicator()),
+                _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
                 average=average,
                 scattergather=scattergather,
@@ -191,7 +196,7 @@ class BaguaBucket:
             )
         else:
             self.backend_bucket.append_centralized_synchronous_op(
-                group.get_global_communicator(),
+                _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 average=average,
@@ -232,15 +237,15 @@ class BaguaBucket:
 
         if hierarchical:
             self.backend_bucket.append_decentralized_synchronous_op(
-                group.get_inter_node_communicator(),
-                group.get_intra_node_communicator(),
+                _bagua_backend_comm(group.get_inter_node_communicator()),
+                _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
         else:
             self.backend_bucket.append_decentralized_synchronous_op(
-                group.get_global_communicator(),
+                _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
@@ -272,7 +277,7 @@ class BaguaBucket:
         intra_comm = group.get_intra_node_communicator()
         inter_comm = group.get_inter_node_communicator()
 
-        if not hierarchical or (inter_comm is not None):
+        if not hierarchical or not _rank_not_in_comm(inter_comm):
             self.backend_tensor.copy_(peer_weight)
 
         if hierarchical:
@@ -314,8 +319,8 @@ class BaguaBucket:
 
         if hierarchical:
             self.backend_bucket.append_low_precision_decentralized_synchronous_op(
-                group.get_inter_node_communicator(),
-                group.get_intra_node_communicator(),
+                _bagua_backend_comm(group.get_inter_node_communicator()),
+                _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
                 compression=compression,
@@ -325,7 +330,7 @@ class BaguaBucket:
             )
         else:
             self.backend_bucket.append_low_precision_decentralized_synchronous_op(
-                group.get_global_communicator(),
+                _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
@@ -361,7 +366,7 @@ class BaguaBucket:
             group = _get_default_group()
 
         return self.backend_bucket.append_decentralized_asynchronous_op(
-            group.get_global_communicator(),
+            _bagua_backend_comm(group.get_global_communicator()),
             None,
             peer_selection_mode=peer_selection_mode,
             torch_stream=torch.cuda.current_stream().cuda_stream,
