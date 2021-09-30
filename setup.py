@@ -89,7 +89,7 @@ def install_lib(cuda, prefix, library):
 
     if library == "bagua-net":
         dst_dir = os.path.join(destination, "bagua-net")
-        os.mkdir(dst_dir)
+        os.makedirs(dst_dir, exist_ok=True)
         install_baguanet(dst_dir)
         print("Done!")
         return
