@@ -57,5 +57,5 @@ from .env import (  # noqa: F401
 from . import contrib  # noqa: F401
 from . import communication  # noqa: F401
 from . import algorithms  # noqa: F401
-from . import checkpointing  # noqa: E402,F401
+from . import checkpoint  # noqa: E402,F401
 from .model_parallel import moe  # noqa: E402,F401
