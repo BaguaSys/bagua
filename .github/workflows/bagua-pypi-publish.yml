@@ -63,7 +63,7 @@ jobs:
           - "9"
 
     env:
-      CIBW_BUILD: "${{ format('{0}{1}', matrix.python-major-version, matrix.python-minor-version) || '*' }}"
+      CIBW_BUILD: "${{ format('cp{0}{1}*', matrix.python-major-version, matrix.python-minor-version) || '*' }}"
       CIBW_MANYLINUX_X86_64_IMAGE: "baguasys/manylinux-cuda:${{ matrix.cuda-version }}"
       CIBW_ARCHS_LINUX: "${{ matrix.arch || 'auto' }}"
       CIBW_ENVIRONMENT: 'AUDITWHEEL_PLAT="manylinux2014_${{ matrix.arch }}"'
