@@ -20,85 +20,111 @@ def _ensure_directory_exists(filename):
         os.makedirs(dirname)
 
 
-def _get_optimizer_ckpt_name(checkpoints_path, iteration, expp_rank, mp_rank=0, release=False):
+def _get_optimizer_ckpt_name(
+    checkpoints_path, iteration, expp_rank, mp_rank=0, release=False
+):
     if release:
-        directory = 'release'
+        directory = "release"
     else:
-        directory = 'iter_{:07d}'.format(iteration)
+        directory = "iter_{:07d}".format(iteration)
     ckpt_name = os.path.join(
         checkpoints_path,
         directory,
-        f'expp_rank_{expp_rank}_mp_rank_{mp_rank:02d}_optim_states.pt')
+        f"expp_rank_{expp_rank}_mp_rank_{mp_rank:02d}_optim_states.pt",
+    )
     return ckpt_name
 
-def _get_expert_ckpt_name(checkpoints_path, expert_id, iteration, mp_rank=0, release=False):
+
+def _get_expert_ckpt_name(
+    checkpoints_path, expert_id, iteration, mp_rank=0, release=False
+):
     if release:
-        directory = 'release'
+        directory = "release"
     else:
-        directory = 'iter_{:07d}'.format(iteration)
+        directory = "iter_{:07d}".format(iteration)
     ckpt_name = os.path.join(
         checkpoints_path,
         directory,
-        f'expert_{expert_id}_mp_rank_{mp_rank:02d}_model_states.pt')
+        f"expert_{expert_id}_mp_rank_{mp_rank:02d}_model_states.pt",
+    )
     return ckpt_name
 
 
 def _get_model_ckpt_name(checkpoints_path, iteration, mp_rank=0, release=False):
     if release:
-        directory = 'release'
+        directory = "release"
     else:
-        directory = 'iter_{:07d}'.format(iteration)
-    return os.path.join(checkpoints_path, directory, f"mp_rank_{mp_rank:02d}_model_states.pt")
+        directory = "iter_{:07d}".format(iteration)
+    return os.path.join(
+        checkpoints_path, directory, f"mp_rank_{mp_rank:02d}_model_states.pt"
+    )
 
 
 def get_checkpoint_tracker_filename(checkpoints_path):
-    return os.path.join(checkpoints_path, 'latest_checkpointed_iteration.txt')
+    return os.path.join(checkpoints_path, "latest_checkpointed_iteration.txt")
 
 
 def read_metadata(tracker_filename):
     iteration = 0
     release = False
-    with open(tracker_filename, 'r') as f:
+    with open(tracker_filename, "r") as f:
         metastring = f.read().strip()
         try:
             iteration = int(metastring)
         except ValueError:
-            release = metastring == 'release'
+            release = metastring == "release"
             if not release:
-                logging.error("Invalid metadata file {}. Exiting".format(tracker_filename))
+                logging.error(
+                    "Invalid metadata file {}. Exiting".format(tracker_filename)
+                )
                 sys.exit()
-    assert iteration >= 0 or release, 'error parsing metadata file {}'.format(
-        tracker_filename)
+    assert iteration >= 0 or release, "error parsing metadata file {}".format(
+        tracker_filename
+    )
 
     return iteration, release
 
 
-def save_checkpoint(iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None):
-    logging.info("saving checkpoint at iterration {:7d} to {}".format(iteration, checkpoints_path))
+def save_checkpoint(
+    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
+):
+    logging.info(
+        "saving checkpoint at iterration {:7d} to {}".format(
+            iteration, checkpoints_path
+        )
+    )
 
     if model.has_moe_layers:
-        _save_moe_checkpoint(iteration, checkpoints_path, model, optimizer, lr_scheduler)
+        _save_moe_checkpoint(
+            iteration, checkpoints_path, model, optimizer, lr_scheduler
+        )
     else:
         _save_checkpoint(iteration, checkpoints_path, model, optimizer, lr_scheduler)
 
-    logging.info("successfully saved checkpoint at iterration {:7d} to {}".format(iteration, checkpoints_path))
+    logging.info(
+        "successfully saved checkpoint at iterration {:7d} to {}".format(
+            iteration, checkpoints_path
+        )
+    )
 
     # update the latest iteration
     if not dist.is_initialized() or dist.get_rank() == 0:
         tracker_filename = get_checkpoint_tracker_filename(checkpoints_path)
-        with open(tracker_filename, 'w') as f:
+        with open(tracker_filename, "w") as f:
             f.write(str(iteration))
 
 
-def _save_checkpoint(iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None):
+def _save_checkpoint(
+    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
+):
     if not dist.is_initialized() or dist.get_rank() == 0:
         state_dict = {}
-        state_dict['iteration'] = iteration
-        state_dict['model'] = model.state_dict()
+        state_dict["iteration"] = iteration
+        state_dict["model"] = model.state_dict()
         if optimizer is not None:
-            state_dict['optimizer'] = optimizer.state_dict()
+            state_dict["optimizer"] = optimizer.state_dict()
         if lr_scheduler is not None:
-            state_dict['lr_scheduler'] = lr_scheduler.state_dict()
+            state_dict["lr_scheduler"] = lr_scheduler.state_dict()
 
         checkpoint_name = _get_model_ckpt_name(checkpoints_path, iteration)
         _ensure_directory_exists(checkpoint_name)
@@ -108,29 +134,40 @@ def _save_checkpoint(iteration, checkpoints_path, model, optimizer=None, lr_sche
         dist.barrier()
 
 
-def _save_moe_checkpoint(iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None):
+def _save_moe_checkpoint(
+    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
+):
     world_size = 1 if not dist.is_initialized() else dist.get_world_size()
     expp_rank = 1 if not dist.is_initialized() else dist.get_rank()
     num_local_experts = model.num_experts // world_size
-    experts_state_dict, model_state_dict = _get_moe_state_dict(model.state_dict(), num_local_experts, expp_rank)
+    experts_state_dict, model_state_dict = _get_moe_state_dict(
+        model.state_dict(), num_local_experts, expp_rank
+    )
 
     #  Each rank saves its local experts
     for global_expert_id, expert_state_dict in experts_state_dict.items():
-        expert_save_dir = _get_expert_ckpt_name(checkpoints_path, global_expert_id, iteration)
-        logging.info(f'Saving model expert {global_expert_id} checkpoint: {expert_save_dir}')
+        expert_save_dir = _get_expert_ckpt_name(
+            checkpoints_path, global_expert_id, iteration
+        )
+        logging.info(
+            f"Saving model expert {global_expert_id} checkpoint: {expert_save_dir}"
+        )
         _ensure_directory_exists(expert_save_dir)
         torch.save(expert_state_dict, expert_save_dir)
 
     # Save optimizer states. They are different across each exp parallel rank.
-    optimizer_state = {'optimizer': optimizer.state_dict() if optimizer else None}
-    torch.save(optimizer_state, _get_optimizer_ckpt_name(checkpoints_path, iteration, expp_rank))
+    optimizer_state = {"optimizer": optimizer.state_dict() if optimizer else None}
+    torch.save(
+        optimizer_state,
+        _get_optimizer_ckpt_name(checkpoints_path, iteration, expp_rank),
+    )
 
     if expp_rank == 0:
         state_dict = {}
-        state_dict['iteration'] = iteration
-        state_dict['model'] = model_state_dict
+        state_dict["iteration"] = iteration
+        state_dict["model"] = model_state_dict
         if lr_scheduler is not None:
-            state_dict['lr_scheduler'] = lr_scheduler.state_dict()
+            state_dict["lr_scheduler"] = lr_scheduler.state_dict()
 
         # Save.
         checkpoint_name = _get_model_ckpt_name(checkpoints_path, iteration)
@@ -141,7 +178,7 @@ def _save_moe_checkpoint(iteration, checkpoints_path, model, optimizer=None, lr_
 def _get_moe_state_dict(full_state_dict, num_local_experts, expp_rank):
     experts_state_dict, moe_state_dict = defaultdict(dict), {}
     for key in list(full_state_dict.keys()):
-        if 'expert' in key and 'moe.gate.wg.weight' not in key:
+        if "expert" in key and "moe.gate.wg.weight" not in key:
             moe_state_dict[key] = full_state_dict.pop(key)
     non_moe_state_dict = full_state_dict
 
