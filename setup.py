@@ -133,7 +133,7 @@ The current platform ({}) is not supported.""".format(
             assert len(subdir) == 1
             shutil.move(os.path.join(outdir, subdir[0]), destination)
 
-            # Install bagua-net
+        if library == "bagua-net":
             dst_dir = os.path.join(destination, "bagua-net")
             os.mkdir(dst_dir)
             install_baguanet(dst_dir)
@@ -172,7 +172,10 @@ def install_dependency_library():
         .strip()
     )
     print("nvcc_version: ", nvcc_version)
-    install_lib(nvcc_version, os.path.join(cwd, "bagua_core"), "nccl")
+    if int(os.getenv("BAGUA_NO_INSTALL_BAGUA_NET", 0)) == 0:
+        install_lib(nvcc_version, os.path.join(cwd, "bagua_core"), "bagua-net")
+    if int(os.getenv("BAGUA_NO_INSTALL_NCCL", 0)) == 0:
+        install_lib(nvcc_version, os.path.join(cwd, "bagua_core"), "nccl")
 
 
 if __name__ == "__main__":
