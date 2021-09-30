@@ -42,8 +42,6 @@ jobs:
         python -m pip install --pre bagua --upgrade
 
   wheel:
-    runs-on: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -61,6 +59,8 @@ jobs:
           - "7"
           - "8"
           - "9"
+
+    runs-on: ${{ matrix.os }}
 
     env:
       CIBW_BUILD: "${{ format('cp{0}{1}*', matrix.python-major-version, matrix.python-minor-version) || '*' }}"
