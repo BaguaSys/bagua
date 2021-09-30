@@ -46,8 +46,8 @@ jobs:
       fail-fast: false
       matrix:
         cuda-version:
-          # - "113"
-          # - "111"
+          - "113"
+          - "111"
           - "102"
         arch:
           - x86_64
