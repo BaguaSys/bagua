@@ -199,8 +199,12 @@ if __name__ == "__main__":
         )
         install_dependency_library()
 
+    name_suffix = os.getenv("BAGUA_CUDA_VERSION", "")
+    if name_suffix != "":
+        name_suffix = "-cuda" + name_suffix
+
     setup(
-        name="bagua",
+        name="bagua" + name_suffix,
         use_scm_version={"local_scheme": "no-local-version"},
         setup_requires=["setuptools_scm"],
         url="https://github.com/BaguaSys/bagua",
