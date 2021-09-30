@@ -89,6 +89,16 @@ def _get_default_group():
     return _default_pg
 
 
+def _rank_not_in_comm(comm):
+    """
+    Helper that checks if the current process's rank is not in a given communicator
+
+    """
+    if comm == CommMember.WORLD:
+        return False
+    return comm == CommMember.NON_COMM_MEMBER
+
+
 def new_group(
     ranks: Optional[List[int]] = None, stream: Optional[torch.cuda.Stream] = None
 ):
@@ -229,7 +239,7 @@ def get_communicator(group_name: str, comm_name: str):
     nccl_unique_id = broadcast_nccl_unique_id(comm_key, root=ranks[0])
 
     if get_rank() not in ranks:
-        return None
+        return CommMember.NON_COMM_MEMBER
 
     rank = ranks.index(get_rank())
     nranks = len(ranks)
@@ -392,7 +402,7 @@ def send(tensor: torch.Tensor, dst: int, comm=comm.WORLD):
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
     """
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -419,7 +429,7 @@ def recv(tensor: torch.Tensor, src: int, comm=comm.WORLD):
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
     """
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -439,7 +449,7 @@ def recv(tensor: torch.Tensor, src: int, comm=comm.WORLD):
 
 def broadcast_coalesced(tensors, src=0, comm=comm.WORLD):
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     for tensor in tensors:
@@ -479,7 +489,7 @@ def broadcast(tensor: torch.Tensor, src: int = 0, comm=comm.WORLD):
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -519,7 +529,7 @@ def reduce(
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert send_tensor.device != torch.device(
@@ -552,7 +562,7 @@ def reduce_inplace(
 ):
     r"""The in-place version of :func:`reduce`."""
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -577,7 +587,7 @@ def allreduce_coalesced_inplace(
     op: ReduceOp = ReduceOp.SUM,
     comm=comm.WORLD,
 ):
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     for tensor in tensors:
@@ -651,7 +661,7 @@ def allreduce(
         tensor([4.+4.j, 6.+6.j]) # Rank 1
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     if comm == CommMember.WORLD:
@@ -687,7 +697,7 @@ def allreduce_inplace(
 ):
     """The in-place version of :func:`allreduce`."""
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -719,7 +729,7 @@ def allgather(
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert send_tensor.device != torch.device(
@@ -751,7 +761,7 @@ def allgather_inplace(
 ):
     """The in-place version of :func:`allgather`."""
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -784,7 +794,7 @@ def gather(
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
     """
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert send_tensor.device != torch.device(
@@ -829,7 +839,7 @@ def gather_inplace(
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -863,7 +873,7 @@ def scatter(
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert send_tensor.device != torch.device(
@@ -908,7 +918,7 @@ def scatter_inplace(
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
@@ -944,7 +954,7 @@ def reduce_scatter(
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert send_tensor.device != torch.device(
@@ -985,7 +995,7 @@ def reduce_scatter_inplace(
              communicator of the default process group will be used.
     """
 
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
@@ -1020,7 +1030,7 @@ def alltoall(
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
     """
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert send_tensor.device != torch.device(
@@ -1052,7 +1062,7 @@ def alltoall_inplace(
     comm=comm.WORLD,
 ):
     """The in-place version of :func:`alltoall`."""
-    if comm is None:
+    if _rank_not_in_comm(comm):
         return
 
     assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
