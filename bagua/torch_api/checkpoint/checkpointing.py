@@ -140,7 +140,6 @@ def _save_checkpoint(
         torch.save(state_dict, checkpoint_name)
 
 
-
 def _save_moe_checkpoint(
     iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
 ):
