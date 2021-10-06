@@ -4,7 +4,10 @@ from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from typing import List
 import torch
-from bagua.torch_api.algorithms_implementation.decentralized_implementation import DecentralizedAlgorithm_Implementation, LowPrecisionDecentralizedAlgorithm_Implementation
+from bagua.torch_api.algorithms_implementation.decentralized_implementation import (
+    DecentralizedAlgorithm_Implementation,
+    LowPrecisionDecentralizedAlgorithm_Implementation,
+)
 
 
 class DecentralizedAlgorithm:
