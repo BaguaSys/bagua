@@ -75,7 +75,7 @@ class QAdamOptimizer_Implementation(Optimizer):
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
             lr = group["lr"]
-            weight_decay = group["weight_decay"]  # noqa: F401
+            weight_decay = group["weight_decay"]  # noqa: F841
             beta1, beta2 = group["betas"]
             eps = group["eps"]
 
