@@ -55,7 +55,8 @@ class DecentralizedAlgorithm:
         """
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
-    def reify(self) -> LowPrecisionDecentralizedAlgorithm_Implementation:
+
+        """
         return LowPrecisionDecentralizedAlgorithm_Implementation(
             hierarchical=self.hierarchical,
             communication_interval=self.communication_interval,
