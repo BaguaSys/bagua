@@ -102,9 +102,7 @@ def run_model(
         [optimizer_1], algorithm
     )
 
-    model_2 = model_2.with_bagua(
-        [optimizer_2], algorithm
-    )
+    model_2 = model_2.with_bagua([optimizer_2], algorithm)
 
     ret = results[rank]
 
