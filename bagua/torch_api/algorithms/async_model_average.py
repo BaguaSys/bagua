@@ -9,7 +9,9 @@ import threading
 import time
 import torch
 import logging
-from bagua.torch_api.algorithms_implementation.async_model_average_implementation import AsyncModelAverageAlgorithm_Implementation
+from bagua.torch_api.algorithms_implementation.async_model_average_implementation import (
+    AsyncModelAverageAlgorithm_Implementation,
+)
 
 __all__ = ["AsyncModelAverageAlgorithm"]
 
