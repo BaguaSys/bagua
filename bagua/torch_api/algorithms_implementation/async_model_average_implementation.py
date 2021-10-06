@@ -12,8 +12,6 @@ import torch
 import logging
 import concurrent
 
-__all__ = ["AsyncModelAverageAlgorithm"]
-
 
 class _AsyncInternalState(IntEnum):
     RESUME = 0

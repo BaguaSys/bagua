@@ -43,7 +43,7 @@ class QAdamOptimizer_Implementation(Optimizer):
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
-        super(QAdamOptimizer, self).__init__(params, defaults)
+        super(QAdamOptimizer_Implementation, self).__init__(params, defaults)
 
         self.params_in_group = []
         self.exp_avgs_in_group = []
@@ -69,14 +69,13 @@ class QAdamOptimizer_Implementation(Optimizer):
             self.exp_avgs_in_group.append(exp_avgs)
 
     def __setstate__(self, state):
-        super(QAdamOptimizer, self).__setstate__(state)
+        super(QAdamOptimizer_Implementation, self).__setstate__(state)
 
     def step(self, closure=None):
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
-
             lr = group["lr"]
-            weight_decay = group["weight_decay"]
+            weight_decay = group["weight_decay"]  # noqa: F401
             beta1, beta2 = group["betas"]
             eps = group["eps"]
 

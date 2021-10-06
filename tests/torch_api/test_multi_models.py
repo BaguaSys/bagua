@@ -5,11 +5,12 @@ from tests.internal.common_utils import find_free_port
 import unittest
 import multiprocessing
 import os
-from bagua.torch_api.utils import flatten, unflatten
+from bagua.torch_api.utils import flatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
 
 N_EPOCHS = 10
+
 
 class Net1(nn.Module):
     def __init__(self):
@@ -24,6 +25,7 @@ class Net1(nn.Module):
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
         return F.softmax(x, dim=1)
+
 
 class Net2(nn.Module):
     def __init__(self):
@@ -40,6 +42,7 @@ class Net2(nn.Module):
         x = self.relu(self.fc3(x))
         x = self.fc4(x)
         return F.softmax(x, dim=1)
+
 
 def _init_bagua_env(rank, env):
     # set deterministic
