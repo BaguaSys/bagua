@@ -5,7 +5,9 @@ from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api import get_world_size
 from typing import List
-from bagua.torch_api.algorithms_implementation.bytegrad_implementation import ByteGradAlgorithm_Implementation
+from bagua.torch_api.algorithms_implementation.bytegrad_implementation import (
+    ByteGradAlgorithm_Implementation,
+)
 
 
 class ByteGradAlgorithm:
