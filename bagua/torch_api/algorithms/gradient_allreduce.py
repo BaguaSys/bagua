@@ -2,7 +2,9 @@
 
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms_implementation.gradient_allreduce_implementation import GradientAllReduceAlgorithm_Implementation
+from bagua.torch_api.algorithms_implementation.gradient_allreduce_implementation import (
+    GradientAllReduceAlgorithm_Implementation,
+)
 
 
 class GradientAllReduceAlgorithm:
