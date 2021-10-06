@@ -277,7 +277,6 @@ class TestMultiModels(unittest.TestCase):
                     )
                 ).item()
             )
-   
             self.assertTrue(
                 torch.all(
                     torch.isclose(
