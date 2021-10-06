@@ -101,7 +101,9 @@ class QAdamOptimizer_Implementation(Optimizer):
 
 
 class QAdamAlgorithm(Algorithm):
-    def __init__(self, q_adam_optimizer: QAdamOptimizer_Implementation, hierarchical: bool = True):
+    def __init__(
+        self, q_adam_optimizer: QAdamOptimizer_Implementation, hierarchical: bool = True
+    ):
         """
         Create an instance of the
         `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
