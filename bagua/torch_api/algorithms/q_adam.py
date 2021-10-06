@@ -7,8 +7,9 @@ from torch.optim.optimizer import Optimizer
 import torch
 import math
 from typing import List, Tuple
-from bagua.torch_api.algorithms_implementation.q_adam_implementation import QAdamOptimizer_Implementation
-
+from bagua.torch_api.algorithms_implementation.q_adam_implementation import (
+    QAdamOptimizer_Implementation,
+)
 
 
 class QAdamOptimizer:
