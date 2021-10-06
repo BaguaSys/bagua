@@ -41,8 +41,6 @@ class DecentralizedAlgorithm:
             communication_interval=self.communication_interval,
         )
 
-
-            communication_interval=self.communication_interval,
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
         Create an instance of the
@@ -55,8 +53,6 @@ class DecentralizedAlgorithm:
         """
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
-
-        """
         return LowPrecisionDecentralizedAlgorithm_Implementation(
             hierarchical=self.hierarchical,
             communication_interval=self.communication_interval,
