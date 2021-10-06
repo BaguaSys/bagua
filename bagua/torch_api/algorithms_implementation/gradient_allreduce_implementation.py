@@ -2,10 +2,10 @@
 
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms_implementation.gradient_allreduce_implementation import GradientAllReduceAlgorithm_Implementation
+from bagua.torch_api.algorithms_implementation import Algorithm
 
 
-class GradientAllReduceAlgorithm:
+class GradientAllReduceAlgorithm_Implementation(Algorithm):
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
         Create an instance of the
@@ -20,8 +20,19 @@ class GradientAllReduceAlgorithm:
         self.hierarchical = hierarchical
         self.average = average
 
-    def reify(self) -> GradientAllReduceAlgorithm_Implementation:
-        return GradientAllReduceAlgorithm_Implementation(
-            hierarchical=self.hierarchical,
-            average=self.average,
-        )
+    def init_operations(
+        self,
+        bagua_module: BaguaModule,
+        bucket: BaguaBucket,
+    ):
+        bucket.clear_ops()
+        if self.hierarchical:
+            bucket.append_centralized_synchronous_op(
+                hierarchical=self.hierarchical,
+                average=self.average,
+            )
+        else:
+            bucket.append_centralized_synchronous_op(
+                hierarchical=self.hierarchical,
+                average=self.average,
+            )
