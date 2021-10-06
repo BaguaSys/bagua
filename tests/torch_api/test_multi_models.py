@@ -183,7 +183,6 @@ def run_torch_model(
         loss_2.backward()
         optimizer_2.step()
 
-
     ret.end_weight_1.copy_(flatten([param.data for param in model_1.parameters()]))
     ret.end_weight_2.copy_(flatten([param.data for param in model_2.parameters()]))
 
