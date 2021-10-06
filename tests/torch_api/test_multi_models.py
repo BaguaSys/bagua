@@ -207,7 +207,8 @@ class Result(object):
         )
 
 
-class TestMultiModels(unittest.TestCase):
+
+
     @skip_if_cuda_not_available()
     def test_algorithm(self):
         nprocs = torch.cuda.device_count()
