@@ -11,9 +11,7 @@ from tests import skip_if_cuda_not_available
 
 N_EPOCHS = 10
 
-
-
-
+class Net1(nn.Module):
     def __init__(self):
         super(Net1, self).__init__()
         self.fc1 = nn.Linear(2, 10, bias=False)
