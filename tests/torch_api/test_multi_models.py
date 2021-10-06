@@ -202,10 +202,9 @@ class Result(object):
         )
 
 
-
-
+class TestMultiModels(unittest.TestCase):
     @skip_if_cuda_not_available()
-    def test_algorithm(self):
+    def test_multi_models(self):
         nprocs = torch.cuda.device_count()
         env = {}
         mp = multiprocessing.get_context("spawn")
@@ -293,6 +292,5 @@ class Result(object):
             )
 
 
-
-
+if __name__ == "__main__":
     unittest.main()
