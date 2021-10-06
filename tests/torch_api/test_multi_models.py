@@ -205,6 +205,7 @@ class Result(object):
             [torch.zeros_like(param.data) for param in model_2.parameters()]
         )
 
+
 class TestMultiModels(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_algorithm(self):
