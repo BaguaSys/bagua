@@ -214,7 +214,7 @@ class TestMultiModels(unittest.TestCase):
         mp = multiprocessing.get_context("spawn")
         torch_results = [Result() for _ in range(nprocs)]
         processes = []
-        backend="gloo"
+        backend = "gloo"
         for i in range(nprocs):
             p = mp.Process(
                 target=run_torch_model,
