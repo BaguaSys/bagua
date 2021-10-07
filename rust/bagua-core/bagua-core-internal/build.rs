@@ -63,7 +63,7 @@ fn main() {
         cpp_builder.include(mpi_include_dir);
     }
     cpp_builder.include(third_party_path.join("cub-1.8.0"));
-    cpp_builder.include(bagua_data_path.join("include"));
+    cpp_builder.include(nccl_dir.join("include"));
     cpp_builder.build("src/lib.rs");
 
     let mpi_lib_dirs = cmd_lib::run_fun!(bash -c "mpicxx --showme:libdirs").unwrap();
