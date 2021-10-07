@@ -72,6 +72,7 @@ jobs:
       CIBW_MANYLINUX_X86_64_IMAGE: "baguasys/manylinux-cuda:${{ matrix.cuda-version }}"
       CIBW_ARCHS_LINUX: "${{ matrix.arch || 'auto' }}"
       CIBW_ENVIRONMENT: 'AUDITWHEEL_PLAT="manylinux2014_${{ matrix.arch }}" BAGUA_CUDA_VERSION="${{ matrix.cuda-version }}"'
+      CIBW_REPAIR_WHEEL_COMMAND: "auditwheel show {wheel} && auditwheel repair -w {dest_dir} {wheel} --strip"
 
     steps:
       - uses: actions/checkout@v2
