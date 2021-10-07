@@ -16,7 +16,16 @@ fn main() {
         .cuda(true)
         .include("cpp/include")
         .include("third_party/cub-1.8.0")
-        .include(home::home_dir().unwrap().join(".local").join("share").join("bagua").join("nccl").join("include").as_path())
+        .include(
+            home::home_dir()
+                .unwrap()
+                .join(".local")
+                .join("share")
+                .join("bagua")
+                .join("nccl")
+                .join("include")
+                .as_path(),
+        )
         .flag("-std=c++14")
         .flag("-cudart=shared");
 
