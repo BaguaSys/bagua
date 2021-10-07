@@ -87,7 +87,7 @@ jobs:
       - name: install dependencies
         run: |
           pip install --upgrade setuptools pip wheel
-          pip install cibuildwheel==2.1.2
+          pip install cibuildwheel==2.1.3
       - name: show environment
         run: |
           pip freeze
