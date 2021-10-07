@@ -85,7 +85,7 @@ if __name__ == "__main__":
         setup_requires=["setuptools_scm"],
         url="https://github.com/BaguaSys/bagua",
         python_requires=">=3.7",
-        description="Bagua is a flexible and performant distributed training algorithm development framework.",
+        description="Bagua is a deep learning training acceleration framework for PyTorch. It provides a one-stop training acceleration solution, including faster distributed training compared to PyTorch DDP, faster dataloader, kernel fusion, and more.",
         long_description=long_description,
         long_description_content_type="text/markdown",
         packages=find_packages(exclude=("tests")),
