@@ -1,8 +1,11 @@
 import ctypes
 import os
-
+import logging
+import pathlib
 
 def _preload_libraries():
-    cwd = os.path.dirname(os.path.abspath(__file__))
-    libnccl_path = os.path.join(cwd, ".data", "lib", "libnccl.so")
-    ctypes.CDLL(libnccl_path)
+    libnccl_path = os.path.join(pathlib.Path.home(), ".local", "share", "bagua", "nccl", "lib", "libnccl.so")
+    if os.path.exists(libnccl_path):
+        ctypes.CDLL(libnccl_path)
+    else:
+        logging.warning("Bagua cannot detect bundled NCCL library, trying to use system NCCL instead. If you encounter any error, please run `import bagua_core; bagua_core.install_deps()` or the `bagua_install_deps.py` script to install bundled libraries.")

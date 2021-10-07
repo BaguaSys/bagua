@@ -29,7 +29,7 @@ def check_torch_version():
 def install_baguanet(destination):
     os.makedirs(destination, exist_ok=True)
     os.system("cd rust/bagua-net/cc && make")
-    shutil.move("rust/bagua-net/cc/libnccl-net.so", destination)
+    shutil.move("rust/bagua-net/cc/libnccl-net.so", os.path.join(destination, "libnccl-net.so"))
 
 
 def install_dependency_library():
@@ -82,7 +82,6 @@ if __name__ == "__main__":
         packages=find_packages(exclude=("tests")),
         package_data={
             "": [
-                ".data/bagua-net/libbagua_net.so",
                 ".data/bagua-net/libnccl-net.so",
             ]
         },
@@ -120,6 +119,7 @@ if __name__ == "__main__":
         },
         scripts=[
             "bagua/script/bagua_sys_perf",
+            "bagua_core/bagua_install_deps.py"
         ],
         zip_safe=False,
     )
