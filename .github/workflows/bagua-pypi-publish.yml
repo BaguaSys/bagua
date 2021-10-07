@@ -2,6 +2,10 @@ on: push
 
 name: pypi publish
 
+concurrency: 
+  group: environment-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   publish:
     runs-on: ubuntu-latest
