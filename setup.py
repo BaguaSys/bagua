@@ -7,6 +7,7 @@ from setuptools_rust import Binding, RustExtension
 import shutil
 import sys
 from typing import List
+from pathlib import Path
 
 library_records = {}
 
@@ -75,6 +76,9 @@ if __name__ == "__main__":
     if name_suffix != "":
         name_suffix = "-cuda" + name_suffix
 
+    this_directory = Path(__file__).parent
+    long_description = (this_directory / "README.md").read_text()
+
     setup(
         name="bagua" + name_suffix,
         use_scm_version={"local_scheme": "no-local-version"},
@@ -82,6 +86,8 @@ if __name__ == "__main__":
         url="https://github.com/BaguaSys/bagua",
         python_requires=">=3.7",
         description="Bagua is a flexible and performant distributed training algorithm development framework.",
+        long_description=long_description,
+        long_description_content_type="text/markdown",
         packages=find_packages(exclude=("tests")),
         package_data={
             "": [
