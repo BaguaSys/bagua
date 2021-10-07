@@ -98,6 +98,7 @@ def run_model(
 
     # wrap model
     from bagua.torch_api.algorithms import gradient_allreduce
+
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
 
     model_1 = model_1.with_bagua([optimizer_1], algorithm)
