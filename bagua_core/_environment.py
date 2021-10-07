@@ -3,6 +3,7 @@ import os
 import logging
 import pathlib
 
+
 def _preload_libraries():
     libnccl_path = os.path.join(
         pathlib.Path.home(), ".local", "share", "bagua", "nccl", "lib", "libnccl.so"
