@@ -7,6 +7,12 @@ fn main() {
         .parent()
         .expect("cannot find nvcc parent directory")
         .display();
+    let nccl_dir = home::home_dir()
+        .unwrap()
+        .join(".local")
+        .join("share")
+        .join("bagua")
+        .join("nccl");
     let supported_sms = cmd_lib::run_fun!(
         bash -c "nvcc --help | sed -n -e '/gpu-architecture <arch>/,/gpu-code <code>/ p' | sed -n -e '/Allowed values/,/gpu-code <code>/ p' | grep -i sm_ | grep -Eo 'sm_[0-9]+' | sed -e s/sm_//g | sort -g -u | tr '\n' ' '"
     ).unwrap();
@@ -16,7 +22,7 @@ fn main() {
         .cuda(true)
         .include("cpp/include")
         .include("third_party/cub-1.8.0")
-        .include("../../../bagua_core/.data/include")
+        .include(nccl_dir.join("include").as_path())
         .flag("-std=c++14")
         .flag("-cudart=shared");
 
@@ -40,8 +46,8 @@ fn main() {
         .define("CMAKE_CXX_STANDARD", "17")
         .define("ALUMINUM_ENABLE_NCCL", "YES")
         .define("CUB_INCLUDE_PATH", third_party_path.join("cub-1.8.0"))
-        .define("NCCL_LIBRARY", bagua_data_path.join("lib/libnccl.so"))
-        .define("NCCL_INCLUDE_PATH", bagua_data_path.join("include"))
+        .define("NCCL_LIBRARY", nccl_dir.join("lib/libnccl.so"))
+        .define("NCCL_INCLUDE_PATH", nccl_dir.join("include"))
         .define("BUILD_SHARED_LIBS", "off")
         .out_dir(bagua_data_path.as_path().to_str().unwrap())
         .always_configure(true)
@@ -57,6 +63,7 @@ fn main() {
         cpp_builder.include(mpi_include_dir);
     }
     cpp_builder.include(third_party_path.join("cub-1.8.0"));
+    cpp_builder.include(nccl_dir.join("include"));
     cpp_builder.include(bagua_data_path.join("include"));
     cpp_builder.build("src/lib.rs");
 
