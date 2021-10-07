@@ -67,7 +67,6 @@ jobs:
       BAGUA_CUDA_VERSION: "${{ matrix.cuda-version }}"
 
     runs-on: ${{ matrix.os }}
-    container: baguasys/bagua:latest
     needs:
       - wheel
     steps:
