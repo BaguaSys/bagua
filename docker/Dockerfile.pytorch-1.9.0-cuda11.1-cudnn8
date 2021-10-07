@@ -1,6 +1,7 @@
 FROM pytorch/pytorch:1.9.0-cuda11.1-cudnn8-devel
 
 RUN apt-get update && apt-get install -y curl software-properties-common wget
+RUN sed -i 's/mozilla\/DST_Root_CA_X3.crt/!mozilla\/DST_Root_CA_X3.crt/g' /etc/ca-certificates.conf && update-ca-certificates
 RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
 RUN apt-get update && apt-get install -y git cmake
 RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
