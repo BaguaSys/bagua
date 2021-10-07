@@ -37,21 +37,17 @@ Its effectiveness has been evaluated in various scenarios, including VGG and Res
 
 For more comprehensive and up to date results, refer to [Bagua benchmark page](https://bagua-tutorials.kwai-seattle.com/benchmark/index.html).
 
-## Installation & Quick Start
+## Installation
 
-Develop version:
+Wheels (precompiled binary packages) are available for Linux (x86_64). Package names are different depending on your CUDA Toolkit version (CUDA Toolkit version is shown in `nvcc --version`).
 
-```
-pip install git+https://github.com/BaguaSys/bagua.git
-```
+| CUDA Toolkit version | Installation command      |
+|----------------------|---------------------------|
+| >= v10.2             | pip install bagua-cuda102 |
+| >= v11.1             | pip install bagua-cuda111 |
+| >= v11.3             | pip install bagua-cuda113 |
 
-Release version:
-
-```
-pip install bagua
-```
-
-See [Bagua tutorials](https://bagua-tutorials.kwai-seattle.com/getting-started/) for quick start guide.
+Add `--pre` to `pip install` commands to install pre-release (development) versions. See [Bagua tutorials](https://bagua-tutorials.kwai-seattle.com/getting-started/) for quick start guide and more installation options.
 
 ## Quick Start on AWS
 
