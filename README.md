@@ -17,6 +17,13 @@ So far, Bagua has integrated communication primitives including
 
 Its effectiveness has been evaluated in various scenarios, including VGG and ResNet on ImageNet, BERT Large and many industrial applications at Kuaishou.
 
+## Links
+
+* [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
+* [Bagua Tutorials](https://bagua-tutorials.kwai-seattle.com/)
+* [Bagua Examples](https://github.com/BaguaSys/bagua/tree/master/examples)
+* [Bagua API Documentation](https://bagua.readthedocs.io/)
+
 ## Performance
 
 <p align="center">
@@ -112,10 +119,3 @@ Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
 You can also scan the following QR code to join our WeChat group :)
 
 <img src="https://user-images.githubusercontent.com/18649508/136324315-3a94c38f-68c8-4dca-895d-78923c067329.png" width="300"/>
-
-## Links
-
-* [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
-* [Bagua Tutorials](https://bagua-tutorials.kwai-seattle.com/)
-* [Bagua Examples](https://github.com/BaguaSys/bagua/tree/master/examples)
-* [Bagua API Documentation](https://bagua.readthedocs.io/)
