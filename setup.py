@@ -66,6 +66,7 @@ if __name__ == "__main__":
             + colorama.Back.CYAN
             + "Bagua is automatically installing some system dependencies like bagua-net, to disable set env variable BAGUA_NO_INSTALL_DEPS=1",
         )
+        os.system("python3 bagua_core/bagua_install_deps.py")
         install_dependency_library()
 
     name_suffix = os.getenv("BAGUA_CUDA_VERSION", "")
