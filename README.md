@@ -1,6 +1,7 @@
 <p align="center">
-<img src="./figures/logo.png" width="200px"/>
+<img src="https://user-images.githubusercontent.com/18649508/136457975-e4d81ced-0e43-4793-8865-1379e82921f9.png" width="200px"/>
 </p>
+
 <hr/>
 
 [![tutorials](https://img.shields.io/badge/tutorials-passing-green)](https://bagua-tutorials.kwai-seattle.com/) [![Documentation Status](https://readthedocs.org/projects/bagua/badge/?version=latest)](http://bagua.readthedocs.io/?badge=latest) [![Downloads](https://pepy.tech/badge/bagua/month)](https://pypi.org/project/bagua/) [![Docker Pulls](https://img.shields.io/docker/pulls/baguasys/bagua)](https://hub.docker.com/r/baguasys/bagua) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/baguasys/bagua)](https://hub.docker.com/r/baguasys/bagua) [![GitHub license](https://img.shields.io/github/license/BaguaSys/bagua)](https://github.com/BaguaSys/bagua/blob/master/LICENSE)
