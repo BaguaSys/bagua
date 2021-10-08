@@ -115,7 +115,12 @@ def save_checkpoint(
     bagua_has_moe_layers, bagua_moe_num_experts = _has_moe_layers(model)
     if bagua_has_moe_layers:
         _save_moe_checkpoint(
-            iteration, checkpoints_path, bagua_moe_num_experts, model, optimizer, lr_scheduler
+            iteration,
+            checkpoints_path,
+            bagua_moe_num_experts,
+            model,
+            optimizer,
+            lr_scheduler,
         )
     else:
         _save_checkpoint(iteration, checkpoints_path, model, optimizer, lr_scheduler)
