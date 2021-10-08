@@ -146,10 +146,12 @@ class AsyncModelAverageAlgorithm(Algorithm):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
+                group=bagua_module._bagua_process_group,
             )
         else:
             async_op = bucket.append_asynchronous_model_average_op(
                 peer_selection_mode=self.peer_selection_mode,
+                group=bagua_module._bagua_process_group,
             )
             bucket._async_op = async_op
 
