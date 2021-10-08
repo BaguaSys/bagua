@@ -195,7 +195,7 @@ impl BaguaCommBackend {
                 }
                 Err(_) => {
                     tracing::warn!(
-                        "auto tuning server not detected, may experience degraded performance"
+                        "Parameter autotuning service not detected. Enabling it may further improve the performance. See https://bagua-tutorials.kwai-seattle.com/performance-autotuning/ for more details."
                     );
                 }
             };
