@@ -74,6 +74,9 @@ def get_backend(model_name: str):
 
 def run_flask_app():
     from flask import Flask
+    import os
+
+    os.environ["WERKZEUG_RUN_MAIN"] = "true"
 
     autotune_service = AutotuneService(
         world_size=get_world_size(),
