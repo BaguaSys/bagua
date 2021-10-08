@@ -29,10 +29,15 @@ class BaguaTensor:
     def _bagua_sanity_check(self):
         assert self._bagua_backend_tensor.data_ptr() == self._tensor.data_ptr()
         assert self._bagua_backend_tensor.num_elements() == self._tensor.numel()
-        assert self._bagua_backend_tensor.num_elements_allocated() == self._tensor.numel()
+        assert (
+            self._bagua_backend_tensor.num_elements_allocated() == self._tensor.numel()
+        )
 
     def __init__(
-        self, tensor: torch.Tensor, name: Optional[str] = None, module_name: Optional[str] = None
+        self,
+        tensor: torch.Tensor,
+        name: Optional[str] = None,
+        module_name: Optional[str] = None,
     ):
         """
         A Bagua tensor is required to use Bagua's communication algorithms.
@@ -74,7 +79,7 @@ class BaguaTensor:
         """
         torch.cuda.current_stream().record_event(self._bagua_ready_event)
         assert (
-                self.bagua_backend is not None
+            self.bagua_backend is not None
         ), "tensor must be initialized with module name to call mark ready"
         self.bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
@@ -86,7 +91,7 @@ class BaguaTensor:
         Mark a Bagua tensor ready immediately, without `CUDA event <https://pytorch.org/docs/stable/generated/torch.cuda.Event.html?highlight=event#torch.cuda.Event>`_ synchronization.
         """
         assert (
-                self.bagua_backend is not None
+            self.bagua_backend is not None
         ), "tensor must be initialized with module name to call mark ready"
         self.bagua_backend.mark_communication_ready(
             self._bagua_backend_tensor,
@@ -106,6 +111,7 @@ class _TorchTensor:
     """
     This class patch `torch.Tensor <https://pytorch.org/docs/stable/tensors.html?highlight=tensor#torch.Tensor>`_ with additional methods.
     """
+
     def to_bagua_tensor(
         self, name: Optional[str] = None, module_name: Optional[str] = None
     ):
