@@ -19,7 +19,6 @@ import torch
 import torch.nn
 import itertools
 from typing import List, Tuple
-from bagua.torch_api.model_parallel.moe import MoE
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)

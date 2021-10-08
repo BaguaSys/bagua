@@ -8,6 +8,7 @@ import re
 import sys
 import torch
 import torch.distributed as dist
+from bagua.torch_api.model_parallel.moe import MoE
 from collections import defaultdict
 
 
