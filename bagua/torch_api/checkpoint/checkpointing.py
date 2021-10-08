@@ -11,6 +11,17 @@ import torch.distributed as dist
 from collections import defaultdict
 
 
+def _has_moe_layers(model):
+    bagua_has_moe_layers = False
+    bagua_moe_num_experts = 0
+    for name, module in model.named_modules():
+        if isinstance(module, MoE):
+            bagua_has_moe_layers = True
+            bagua_moe_num_experts = module.num_experts
+            break
+    return bagua_has_moe_layers, bagua_moe_num_experts
+
+
 def _ensure_directory_exists(filename):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
@@ -100,9 +111,10 @@ def save_checkpoint(
         )
     )
 
-    if model.has_moe_layers:
+    bagua_has_moe_layers, bagua_moe_num_experts = _has_moe_layers(model)
+    if bagua_has_moe_layers:
         _save_moe_checkpoint(
-            iteration, checkpoints_path, model, optimizer, lr_scheduler
+            iteration, checkpoints_path, bagua_moe_num_experts, model, optimizer, lr_scheduler
         )
     else:
         _save_checkpoint(iteration, checkpoints_path, model, optimizer, lr_scheduler)
@@ -141,11 +153,11 @@ def _save_checkpoint(
 
 
 def _save_moe_checkpoint(
-    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
+    iteration, checkpoints_path, num_experts, model, optimizer=None, lr_scheduler=None
 ):
     world_size = 1 if not dist.is_initialized() else dist.get_world_size()
     expp_rank = 1 if not dist.is_initialized() else dist.get_rank()
-    num_local_experts = model.num_experts // world_size
+    num_local_experts = num_experts // world_size
     experts_state_dict, model_state_dict = _get_moe_state_dict(
         model.state_dict(), num_local_experts, expp_rank
     )
@@ -249,8 +261,9 @@ def _load_checkpoint(
     checkpoint_name = _get_model_ckpt_name(checkpoints_path, iteration)
 
     model_checkpoint = torch.load(checkpoint_name, map_location="cpu")
-    if model.has_moe_layers:
-        num_local_experts = model.num_experts // dist.get_world_size()
+    bagua_has_moe_layers, bagua_moe_num_experts = _has_moe_layers(model)
+    if bagua_has_moe_layers:
+        num_local_experts = bagua_moe_num_experts // dist.get_world_size()
         _load_moe_state_dict(
             checkpoints_path,
             iteration,
@@ -259,7 +272,7 @@ def _load_checkpoint(
             state_dict=model_checkpoint["model"],
         )
 
-    if model.has_moe_layers and optimizer is not None:
+    if model._bagua_has_moe_layers and optimizer is not None:
         optim_load_path = _get_optimizer_ckpt_name(
             checkpoints_path, iteration, expp_rank
         )

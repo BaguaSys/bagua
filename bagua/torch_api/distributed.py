@@ -384,15 +384,6 @@ class BaguaModule:
 
         self._bagua_init_algorithm()
 
-        self.has_moe_layers = False
-        self.num_experts = 0
-        for name, module in self.named_modules():
-            if isinstance(module, MoE):
-                self.has_moe_layers = True
-                self.num_experts = module.num_experts
-                break
-        return self
-
     def _bagua_autotune_register_tensors(self):
         """
         Register tensors on autotune server, and return first bucketing suggestions
