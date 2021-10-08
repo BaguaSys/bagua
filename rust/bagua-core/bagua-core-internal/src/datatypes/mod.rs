@@ -792,6 +792,34 @@ impl BaguaTensor {
         })
     }
 
+    pub fn reset_from_torch(
+        &self,
+        torch_cdata_ptr: u64,
+        dtype: BaguaTensorDtype,
+    ) -> pyo3::PyResult<()> {
+        if dtype != self.inner.read().raw.dtype() {
+            return Err(pyo3::exceptions::PyRuntimeError::new_err(
+                "could not reset tensor from different tensor type",
+            ));
+        }
+
+        let mut torch_tensor = TorchTensorRaw {
+            torch_tensor_cdata: torch_cdata_ptr,
+            python_fallback: false,
+            dtype,
+        };
+
+        let consistency = torch_tensor.check_consistency_with_python()?;
+        if !consistency {
+            tracing::warn!(
+                r#"PyTorch tensor memory layout inconsistent with latest PyTorch. Bagua will fallback to Python interface. This will degrade system performance. We suggest upgrading to latest PyTorch."#
+            )
+        }
+        torch_tensor.python_fallback = !consistency;
+        self.inner.write().raw = Box::new(torch_tensor);
+        return Ok(());
+    }
+
     pub fn mark_comm_ready(&self, cuda_event_ptr: u64) {
         if cuda_event_ptr == 0 {
             tracing::info!("mark comm ready with an event 0, ignoring event");
