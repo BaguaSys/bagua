@@ -599,6 +599,9 @@ def set_bagua_env(args, current_env):
             current_env["LD_LIBRARY_PATH"],
         )
 
+    # disable flask server warning
+    current_env["FLASK_ENV"] = "development"
+
 
 def run(args):
     set_bagua_env(args, os.environ)
