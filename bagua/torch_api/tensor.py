@@ -7,22 +7,40 @@ import bagua_core as B
 import gorilla
 
 
+class BaguaTensorPy:
+    def __init__(self, tensor: _Tensor):
+        self.torch_tensor = tensor
+        self.bagua_tensor = B.BaguaTensorPy(
+            name=tensor.bagua_tensor_name,
+            torch_tensor=self.torch_tensor,
+        )
+        self._bagua_sanity_check()
+
+    def _bagua_sanity_check(self):
+        assert self.bagua_tensor.data_ptr() == self.torch_tensor.data_ptr()
+        assert self.bagua_tensor.num_elements() == self.torch_tensor.numel()
+        assert self.bagua_tensor.num_elements_allocated() == self.torch_tensor.numel()
+
+
+class TensorAttr(Enum):
+    DATA = "data"
+    GRAD = "grad"
+
+
 @gorilla.patches(torch.Tensor, filter=lambda name, obj: "bagua" in name)
 class BaguaTensor:
     """
     This class patch `torch.Tensor <https://pytorch.org/docs/stable/tensors.html?highlight=tensor#torch.Tensor>`_ with additional methods.
     """
 
-    def _bagua_sanity_check(self):
-        assert self._bagua_backend_tensor.data_ptr() == self.data_ptr()
-        assert self._bagua_backend_tensor.num_elements() == self.numel()
-        assert self._bagua_backend_tensor.num_elements_allocated() == self.numel()
-
     def is_bagua_tensor(self) -> bool:
         return hasattr(self, "_bagua_backend_tensor")
 
     def ensure_bagua_tensor(
-        self, name: Optional[str] = None, module_name: Optional[str] = None
+        self,
+        name: Optional[str] = None,
+        module_name: Optional[str] = None,
+        attr: TensorAttr = TensorAttr.DATA,
     ):
         """
         Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
@@ -50,17 +68,20 @@ class BaguaTensor:
             if self.bagua_module_name is not None
             else None
         )
-        self._bagua_backend_tensor = B.BaguaTensorPy(
-            name=self.bagua_tensor_name,
-            torch_tensor=self,
-        )
-        self._bagua_sanity_check()
+        if attr == TensorAttr.GRAD:
+            self.bagua_ensure_grad()
+        self.bagua_attr = attr
+
+        self._bagua_backend_tensor = BaguaTensorPy(getattr(self, attr))
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
         return self
 
     def to_bagua_tensor(
-        self, name: Optional[str] = None, module_name: Optional[str] = None
+        self,
+        name: Optional[str] = None,
+        module_name: Optional[str] = None,
+        attr: TensorAttr = TensorAttr.DATA,
     ):
         """
         Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
@@ -77,9 +98,9 @@ class BaguaTensor:
             The new Bagua tensor sharing the same storage with the original tensor.
         """
         new_tensor = torch.Tensor(cdata=self._cdata)
-        return new_tensor.ensure_bagua_tensor(name, module_name)
+        return new_tensor.ensure_bagua_tensor(name, module_name, attr)
 
-    def bagua_backend_tensor(self) -> B.BaguaTensorPy:
+    def bagua_backend_tensor(self) -> BaguaTensorPy:
         """
         Returns:
             The raw Bagua backend tensor.
@@ -110,7 +131,7 @@ class BaguaTensor:
             self.bagua_backend is not None
         ), "tensor must be initialized with module name to call mark ready"
         self.bagua_backend.mark_communication_ready(
-            self._bagua_backend_tensor,
+            self.bagua_backend_tensor().bagua_tensor,
             self._bagua_ready_event.cuda_event,
         )
 
@@ -122,7 +143,7 @@ class BaguaTensor:
             self.bagua_backend is not None
         ), "tensor must be initialized with module name to call mark ready"
         self.bagua_backend.mark_communication_ready(
-            self._bagua_backend_tensor,
+            self.bagua_backend_tensor().bagua_tensor,
             0,
         )
 
@@ -136,6 +157,20 @@ class BaguaTensor:
         """
         with torch.no_grad():
             self.set_(storage, storage_offset, self.shape)
+
+    def bagua_set_attr_storage(
+        self,
+        storage: torch.Storage,
+        storage_offset: int = 0,
+        attr: TensorAttr = TensorAttr.DATA,
+    ):
+        if attr == TensorAttr.DATA:
+            return self.bagua_set_storage(storage, storage_offset)
+
+        with torch.no_grad:
+            t = torch.zeros_like(getattr(self, attr))
+            t.set_(storage, storage_offset, self.shape)
+            setattr(self, attr, t)
 
 
 _base = gorilla._get_base(BaguaTensor)

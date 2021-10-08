@@ -1,6 +1,6 @@
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.bucket import BaguaBucket
-from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api.tensor import BaguaTensor, TensorAttr
 from typing import List
 import torch
 
@@ -37,11 +37,10 @@ class Algorithm:
         parameters = bagua_module.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
-            grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                name, bagua_module.bagua_module_name
+            param = param.ensure_bagua_tensor(
+                name, bagua_module.bagua_module_name, attr=TensorAttr.GRAD
             )
-            param._bagua_grad = grad
-            tensors.append(grad)
+            tensors.append(param)
         self._communication_tensor_names = set(name for name, _ in parameters)
         assert len(self._communication_tensor_names) == len(
             tensors
@@ -101,9 +100,10 @@ class Algorithm:
         def hook(parameter_name, parameter):
             if parameter_name in self._communication_tensor_names:
                 assert (
-                    parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr()
+                    parameter.bagua_backend_tensor().torch_tensor.data_ptr()
+                    == parameter.grad.data_ptr()
                 ), "bagua grad data_ptr should match parameter grad"
-                parameter._bagua_grad.bagua_mark_communication_ready()
+                parameter.bagua_mark_communication_ready()
 
         return hook
 
