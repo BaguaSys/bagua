@@ -274,7 +274,7 @@ def main():
         scheduler.step()
 
     if args.algorithm == "async":
-        algorithm.abort(model)
+        model.bagua_algorithm.abort(model)
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
