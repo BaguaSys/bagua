@@ -72,7 +72,7 @@ class BaguaBucket:
         for tensor in self._all_tensors:
             tensor._bagua_bucket = self
 
-    def flattened_tensor(self) -> BaguaTensor:
+    def flattened_tensor(self) -> torch.Tensor:
         """
         Returns a tensor contiguous in memory which contains the same data as :attr:`self` tensors and padding tensor (if exists).
         """
@@ -81,14 +81,14 @@ class BaguaBucket:
         for tensor in self._all_tensors:
             total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
-            self._all_tensors[0].device
+        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype()).to(
+            self._all_tensors[0].device()
         )
 
         offset = 0
         for tensor in self._all_tensors:
             # copy data
-            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
+            flatten_tensor[offset : offset + tensor.numel()] = tensor.data().reshape(-1)
             offset += tensor.numel()
         return flatten_tensor
 
@@ -101,20 +101,16 @@ class BaguaBucket:
 
         if len(self._all_tensors) == 0:
             return
-        total_size = 0
-        for tensor in self._all_tensors:
-            total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
-            self._all_tensors[0].device
-        )
+        flatten_tensor = self.flattened_tensor()
         flatten_storage = flatten_tensor.storage()
 
         offset = 0
         for tensor in self._all_tensors:
-            # copy data
-            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
-            tensor.bagua_set_storage(flatten_storage, offset)
+            with torch.no_grad():
+                t = torch.zeros_like(tensor.data())
+                t.set_(flatten_storage, offset, t.shape)
+                tensor.reset_(t)
             offset += tensor.numel()
 
         # set backend tensor

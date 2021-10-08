@@ -393,7 +393,7 @@ class BaguaModule:
                 {
                     "name": tensor.bagua_tensor_name,
                     "num_elements": tensor.numel(),
-                    "dtype": to_bagua_datatype(tensor.dtype),
+                    "dtype": to_bagua_datatype(tensor.dtype()),
                 }
             )
             for tensor in self._bagua_tensors
