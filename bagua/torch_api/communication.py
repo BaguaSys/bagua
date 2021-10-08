@@ -75,6 +75,7 @@ def get_backend(model_name: str):
 def run_flask_app():
     from flask import Flask
     import os
+
     os.environ["FLASK_ENV"] = "development"
 
     autotune_service = AutotuneService(
@@ -91,7 +92,13 @@ def run_flask_app():
     log = logging.getLogger("werkzeug")
     log.setLevel(logging.ERROR)
 
-    app.run(host="0.0.0.0", port=get_bagua_service_port())
+    app.run(
+        host="0.0.0.0",
+        port=get_bagua_service_port(),
+        debug=False,
+        use_debugger=False,
+        use_reloader=False,
+    )
 
 
 _autotune_server = None
