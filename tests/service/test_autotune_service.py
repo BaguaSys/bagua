@@ -89,6 +89,9 @@ class MockBaguaProcess:
             time.sleep(0.1)
             train_iter += 1
 
+            if train_iter % 1000 == 0:
+                print('heart-beat {}'.format(train_iter))
+
         return hp
 
 
