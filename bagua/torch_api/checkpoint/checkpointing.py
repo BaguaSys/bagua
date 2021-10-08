@@ -278,7 +278,7 @@ def _load_checkpoint(
             state_dict=model_checkpoint["model"],
         )
 
-    if model._bagua_has_moe_layers and optimizer is not None:
+    if bagua_has_moe_layers and optimizer is not None:
         optim_load_path = _get_optimizer_ckpt_name(
             checkpoints_path, iteration, expp_rank
         )
