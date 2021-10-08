@@ -89,7 +89,7 @@ class MockBaguaProcess:
             time.sleep(0.1)
             train_iter += 1
 
-            if train_iter % 1000 == 0:
+            if train_iter % 100 == 0:
                 print('heart-beat {}'.format(train_iter))
 
         return hp
@@ -298,12 +298,12 @@ class TestAutotuneService(unittest.TestCase):
 
         pool.close()
         pool.join()
-        for root, _, files in os.walk("/tmp", topdown=False):
-            for name in files:
-                if name.startswith("bagua_autotune_"):
-                    autotune_logfile = os.path.join(root, name)
-                    print(autotune_logfile)
-                    print(open(autotune_logfile).read())
+        # for root, _, files in os.walk("/tmp", topdown=False):
+        #     for name in files:
+        #         if name.startswith("bagua_autotune_"):
+        #             autotune_logfile = os.path.join(root, name)
+        #             print(autotune_logfile)
+        #             print(open(autotune_logfile).read())
 
         for ret in results["basic"]:
             hp = ret.get()
