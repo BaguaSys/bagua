@@ -74,6 +74,7 @@ class AutotuneService:
         self.tensor_partial_order = {}
         self.tensor_partial_order_fixed = False
         self.tensor_partial_order_lock = threading.Lock()
+        self.log_count = 0
 
     def autotune(
         self,
@@ -253,6 +254,12 @@ class AutotuneService:
                 #   == len(self.check_board))
                 # 3. Only execute autotune at most once in an iteration. (self.check_board[rank] < train_iter)
                 check_board = hp_manager.check_board
+
+                if self.log_count % 1000 == 0:
+                    print('sampling_count={}, check_board={}, train_iter={}'.format(hp_manager.sampling_count, check_board, train_iter))
+
+                self.log_count += 1
+
                 if (
                     self.autotune_level >= 1
                     and check_board.count(check_board[0])  # noqa: W503
