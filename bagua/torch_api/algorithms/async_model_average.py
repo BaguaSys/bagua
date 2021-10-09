@@ -3,7 +3,7 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
 from typing import List
-from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api.tensor import BaguaTensor, TensorAttr
 from bagua.torch_api.env import get_rank
 from enum import IntEnum
 import threading
@@ -79,11 +79,10 @@ class AsyncModelAverageAlgorithm(Algorithm):
         tensors = []
         for name, param in parameters.__reversed__():
             if self.step_id < self.warmup_steps:
-                grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                    name, bagua_module.bagua_module_name
+                param = param.ensure_bagua_tensor(
+                    name, bagua_module.bagua_module_name, attr=TensorAttr.GRAD
                 )
-                param._bagua_grad = grad
-                tensors.append(grad)
+                tensors.append(param)
             else:
                 p = param.ensure_bagua_tensor(name, bagua_module.bagua_module_name)
                 tensors.append(p)
@@ -112,7 +111,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook(parameter_name, parameter):
             if self.step_id <= self.warmup_steps:
-                parameter._bagua_grad.bagua_mark_communication_ready()
+                parameter.bagua_mark_communication_ready()
 
         return hook
 

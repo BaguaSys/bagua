@@ -26,6 +26,9 @@ class BaguaTensorPy:
         self.torch_tensor = tensor
         self.bagua_tensor.reset(tensor)
 
+    def data_ptr(self):
+        return self.torch_tensor.data_ptr()
+
 
 class TensorAttr:
     DATA = "data"
@@ -65,7 +68,10 @@ class BaguaTensor:
                 assert (
                     self.bagua_tensor_name == name
                 ), "assigning a different name to existing bagua tensor is forbidden"
-            return
+
+            if attr == self._bagua_backend_tensor_attr:
+                return
+
         self.bagua_tensor_name = name if name is not None else ""
         self.bagua_module_name = module_name
         self.bagua_backend = (
@@ -73,10 +79,10 @@ class BaguaTensor:
             if self.bagua_module_name is not None
             else None
         )
-
         # initialize backend tensor
         if attr == TensorAttr.GRAD:
             self.bagua_ensure_grad()
+
         self._bagua_backend_tensor_attr = attr
         self._bagua_backend_tensor = BaguaTensorPy(
             self if attr == TensorAttr.DATA else getattr(self, attr),

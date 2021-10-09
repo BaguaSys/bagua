@@ -100,7 +100,7 @@ class Algorithm:
         def hook(parameter_name, parameter):
             if parameter_name in self._communication_tensor_names:
                 assert (
-                    parameter._bagua_backend_tensor.torch_tensor.data_ptr()
+                    parameter._bagua_backend_tensor.data_ptr()
                     == parameter.grad.data_ptr()
                 ), "bagua grad data_ptr should match parameter grad"
                 parameter.bagua_mark_communication_ready()
