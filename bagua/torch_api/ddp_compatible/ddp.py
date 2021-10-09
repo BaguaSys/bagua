@@ -1,7 +1,9 @@
-from multiprocessing import process
 import torch
 import time
 import os
+import io
+import pickle
+import collections
 import logging
 import warnings
 import itertools
@@ -174,6 +176,9 @@ class DistributedDataParallel_V1_9_0(Module):
                 )
             )
         self.device_type = list(distinct_device_types)[0]
+
+        if process_group is not None:
+            assert type(process_group) == BaguaProcessGroup
 
         # if (
         #     device_ids is None
@@ -450,7 +455,7 @@ class DistributedDataParallel_V1_9_0(Module):
         pickle.dump(scalars, b)
         t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
         broadcast(t, src=0)
-        if get_rank() != src:
+        if env.get_rank() != src:
             buf = io.BytesIO(t.cpu().numpy().tobytes())
             scalars = pickle.load(buf)
 
@@ -485,7 +490,7 @@ class DistributedDataParallel_V1_9_0(Module):
             # order
             rsp = self._bagua_autotune_client.report_metrics(
                 model_name=self.bagua_module_name,
-                rank=get_rank(),
+                rank=env.get_rank(),
                 train_iter=self.bagua_train_step_counter,
                 hyperparameters=self._bagua_hyperparameters.dict(),
                 speed=speed,
@@ -522,7 +527,7 @@ class DistributedDataParallel_V1_9_0(Module):
     def _bagua_autotune_get_buckets(self):
         rsp = self._bagua_autotune_client.ask_hyperparameters(
             model_name=self.bagua_module_name,
-            rank=get_rank(),
+            rank=env.get_rank(),
             train_iter=self.bagua_train_step_counter,
         )
         assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
