@@ -70,10 +70,7 @@ class BaguaBucket:
 
         self.backend_bucket = B.BaguaBucketPy(
             name,
-            [
-                tensor.bagua_backend_tensor().bagua_tensor
-                for tensor in self._all_tensors
-            ],
+            [tensor.bagua_backend_tensor() for tensor in self._all_tensors],
         )
 
         for tensor in self._all_tensors:
@@ -97,7 +94,7 @@ class BaguaBucket:
             # copy data
             flatten_tensor[
                 offset : offset + tensor.numel()
-            ] = tensor.bagua_backend_tensor().torch_tensor.reshape(-1)
+            ] = tensor._bagua_backend_tensor.torch_tensor.reshape(-1)
             offset += tensor.numel()
         return flatten_tensor
 
@@ -116,8 +113,8 @@ class BaguaBucket:
 
         offset = 0
         for tensor in self._all_tensors:
-            tensor.bagua_set_attr_storage(
-                flatten_storage, offset, attr=tensor.bagua_attr
+            tensor.bagua_set_storage(
+                flatten_storage, offset, attr=tensor._bagua_backend_tensor_attr
             )
             offset += tensor.numel()
 
@@ -132,7 +129,7 @@ class BaguaBucket:
             True if the bucket's tensors are contiguous in memory.
         """
         return check_contiguous(
-            [t.bagua_backend_tensor().torch_tensor for t in self._all_tensors]
+            [t._bagua_backend_tensor.torch_tensor for t in self._all_tensors]
         )
 
     def append_python_op(self, python_function: Callable[[str], None]):
@@ -233,7 +230,7 @@ class BaguaBucket:
                 self._bagua_backend.intranode_communicator,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                peer_weight=peer_weight.bagua_backend_tensor().bagua_tensor,
+                peer_weight=peer_weight.bagua_backend_tensor(),
             )
         else:
             self.backend_bucket.append_decentralized_synchronous_op(
@@ -241,7 +238,7 @@ class BaguaBucket:
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                peer_weight=peer_weight.bagua_backend_tensor().bagua_tensor,
+                peer_weight=peer_weight.bagua_backend_tensor(),
             )
 
     def decentralized_synchronous_op_copy_back_peer_weight(
@@ -305,9 +302,9 @@ class BaguaBucket:
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
                 compression=compression,
-                weight=weight.bagua_backend_tensor().bagua_tensor,
-                left_peer_weight=left_peer_weight.bagua_backend_tensor().bagua_tensor,
-                right_peer_weight=right_peer_weight.bagua_backend_tensor().bagua_tensor,
+                weight=weight.bagua_backend_tensor(),
+                left_peer_weight=left_peer_weight.bagua_backend_tensor(),
+                right_peer_weight=right_peer_weight.bagua_backend_tensor(),
             )
         else:
             self.backend_bucket.append_low_precision_decentralized_synchronous_op(
@@ -316,9 +313,9 @@ class BaguaBucket:
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
                 compression=compression,
-                weight=weight.bagua_backend_tensor().bagua_tensor,
-                left_peer_weight=left_peer_weight.bagua_backend_tensor().bagua_tensor,
-                right_peer_weight=right_peer_weight.bagua_backend_tensor().bagua_tensor,
+                weight=weight.bagua_backend_tensor(),
+                left_peer_weight=left_peer_weight.bagua_backend_tensor(),
+                right_peer_weight=right_peer_weight.bagua_backend_tensor(),
             )
 
     def append_asynchronous_model_average_op(self, peer_selection_mode: str):
