@@ -5,7 +5,6 @@ from typing import Optional
 import torch
 import bagua_core as B
 import gorilla
-from enum import Enum
 
 
 class BaguaTensorPy:
