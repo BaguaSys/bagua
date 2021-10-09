@@ -112,7 +112,7 @@ class TestAutotuneService(unittest.TestCase):
         app = Flask(__name__)
         app = autotune_service.setup_app(app)
         log = logging.getLogger("werkzeug")
-        log.setLevel(logging.ERROR)
+        log.setLevel(logging.INFO)
 
         server = multiprocessing.Process(
             target=app.run,
