@@ -90,7 +90,7 @@ class MockBaguaProcess:
             train_iter += 1
 
             if train_iter % 100 == 0:
-                print('heart-beat {}'.format(train_iter))
+                print('{} heart-beat {}'.format(time.time(), train_iter))
 
         return hp
 
