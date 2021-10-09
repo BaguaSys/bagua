@@ -2,3 +2,6 @@
 	path = rust/bagua-core/bagua-core-internal/third_party/Aluminum
 	url = https://github.com/BaguaSys/Aluminum.git
 	branch = bagua
+[submodule "Megatron-LM"]
+	path = Megatron-LM
+	url = https://github.com/shjwudp/Megatron-LM.git
