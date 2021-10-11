@@ -7,28 +7,6 @@ import bagua_core as B
 import gorilla
 
 
-class BaguaTensorPy:
-    def __init__(self, tensor: torch.Tensor, name: str):
-        self.torch_tensor = tensor
-        self.bagua_tensor = B.BaguaTensorPy(
-            name=name,
-            torch_tensor=self.torch_tensor,
-        )
-        self._bagua_sanity_check()
-
-    def reset(self, tensor: torch.Tensor):
-        self.torch_tensor = tensor
-        self.bagua_tensor.reset(tensor)
-
-    def data_ptr(self):
-        return self.torch_tensor.data_ptr()
-
-
-class TensorAttr:
-    DATA = "data"
-    GRAD = "grad"
-
-
 @gorilla.patches(torch.Tensor, filter=lambda name, obj: "bagua" in name)
 class BaguaTensor:
     """
@@ -76,7 +54,7 @@ class BaguaTensor:
 
             if module_name is not None:
                 assert (
-                    self.bagua_tensor_name == name
+                    self.bagua_module_name == module_name
                 ), "assigning a different module name to existing bagua tensor is forbidden"
 
         self.bagua_tensor_name = name if name is not None else ""
@@ -86,15 +64,20 @@ class BaguaTensor:
             if self.bagua_module_name is not None
             else None
         )
+
         # initialize backend tensor
+        if setter_closure is not None:
+            self.setter_closure = lambda t: setter_closure(self, t)
+            assert (
+                getter_closure is not None
+            ), "must provide `setter_closure` when `getter_closure` is not None"
+        else:
+            self.setter_closure = None
 
         if getter_closure is not None:
-            self.getter_closure = getter_closure
+            self.getter_closure = lambda: getter_closure(self)
         else:
             self.getter_closure = lambda: self
-
-        if setter_closure is not None:
-            self.setter_closure = setter_closure
 
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
@@ -144,12 +127,12 @@ class BaguaTensor:
         if not exist.
         """
         if hasattr(self, "grad") and self.grad is not None:
-            return self.grad
+            return self
         elif isinstance(self, torch.nn.Parameter):
             with torch.no_grad():
                 t = torch.zeros_like(self.data)
                 self.grad = t
-            return self.grad
+            return self
         else:
             raise NotImplementedError
 
@@ -178,6 +161,11 @@ class BaguaTensor:
             0,
         )
 
+    def bagua_reset_(self, tensor: torch.Tensor):
+        assert self.setter_closure is not None
+        self.setter_closure(tensor)
+        self._bagua_backend_tensor.reset(tensor)
+
     def bagua_set_storage(
         self,
         storage: torch.Storage,
@@ -190,18 +178,16 @@ class BaguaTensor:
             storage: The storage to use.
             storage_offset: The offset in the storage.
         """
-        if self.getter_closure() == self:
+        if self.setter_closure is None:
             # set directly
             with torch.no_grad():
-                self.set_(storage, storage_offset, self.shape)
+                self.getter_closure().set_(storage, storage_offset, self.shape)
             return
 
         with torch.no_grad():
             t = torch.zeros_like(self.getter_closure())
             t.set_(storage, storage_offset, t.shape)
-            self.setter_closure(t)
-
-            self._bagua_backend_tensor.reset(t)
+            self.bagua_reset_(t)
 
 
 _base = gorilla._get_base(BaguaTensor)

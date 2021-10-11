@@ -1,6 +1,6 @@
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.bucket import BaguaBucket
-from bagua.torch_api.tensor import BaguaTensor, TensorAttr
+from bagua.torch_api.tensor import BaguaTensor
 from typing import List
 import torch
 
@@ -37,13 +37,14 @@ class Algorithm:
         parameters = bagua_module.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
-            param = param.ensure_bagua_tensor(
+            param = param.bagua_ensure_grad().ensure_bagua_tensor(
                 name,
                 bagua_module.bagua_module_name,
-                getter=lambda: param.grad,
-                setter=lambda t: setattr(param, "grad", t),
+                getter_closure=lambda param: param.grad,
+                setter_closure=lambda param, t: setattr(param, "grad", t),
             )
             tensors.append(param)
+
         self._communication_tensor_names = set(name for name, _ in parameters)
         assert len(self._communication_tensor_names) == len(
             tensors

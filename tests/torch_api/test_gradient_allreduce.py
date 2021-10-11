@@ -5,7 +5,7 @@ from tests.internal.common_utils import find_free_port
 import unittest
 import multiprocessing
 import os
-from bagua.torch_api.utils import flatten, unflatten
+from bagua.torch_api.utils import flatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
 
