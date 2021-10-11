@@ -94,7 +94,7 @@ class BaguaBucket:
             # copy data
             flatten_tensor[
                 offset : offset + tensor.numel()
-            ] = tensor._bagua_backend_tensor.torch_tensor.reshape(-1)
+            ] = tensor.getter_closure().reshape(-1)
             offset += tensor.numel()
         return flatten_tensor
 
@@ -113,9 +113,7 @@ class BaguaBucket:
 
         offset = 0
         for tensor in self._all_tensors:
-            tensor.bagua_set_storage(
-                flatten_storage, offset, attr=tensor._bagua_backend_tensor_attr
-            )
+            tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.numel()
 
         # set backend tensor
@@ -128,9 +126,7 @@ class BaguaBucket:
         Returns:
             True if the bucket's tensors are contiguous in memory.
         """
-        return check_contiguous(
-            [t._bagua_backend_tensor.torch_tensor for t in self._all_tensors]
-        )
+        return check_contiguous([t.getter_closure() for t in self._all_tensors])
 
     def append_python_op(self, python_function: Callable[[str], None]):
         """

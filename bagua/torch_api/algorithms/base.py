@@ -38,7 +38,10 @@ class Algorithm:
         tensors = []
         for name, param in parameters.__reversed__():
             param = param.ensure_bagua_tensor(
-                name, bagua_module.bagua_module_name, attr=TensorAttr.GRAD
+                name,
+                bagua_module.bagua_module_name,
+                getter=lambda: param.grad,
+                setter=lambda t: setattr(param, "grad", t),
             )
             tensors.append(param)
         self._communication_tensor_names = set(name for name, _ in parameters)
