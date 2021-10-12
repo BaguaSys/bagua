@@ -135,8 +135,14 @@ impl BaguaSingleCommunicatorPy {
         )
     }
 
-    pub fn alltoall_v_inplace(&self, tensor: &mut BaguaTensorPy, counts: Vec<usize>, displs: Vec<usize>) {
-        self.inner.alltoall_v_inplace(&mut tensor.inner, &counts, &displs)
+    pub fn alltoall_v_inplace(
+        &self, 
+        tensor: &mut BaguaTensorPy, 
+        counts: Vec<usize>, 
+        displs: Vec<usize>,
+    ) {
+        self.inner
+            .alltoall_v_inplace(&mut tensor.inner, &counts, &displs)
     }
 
     pub fn allgather(&self, send_tensor: &BaguaTensorPy, recv_tensor: &mut BaguaTensorPy) {
