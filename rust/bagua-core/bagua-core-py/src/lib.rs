@@ -219,8 +219,19 @@ pub struct BaguaTensorPy {
 #[pymethods]
 impl BaguaTensorPy {
     #[new]
-    pub fn new(torch_tensor: &PyAny, name: String) -> PyResult<Self> {
+    pub fn new(
+        torch_tensor: &PyAny,
+        name: String,
+        getter_closure: Option<&PyAny>,
+    ) -> PyResult<Self> {
         // TODO: sanity check
+        match getter_closure {
+            Some(x) => {
+                assert!(x.is_callable(), "getter_closure should be a callable");
+            }
+            None => {}
+        }
+
         let dtype = torch_tensor
             .getattr("dtype")
             .expect("must pass valid torch tensor")
@@ -246,37 +257,9 @@ impl BaguaTensorPy {
                     .expect("must pass valid torch tensor")
                     .extract()?,
                 bagua_dtype,
+                getter_closure.map(|x| x.into_py(x.py())),
             )?,
         })
-    }
-
-    pub fn reset(&self, torch_tensor: &PyAny) -> PyResult<()> {
-        // TODO: sanity check
-        let dtype = torch_tensor
-            .getattr("dtype")
-            .expect("must pass valid torch tensor")
-            .repr()?
-            .to_string();
-        let bagua_dtype = match dtype.as_str() {
-            "torch.float32" => BaguaTensorDtype::F32,
-            "torch.float16" => BaguaTensorDtype::F16,
-            "torch.int64" => BaguaTensorDtype::I64,
-            "torch.uint8" => BaguaTensorDtype::U8,
-            _ => {
-                return Err(PyRuntimeError::new_err(format!(
-                    "unsupported tensor dtype {}",
-                    dtype
-                )))
-            }
-        };
-
-        self.inner.reset_from_torch(
-            torch_tensor
-                .getattr("_cdata")
-                .expect("must pass valid torch tensor")
-                .extract()?,
-            bagua_dtype,
-        )
     }
 
     pub fn compress(&self, method: &str, n_chunks: usize, target_chunk: i32) -> Self {
@@ -409,6 +392,7 @@ impl BaguaBucketPy {
         for t in tensors.iter() {
             tensors_inner.push(&t.inner)
         }
+
         Ok(Self {
             inner: BaguaBucket::new(tensors_inner.as_slice(), name)
                 .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))?,

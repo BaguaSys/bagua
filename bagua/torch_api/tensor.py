@@ -14,13 +14,17 @@ class BaguaTensor:
     """
 
     def _bagua_sanity_check(self):
-        assert self._bagua_backend_tensor.data_ptr() == self.getter_closure().data_ptr()
         assert (
-            self._bagua_backend_tensor.num_elements() == self.getter_closure().numel()
+            self._bagua_backend_tensor.data_ptr()
+            == self._bagua_getter_closure().data_ptr()
+        )
+        assert (
+            self._bagua_backend_tensor.num_elements()
+            == self._bagua_getter_closure().numel()
         )
         assert (
             self._bagua_backend_tensor.num_elements_allocated()
-            == self.getter_closure().numel()
+            == self._bagua_getter_closure().numel()
         )
 
     def is_bagua_tensor(self) -> bool:
@@ -67,21 +71,22 @@ class BaguaTensor:
 
         # initialize backend tensor
         if setter_closure is not None:
-            self.setter_closure = lambda t: setter_closure(self, t)
+            self._bagua_setter_closure = lambda t: setter_closure(self, t)
             assert (
                 getter_closure is not None
-            ), "must provide `setter_closure` when `getter_closure` is not None"
+            ), "must provide `getter_closure` when `setter_closure` is not None"
         else:
-            self.setter_closure = None
+            self._bagua_setter_closure = None
 
         if getter_closure is not None:
-            self.getter_closure = lambda: getter_closure(self)
+            self._bagua_getter_closure = lambda: getter_closure(self)
         else:
-            self.getter_closure = lambda: self
+            self._bagua_getter_closure = lambda: self
 
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
-            torch_tensor=self.getter_closure(),
+            torch_tensor=self,
+            getter_closure=getter_closure,
         )
 
         self._bagua_ready_event = torch.cuda.Event()
@@ -161,11 +166,6 @@ class BaguaTensor:
             0,
         )
 
-    def bagua_reset_(self, tensor: torch.Tensor):
-        assert self.setter_closure is not None
-        self.setter_closure(tensor)
-        self._bagua_backend_tensor.reset(tensor)
-
     def bagua_set_storage(
         self,
         storage: torch.Storage,
@@ -178,16 +178,16 @@ class BaguaTensor:
             storage: The storage to use.
             storage_offset: The offset in the storage.
         """
-        if self.setter_closure is None:
+        if self._bagua_setter_closure is None:
             # set directly
             with torch.no_grad():
-                self.getter_closure().set_(storage, storage_offset, self.shape)
+                self._bagua_getter_closure().set_(storage, storage_offset, self.shape)
             return
 
         with torch.no_grad():
-            t = torch.zeros_like(self.getter_closure())
+            t = torch.zeros_like(self._bagua_getter_closure())
             t.set_(storage, storage_offset, t.shape)
-            self.bagua_reset_(t)
+            self._bagua_setter_closure(t)
 
 
 _base = gorilla._get_base(BaguaTensor)

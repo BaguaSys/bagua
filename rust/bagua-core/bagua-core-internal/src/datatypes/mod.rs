@@ -74,6 +74,7 @@ pub struct TorchTensorRaw {
     pub torch_tensor_cdata: u64,
     pub python_fallback: bool,
     pub dtype: BaguaTensorDtype,
+    pub getter_closure: Option<pyo3::Py<pyo3::PyAny>>,
 }
 
 #[derive(Debug)]
@@ -528,7 +529,8 @@ impl TorchTensorRaw {
     pub fn get_pytensor<'a>(cdata: u64, py: &'a pyo3::Python) -> pyo3::PyResult<&'a pyo3::PyAny> {
         let torch = py.import("torch")?;
         let tensor_class = torch.get("Tensor")?;
-        tensor_class.call((), Some([("cdata", cdata)].into_py_dict(py.to_owned())))
+        let tensor = tensor_class.call((), Some([("cdata", cdata)].into_py_dict(py.to_owned())))?;
+        tensor.call_method0("_bagua_getter_closure")
     }
 
     pub fn check_consistency_with_python(&self) -> pyo3::PyResult<bool> {
@@ -582,32 +584,32 @@ impl TorchTensorRaw {
 
 impl RawBaguaTensor for TorchTensorRaw {
     fn data_ptr(&self) -> u64 {
-        if self.python_fallback {
-            pyo3::Python::with_gil(|py| {
-                let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
-                py_tensor
-                    .call_method0("data_ptr")
-                    .unwrap()
-                    .extract()
-                    .unwrap()
-            })
-        } else {
-            let cdata = self.extract_torch_c_data();
-            let storage = self.extract_storage();
-            storage.data_ptr_.ptr_.data_ as u64
-                + cdata.storage_offset_ as u64 * self.dtype.bytes() as u64
-        }
+        //    if self.python_fallback {
+        pyo3::Python::with_gil(|py| {
+            let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
+            py_tensor
+                .call_method0("data_ptr")
+                .unwrap()
+                .extract()
+                .unwrap()
+        })
+        //   } else {
+        //       let cdata = self.extract_torch_c_data();
+        //       let storage = self.extract_storage();
+        //       storage.data_ptr_.ptr_.data_ as u64
+        //           + cdata.storage_offset_ as u64 * self.dtype.bytes() as u64
+        //   }
     }
 
     fn num_elements(&self) -> usize {
-        if self.python_fallback {
-            pyo3::Python::with_gil(|py| {
-                let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
-                py_tensor.call_method0("numel").unwrap().extract().unwrap()
-            })
-        } else {
-            self.extract_torch_c_data().numel_ as _
-        }
+        //    if self.python_fallback {
+        pyo3::Python::with_gil(|py| {
+            let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
+            py_tensor.call_method0("numel").unwrap().extract().unwrap()
+        })
+        //    } else {
+        //        self.extract_torch_c_data().numel_ as _
+        //    }
     }
 
     fn num_elements_allocated(&self) -> usize {
@@ -615,26 +617,26 @@ impl RawBaguaTensor for TorchTensorRaw {
     }
 
     fn device_id(&self) -> usize {
-        if self.python_fallback {
-            pyo3::Python::with_gil(|py| {
-                let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
-                py_tensor
-                    .getattr("device")
-                    .unwrap()
-                    .getattr("index")
-                    .unwrap()
-                    .extract()
-                    .unwrap()
-            })
-        } else {
-            let storage_data_ptr = &self.extract_storage().data_ptr_;
-            assert_eq!(
-                storage_data_ptr.device_.type_,
-                DeviceType::CUDA,
-                "currently only cuda tensors are supported in Bagua"
-            );
-            return storage_data_ptr.device_.index_ as _;
-        }
+        //    if self.python_fallback {
+        pyo3::Python::with_gil(|py| {
+            let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
+            py_tensor
+                .getattr("device")
+                .unwrap()
+                .getattr("index")
+                .unwrap()
+                .extract()
+                .unwrap()
+        })
+        //    } else {
+        //        let storage_data_ptr = &self.extract_storage().data_ptr_;
+        //        assert_eq!(
+        //            storage_data_ptr.device_.type_,
+        //            DeviceType::CUDA,
+        //            "currently only cuda tensors are supported in Bagua"
+        //        );
+        //        return storage_data_ptr.device_.index_ as _;
+        //    }
     }
 
     fn dtype(&self) -> BaguaTensorDtype {
@@ -768,11 +770,13 @@ impl BaguaTensor {
         name: String,
         torch_cdata_ptr: u64,
         dtype: BaguaTensorDtype,
+        getter_closure: Option<pyo3::Py<pyo3::PyAny>>,
     ) -> pyo3::PyResult<Self> {
         let mut torch_tensor = TorchTensorRaw {
             torch_tensor_cdata: torch_cdata_ptr,
             python_fallback: false,
             dtype,
+            getter_closure,
         };
         let consistency = torch_tensor.check_consistency_with_python()?;
         if !consistency {
@@ -790,34 +794,6 @@ impl BaguaTensor {
                 ready_cuda_event_ptr: 0,
             })),
         })
-    }
-
-    pub fn reset_from_torch(
-        &self,
-        torch_cdata_ptr: u64,
-        dtype: BaguaTensorDtype,
-    ) -> pyo3::PyResult<()> {
-        if dtype != self.inner.read().raw.dtype() {
-            return Err(pyo3::exceptions::PyRuntimeError::new_err(
-                "could not reset tensor from different tensor type",
-            ));
-        }
-
-        let mut torch_tensor = TorchTensorRaw {
-            torch_tensor_cdata: torch_cdata_ptr,
-            python_fallback: false,
-            dtype,
-        };
-
-        let consistency = torch_tensor.check_consistency_with_python()?;
-        if !consistency {
-            tracing::warn!(
-                r#"PyTorch tensor memory layout inconsistent with latest PyTorch. Bagua will fallback to Python interface. This will degrade system performance. We suggest upgrading to latest PyTorch."#
-            )
-        }
-        torch_tensor.python_fallback = !consistency;
-        self.inner.write().raw = Box::new(torch_tensor);
-        return Ok(());
     }
 
     pub fn mark_comm_ready(&self, cuda_event_ptr: u64) {
