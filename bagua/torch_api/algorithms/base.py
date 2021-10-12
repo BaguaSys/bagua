@@ -103,6 +103,8 @@ class Algorithm:
 
         def hook(parameter_name, parameter):
             if parameter_name in self._communication_tensor_names:
+                if parameter._bagua_backend_tensor.data_ptr() != parameter.grad.data_ptr():
+                    parameter.bagua_reset_(parameter.grad)
                 assert (
                     parameter._bagua_backend_tensor.data_ptr()
                     == parameter.grad.data_ptr()
