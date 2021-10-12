@@ -57,7 +57,10 @@ class BaguaBucket:
                 # padding tensor must be of name bagua_padding_tensor, so that they are always marked as ready for communication in the backend
                 self.padding_tensor = torch.zeros(
                     padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device
-                ).to_bagua_tensor("bagua_padding_tensor_bucket_" + name)
+                ).to_bagua_tensor(
+                    "bagua_padding_tensor_bucket_" + name,
+                    module_name=self.bagua_module_name,
+                )
 
         self._all_tensors = (
             self.tensors + [self.padding_tensor]
@@ -71,7 +74,11 @@ class BaguaBucket:
             self._flatten_()
 
         self.backend_bucket = B.BaguaBucketPy(
-            name, [tensor._bagua_backend_tensor for tensor in self._all_tensors]
+            name,
+            [
+                tensor.bagua_backend_tensor().bagua_tensor
+                for tensor in self._all_tensors
+            ],
         )
 
         for tensor in self._all_tensors:
@@ -93,7 +100,9 @@ class BaguaBucket:
         offset = 0
         for tensor in self._all_tensors:
             # copy data
-            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
+            flatten_tensor[
+                offset : offset + tensor.numel()
+            ] = tensor.bagua_backend_tensor().torch_tensor.reshape(-1)
             offset += tensor.numel()
         return flatten_tensor
 
@@ -106,20 +115,15 @@ class BaguaBucket:
 
         if len(self._all_tensors) == 0:
             return
-        total_size = 0
-        for tensor in self._all_tensors:
-            total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
-            self._all_tensors[0].device
-        )
+        flatten_tensor = self.flattened_tensor()
         flatten_storage = flatten_tensor.storage()
 
         offset = 0
         for tensor in self._all_tensors:
-            # copy data
-            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
-            tensor.bagua_set_storage(flatten_storage, offset)
+            tensor.bagua_set_attr_storage(
+                flatten_storage, offset, attr=tensor.bagua_attr
+            )
             offset += tensor.numel()
 
         # set backend tensor
@@ -132,7 +136,9 @@ class BaguaBucket:
         Returns:
             True if the bucket's tensors are contiguous in memory.
         """
-        return check_contiguous(self._all_tensors)
+        return check_contiguous(
+            [t.bagua_backend_tensor().torch_tensor for t in self._all_tensors]
+        )
 
     def append_python_op(self, python_function: Callable[[str], None]):
         """
@@ -241,7 +247,7 @@ class BaguaBucket:
                 _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                peer_weight=peer_weight._bagua_backend_tensor,
+                peer_weight=peer_weight.bagua_backend_tensor().bagua_tensor,
             )
         else:
             self.backend_bucket.append_decentralized_synchronous_op(
@@ -249,7 +255,7 @@ class BaguaBucket:
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                peer_weight=peer_weight._bagua_backend_tensor,
+                peer_weight=peer_weight.bagua_backend_tensor().bagua_tensor,
             )
 
     def decentralized_synchronous_op_copy_back_peer_weight(
@@ -324,9 +330,9 @@ class BaguaBucket:
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
                 compression=compression,
-                weight=weight._bagua_backend_tensor,
-                left_peer_weight=left_peer_weight._bagua_backend_tensor,
-                right_peer_weight=right_peer_weight._bagua_backend_tensor,
+                weight=weight.bagua_backend_tensor().bagua_tensor,
+                left_peer_weight=left_peer_weight.bagua_backend_tensor().bagua_tensor,
+                right_peer_weight=right_peer_weight.bagua_backend_tensor().bagua_tensor,
             )
         else:
             self.backend_bucket.append_low_precision_decentralized_synchronous_op(
@@ -335,9 +341,9 @@ class BaguaBucket:
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
                 compression=compression,
-                weight=weight._bagua_backend_tensor,
-                left_peer_weight=left_peer_weight._bagua_backend_tensor,
-                right_peer_weight=right_peer_weight._bagua_backend_tensor,
+                weight=weight.bagua_backend_tensor().bagua_tensor,
+                left_peer_weight=left_peer_weight.bagua_backend_tensor().bagua_tensor,
+                right_peer_weight=right_peer_weight.bagua_backend_tensor().bagua_tensor,
             )
 
     def append_asynchronous_model_average_op(

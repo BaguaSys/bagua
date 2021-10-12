@@ -5,10 +5,12 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
+# 0. install bagua
 cp -a /upstream /workdir
-
 export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
 
+
+# 1. test communication_primitives api
 echo "begin to test [communication_primitives]"
 COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
 python -m bagua.distributed.launch \
@@ -19,6 +21,8 @@ python -m bagua.distributed.launch \
     --master_port=1234 \
     ${COMMUNICATION_SCRIPT}
 
+
+# 2. benchmark test with all communication algorithms
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async)
 length=${#algorithms[@]}
@@ -40,3 +44,19 @@ do
         --async-warmup-steps 100 \
         2>&1 | tee ${logfile}
 done
+
+# 3. test moe
+MOE_SCRIPT="/workdir/examples/moe/mnist_main.py"
+logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
+CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 2 \
+    --node_rank=1 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${MOE_SCRIPT} \
+    --algorithm gradient_allreduce \
+    --epochs 5 \
+    --num-local-experts 2 \
+    --set-deterministic \
+    2>&1 | tee ${logfile}
