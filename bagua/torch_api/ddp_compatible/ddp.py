@@ -180,38 +180,6 @@ class DistributedDataParallel_V1_9_0(Module):
         if process_group is not None:
             assert type(process_group) == BaguaProcessGroup
 
-        # if (
-        #     device_ids is None
-        #     or len(device_ids) == 0  # For backward compatibility.
-        #     or self.device_type == "cpu"
-        #     or self.is_multi_device_module
-        # ):
-        #     if device_ids or output_device:
-        #         raise ValueError(
-        #             "DistributedDataParallel device_ids and output_device arguments "
-        #             "only work with single-device/multiple-device GPU modules or CPU modules, "
-        #             "but got device_ids {}, output_device {}, and module parameters {}.".format(
-        #                 device_ids,
-        #                 output_device,
-        #                 {p.device for p in module.parameters()},
-        #             )
-        #         )
-
-        #     self.device_ids = None
-        #     self.output_device = None
-        # else:
-        #     self.device_ids = [_get_device_index(x, True) for x in device_ids]
-
-        #     if output_device is None:
-        #         output_device = device_ids[0]
-
-        #     self.output_device = _get_device_index(output_device, True)
-
-        # if process_group is None:
-        #     self.process_group = bagua.communication._get_default_group()
-        # else:
-        #     self.process_group = process_group
-
         self.static_graph = False
         self.dim = dim
         self.module = module
@@ -282,20 +250,24 @@ class DistributedDataParallel_V1_9_0(Module):
 
             # algorithm_forward_pre_hook
             self.bagua_algorithm.init_forward_pre_hook(self)(input)
-            if not self._speed_metrics_switch_on:
-                return
 
             # record_speed_metrics_event
-            if hasattr(self, "_last_event_pair"):
-                (start, stop) = self._last_event_pair
-                try:
-                    elapsed_time_s = start.elapsed_time(stop) / 1000.0
-                    total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
-                    total_gbytes = total_bytes / 1024.0 ** 3
-                    speed = total_gbytes / elapsed_time_s
-                    self._speed_metrics.record(speed)
-                except RuntimeError as err:
-                    logging.debug("Ignore cuda err={}".format(err))
+            if self._speed_metrics_switch_on:
+                if hasattr(self, "_last_event_pair"):
+                    (start, stop) = self._last_event_pair
+                    try:
+                        elapsed_time_s = start.elapsed_time(stop) / 1000.0
+                        total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
+                        total_gbytes = total_bytes / 1024.0 ** 3
+                        speed = total_gbytes / elapsed_time_s
+                        self._speed_metrics.record(speed)
+                    except RuntimeError as err:
+                        logging.debug("Ignore cuda err={}".format(err))
+
+                start_event = torch.cuda.Event(enable_timing=True)
+                self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
+                torch.cuda.current_stream().record_event(start_event)
+                self._last_event_pair = (start_event, self._speed_metrics_end_event)
 
             # autotune_hook
             if env.get_autotune_level() >= 1 and not self._bagua_autotune_completed:
