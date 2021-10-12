@@ -79,11 +79,13 @@ class AsyncModelAverageAlgorithm(Algorithm):
         tensors = []
         for name, param in parameters.__reversed__():
             if self.step_id < self.warmup_steps:
-                grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                    name, bagua_module.bagua_module_name
+                param = param.bagua_ensure_grad().ensure_bagua_tensor(
+                    name,
+                    bagua_module.bagua_module_name,
+                    getter_closure=lambda param: param.grad,
+                    setter_closure=lambda param, t: setattr(param, "grad", t),
                 )
-                param._bagua_grad = grad
-                tensors.append(grad)
+                tensors.append(param)
             else:
                 p = param.ensure_bagua_tensor(name, bagua_module.bagua_module_name)
                 tensors.append(p)
@@ -112,7 +114,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook(parameter_name, parameter):
             if self.step_id <= self.warmup_steps:
-                parameter._bagua_grad.bagua_mark_communication_ready()
+                parameter.bagua_mark_communication_ready()
 
         return hook
 
