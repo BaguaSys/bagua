@@ -3,7 +3,7 @@ import logging
 import multiprocessing
 import socket
 import time
-import os
+import torch.distributed as dist
 from flask import Flask
 from typing import List
 from bagua.bagua_define import TensorDeclaration, BaguaCoreTelemetrySpan
@@ -45,17 +45,26 @@ class MockBaguaProcess:
     def __init__(
         self,
         rank: int,
+        world_size: int,
         service_addr: str,
         service_port: int,
         model_name: str,
         tensor_list: List[TensorDeclaration],
         spans: List[BaguaCoreTelemetrySpan] = [],
+        pg_init_method: str = "tcp://localhost:29501",
     ) -> None:
         self.rank = rank
         self.model_name = model_name
         self.tensor_list = tensor_list
         self.spans = spans
         self.client = AutotuneClient(service_addr, service_port)
+
+        dist.init_process_group(
+            backend=dist.Backend.GLOO,
+            rank=rank,
+            world_size=world_size,
+            init_method=pg_init_method,
+        )
 
     def run(self):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
@@ -64,6 +73,8 @@ class MockBaguaProcess:
 
         train_iter = 0
         while True:
+            dist.barrier()
+
             score = metrics(hp.buckets, hp.is_hierarchical_reduce)
             rsp = self.client.report_metrics(
                 self.model_name, self.rank, train_iter, hp.dict(), score
@@ -290,7 +301,8 @@ class TestAutotuneService(unittest.TestCase):
         for i in range(nprocs):
             for (model_name, (tensor_list, spans)) in model_dict.items():
                 mock = MockBaguaProcess(
-                    i, service_addr, service_port, model_name, tensor_list, spans
+                    i, nprocs, service_addr, service_port, model_name,
+                    tensor_list, spans, pg_init_method="tcp://localhost:{}".format(pick_n_free_ports(1)[0]),
                 )
                 mock_objs.append(mock)
                 ret = pool.apply_async(mock.run)

@@ -230,6 +230,11 @@ class AutotuneService:
         def ask_hyperparameters():
             """
             report_metrics must be called before ask_hyperparameters
+
+            NOTE: The prerequisite for ask_hyperparameters to be able
+            to autotune normally is that there will be a barrier between
+            each step of all ranks, then there will always be a moment
+            in the middle of each step that check_board is synchronized.
             """
             req: dict = request.get_json(force=True)
             rank: int = req["rank"]
