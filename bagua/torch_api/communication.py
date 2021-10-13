@@ -99,6 +99,12 @@ def _rank_not_in_comm(comm):
     return comm == CommMember.NON_COMM_MEMBER
 
 
+def _bagua_backend_comm(comm):
+    if _rank_not_in_comm(comm):
+        return None
+    return comm
+
+
 def new_group(
     ranks: Optional[List[int]] = None, stream: Optional[torch.cuda.Stream] = None
 ):
