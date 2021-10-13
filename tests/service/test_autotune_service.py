@@ -300,9 +300,12 @@ class TestAutotuneService(unittest.TestCase):
         results = dict([(key, []) for key in model_dict.keys()])
         for i in range(nprocs):
             for (model_name, (tensor_list, spans)) in model_dict.items():
+                pg_init_method = "tcp://localhost:{}".format(
+                    pick_n_free_ports(1)[0])
+                print("pg_init_method={}".format(pg_init_method))
                 mock = MockBaguaProcess(
                     i, nprocs, service_addr, service_port, model_name,
-                    tensor_list, spans, pg_init_method="tcp://localhost:{}".format(pick_n_free_ports(1)[0]),
+                    tensor_list, spans, pg_init_method=pg_init_method,
                 )
                 mock_objs.append(mock)
                 ret = pool.apply_async(mock.run)
