@@ -112,6 +112,7 @@ class TestAutotuneService(unittest.TestCase):
         service_addr = "127.0.0.1"
         service_port = pick_n_free_ports(1)[0]
         nprocs = 2
+        print("service_port={}".format(service_port))
 
         autotune_service = AutotuneService(
             nprocs,
