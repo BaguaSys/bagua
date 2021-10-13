@@ -43,6 +43,15 @@ class DecentralizedAlgorithm_Implementation(Algorithm):
         ]
         return self.tensors
 
+    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+        all_tensors = []
+        for idx, bucket in enumerate(tensors):
+            all_tensors.extend(bucket)
+
+        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
+
+        return [bagua_bucket]
+
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
         def hook(input):
             if self._should_communicate(bagua_module):

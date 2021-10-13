@@ -197,6 +197,9 @@ def main():
     current_env["MASTER_PORT"] = str(args.master_port)
     current_env["WORLD_SIZE"] = str(dist_world_size)
 
+    # disable flask server warning
+    current_env["FLASK_ENV"] = "development"
+
     set_bagua_env(args, current_env)
 
     processes: List[Any] = []

@@ -1,0 +1,22 @@
+FROM pytorch/manylinux-cuda113
+
+RUN yum install centos-release-scl-rh -y && yum install devtoolset-8-toolchain -y
+RUN yum remove okay-release -y && yum install http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-1.noarch.rpm -y
+RUN yum remove cmake3 -y && yum install cmake3 -y
+RUN yum install -y openmpi3-devel openmpi3 hwloc-devel
+RUN ln -sf /usr/bin/cmake3 /usr/bin/cmake
+
+RUN yum install -y python3-devel zlib-devel openssl-devel
+RUN python3 -m pip install setuptools-rust colorama tqdm wheel -i https://pypi.org/simple
+
+
+RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+
+RUN echo "source /root/.cargo/env && source /opt/rh/devtoolset-8/enable && source /etc/profile.d/modules.sh && module load mpi || exit 1" >> /etc/profile
+
+ENTRYPOINT ["sh", "-l", "-c", "\"$@\"", "-s"]
+
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:/usr/local/lib64:/usr/local/lib:${LD_LIBRARY_PATH}"
+ENV LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:/usr/local/lib64:/usr/local/lib:${LIBRARY_PATH}"
+ENV PKG_CONFIG_PATH="/usr/local/cuda/pkgconfig/:${PKG_CONFIG_PATH}"
+ENV CUDA_LIBRARY_PATH="/usr/local/cuda/lib64/"
