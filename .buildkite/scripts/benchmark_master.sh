@@ -5,9 +5,24 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
+# 0. install bagua
 cp -a /upstream /workdir
+export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
 
-CHECK_RESULT=()
+
+# 1. test communication_primitives api
+echo "begin to test [communication_primitives]"
+COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
+python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 4 \
+    --node_rank=0 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${COMMUNICATION_SCRIPT}
+
+
+# 2. benchmark test with all communication algorithms
 function check_benchmark_log {
     logfile=$1
     algorithm=$2
@@ -63,18 +78,7 @@ function check_benchmark_log_approximation {
     fi
 }
 
-export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
-
-echo "begin to test [communication_primitives]"
-COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
-python -m bagua.distributed.launch \
-    --nnodes=2 \
-    --nproc_per_node 4 \
-    --node_rank=0 \
-    --master_addr="10.158.66.134" \
-    --master_port=1234 \
-    ${COMMUNICATION_SCRIPT}
-
+CHECK_RESULT=()
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async)
 speeds=(185.0 180.0 150.0 115.0 190 170)
@@ -108,3 +112,35 @@ if [ ${#CHECK_RESULT[*]} -gt 0 ]; then
   echo -e ${CHECK_RESULT[*]}
   exit 1
 fi
+
+# 3. test moe
+function check_moe_log {
+    logfile=$1
+    loss=$2
+
+    final_batch_loss=$(cat ${logfile} | grep "Loss" | tail -n 1 | awk '{print $NF}')
+
+    if [ $final_batch_loss == $loss ]; then
+        echo "Check moe success, final_batch_loss is equal."
+    else
+        result="Check moe fail, final_batch_loss["$final_batch_loss"] is not equal with "$loss"."
+        echo $result
+        exit 1
+    fi
+}
+
+MOE_SCRIPT="/workdir/examples/moe/mnist_main.py"
+logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
+CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
+    --nnodes=2 \
+    --nproc_per_node 2 \
+    --node_rank=0 \
+    --master_addr="10.158.66.134" \
+    --master_port=1234 \
+    ${MOE_SCRIPT} \
+    --algorithm gradient_allreduce \
+    --epochs 5 \
+    --num-local-experts 2 \
+    --set-deterministic \
+    2>&1 | tee ${logfile}
+check_moe_log ${logfile} 0.000293

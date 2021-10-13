@@ -6,7 +6,17 @@ on:
     - master
 
 jobs:
-  build:
+  build-bagua:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cuda-version: "cuda10.2"
+            cudnn-version: "cudnn7"
+            pytorch-version: "pytorch-1.9.0"
+          - cuda-version: "cuda11.1"
+            cudnn-version: "cudnn8"
+            pytorch-version: "pytorch-1.9.0"
     name: 'Build'
     runs-on: ubuntu-latest
     steps:
@@ -24,12 +34,32 @@ jobs:
         with:
           context: .
           push: true
-          tags: baguasys/bagua:latest
-          file: docker/Dockerfile.pytorch-1.9.0-cuda11.1-cudnn8
-      - name: build and push bagua cuda 10.2
+          tags: baguasys/bagua:master-${{ matrix.pytorch-version }}-${{ matrix.cuda-version }}-${{ matrix.cudnn-version }}
+          file: docker/Dockerfile.${{ matrix.pytorch-version }}-${{ matrix.cuda-version }}-${{ matrix.cudnn-version }}
+  build-manylinux:
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda-version:
+          - "102"
+          - "111"
+          - "113"
+    name: 'Build'
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Build:checkout"
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: build and push bagua/manylinux-cuda102
         uses: docker/build-push-action@v2.6.1
         with:
           context: .
           push: true
-          tags: baguasys/bagua:latest-pytorch-1.9.0-cuda10.2-cudnn7
-          file: docker/Dockerfile.pytorch-1.9.0-cuda10.2-cudnn7 
+          tags: baguasys/manylinux-cuda:${{ matrix.cuda-version }}
+          file: docker/Dockerfile.manylinux-cuda${{ matrix.cuda-version }}

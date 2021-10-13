@@ -1,20 +1,35 @@
 <p align="center">
-<img src="./figures/logo.png" width="200px"/>
+<img src="https://user-images.githubusercontent.com/18649508/136457975-e4d81ced-0e43-4793-8865-1379e82921f9.png" width="200px"/>
 </p>
+
 <hr/>
 
-[![tutorials](https://img.shields.io/badge/tutorials-passing-green)](https://bagua-tutorials.kwai-seattle.com/) [![Documentation Status](https://readthedocs.org/projects/bagua/badge/?version=latest)](http://bagua.readthedocs.io/?badge=latest) [![Downloads](https://pepy.tech/badge/bagua/month)](https://pypi.org/project/bagua/) [![Docker Pulls](https://img.shields.io/docker/pulls/baguasys/bagua)](https://hub.docker.com/r/baguasys/bagua) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/baguasys/bagua)](https://hub.docker.com/r/baguasys/bagua) [![GitHub license](https://img.shields.io/github/license/BaguaSys/bagua)](https://github.com/BaguaSys/bagua/blob/master/LICENSE)
+<div align="center">
+<a href="https://bagua-tutorials.kwai-seattle.com/"><img src="https://img.shields.io/badge/tutorials-passing-green" alt="tutorials"></a> <a href="http://bagua.readthedocs.io/?badge=latest"><img src="https://readthedocs.org/projects/bagua/badge/?version=latest" alt="Documentation Status"></a> <a href="https://pypi.org/project/bagua/"><img src="https://pepy.tech/badge/bagua/month" alt="Downloads"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/pulls/baguasys/bagua" alt="Docker Pulls"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/cloud/build/baguasys/bagua" alt="Docker Cloud Build Status"></a> <a href="https://github.com/BaguaSys/bagua/blob/master/LICENSE"><img src="https://img.shields.io/github/license/BaguaSys/bagua" alt="GitHub license"></a>
+</div>
 
-Bagua is a distributed training utility developed by [AI platform@Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Users can extend the training on a single GPU to multi-GPUs (may across multiple machines) by simply adding a few lines of code. One prominent feature of Bagua is to provide a flexible system abstraction that supports state-of-the-art system relaxation techniques of distributed training. Powered by the new system design, Bagua has a great ability to implement and extend various state-of-the-art distributed learning algorithms. This in turns enables better scalability and efficiency of the end-to-end training process.
-Researchers can also easily develop new distributed training algorithms within the Bagua framework, without worrying about low-level optimizations.
+<br/>
 
-So far, Bagua has integrated communication primitives including
+Bagua is a deep learning training acceleration framework for PyTorch developed by [AI platform@Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Bagua currently supports:
 
-- Centralized Synchronous Communication (AllReduce)
-- Decentralized Synchronous Communication
-- Low Precision Communication
+- **Advanced Distributed Training Algorithms**: Users can extend the training on a single GPU to multi-GPUs (may across multiple machines) by simply adding a few lines of code (optionally in [elastic mode](https://bagua-tutorials.kwai-seattle.com/elastic-training/)). One prominent feature of Bagua is to provide a flexible system abstraction that supports state-of-the-art system relaxation techniques of distributed training. So far, Bagua has integrated communication primitives including
+  - Centralized Synchronous Communication (e.g. [Gradient AllReduce](https://bagua-tutorials.kwai-seattle.com/algorithms/gradient-allreduce))
+  - Decentralized Synchronous Communication (e.g. [Decentralized SGD](https://bagua-tutorials.kwai-seattle.com/algorithms/decentralized))
+  - Low Precision Communication (e.g. [ByteGrad](https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad))
+  - Asynchronous Communication (e.g. [Async Model Average](https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average))
+- [**TCP Communication Acceleration (Bagua-Net)**](https://bagua-tutorials.kwai-seattle.com/more-optimizations/bagua-net): Bagua-Net is a low level communication acceleration feature provided by Bagua. It can greatly improve the throughput of AllReduce on TCP network. You can enable Bagua-Net optimization on any distributed training job that uses NCCL to do GPU communication (this includes PyTorch-DDP, Horovod, DeepSpeed, and more).
+- [**Performance Autotuning**](https://bagua-tutorials.kwai-seattle.com/performance-autotuning/): Bagua can automatically tune system parameters to achieve the highest throughput.
+- [**Generic Fused Optimizer**](https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/contrib/fused_optimizer/index.html): Bagua provides generic fused optimizer which improve the performance of optimizers by fusing the optimizer `.step()` operation on multiple layers. It can be applied to arbitrary PyTorch optimizer, in contrast to [NVIDIA Apex](https://nvidia.github.io/apex/optimizers.html)'s approach, where only some specific optimizers are implemented.
+- [**Load Balanced Data Loader**](https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/contrib/load_balancing_data_loader/index.html): When the computation complexity of samples in training data are different, for example in NLP and speech tasks, where each sample have different lengths, distributed training throughput can be greatly improved by using Bagua's load balanced data loader, which distributes samples in a way that each worker's workload are similar.
 
 Its effectiveness has been evaluated in various scenarios, including VGG and ResNet on ImageNet, BERT Large and many industrial applications at Kuaishou.
+
+## Links
+
+* [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
+* [Bagua Tutorials](https://bagua-tutorials.kwai-seattle.com/)
+* [Bagua Examples](https://github.com/BaguaSys/bagua/tree/master/examples)
+* [Bagua API Documentation](https://bagua.readthedocs.io/)
 
 ## Performance
 
@@ -37,21 +52,17 @@ Its effectiveness has been evaluated in various scenarios, including VGG and Res
 
 For more comprehensive and up to date results, refer to [Bagua benchmark page](https://bagua-tutorials.kwai-seattle.com/benchmark/index.html).
 
-## Installation & Quick Start
+## Installation
 
-Develop version:
+Wheels (precompiled binary packages) are available for Linux (x86_64). Package names are different depending on your CUDA Toolkit version (CUDA Toolkit version is shown in `nvcc --version`).
 
-```
-pip install git+https://github.com/BaguaSys/bagua.git
-```
+| CUDA Toolkit version | Installation command      |
+|----------------------|---------------------------|
+| >= v10.2             | pip install bagua-cuda102 |
+| >= v11.1             | pip install bagua-cuda111 |
+| >= v11.3             | pip install bagua-cuda113 |
 
-Release version:
-
-```
-pip install bagua
-```
-
-See [Bagua tutorials](https://bagua-tutorials.kwai-seattle.com/getting-started/) for quick start guide.
+Add `--pre` to `pip install` commands to install pre-release (development) versions. See [Bagua tutorials](https://bagua-tutorials.kwai-seattle.com/getting-started/) for quick start guide and more installation options.
 
 ## Quick Start on AWS
 
@@ -77,10 +88,10 @@ CLUSTER_SIZE = 4
 NODE_INSTANCE_TYPE = p3.16xlarge
 ```
 
-With above setup, we created two identical clusters to benchmark a synthesized image classification task over Bagua and Horovod, respectively. Here is the screen recording video of this experiment.
+With above setup, we created two identical clusters to benchmark a synthesized image classification task over Bagua and Horovod, respectively. Here is the screen recording video of this experiment. 
 
 <p align="center">
-    <a href="https://youtu.be/G8o5HVYZJvs"><img src="./figures/video_shot.png" width="600"/></a>
+    <a href="https://youtu.be/G8o5HVYZJvs"><img src="https://user-images.githubusercontent.com/18649508/136463585-ba911d20-9088-48b7-ab32-fc3e465c31b8.png" width="600"/></a>
 </p>
 
 ## Cite Bagua
@@ -108,21 +119,10 @@ With above setup, we created two identical clusters to benchmark a synthesized i
 }
 ```
 
-## Limitations
-
-* When communication is not a bottleneck in the training task, using Bagua communication algorithms will not provide significant performance improvement (unless you use other optimizations in Bagua such as fused optimizer).
-* Currently only tested on Linux and NVIDIA GPUs.
-
 ## Discussion
 
 Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
 
 You can also scan the following QR code to join our WeChat group :)
-![image](https://user-images.githubusercontent.com/18649508/134354722-74d9cca2-8803-45ba-b19d-0fb26358ff0d.png)
 
-## Links
-
-* [Bagua Main Git Repo](https://github.com/BaguaSys/bagua)
-* [Bagua Tutorials](https://bagua-tutorials.kwai-seattle.com/)
-* [Bagua Examples](https://github.com/BaguaSys/bagua/tree/master/examples)
-* [Bagua API Documentation](https://bagua.readthedocs.io/)
+<img src="https://user-images.githubusercontent.com/18649508/136324315-3a94c38f-68c8-4dca-895d-78923c067329.png" width="300"/>
