@@ -136,15 +136,6 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
                 )
         return self.tensors
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
-        all_tensors = []
-        for idx, bucket in enumerate(tensors):
-            all_tensors.extend(bucket)
-
-        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
-
-        return [bagua_bucket]
-
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook(parameter_name, parameter):
             pass
