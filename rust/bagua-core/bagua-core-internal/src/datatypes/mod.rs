@@ -1140,6 +1140,7 @@ impl BaguaBucket {
                 peer_selection_mode: match peer_selection_mode.as_str() {
                     "all" => PeerSelectionMode::All,
                     "shift_one" => PeerSelectionMode::ShiftOne,
+                    "random" => PeerSelectionMode::Random,
                     &_ => {
                         unimplemented!("unsupported peer_selection_mode for decentralized algorithm (should be `all` or `shift_one`)")
                     }

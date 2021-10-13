@@ -120,6 +120,9 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
                     PeerSelectionMode::ShiftOne => {
                         unimplemented!()
                     }
+                    PeerSelectionMode::Random => {
+                        unimplemented!()
+                    }
                 };
 
                 tracing::debug!("start decompress diff and update weights");

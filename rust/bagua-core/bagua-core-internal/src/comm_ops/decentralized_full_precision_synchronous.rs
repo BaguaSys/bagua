@@ -14,6 +14,7 @@ pub enum PeerSelectionMode {
     All,
     ShiftOne,
     Ring,
+    Random,
 }
 
 #[derive(Debug)]
@@ -71,7 +72,7 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                         assert_eq!(
                             c.nranks % 2,
                             0,
-                            "you cannot use decentralized algorithm with average_all off when there are odd number of ranks, current n_ranks {}",
+                            "you cannot use decentralized algorithm with `ShiftOne` mode off when there are odd number of ranks, current n_ranks {}",
                             c.nranks
                         );
                         let rank = c.rank as i64;
@@ -92,6 +93,31 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                     PeerSelectionMode::Ring => {
                         unimplemented!()
                     },
+                    PeerSelectionMode::Random => {
+                        let rank = c.rank as i64;
+                        let nranks = c.nranks as i64;
+                        let peer_dims = (nranks as f32).log2() as i64;
+                        let base: i64 = 2;
+                        assert_eq!(
+                           nranks,
+                           base.pow(peer_dims as u32),
+                           "you cannot use decentralized algorithm with `Random` mode when the number of ranks is not a power of 2, current n_ranks {}",
+                            nranks
+                        ); 
+                        let distance = base.pow((step % peer_dims) as u32);
+                        let peer_rank = if (rank / distance) % 2 == 0 {
+                            (rank + distance)
+                        } else {
+                            (rank - distance)
+                        } as i32;
+                        tracing::debug!("rank {} peer_rank {}", c.rank, peer_rank);
+                        {
+                            let _guard = NCCLGroupGuard::new();
+                            c.send(&t.raw, peer_rank);
+                            c.recv(peer_tensor, peer_rank);
+                        }
+                        peer_tensor.average_inplace(&t.raw, c.stream_ptr);
+                    }                    
                 }
             },
         );
