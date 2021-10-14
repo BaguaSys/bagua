@@ -103,7 +103,7 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                     PeerSelectionMode::ShiftOne => {
                         unimplemented!()
                     }
-                    PeerSelectionMode::Random => {
+                    PeerSelectionMode::Chord => {
                         unimplemented!()
                     }
                 };

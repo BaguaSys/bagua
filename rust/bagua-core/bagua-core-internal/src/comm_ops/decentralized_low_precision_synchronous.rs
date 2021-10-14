@@ -120,7 +120,7 @@ impl CommOpTrait for DecentralizedLowPrecisionSynchronous {
                     PeerSelectionMode::ShiftOne => {
                         unimplemented!()
                     }
-                    PeerSelectionMode::Random => {
+                    PeerSelectionMode::Chord => {
                         unimplemented!()
                     }
                 };

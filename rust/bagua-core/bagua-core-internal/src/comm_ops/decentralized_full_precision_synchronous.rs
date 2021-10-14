@@ -14,7 +14,7 @@ pub enum PeerSelectionMode {
     All,
     ShiftOne,
     Ring,
-    Random,
+    Chord,
 }
 
 #[derive(Debug)]
@@ -72,7 +72,7 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                         assert_eq!(
                             c.nranks % 2,
                             0,
-                            "you cannot use decentralized algorithm with `ShiftOne` mode off when there are odd number of ranks, current n_ranks {}",
+                            "you cannot use decentralized algorithm with `ShiftOne` peer selection mode when there are odd number of ranks, current n_ranks {}",
                             c.nranks
                         );
                         let rank = c.rank as i64;
@@ -93,18 +93,18 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                     PeerSelectionMode::Ring => {
                         unimplemented!()
                     },
-                    PeerSelectionMode::Random => {
+                    PeerSelectionMode::Chord => {
+                        assert_eq!(
+                            c.nranks % 2,
+                            0,
+                            "you cannot use decentralized algorithm with `Chord` peer selection mode when there are odd number of ranks, current n_ranks {}",
+                            c.nranks
+                        );
                         let rank = c.rank as i64;
                         let nranks = c.nranks as i64;
                         let peer_dims = (nranks as f32).log2() as i64;
-                        let base: i64 = 2;
-                        assert_eq!(
-                           nranks,
-                           base.pow(peer_dims as u32),
-                           "you cannot use decentralized algorithm with `Random` mode when the number of ranks is not a power of 2, current n_ranks {}",
-                            nranks
-                        ); 
-                        let distance = base.pow((step % peer_dims) as u32);
+                        let distance = 2i64.pow((step % peer_dims) as u32);
+                        let distance = (nranks % distance) / 2 + distance;
                         let peer_rank = if (rank / distance) % 2 == 0 {
                             (rank + distance)
                         } else {
@@ -117,7 +117,7 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                             c.recv(peer_tensor, peer_rank);
                         }
                         peer_tensor.average_inplace(&t.raw, c.stream_ptr);
-                    }                    
+                    }
                 }
             },
         );
