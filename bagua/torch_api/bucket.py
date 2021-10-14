@@ -216,9 +216,10 @@ class BaguaBucket:
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
-            peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers' weights are averaged
+            peer_selection_mode (str): Can be ``"all"``, ``"shift_one"`` or ``"chord"``. ``"all"`` means all workers' weights are averaged
                 in each communication step. ``"shift_one"`` means each worker selects a different peer to do weights average
-                in each communication step.
+                in each communication step. ``"chord"`` means each worker selects the peer at distance :math:`2^0`, :math:`2^1`,
+                ... , :math:`2^{log(n)}` in turn.
         """
 
         if hierarchical:

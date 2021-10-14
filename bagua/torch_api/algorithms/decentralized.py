@@ -21,9 +21,11 @@ class DecentralizedAlgorithm(Algorithm):
 
         Args:
             hierarchical (bool): Enable hierarchical communication.
-            peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers'
+            peer_selection_mode (str): Can be ``"all"``, ``"shift_one"`` or ``"chord"``. ``"all"`` means all workers'
                 weights are averaged in each communication step. ``"shift_one"`` means each worker
                 selects a different peer to do weights average in each communication step.
+                ``"chord"`` means each worker selects the peer at distance :math:`2^0`, :math:`2^1`,
+                ... , :math:`2^{log(n)}` in turn.
             communication_interval (int): Number of iterations between two communication steps.
 
         """
