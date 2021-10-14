@@ -112,7 +112,7 @@ class TestAutotuneService(unittest.TestCase):
         service_addr = "127.0.0.1"
         service_port = pick_n_free_ports(1)[0]
         nprocs = 2
-        print("service_port={}".format(service_port))
+        print("service_port={}".format(service_port), flush=True)
 
         autotune_service = AutotuneService(
             nprocs,
@@ -303,7 +303,7 @@ class TestAutotuneService(unittest.TestCase):
             for (model_name, (tensor_list, spans)) in model_dict.items():
                 pg_init_method = "tcp://localhost:{}".format(
                     pick_n_free_ports(1)[0])
-                print("pg_init_method={}".format(pg_init_method))
+                print("pg_init_method={}".format(pg_init_method), flush=True)
                 mock = MockBaguaProcess(
                     i, nprocs, service_addr, service_port, model_name,
                     tensor_list, spans, pg_init_method=pg_init_method,
