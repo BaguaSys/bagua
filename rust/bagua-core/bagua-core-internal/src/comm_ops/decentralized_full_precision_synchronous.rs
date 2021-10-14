@@ -104,13 +104,13 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                         let nranks = c.nranks as i64;
                         let peer_dims = (nranks as f32).log2() as i64;
                         let distance = 2i64.pow((step % peer_dims) as u32);
-                        let distance = (nranks % distance) / 2 + distance;
+                        let distance = (nranks % (distance * 2)) / 2 + distance;
                         let peer_rank = if (rank / distance) % 2 == 0 {
                             (rank + distance)
                         } else {
                             (rank - distance)
                         } as i32;
-                        tracing::debug!("rank {} peer_rank {}", c.rank, peer_rank);
+                        tracing::debug!("rank {} peer_rank {} distance {}", c.rank, peer_rank, distance);
                         {
                             let _guard = NCCLGroupGuard::new();
                             c.send(&t.raw, peer_rank);
