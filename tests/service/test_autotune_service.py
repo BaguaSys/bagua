@@ -58,6 +58,7 @@ class MockBaguaProcess:
         self.client = AutotuneClient(service_addr, service_port)
 
     def run(self, world_size, pg_init_method: str = "tcp://localhost:29501"):
+        print('dist.init_process_group rank={}, world_size={}, init_method={}'.format(self.rank, world_size, pg_init_method))
         dist.init_process_group(
             backend=dist.Backend.GLOO,
             rank=self.rank,
