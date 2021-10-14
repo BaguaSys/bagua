@@ -45,13 +45,11 @@ class MockBaguaProcess:
     def __init__(
         self,
         rank: int,
-        world_size: int,
         service_addr: str,
         service_port: int,
         model_name: str,
         tensor_list: List[TensorDeclaration],
         spans: List[BaguaCoreTelemetrySpan] = [],
-        pg_init_method: str = "tcp://localhost:29501",
     ) -> None:
         self.rank = rank
         self.model_name = model_name
@@ -59,14 +57,14 @@ class MockBaguaProcess:
         self.spans = spans
         self.client = AutotuneClient(service_addr, service_port)
 
+    def run(self, world_size, pg_init_method: str = "tcp://localhost:29501"):
         dist.init_process_group(
             backend=dist.Backend.GLOO,
-            rank=rank,
+            rank=self.rank,
             world_size=world_size,
             init_method=pg_init_method,
         )
 
-    def run(self):
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
         hp = BaguaHyperparameter().update(rsp.json()["recommended_hyperparameters"])
@@ -305,11 +303,11 @@ class TestAutotuneService(unittest.TestCase):
                     pick_n_free_ports(1)[0])
                 print("pg_init_method={}".format(pg_init_method), flush=True)
                 mock = MockBaguaProcess(
-                    i, nprocs, service_addr, service_port, model_name,
-                    tensor_list, spans, pg_init_method=pg_init_method,
+                    i, service_addr, service_port, model_name,
+                    tensor_list, spans
                 )
                 mock_objs.append(mock)
-                ret = pool.apply_async(mock.run)
+                ret = pool.apply_async(mock.run, (nprocs, pg_init_method, ))
                 results[model_name].append(ret)
 
         pool.close()
