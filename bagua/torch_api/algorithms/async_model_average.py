@@ -29,7 +29,7 @@ class AsyncModelAverageAlgorithm_Implementation(Algorithm):
         warmup_steps: int = 0,
     ):
         """
-        Instance implementation of the
+        Implementation of the
         `AsyncModelAverage <https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average.html>`_
         algorithm.
 

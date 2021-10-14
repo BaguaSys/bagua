@@ -105,7 +105,7 @@ class QAdamAlgorithm_Implementation(Algorithm):
         self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
     ):
         """
-        Instance implementation of the
+        Implementation of the
         `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
         .
 
