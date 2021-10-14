@@ -94,7 +94,7 @@ def _rank_not_in_comm(comm):
     Helper that checks if the current process's rank is not in a given communicator
 
     """
-    if comm == CommMember.WORLD:
+    if comm is None:
         return False
     return comm == CommMember.NON_COMM_MEMBER
 
@@ -408,7 +408,7 @@ class CommMember(object):
     NON_COMM_MEMBER = object()
 
 
-def send(tensor: torch.Tensor, dst: int, comm=comm.WORLD):
+def send(tensor: torch.Tensor, dst: int, comm=None):
     r"""Sends a tensor to :attr:`dst` synchronously.
 
     Args:
@@ -422,8 +422,7 @@ def send(tensor: torch.Tensor, dst: int, comm=comm.WORLD):
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -435,7 +434,7 @@ def send(tensor: torch.Tensor, dst: int, comm=comm.WORLD):
     comm.cuda_stream.synchronize()
 
 
-def recv(tensor: torch.Tensor, src: int, comm=comm.WORLD):
+def recv(tensor: torch.Tensor, src: int, comm=None):
     r"""Receives a tensor synchronously.
 
     Args:
@@ -449,8 +448,7 @@ def recv(tensor: torch.Tensor, src: int, comm=comm.WORLD):
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -462,7 +460,7 @@ def recv(tensor: torch.Tensor, src: int, comm=comm.WORLD):
     comm.cuda_stream.synchronize()
 
 
-def broadcast_coalesced(tensors, src=0, comm=comm.WORLD):
+def broadcast_coalesced(tensors, src=0, comm=None):
 
     if _rank_not_in_comm(comm):
         return
@@ -472,8 +470,7 @@ def broadcast_coalesced(tensors, src=0, comm=comm.WORLD):
             "cpu"
         ), "input tensors must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -489,7 +486,7 @@ def broadcast_coalesced(tensors, src=0, comm=comm.WORLD):
     comm.cuda_stream.synchronize()
 
 
-def broadcast(tensor: torch.Tensor, src: int = 0, comm=comm.WORLD):
+def broadcast(tensor: torch.Tensor, src: int = 0, comm=None):
     r"""Broadcasts the tensor to all processes associated with the communicator.
 
     :attr:`tensor` must have the same number of elements in all processes
@@ -509,8 +506,7 @@ def broadcast(tensor: torch.Tensor, src: int = 0, comm=comm.WORLD):
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -528,7 +524,7 @@ def reduce(
     recv_tensor: torch.Tensor,
     dst: int,
     op: ReduceOp = ReduceOp.SUM,
-    comm=comm.WORLD,
+    comm=None,
 ):
     r"""Reduces the tensor data across all processes.
 
@@ -554,8 +550,7 @@ def reduce(
         "cpu"
     ), "recv tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -573,7 +568,7 @@ def reduce(
 
 
 def reduce_inplace(
-    tensor: torch.Tensor, dst: int, op: ReduceOp = ReduceOp.SUM, comm=comm.WORLD
+    tensor: torch.Tensor, dst: int, op: ReduceOp = ReduceOp.SUM, comm=None
 ):
     r"""The in-place version of :func:`reduce`."""
 
@@ -582,8 +577,7 @@ def reduce_inplace(
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -600,7 +594,7 @@ def reduce_inplace(
 def allreduce_coalesced_inplace(
     tensors,
     op: ReduceOp = ReduceOp.SUM,
-    comm=comm.WORLD,
+    comm=None,
 ):
     if _rank_not_in_comm(comm):
         return
@@ -610,8 +604,7 @@ def allreduce_coalesced_inplace(
             "cpu"
         ), "input tensors must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -634,7 +627,7 @@ def allreduce(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """Reduces the tensor data across all processes associated with the communicator in such a way that all get
     the final result. After the call :attr:`recv_tensor` is going to be bitwise identical
@@ -679,8 +672,7 @@ def allreduce(
     if _rank_not_in_comm(comm):
         return
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     assert send_tensor.device != torch.device(
@@ -708,7 +700,7 @@ def allreduce(
 def allreduce_inplace(
     tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """The in-place version of :func:`allreduce`."""
 
@@ -717,8 +709,7 @@ def allreduce_inplace(
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -733,7 +724,7 @@ def allreduce_inplace(
 def allgather(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """Gathers send tensors from all processes associated with the communicator into :attr:`recv_tensor`.
 
@@ -754,8 +745,7 @@ def allgather(
         "cpu"
     ), "recv tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -772,7 +762,7 @@ def allgather(
 
 def allgather_inplace(
     tensor: torch.Tensor,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """The in-place version of :func:`allgather`."""
 
@@ -781,8 +771,7 @@ def allgather_inplace(
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -798,7 +787,7 @@ def gather(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     dst: int,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """Gathers send tensors from all processes associated with the communicator to :attr:`recv_tensor` in a single process.
 
@@ -819,8 +808,7 @@ def gather(
         "cpu"
     ), "recv tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -840,7 +828,7 @@ def gather_inplace(
     tensor: torch.Tensor,
     count: int,
     dst: int,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """The in-place version of :func:`gather`.
 
@@ -859,8 +847,7 @@ def gather_inplace(
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -876,7 +863,7 @@ def scatter(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     src: int,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """Scatters send tensor to all processes associated with the communicator.
 
@@ -898,8 +885,7 @@ def scatter(
         "cpu"
     ), "recv tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -919,7 +905,7 @@ def scatter_inplace(
     tensor: torch.Tensor,
     count: int,
     src: int,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """The in-place version of :func:`scatter`.
 
@@ -938,8 +924,7 @@ def scatter_inplace(
 
     assert tensor.device != torch.device("cpu"), "input tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -957,7 +942,7 @@ def reduce_scatter(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """Reduces, then scatters :attr:`send_tensor` to all processes associated with the communicator.
 
@@ -979,8 +964,7 @@ def reduce_scatter(
         "cpu"
     ), "recv tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -999,7 +983,7 @@ def reduce_scatter(
 def reduce_scatter_inplace(
     tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """The in-place version of :func:`reduce_scatter`.
 
@@ -1015,8 +999,7 @@ def reduce_scatter_inplace(
 
     assert tensor.device != torch.device("cpu"), "send tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -1033,7 +1016,7 @@ def reduce_scatter_inplace(
 def alltoall(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """
     Each process scatters :attr:`send_tensor` to all processes associated with the communicator and return the gathered
@@ -1055,8 +1038,7 @@ def alltoall(
         "cpu"
     ), "recv tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
@@ -1074,7 +1056,7 @@ def alltoall(
 # TODO combine **inplace API
 def alltoall_inplace(
     tensor: torch.Tensor,
-    comm=comm.WORLD,
+    comm=None,
 ):
     """The in-place version of :func:`alltoall`."""
     if _rank_not_in_comm(comm):
@@ -1082,8 +1064,7 @@ def alltoall_inplace(
 
     assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
 
-    if comm == CommMember.WORLD:
-        _check_default_pg()
+    if comm is None or comm is CommMember.WORLD:
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
