@@ -125,4 +125,4 @@ Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
 
 You can also scan the following QR code to join our WeChat group :)
 
-<img src="https://user-images.githubusercontent.com/18649508/136324315-3a94c38f-68c8-4dca-895d-78923c067329.png" width="300"/>
+<img src="https://user-images.githubusercontent.com/18649508/137250428-c9845337-baf0-4dca-b8b4-e2bbe97250f4.png" width="300"/>
