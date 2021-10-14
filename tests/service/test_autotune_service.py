@@ -297,10 +297,10 @@ class TestAutotuneService(unittest.TestCase):
         mock_objs = []
         pool = multiprocessing.pool.ThreadPool(nprocs * len(model_dict))
         results = dict([(key, []) for key in model_dict.keys()])
-        for i in range(nprocs):
-            for (model_name, (tensor_list, spans)) in model_dict.items():
-                pg_init_method = "tcp://localhost:{}".format(
-                    pick_n_free_ports(1)[0])
+        for (model_name, (tensor_list, spans)) in model_dict.items():
+            pg_init_method = "tcp://localhost:{}".format(
+                pick_n_free_ports(1)[0])
+            for i in range(nprocs):
                 print("pg_init_method={}".format(pg_init_method), flush=True)
                 mock = MockBaguaProcess(
                     i, service_addr, service_port, model_name,
