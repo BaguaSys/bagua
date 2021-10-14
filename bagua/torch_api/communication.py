@@ -100,6 +100,9 @@ def _rank_not_in_comm(comm):
 
 
 def _bagua_backend_comm(comm):
+    """
+    Returns the corresponding representation of a given communicator for Bagua backend.
+    """
     if _rank_not_in_comm(comm):
         return None
     return comm
@@ -408,7 +411,7 @@ class CommMember(object):
     NON_COMM_MEMBER = object()
 
 
-def send(tensor: torch.Tensor, dst: int, comm=None):
+def send(tensor: torch.Tensor, dst: int, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Sends a tensor to :attr:`dst` synchronously.
 
     Args:
@@ -434,7 +437,7 @@ def send(tensor: torch.Tensor, dst: int, comm=None):
     comm.cuda_stream.synchronize()
 
 
-def recv(tensor: torch.Tensor, src: int, comm=None):
+def recv(tensor: torch.Tensor, src: int, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Receives a tensor synchronously.
 
     Args:
@@ -460,7 +463,7 @@ def recv(tensor: torch.Tensor, src: int, comm=None):
     comm.cuda_stream.synchronize()
 
 
-def broadcast_coalesced(tensors, src=0, comm=None):
+def broadcast_coalesced(tensors, src=0, comm: B.BaguaSingleCommunicatorPy = None):
 
     if _rank_not_in_comm(comm):
         return
@@ -486,7 +489,7 @@ def broadcast_coalesced(tensors, src=0, comm=None):
     comm.cuda_stream.synchronize()
 
 
-def broadcast(tensor: torch.Tensor, src: int = 0, comm=None):
+def broadcast(tensor: torch.Tensor, src: int = 0, comm: B.BaguaSingleCommunicatorPy = None):
     r"""Broadcasts the tensor to all processes associated with the communicator.
 
     :attr:`tensor` must have the same number of elements in all processes
@@ -524,7 +527,7 @@ def reduce(
     recv_tensor: torch.Tensor,
     dst: int,
     op: ReduceOp = ReduceOp.SUM,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     r"""Reduces the tensor data across all processes.
 
@@ -568,7 +571,7 @@ def reduce(
 
 
 def reduce_inplace(
-    tensor: torch.Tensor, dst: int, op: ReduceOp = ReduceOp.SUM, comm=None
+    tensor: torch.Tensor, dst: int, op: ReduceOp = ReduceOp.SUM, comm: B.BaguaSingleCommunicatorPy = None
 ):
     r"""The in-place version of :func:`reduce`."""
 
@@ -594,7 +597,7 @@ def reduce_inplace(
 def allreduce_coalesced_inplace(
     tensors,
     op: ReduceOp = ReduceOp.SUM,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     if _rank_not_in_comm(comm):
         return
@@ -627,7 +630,7 @@ def allreduce(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Reduces the tensor data across all processes associated with the communicator in such a way that all get
     the final result. After the call :attr:`recv_tensor` is going to be bitwise identical
@@ -700,7 +703,7 @@ def allreduce(
 def allreduce_inplace(
     tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`allreduce`."""
 
@@ -724,7 +727,7 @@ def allreduce_inplace(
 def allgather(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Gathers send tensors from all processes associated with the communicator into :attr:`recv_tensor`.
 
@@ -762,7 +765,7 @@ def allgather(
 
 def allgather_inplace(
     tensor: torch.Tensor,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`allgather`."""
 
@@ -787,7 +790,7 @@ def gather(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     dst: int,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Gathers send tensors from all processes associated with the communicator to :attr:`recv_tensor` in a single process.
 
@@ -828,7 +831,7 @@ def gather_inplace(
     tensor: torch.Tensor,
     count: int,
     dst: int,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`gather`.
 
@@ -863,7 +866,7 @@ def scatter(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     src: int,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Scatters send tensor to all processes associated with the communicator.
 
@@ -905,7 +908,7 @@ def scatter_inplace(
     tensor: torch.Tensor,
     count: int,
     src: int,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`scatter`.
 
@@ -942,7 +945,7 @@ def reduce_scatter(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """Reduces, then scatters :attr:`send_tensor` to all processes associated with the communicator.
 
@@ -983,7 +986,7 @@ def reduce_scatter(
 def reduce_scatter_inplace(
     tensor: torch.Tensor,
     op: ReduceOp = ReduceOp.SUM,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`reduce_scatter`.
 
@@ -1016,7 +1019,7 @@ def reduce_scatter_inplace(
 def alltoall(
     send_tensor: torch.Tensor,
     recv_tensor: torch.Tensor,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """
     Each process scatters :attr:`send_tensor` to all processes associated with the communicator and return the gathered
@@ -1056,7 +1059,7 @@ def alltoall(
 # TODO combine **inplace API
 def alltoall_inplace(
     tensor: torch.Tensor,
-    comm=None,
+    comm: B.BaguaSingleCommunicatorPy = None,
 ):
     """The in-place version of :func:`alltoall`."""
     if _rank_not_in_comm(comm):
