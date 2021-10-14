@@ -99,7 +99,7 @@ class MockBaguaProcess:
             train_iter += 1
 
             if train_iter % 100 == 0:
-                print('{} heart-beat {}'.format(time.time(), train_iter))
+                print("{} heart-beat {}".format(time.time(), train_iter))
 
         return hp
 
@@ -299,15 +299,19 @@ class TestAutotuneService(unittest.TestCase):
         results = dict([(key, []) for key in model_dict.keys()])
         for i in range(nprocs):
             for (model_name, (tensor_list, spans)) in model_dict.items():
-                pg_init_method = "tcp://localhost:{}".format(
-                    pick_n_free_ports(1)[0])
+                pg_init_method = "tcp://localhost:{}".format(pick_n_free_ports(1)[0])
                 print("pg_init_method={}".format(pg_init_method), flush=True)
                 mock = MockBaguaProcess(
-                    i, service_addr, service_port, model_name,
-                    tensor_list, spans
+                    i, service_addr, service_port, model_name, tensor_list, spans
                 )
                 mock_objs.append(mock)
-                ret = pool.apply_async(mock.run, (nprocs, pg_init_method, ))
+                ret = pool.apply_async(
+                    mock.run,
+                    (
+                        nprocs,
+                        pg_init_method,
+                    ),
+                )
                 results[model_name].append(ret)
 
         pool.close()
