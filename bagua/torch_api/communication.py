@@ -24,8 +24,10 @@ from typing import Optional, List
 # fmt: off
 __all__ = [
     "ReduceOp", "new_group", "from_torch_group", "init_process_group",
-    "is_initialized", "send", "recv", "broadcast", "reduce", "allreduce",
-    "allgather", "gather", "scatter", "reduce_scatter", "alltoall",
+    "is_initialized", "send", "recv", "broadcast", "reduce", "reduce_inplace",
+    "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
+    "gather", "gather_inplace", "scatter", "scatter_inplace",
+    "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace"
 ]
 
 # Process group's global rank to local rank mapping
