@@ -10,7 +10,7 @@ import math
 from typing import List, Tuple
 
 
-class QAdamOptimizer_Implementation(Optimizer):
+class QAdamOptimizer(Optimizer):
     def __init__(
         self,
         params,
@@ -43,7 +43,7 @@ class QAdamOptimizer_Implementation(Optimizer):
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
-        super(QAdamOptimizer_Implementation, self).__init__(params, defaults)
+        super(QAdamOptimizer, self).__init__(params, defaults)
 
         self.params_in_group = []
         self.exp_avgs_in_group = []
@@ -69,13 +69,14 @@ class QAdamOptimizer_Implementation(Optimizer):
             self.exp_avgs_in_group.append(exp_avgs)
 
     def __setstate__(self, state):
-        super(QAdamOptimizer_Implementation, self).__setstate__(state)
+        super(QAdamOptimizer, self).__setstate__(state)
 
     def step(self, closure=None):
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
+
             lr = group["lr"]
-            weight_decay = group["weight_decay"]  # noqa: F841
+            weight_decay = group["weight_decay"]
             beta1, beta2 = group["betas"]
             eps = group["eps"]
 
@@ -99,12 +100,12 @@ class QAdamOptimizer_Implementation(Optimizer):
                 param.data.add_(-step_size * update)
 
 
-class QAdamAlgorithm(Algorithm):
+class QAdamAlgorithm_Implementation(Algorithm):
     def __init__(
-        self, q_adam_optimizer: QAdamOptimizer_Implementation, hierarchical: bool = True
+        self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
     ):
         """
-        Create an instance of the
+        Instance implementation of the
         `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
         .
 
@@ -204,52 +205,24 @@ class QAdamAlgorithm(Algorithm):
         )
 
 
-class QAdamOptimizer:
+class QAdamAlgorithm:
     def __init__(
-        self,
-        params,
-        lr: float = 1e-3,
-        warmup_steps: int = 100,
-        betas: Tuple[float, float] = (0.9, 0.999),
-        eps: float = 1e-8,
-        weight_decay: float = 0.0,
+        self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
     ):
         """
-        Create a dedicated optimizer used for
-        `QAdam <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_ algorithm.
+        Create an instance of the
+        `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
+        .
 
         Args:
-            params (iterable): Iterable of parameters to optimize or dicts defining
-                parameter groups.
-            lr: Learning rate.
-            warmup_steps: Number of steps to warm up by doing gradient allreduce before
-                doing asynchronous model averaging. Use 0 to disable.
-            betas: Coefficients used for computing running averages of gradient and its square.
-            eps: Term added to the denominator to improve numerical stability.
-            weight_decay: Weight decay (L2 penalty).
+            q_adam_optimizer: A QAdamOptimizer initialized with model parameters.
+            hierarchical: Enable hierarchical communication.
         """
-        if not 0.0 <= lr:
-            raise ValueError("Invalid learning rate: {}".format(lr))
-        if not 0.0 <= eps:
-            raise ValueError("Invalid epsilon value: {}".format(eps))
-        if not 0.0 <= betas[0] < 1.0:
-            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
-        if not 0.0 <= betas[1] < 1.0:
-            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+        self.hierarchical = hierarchical
+        self.optimizer = q_adam_optimizer
 
-        self.params = params
-        self.lr = lr
-        self.warmup_steps = warmup_steps
-        self.betas = betas
-        self.eps = eps
-        self.weight_decay = weight_decay
-
-    def reify(self) -> QAdamOptimizer_Implementation:
-        return QAdamOptimizer_Implementation(
-            params=self.params,
-            lr=self.lr,
-            warmup_steps=self.warmup_steps,
-            betas=self.betas,
-            eps=self.eps,
-            weight_decay=self.weight_decay,
+    def reify(self) -> QAdamAlgorithm_Implementation:
+        return QAdamAlgorithm_Implementation(
+            q_adam_optimizer=self.optimizer,
+            hierarchical=self.hierarchical
         )

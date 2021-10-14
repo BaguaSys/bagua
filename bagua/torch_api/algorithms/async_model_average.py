@@ -29,16 +29,9 @@ class AsyncModelAverageAlgorithm_Implementation(Algorithm):
         warmup_steps: int = 0,
     ):
         """
-        Create an instance of the
+        Instance implementation of the
         `AsyncModelAverage <https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average.html>`_
         algorithm.
-
-        The asynchronous implementation is experimental, and imposes some restrictions.
-        With such asynchronous algorithm, the number of iterations on each worker are different. Therefore
-        the current implementation assumes that the dataset is an endless stream, and all workers continuously
-        synchronize between each other.
-
-        Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
 
         Args:
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.

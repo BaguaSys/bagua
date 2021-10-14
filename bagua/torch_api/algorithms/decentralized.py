@@ -15,7 +15,7 @@ class DecentralizedAlgorithm_Implementation(Algorithm):
         communication_interval: int = 1,
     ):
         """
-        Create an instance of the
+        Instance implementation of the
         `Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/decentralized>`_
         algorithm.
 
@@ -99,7 +99,7 @@ class DecentralizedAlgorithm_Implementation(Algorithm):
 class LowPrecisionDecentralizedAlgorithm_Implementation(Algorithm):
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
-        Create an instance of the
+        Instance implementation of the
         `Low Precision Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/low-precision-decentralized>`_
         algorithm.
 

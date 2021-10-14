@@ -8,7 +8,7 @@ from bagua.torch_api.algorithms import Algorithm
 class GradientAllReduceAlgorithm_Implementation(Algorithm):
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
-        Create an instance of the
+        Instance implementation of the
         `GradientAllReduce <https://bagua-tutorials.kwai-seattle.com/algorithms/gradient-allreduce>`_
         algorithm.
 

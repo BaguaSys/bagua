@@ -11,7 +11,7 @@ from typing import List
 class ByteGradAlgorithm_Implementation(Algorithm):
     def __init__(self, average: bool = True):
         """
-        Create an instance of the
+        Instance implementation of the
         `ByteGrad <https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad>`_
         algorithm.
 
