@@ -64,6 +64,7 @@ class MockBaguaProcess:
             world_size=world_size,
             init_method=pg_init_method,
         )
+        print('rank={} init_process_group done'.format(self.rank))
 
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
