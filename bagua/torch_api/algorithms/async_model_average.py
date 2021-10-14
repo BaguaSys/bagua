@@ -2,6 +2,7 @@
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.communication import new_group, broadcast, barrier, _pg_group_ranks
 from typing import List
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.env import get_rank
@@ -55,9 +56,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.cuda_event = torch.cuda.Event()
 
         self.abort_event = threading.Event()
-        self.dummy_tensor = torch.Tensor([0]).byte()
-        self.main_group = torch.distributed.new_group(backend="gloo")
-        self.thread_group = torch.distributed.new_group(backend="gloo")
+        self.dummy_tensor = torch.Tensor([0]).byte().cuda()
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.scheduled = False
@@ -149,9 +148,14 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 group=bagua_module._bagua_process_group,
             )
         else:
+            if not hasattr(self, "thread_group"):
+                process_ranks = list(_pg_group_ranks[bagua_module._bagua_process_group])
+                self.thread_group = new_group(
+                    process_ranks, stream=torch.cuda.Stream(priority=-1)
+                )
+
             async_op = bucket.append_asynchronous_model_average_op(
-                peer_selection_mode=self.peer_selection_mode,
-                group=bagua_module._bagua_process_group,
+                peer_selection_mode=self.peer_selection_mode, group=self.thread_group
             )
             bucket._async_op = async_op
 
@@ -175,14 +179,16 @@ class AsyncModelAverageAlgorithm(Algorithm):
         else:
             self.dummy_tensor[0] = _AsyncInternalState.RESUME
 
-        torch.distributed.broadcast(self.dummy_tensor, src=0, group=self.thread_group)
+        broadcast(
+            self.dummy_tensor, src=0, comm=self.thread_group.get_global_communicator()
+        )
+
         return self.dummy_tensor.item()
 
     def _run_async_loop(self, bagua_module: BaguaModule):
         comm_step = 0
         while True:
             state = self._negotiate()
-
             if state == _AsyncInternalState.ABORT:
                 break
 
@@ -212,7 +218,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         """
 
         if self.scheduled:
-            torch.distributed.barrier(group=self.main_group)
+            barrier(comm=bagua_module._bagua_process_group.get_global_communicator())
             self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
             self.scheduled = False
@@ -228,7 +234,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         """
 
         if not self.scheduled and hasattr(self, "future"):
-            torch.distributed.barrier(group=self.main_group)
+            barrier(comm=bagua_module._bagua_process_group.get_global_communicator())
             self.abort_event.clear()
             self.future = self.executor.submit(self._run_async_loop, bagua_module)
             self.scheduled = True
