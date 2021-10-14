@@ -261,9 +261,12 @@ class AutotuneService:
                 check_board = hp_manager.check_board
 
                 if self.log_count % 1000 == 0:
-                    print('sampling_count={}, check_board={}, train_iter={}'.format(
-                        hp_manager.sampling_count, check_board, train_iter),
-                        flush=True)
+                    print(
+                        "sampling_count={}, check_board={}, train_iter={}".format(
+                            hp_manager.sampling_count, check_board, train_iter
+                        ),
+                        flush=True,
+                    )
 
                 self.log_count += 1
 
