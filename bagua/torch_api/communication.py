@@ -1088,7 +1088,7 @@ def barrier(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
     Synchronizes all processes.
     This collective blocks processes until all processes associated with the
     communicator enters this function.
- 
+
     Args:
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
