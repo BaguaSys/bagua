@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -26,6 +27,7 @@ class Net(nn.Module):
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
         return F.softmax(x, dim=1)
+
 
 def _init_bagua_env(rank, env):
     # Set deterministic
