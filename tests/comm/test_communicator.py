@@ -7,6 +7,7 @@ from bagua.torch_api.communication import (
     send,
     recv,
     allgather,
+    barrier,
 )
 from tests.internal.common_utils import find_free_port
 import multiprocessing
@@ -111,6 +112,11 @@ def run_allgather(rank, nprocs, results, env):
     results[rank].ret[0] = ret
 
 
+def run_barrier(rank, nprocs, results, env):
+    init_env(rank, env)
+    barrier()
+
+
 class TestCommunication(unittest.TestCase):
     def run_test_locally(self, fn):
         nprocs = torch.cuda.device_count()
@@ -163,6 +169,10 @@ class TestCommunication(unittest.TestCase):
         results = self.run_test_locally(run_allgather)
         for ret in results:
             self.assertTrue(ret.ret.item())
+
+    @skip_if_cuda_not_available()
+    def test_barrier(self):
+        self.run_test_locally(run_barrier)
 
 
 if __name__ == "__main__":
