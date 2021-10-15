@@ -74,6 +74,7 @@ def run_model(
     env,
 ):
     _init_bagua_env(rank, env)
+    group = bagua.communication.new_group(ranks=list(range(nprocs)))
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -88,6 +89,7 @@ def run_model(
             peer_selection_mode=peer_selection_mode,
             communication_interval=communication_interval,
         ),
+        process_group=group,
     )
 
     ret = results[rank]
@@ -396,7 +398,7 @@ class TestDecentralized(unittest.TestCase):
     def test_algorithm(self):
         nprocs = torch.cuda.device_count()
         self.run_test_locally(
-            nprocs=nprocs,
+            nprocs=nprocs - 1,
             hierarchical=False,
             peer_selection_mode="all",
             communication_interval=1,

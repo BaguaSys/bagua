@@ -7,6 +7,7 @@ from bagua.torch_api.communication import (
     get_backend,
     broadcast,
     _get_default_group,
+    _rank_not_in_group,
     BaguaProcessGroup,
 )
 import bagua
@@ -186,7 +187,9 @@ class BaguaModule:
                             param_id, param_name
                         )
         for key, param in params:
-            broadcast(param, src=0)
+            broadcast(
+                param, src=0, comm=self._bagua_process_group.get_global_communicator()
+            )
         scalars = self._bagua_broadcast_scalars(scalars, src=0)
         for key, p in scalars.items():
             call_back_param[key](p)
@@ -196,7 +199,7 @@ class BaguaModule:
         b = io.BytesIO()
         pickle.dump(scalars, b)
         t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
-        broadcast(t, src=0)
+        broadcast(t, src=0, comm=self._bagua_process_group.get_global_communicator())
         if get_rank() != src:
             buf = io.BytesIO(t.cpu().numpy().tobytes())
             scalars = pickle.load(buf)
@@ -210,7 +213,9 @@ class BaguaModule:
 
         module_states = self.bagua_build_params()
         for name, state in module_states:
-            broadcast(state, src=0)
+            broadcast(
+                state, src=0, comm=self._bagua_process_group.get_global_communicator()
+            )
         for optimizer in self.bagua_optimizers:
             self._bagua_broadcast_optimizer_state(optimizer)
 
@@ -295,6 +300,10 @@ class BaguaModule:
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm
+
+        if _rank_not_in_group(process_group):
+            return self
+
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
@@ -306,6 +315,7 @@ class BaguaModule:
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
 
         self.bagua_train_step_counter = 0
+
         """
         Number of iterations in training mode.
         """
