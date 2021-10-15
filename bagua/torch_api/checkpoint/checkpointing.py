@@ -346,7 +346,7 @@ def _load_moe_state_dict(
     for local_expert_id in range(num_local_experts):
         global_expert_id = expp_rank * num_local_experts + local_expert_id
         expert_state_dict = torch.load(
-            _get_expert_ckpt_name(checkpoints_path, global_expert_id, iteration),
+            _get_expert_ckpt_name(checkpoints_path, str(global_expert_id), iteration),
             map_location=torch.device("cpu"),
         )
 
