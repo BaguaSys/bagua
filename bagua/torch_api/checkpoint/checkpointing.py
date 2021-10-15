@@ -234,7 +234,7 @@ def load_checkpoint(
     model: BaguaModule,
     optimizer: torch.optim.Optimizer = None,
     lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
-    strict: bool = True
+    strict: bool = True,
 ):
     """Load a model checkpoint and return the iteration.
 
