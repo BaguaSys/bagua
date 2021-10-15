@@ -34,7 +34,7 @@ def _ensure_directory_exists(filename: str):
 def _get_optimizer_ckpt_name(
     checkpoints_path: str,
     iteration: int,
-    expp_rank: int,
+    expert_parallel_rank: int,
     mp_rank: Optional[int] = 0,
     release: Optional[bool] = False,
 ) -> str:
@@ -45,7 +45,7 @@ def _get_optimizer_ckpt_name(
     ckpt_name = os.path.join(
         checkpoints_path,
         directory,
-        f"expp_rank_{expp_rank}_mp_rank_{mp_rank:02d}_optim_states.pt",
+        f"expert_parallel_rank_{expert_parallel_rank}_mp_rank_{mp_rank:02d}_optim_states.pt",
     )
     return ckpt_name
 
@@ -190,10 +190,10 @@ def _save_moe_checkpoint(
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
 ):
     world_size = 1 if not dist.is_initialized() else dist.get_world_size()
-    expp_rank = 1 if not dist.is_initialized() else dist.get_rank()
+    expert_parallel_rank = 0 if not dist.is_initialized() else dist.get_rank()
     num_local_experts = num_experts // world_size
     experts_state_dict, model_state_dict = _get_moe_state_dict(
-        model.state_dict(), num_local_experts, expp_rank
+        model.state_dict(), num_local_experts, expert_parallel_rank
     )
 
     #  Each rank saves its local experts
@@ -211,10 +211,10 @@ def _save_moe_checkpoint(
     optimizer_state = {"optimizer": optimizer.state_dict() if optimizer else None}
     torch.save(
         optimizer_state,
-        _get_optimizer_ckpt_name(checkpoints_path, iteration, expp_rank),
+        _get_optimizer_ckpt_name(checkpoints_path, iteration, expert_parallel_rank),
     )
 
-    if expp_rank == 0:
+    if expert_parallel_rank == 0:
         state_dict = {}
         state_dict["iteration"] = iteration
         state_dict["model"] = model_state_dict
@@ -230,7 +230,7 @@ def _save_moe_checkpoint(
 def _get_moe_state_dict(
     full_state_dict: Dict[str, torch.Tensor],
     num_local_experts: int,
-    expp_rank: int,
+    expert_parallel_rank: int,
 ):
     experts_state_dict, moe_state_dict = defaultdict(dict), {}
     for key in list(full_state_dict.keys()):
@@ -247,7 +247,7 @@ def _get_moe_state_dict(
         else:
             local_expert_id = m.group(1)
 
-        global_expert_id = expp_rank * num_local_experts + int(local_expert_id)
+        global_expert_id = expert_parallel_rank * num_local_experts + int(local_expert_id)
         expert_key = key.replace(
             f"{moe_str_prefix}{local_expert_id}", f"{moe_str_prefix}{global_expert_id}"
         )
@@ -304,7 +304,7 @@ def _load_checkpoint(
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     strict: Optional[bool] = True,
 ):
-    expp_rank = 1 if not dist.is_initialized() else dist.get_rank()
+    expert_parallel_rank = 0 if not dist.is_initialized() else dist.get_rank()
     checkpoint_name = _get_model_ckpt_name(checkpoints_path, iteration)
 
     model_checkpoint = torch.load(checkpoint_name, map_location="cpu")
@@ -315,13 +315,13 @@ def _load_checkpoint(
             checkpoints_path,
             iteration,
             num_local_experts,
-            expp_rank,
+            expert_parallel_rank,
             state_dict=model_checkpoint["model"],
         )
 
     if bagua_has_moe_layers and optimizer is not None:
         optim_load_path = _get_optimizer_ckpt_name(
-            checkpoints_path, iteration, expp_rank
+            checkpoints_path, iteration, expert_parallel_rank
         )
         optim_checkpoint = torch.load(optim_load_path, map_location=torch.device("cpu"))
     else:
@@ -340,11 +340,11 @@ def _load_moe_state_dict(
     checkpoints_path: str,
     iteration: int,
     num_local_experts: int,
-    expp_rank: int,
+    expert_parallel_rank: int,
     state_dict: Dict[str, torch.Tensor],
 ):
     for local_expert_id in range(num_local_experts):
-        global_expert_id = expp_rank * num_local_experts + local_expert_id
+        global_expert_id = expert_parallel_rank * num_local_experts + local_expert_id
         expert_state_dict = torch.load(
             _get_expert_ckpt_name(checkpoints_path, str(global_expert_id), iteration),
             map_location=torch.device("cpu"),
