@@ -11,9 +11,10 @@ import torch.distributed as dist
 from bagua.torch_api import BaguaModule
 from bagua.torch_api.model_parallel.moe import MoE
 from collections import defaultdict
+from typing import Dict, Optional
 
 
-def _has_moe_layers(model):
+def _has_moe_layers(model: BaguaModule) -> (bool, int):
     bagua_has_moe_layers = False
     bagua_moe_num_experts = 0
     for name, module in model.named_modules():
@@ -24,15 +25,19 @@ def _has_moe_layers(model):
     return bagua_has_moe_layers, bagua_moe_num_experts
 
 
-def _ensure_directory_exists(filename):
+def _ensure_directory_exists(filename: str):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
 
 
 def _get_optimizer_ckpt_name(
-    checkpoints_path, iteration, expp_rank, mp_rank=0, release=False
-):
+    checkpoints_path: str,
+    iteration: int,
+    expp_rank: int,
+    mp_rank: Optional[int] = 0,
+    release: Optional[bool] = False,
+) -> str:
     if release:
         directory = "release"
     else:
@@ -46,8 +51,12 @@ def _get_optimizer_ckpt_name(
 
 
 def _get_expert_ckpt_name(
-    checkpoints_path, expert_id, iteration, mp_rank=0, release=False
-):
+    checkpoints_path: str,
+    expert_id: int,
+    iteration: int,
+    mp_rank: Optional[int] = 0,
+    release: Optional[bool] = False,
+) -> str:
     if release:
         directory = "release"
     else:
@@ -60,7 +69,12 @@ def _get_expert_ckpt_name(
     return ckpt_name
 
 
-def _get_model_ckpt_name(checkpoints_path, iteration, mp_rank=0, release=False):
+def _get_model_ckpt_name(
+    checkpoints_path: str,
+    iteration: int,
+    mp_rank: Optional[int] = 0,
+    release: Optional[bool] = False,
+) -> str:
     if release:
         directory = "release"
     else:
@@ -70,11 +84,11 @@ def _get_model_ckpt_name(checkpoints_path, iteration, mp_rank=0, release=False):
     )
 
 
-def _get_checkpoint_tracker_filename(checkpoints_path):
+def _get_checkpoint_tracker_filename(checkpoints_path: str) -> str:
     return os.path.join(checkpoints_path, "latest_checkpointed_iteration.txt")
 
 
-def _read_metadata(tracker_filename):
+def _read_metadata(tracker_filename: str) -> (int, bool):
     iteration = 0
     release = False
     with open(tracker_filename, "r") as f:
@@ -99,8 +113,8 @@ def save_checkpoint(
     iteration: int,
     checkpoints_path: str,
     model: BaguaModule,
-    optimizer: torch.optim.Optimizer = None,
-    lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
 ):
     """Save model checkpoint.
 
@@ -147,7 +161,11 @@ def save_checkpoint(
 
 
 def _save_checkpoint(
-    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
+    iteration: int,
+    checkpoints_path: str,
+    model: BaguaModule,
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
 ):
     if not dist.is_initialized() or dist.get_rank() == 0:
         state_dict = {}
@@ -164,7 +182,12 @@ def _save_checkpoint(
 
 
 def _save_moe_checkpoint(
-    iteration, checkpoints_path, num_experts, model, optimizer=None, lr_scheduler=None
+    iteration: int,
+    checkpoints_path: str,
+    num_experts: int,
+    model: BaguaModule,
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
 ):
     world_size = 1 if not dist.is_initialized() else dist.get_world_size()
     expp_rank = 1 if not dist.is_initialized() else dist.get_rank()
@@ -204,7 +227,11 @@ def _save_moe_checkpoint(
         torch.save(state_dict, checkpoint_name)
 
 
-def _get_moe_state_dict(full_state_dict, num_local_experts, expp_rank):
+def _get_moe_state_dict(
+    full_state_dict: Dict[str, torch.Tensor],
+    num_local_experts: int,
+    expp_rank: int,
+):
     experts_state_dict, moe_state_dict = defaultdict(dict), {}
     for key in list(full_state_dict.keys()):
         if "expert" in key and "moe.gate.wg.weight" not in key:
@@ -232,9 +259,9 @@ def _get_moe_state_dict(full_state_dict, num_local_experts, expp_rank):
 def load_checkpoint(
     checkpoints_path: str,
     model: BaguaModule,
-    optimizer: torch.optim.Optimizer = None,
-    lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
-    strict: bool = True,
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+    strict: Optional[bool] = True,
 ):
     """Load a model checkpoint and return the iteration.
 
@@ -270,7 +297,12 @@ def load_checkpoint(
 
 
 def _load_checkpoint(
-    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None, strict=True
+    iteration: int,
+    checkpoints_path: str,
+    model: BaguaModule,
+    optimizer: Optional[torch.optim.Optimizer] = None,
+    lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+    strict: Optional[bool] = True,
 ):
     expp_rank = 1 if not dist.is_initialized() else dist.get_rank()
     checkpoint_name = _get_model_ckpt_name(checkpoints_path, iteration)
@@ -305,12 +337,16 @@ def _load_checkpoint(
 
 
 def _load_moe_state_dict(
-    checkpoint_path, iteration, num_local_experts, expp_rank, state_dict
+    checkpoints_path: str,
+    iteration: int,
+    num_local_experts: int,
+    expp_rank: int,
+    state_dict: Dict[str, torch.Tensor],
 ):
     for local_expert_id in range(num_local_experts):
         global_expert_id = expp_rank * num_local_experts + local_expert_id
         expert_state_dict = torch.load(
-            _get_expert_ckpt_name(checkpoint_path, global_expert_id, iteration),
+            _get_expert_ckpt_name(checkpoints_path, global_expert_id, iteration),
             map_location=torch.device("cpu"),
         )
 
