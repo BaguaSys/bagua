@@ -58,14 +58,14 @@ class MockBaguaProcess:
         self.client = AutotuneClient(service_addr, service_port)
 
     def run(self, world_size, pg_init_method: str = "tcp://localhost:29501"):
-        print('dist.init_process_group rank={}, world_size={}, init_method={}'.format(self.rank, world_size, pg_init_method))
+        print('dist.init_process_group rank={}, world_size={}, init_method={}'.format(self.rank, world_size, pg_init_method), flush=True)
         dist.init_process_group(
             backend=dist.Backend.GLOO,
             rank=self.rank,
             world_size=world_size,
             init_method=pg_init_method,
         )
-        print('rank={} init_process_group done'.format(self.rank))
+        print('rank={} init_process_group done'.format(self.rank), flush=True)
 
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
