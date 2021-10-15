@@ -28,6 +28,7 @@ __all__ = [
     "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
     "gather", "gather_inplace", "scatter", "scatter_inplace",
     "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace"
+    "barrier"
 ]
 
 # Process group's global rank to local rank mapping
@@ -1081,12 +1082,13 @@ def alltoall_inplace(
 
     comm.cuda_stream.synchronize()
 
+
 def barrier(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
     """
     Synchronizes all processes.
-    This collective blocks processes until all processes associated with the 
+    This collective blocks processes until all processes associated with the
     communicator enters this function.
-    
+ 
     Args:
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
@@ -1101,7 +1103,7 @@ def barrier(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        tensor = torch.Tensor([1.0]).cuda()
-        comm.allreduce_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), int(ReduceOp.SUM))
+        tensor = torch.ones([1], device=torch.cuda.current_device())
+        comm.broadcast(tensor.to_bagua_tensor().bagua_backend_tensor(), 0)
 
     comm.cuda_stream.synchronize()
