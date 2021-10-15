@@ -38,6 +38,8 @@ def run_model_wrapper(rank, env, fn, warmup_steps):
     # init bagua distributed process group
     torch.cuda.set_device(rank)
     bagua.init_process_group()
+    partial_ranks = [i for i in range(bagua.get_world_size() - 1)]
+    partial_group = bagua.communication.new_group(ranks=partial_ranks)
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -49,7 +51,7 @@ def run_model_wrapper(rank, env, fn, warmup_steps):
         sync_interval_ms=20,
         warmup_steps=warmup_steps,
     )
-    model = model.with_bagua([optimizer], algorithm)
+    model = model.with_bagua([optimizer], algorithm, process_group=partial_group)
 
     fn(model, optimizer, loss_fn)
 
