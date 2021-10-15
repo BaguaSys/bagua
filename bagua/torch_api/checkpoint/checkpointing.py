@@ -11,10 +11,10 @@ import torch.distributed as dist
 from bagua.torch_api import BaguaModule
 from bagua.torch_api.model_parallel.moe import MoE
 from collections import defaultdict
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 
-def _has_moe_layers(model: BaguaModule) -> (bool, int):
+def _has_moe_layers(model: BaguaModule) -> Tuple[bool, int]:
     bagua_has_moe_layers = False
     bagua_moe_num_experts = 0
     for name, module in model.named_modules():
@@ -52,7 +52,7 @@ def _get_optimizer_ckpt_name(
 
 def _get_expert_ckpt_name(
     checkpoints_path: str,
-    expert_id: int,
+    expert_id: str,
     iteration: int,
     mp_rank: Optional[int] = 0,
     release: Optional[bool] = False,
@@ -88,7 +88,7 @@ def _get_checkpoint_tracker_filename(checkpoints_path: str) -> str:
     return os.path.join(checkpoints_path, "latest_checkpointed_iteration.txt")
 
 
-def _read_metadata(tracker_filename: str) -> (int, bool):
+def _read_metadata(tracker_filename: str) -> Tuple[int, bool]:
     iteration = 0
     release = False
     with open(tracker_filename, "r") as f:
