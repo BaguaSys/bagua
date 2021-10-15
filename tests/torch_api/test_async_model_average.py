@@ -38,8 +38,6 @@ def run_model_wrapper(rank, env, fn, warmup_steps):
     # init bagua distributed process group
     torch.cuda.set_device(rank)
     bagua.init_process_group()
-    partial_ranks = [i for i in range(bagua.get_world_size() - 1)]
-    partial_group = bagua.communication.new_group(ranks=partial_ranks)
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -51,7 +49,7 @@ def run_model_wrapper(rank, env, fn, warmup_steps):
         sync_interval_ms=20,
         warmup_steps=warmup_steps,
     )
-    model = model.with_bagua([optimizer], algorithm, process_group=partial_group)
+    model = model.with_bagua([optimizer], algorithm)
 
     fn(model, optimizer, loss_fn)
 
@@ -83,18 +81,6 @@ def run_multiple_aborts(model, optimizer, loss_fn):
         train_epoch(epoch, model, optimizer, loss_fn)
         model.bagua_algorithm.abort(model)
         model.bagua_algorithm.abort(model)
-
-
-def run_switch_to(model, optimizer, loss_fn):
-    for epoch in range(5):
-        train_epoch(epoch, model, optimizer, loss_fn)
-    model.bagua_algorithm.abort(model)
-    model = model.with_bagua(
-        model.bagua_optimizers,
-        algorithm=bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
-    )
-    for epoch in range(5):
-        train_epoch(epoch, model, optimizer, loss_fn)
 
 
 class TestAsyncModelAverage(unittest.TestCase):
@@ -137,28 +123,6 @@ class TestAsyncModelAverage(unittest.TestCase):
             p = mp.Process(
                 target=run_model_wrapper, args=(i, env, run_multiple_aborts, 10)
             )
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
-
-    @skip_if_cuda_not_available()
-    def test_switch_to(self):
-        nprocs = torch.cuda.device_count()
-        env = {
-            "WORLD_SIZE": str(nprocs),
-            "LOCAL_WORLD_SIZE": str(nprocs),
-            "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port(8000, 8100)),
-            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
-        }
-
-        mp = multiprocessing.get_context("spawn")
-        processes = []
-        for i in range(nprocs):
-            p = mp.Process(target=run_model_wrapper, args=(i, env, run_switch_to, 0))
             p.start()
             processes.append(p)
 
