@@ -180,7 +180,9 @@ class AsyncModelAverageAlgorithm(Algorithm):
             self.dummy_tensor[0] = _AsyncInternalState.RESUME
 
         broadcast(
-            self.dummy_tensor, src=0, comm=self.thread_group.get_global_communicator()
+            self.dummy_tensor,
+            src=0,
+            comm=self.thread_group.get_global_communicator(),  # pytype: disable=attribute-error
         )
 
         return self.dummy_tensor.item()
