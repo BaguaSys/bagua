@@ -26,13 +26,8 @@ class GradientAllReduceAlgorithm(Algorithm):
         bucket: BaguaBucket,
     ):
         bucket.clear_ops()
-        if self.hierarchical:
-            bucket.append_centralized_synchronous_op(
-                hierarchical=self.hierarchical,
-                average=self.average,
-            )
-        else:
-            bucket.append_centralized_synchronous_op(
-                hierarchical=self.hierarchical,
-                average=self.average,
-            )
+        bucket.append_centralized_synchronous_op(
+            hierarchical=self.hierarchical,
+            average=self.average,
+            group=bagua_module._bagua_process_group,
+        )
