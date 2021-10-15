@@ -8,6 +8,7 @@ import re
 import sys
 import torch
 import torch.distributed as dist
+from bagua.torch_api import BaguaModule
 from bagua.torch_api.model_parallel.moe import MoE
 from collections import defaultdict
 
@@ -95,16 +96,20 @@ def _read_metadata(tracker_filename):
 
 
 def save_checkpoint(
-    iteration, checkpoints_path, model, optimizer=None, lr_scheduler=None
+    iteration: int,
+    checkpoints_path: str,
+    model: BaguaModule,
+    optimizer: torch.optim.Optimizer = None,
+    lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None
 ):
     """Save model checkpoint.
 
     Args:
-        iteration: Training Iteration.
-        checkpoints_path: Path of checkpoints.
-        model: The model to save.
-        optimizer(optional): The optimizer to save. Default: ``None``.
-        lr_scheduler(optional): The LR scheduler to save. Default: ``None``.
+        iteration(int): Training Iteration.
+        checkpoints_path(str): Path of checkpoints.
+        model(BaguaModule): The model to save.
+        optimizer(torch.optim.Optimizer, optional): The optimizer to save. Default: ``None``.
+        lr_scheduler(torch.optim.lr_scheduler._LRScheduler, optional): The LR scheduler to save. Default: ``None``.
     """
     logging.info(
         "saving checkpoint at iterration {:7d} to {}".format(
@@ -225,15 +230,19 @@ def _get_moe_state_dict(full_state_dict, num_local_experts, expp_rank):
 
 
 def load_checkpoint(
-    checkpoints_path, model, optimizer=None, lr_scheduler=None, strict=True
+    checkpoints_path: str,
+    model: BaguaModule,
+    optimizer: torch.optim.Optimizer = None,
+    lr_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
+    strict: bool = True
 ):
     """Load a model checkpoint and return the iteration.
 
     Args:
-        checkpoints_path: Path of checkpoints.
-        model: The model to load on.
-        optimizer(optional): The optimizer to load on. Default: ``None``.
-        lr_scheduler(optional): The LR scheduler to load on. Default: ``None``.
+        checkpoints_path(str): Path of checkpoints.
+        model(BaguaModule): The model to load on.
+        optimizer(torch.optim.Optimizer, optional): The optimizer to load on. Default: ``None``.
+        lr_scheduler(torch.optim.lr_scheduler._LRScheduler, optional): The LR scheduler to load on. Default: ``None``.
         strict (bool, optional): whether to strictly enforce that the keys in
             ``state_dict`` of the checkpoint match the keys returned by this module's
             state_dict() function. Default: ``True``.
