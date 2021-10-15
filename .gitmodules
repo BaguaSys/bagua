@@ -4,4 +4,4 @@
 	branch = bagua
 [submodule "Megatron-LM"]
 	path = Megatron-LM
-	url = https://github.com/shjwudp/Megatron-LM.git
+	url = https://github.com/BaguaSys/Megatron-LM.git
