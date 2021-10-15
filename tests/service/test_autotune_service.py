@@ -58,7 +58,8 @@ class MockBaguaProcess:
         self.client = AutotuneClient(service_addr, service_port)
 
     def run(self, world_size, pg_init_method: str = "tcp://localhost:29501"):
-        print('dist.init_process_group rank={}, world_size={}, init_method={}'.format(self.rank, world_size, pg_init_method), flush=True)
+        print('dist.init_process_group rank={}, world_size={}, init_method={}'.format(
+            self.rank, world_size, pg_init_method), flush=True)
         dist.init_process_group(
             backend=dist.Backend.GLOO,
             rank=self.rank,
@@ -300,8 +301,7 @@ class TestAutotuneService(unittest.TestCase):
         pool = multiprocessing.pool.ThreadPool(nprocs * len(model_dict))
         results = dict([(key, []) for key in model_dict.keys()])
         for (model_name, (tensor_list, spans)) in model_dict.items():
-            pg_init_method = "tcp://localhost:{}".format(
-                pick_n_free_ports(1)[0])
+            pg_init_method = "file:///tmp/.bagua.unittest.autotune.{}".format(model_name)
             for i in range(nprocs):
                 print("pg_init_method={}".format(pg_init_method), flush=True)
                 mock = MockBaguaProcess(
