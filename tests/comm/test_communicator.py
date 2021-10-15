@@ -2,7 +2,7 @@ import unittest
 import torch
 import os
 from bagua.torch_api.communication import (
-    init_bagua_communicator,
+    _get_default_group,
     allreduce,
     send,
     recv,
@@ -43,7 +43,7 @@ def run_abort(rank, nprocs, results, env):
     os.environ["NCCL_PROTO"] = "^LL128"
 
     comm_stream = torch.cuda.Stream()
-    comm = init_bagua_communicator(model_name="test_comm", stream=comm_stream)
+    comm = _get_default_group().get_global_communicator()
 
     def abort():
         time.sleep(10)

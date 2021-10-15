@@ -20,7 +20,7 @@ def main():
     if bagua.get_rank() == 0:
         logging.getLogger().setLevel(logging.INFO)
 
-    comm = bagua.get_backend("bagua_communication_primitives_test").global_communicator
+    comm = bagua.communication._get_default_group().get_global_communicator()
 
     # send, recv
     if bagua.get_rank() == 0:
