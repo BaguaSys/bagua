@@ -247,7 +247,9 @@ def _get_moe_state_dict(
         else:
             local_expert_id = m.group(1)
 
-        global_expert_id = expert_parallel_rank * num_local_experts + int(local_expert_id)
+        global_expert_id = expert_parallel_rank * num_local_experts + int(
+            local_expert_id
+        )
         expert_key = key.replace(
             f"{moe_str_prefix}{local_expert_id}", f"{moe_str_prefix}{global_expert_id}"
         )
