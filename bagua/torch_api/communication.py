@@ -283,7 +283,7 @@ def _rank_not_in_group(group: Optional[BaguaProcessGroup] = None):
     """
     if group is None:
         return False
-    return  _rank_not_in_comm(group.get_global_communicator())
+    return _rank_not_in_comm(group.get_global_communicator())
 
 
 @lru_cache(maxsize=None)
