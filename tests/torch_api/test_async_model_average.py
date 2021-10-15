@@ -87,12 +87,29 @@ def run_switch_to(model, optimizer, loss_fn):
     for epoch in range(5):
         train_epoch(epoch, model, optimizer, loss_fn)
     model.bagua_algorithm.abort(model)
+
+    #    model = model.with_bagua(
+    #        model.bagua_optimizers,
+    #        algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm()
+    #    )
+    train_epoch(1, model, optimizer, loss_fn)
+
+    model = model.with_bagua(
+        model.bagua_optimizers, algorithm=bagua.algorithms.bytegrad.ByteGradAlgorithm()
+    )
+    train_epoch(1, model, optimizer, loss_fn)
+
+    model = model.with_bagua(
+        model.bagua_optimizers,
+        algorithm=bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(),
+    )
+    train_epoch(1, model, optimizer, loss_fn)
+
     model = model.with_bagua(
         model.bagua_optimizers,
         algorithm=bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
     )
-    for epoch in range(5):
-        train_epoch(epoch, model, optimizer, loss_fn)
+    train_epoch(1, model, optimizer, loss_fn)
 
 
 class TestAsyncModelAverage(unittest.TestCase):
