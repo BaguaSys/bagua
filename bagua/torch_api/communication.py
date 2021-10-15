@@ -27,7 +27,7 @@ __all__ = [
     "is_initialized", "send", "recv", "broadcast", "reduce", "reduce_inplace",
     "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
     "gather", "gather_inplace", "scatter", "scatter_inplace",
-    "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace"
+    "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace",
     "barrier"
 ]
 
