@@ -88,10 +88,10 @@ def run_switch_to(model, optimizer, loss_fn):
         train_epoch(epoch, model, optimizer, loss_fn)
     model.bagua_algorithm.abort(model)
 
-    #    model = model.with_bagua(
-    #        model.bagua_optimizers,
-    #        algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm()
-    #    )
+    model = model.with_bagua(
+        model.bagua_optimizers,
+        algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm(),
+    )
     train_epoch(1, model, optimizer, loss_fn)
 
     model = model.with_bagua(
