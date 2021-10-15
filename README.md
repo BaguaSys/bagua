@@ -7,7 +7,9 @@
 <div align="center">
 <a href="https://bagua-tutorials.kwai-seattle.com/"><img src="https://img.shields.io/badge/tutorials-passing-green" alt="tutorials"></a> <a href="http://bagua.readthedocs.io/?badge=latest"><img src="https://readthedocs.org/projects/bagua/badge/?version=latest" alt="Documentation Status"></a> <a href="https://pypi.org/project/bagua/"><img src="https://pepy.tech/badge/bagua/month" alt="Downloads"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/pulls/baguasys/bagua" alt="Docker Pulls"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/cloud/build/baguasys/bagua" alt="Docker Cloud Build Status"></a> <a href="https://github.com/BaguaSys/bagua/blob/master/LICENSE"><img src="https://img.shields.io/github/license/BaguaSys/bagua" alt="GitHub license"></a>
 </div>
-
+<div align="center">
+<img src="https://reporoster.com/stars/BaguaSys/bagua" />
+</div>
 <br/>
 
 Bagua is a deep learning training acceleration framework for PyTorch developed by [AI platform@Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Bagua currently supports:
