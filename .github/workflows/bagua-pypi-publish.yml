@@ -22,6 +22,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
       - name: Publish package
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release')
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -146,6 +147,7 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages_dir: wheelhouse/
+          skip_existing: true
 
       - name: Publish package
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release')
