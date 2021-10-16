@@ -42,7 +42,7 @@ class BaguaTensor:
                 assert (
                     self.bagua_tensor_name == name
                 ), "assigning a different name to existing bagua tensor is forbidden"
-            return
+            return self
         self.bagua_tensor_name = name if name is not None else ""
         self.bagua_module_name = module_name
         self.bagua_backend = (
