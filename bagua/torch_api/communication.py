@@ -1100,10 +1100,11 @@ def barrier(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
         comm = _get_default_group().get_global_communicator()
 
     event = torch.cuda.current_stream().record_event()
-    comm.cuda_stream.wait_event(event)
+    event.synchronize()
 
     with torch.cuda.stream(comm.cuda_stream):
         tensor = torch.ones([1], device=torch.cuda.current_device())
-        comm.broadcast(tensor.to_bagua_tensor().bagua_backend_tensor(), 0)
+        comm.allreduce_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), op=ReduceOp.SUM)
 
-    comm.cuda_stream.synchronize()
+    event = comm.cuda_stream.record_event()
+    event.synchronize()
