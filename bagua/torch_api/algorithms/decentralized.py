@@ -72,7 +72,9 @@ class DecentralizedAlgorithm(Algorithm):
                 bagua_module._bagua_backend.wait_pending_comm_ops()
                 for bucket in bagua_module.bagua_buckets:
                     bucket.decentralized_synchronous_op_copy_back_peer_weight(
-                        hierarchical=self.hierarchical, peer_weight=bucket._peer_weight
+                        hierarchical=self.hierarchical,
+                        peer_weight=bucket._peer_weight,
+                        group=bagua_module._bagua_process_group,
                     )
 
         return hook
