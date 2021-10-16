@@ -69,6 +69,7 @@ class BaguaBucket:
         self.flatten = flatten
         if self.flatten:
             self._flatten_()
+            torch.cuda.empty_cache()
 
         self.backend_bucket = B.BaguaBucketPy(
             name, [tensor._bagua_backend_tensor for tensor in self._all_tensors]
