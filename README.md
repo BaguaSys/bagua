@@ -1,7 +1,6 @@
 <p align="center">
-<img src="https://user-images.githubusercontent.com/18649508/136457975-e4d81ced-0e43-4793-8865-1379e82921f9.png" width="200px"/>
+<img src="https://user-images.githubusercontent.com/18649508/137567125-e949ae92-8c72-41ba-9a8e-6108e33005fc.png"/>
 </p>
-
 <hr/>
 
 <div align="center">
@@ -10,6 +9,7 @@
 <div align="center">
 <a href="https://github.com/BaguaSys/bagua/stargazers"><img src="https://reporoster.com/stars/BaguaSys/bagua" /><a/>
 </div>
+
 <br/>
 
 Bagua is a deep learning training acceleration framework for PyTorch developed by [AI platform@Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Bagua currently supports:
