@@ -289,6 +289,11 @@ class BaguaModule:
             ...    )
         """
 
+        if process_group is not None:
+            raise NotImplementedError(
+                "process group in `with_bagua` will be supported after v0.9.0."
+            )
+
         self.bagua_module_name = "{}_{}".format(
             self.__class__.__name__, next(BaguaModule.__id_iter)
         )
