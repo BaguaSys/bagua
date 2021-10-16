@@ -86,9 +86,17 @@ class BaguaBucket:
         for tensor in self._all_tensors:
             total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
-            self._all_tensors[0].device
+        flatten_tensor = torch.zeros(
+            total_size,
+            dtype=self._all_tensors[0].dtype,
+            device=self._all_tensors[0].device,
         )
+
+        if self.check_flatten():
+            flatten_tensor.set_(
+                self._all_tensors[0].data.storage(), 0, flatten_tensor.shape
+            )
+            return flatten_tensor
 
         offset = 0
         for tensor in self._all_tensors:
@@ -102,6 +110,7 @@ class BaguaBucket:
         Flatten inner tensors in place.
         """
         if self.check_flatten():
+            self.backend_tensor = self.flattened_tensor()
             return
 
         if len(self._all_tensors) == 0:
@@ -110,9 +119,12 @@ class BaguaBucket:
         for tensor in self._all_tensors:
             total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
-            self._all_tensors[0].device
+        flatten_tensor = torch.zeros(
+            total_size,
+            dtype=self._all_tensors[0].dtype,
+            device=self._all_tensors[0].device,
         )
+
         flatten_storage = flatten_tensor.storage()
 
         offset = 0
