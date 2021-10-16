@@ -260,7 +260,7 @@ class TestDecentralized(unittest.TestCase):
     def run_test_locally(
         self, nprocs, nranks, hierarchical, peer_selection_mode, communication_interval
     ):
-        nprocs = torch.cuda.device_count()
+        assert nranks >= 0
         env = {
             "WORLD_SIZE": str(nprocs),
             "LOCAL_WORLD_SIZE": str(nprocs),
