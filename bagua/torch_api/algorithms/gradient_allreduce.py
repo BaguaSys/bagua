@@ -32,6 +32,7 @@ class GradientAllReduceAlgorithm_Implementation(Algorithm):
             group=bagua_module._bagua_process_group,
         )
 
+
 class GradientAllReduceAlgorithm:
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
