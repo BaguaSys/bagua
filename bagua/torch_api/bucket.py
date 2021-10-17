@@ -110,21 +110,14 @@ class BaguaBucket:
         """
         Flatten inner tensors in place.
         """
-        if self.check_flatten():
-            self.backend_tensor = self.flattened_tensor()
-            return
-
         if len(self._all_tensors) == 0:
             return
-        total_size = 0
-        for tensor in self._all_tensors:
-            total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(
-            total_size,
-            dtype=self._all_tensors[0].dtype,
-            device=self._all_tensors[0].device,
-        )
+        flatten_tensor = self.flattened_tensor()
+
+        if self.check_flatten():
+            self.backend_tensor = flatten_tensor
+            return
 
         flatten_storage = flatten_tensor.storage()
 

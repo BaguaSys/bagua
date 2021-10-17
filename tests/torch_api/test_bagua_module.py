@@ -2,10 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tests.internal.common_utils import find_free_port
+from tests.internal.multi_process import setup_bagua_env
 import unittest
 import multiprocessing
-import os
-from bagua.torch_api.communication import new_group
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
 
@@ -25,27 +24,26 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def run_model_wrapper(rank, env, algorithm):
-    # initialize subprocess env
-    os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
-    os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
-    os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
-    os.environ["MASTER_PORT"] = env["MASTER_PORT"]
-    os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
-    os.environ["RANK"] = str(rank)
-    os.environ["LOCAL_RANK"] = str(rank)
+def train(model, optimizer, loss_fn, is_async):
+    if is_async:
+        model.bagua_algorithm.resume(model)
 
-    # init bagua distributed process group
-    torch.cuda.set_device(rank)
-    bagua.init_process_group()
-    partial_ranks = [i for i in range(bagua.get_world_size() - 1)]
-    partial_group = bagua.communication.new_group(ranks=partial_ranks)
+    for _ in range(1000):
+        data = torch.randn(4, 2).cuda()
+        target = torch.randn(4, 4).cuda()
 
-    # construct model and optimizer, etc.
-    model = Net().cuda()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-    loss_fn = nn.MSELoss()
+        optimizer.zero_grad()
+        output = model(data)
+        loss = loss_fn(output, target)
 
+        loss.backward()
+        optimizer.step()
+
+    if is_async:
+        model.bagua_algorithm.abort(model)
+
+
+def bagua_init(model, optimizer, algorithm, process_group=None):
     # wrap model
     if algorithm == "gradient_allreduce":
         from bagua.torch_api.algorithms import gradient_allreduce
@@ -75,29 +73,52 @@ def run_model_wrapper(rank, env, algorithm):
         from bagua.torch_api.algorithms.q_adam import QAdamAlgorithm, QAdamOptimizer
 
         optimizer = QAdamOptimizer(model.parameters(), warmup_steps=10)
-        bagua_algorithm = QAdamAlgorithm(optimizer, hierarchical_reduce=False)
+        bagua_algorithm = QAdamAlgorithm(optimizer, hierarchical=False)
     else:
         raise ValueError("unsupported algorithm")
 
-    model = model.with_bagua([optimizer], bagua_algorithm, process_group=partial_group)
+    model = model.with_bagua([optimizer], bagua_algorithm, process_group=process_group)
 
-    for _ in range(1000):
-        data = torch.randn(4, 2).cuda()
-        target = torch.randn(4, 4).cuda()
+    return model
 
-        optimizer.zero_grad()
-        output = model(data)
-        loss = loss_fn(output, target)
 
-        loss.backward()
-        optimizer.step()
+def run_model_wrapper(rank, env, algorithm):
+    # initialize subprocess env
+    setup_bagua_env(rank, env)
 
-    if algorithm == "async":
-        model.bagua_algorithm.abort(model)
+    partial_ranks = [i for i in range(bagua.get_world_size() - 1)]
+    partial_group = bagua.communication.new_group(ranks=partial_ranks)
+
+    # construct model and optimizer, etc.
+    model = Net().cuda()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    loss_fn = nn.MSELoss()
+
+    model = bagua_init(model, optimizer, algorithm, process_group=partial_group)
+
+    train(model, optimizer, loss_fn, is_async=(algorithm == "async"))
+
+
+def run_model_switch_wrapper(rank, env, algorithms):
+    # initialize subprocess env
+    setup_bagua_env(rank, env)
+
+    partial_ranks = [i for i in range(bagua.get_world_size() - 1)]
+    partial_group = bagua.communication.new_group(ranks=partial_ranks)
+
+    # construct model and optimizer, etc.
+    model = Net().cuda()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+    loss_fn = nn.MSELoss()
+
+    for i in range(len(algorithms)):
+        pg = None if i % 2 == 0 else partial_group
+        model = bagua_init(model, optimizer, algorithms[i], process_group=pg)
+        train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
 
 
 class TestBaguaModule(unittest.TestCase):
-    def run_algorithm(self, algorithm, nprocs, local_size):
+    def run_algorithm(self, nprocs, local_size, fn, algorithm):
         env = {
             "WORLD_SIZE": str(nprocs),
             "LOCAL_WORLD_SIZE": str(local_size),
@@ -109,7 +130,7 @@ class TestBaguaModule(unittest.TestCase):
         mp = multiprocessing.get_context("spawn")
         processes = []
         for i in range(nprocs):
-            p = mp.Process(target=run_model_wrapper, args=(i, env, algorithm))
+            p = mp.Process(target=fn, args=(i, env, algorithm))
             p.start()
             processes.append(p)
 
@@ -117,37 +138,39 @@ class TestBaguaModule(unittest.TestCase):
             p.join(timeout=60)
             self.assertTrue(p.exitcode == 0)
 
+    # TODO: add test case for bytegrad and qadam
     @skip_if_cuda_not_available()
     def test_gradient_allreduce(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm("gradient_allreduce", nprocs, nprocs)
-
-    @skip_if_cuda_not_available()
-    def test_bytegrad(self):
-        return
-        nprocs = torch.cuda.device_count()
-        self.run_algorithm("bytegrad", nprocs, 1)
+        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="gradient_allreduce")
 
     @skip_if_cuda_not_available()
     def test_decentralized(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm("decentralized", nprocs, nprocs)
+        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="decentralized")
 
     @skip_if_cuda_not_available()
     def test_low_prec_decentralized(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm("low_prec_decentralized", nprocs, nprocs)
+        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="low_prec_decentralized")
 
     @skip_if_cuda_not_available()
     def test_async(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm("async", nprocs, nprocs)
+        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="async")
 
     @skip_if_cuda_not_available()
-    def test_qadam(self):
-        return
+    def test_model_switch(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm("qadam", nprocs, nprocs)
+        algorithms = [
+            "decentralized",
+            "gradient_allreduce",
+            "qadam",
+            "bytegrad",
+            "async",
+            "low_prec_decentralized",
+        ]
+        self.run_algorithm(nprocs, nprocs, run_model_switch_wrapper, algorithms)
 
 
 if __name__ == "__main__":
