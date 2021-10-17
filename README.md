@@ -1,11 +1,13 @@
 <p align="center">
-<img src="https://user-images.githubusercontent.com/18649508/136457975-e4d81ced-0e43-4793-8865-1379e82921f9.png" width="200px"/>
+<img src="https://user-images.githubusercontent.com/18649508/137567125-e949ae92-8c72-41ba-9a8e-6108e33005fc.png"/>
 </p>
-
 <hr/>
 
 <div align="center">
 <a href="https://bagua-tutorials.kwai-seattle.com/"><img src="https://img.shields.io/badge/tutorials-passing-green" alt="tutorials"></a> <a href="http://bagua.readthedocs.io/?badge=latest"><img src="https://readthedocs.org/projects/bagua/badge/?version=latest" alt="Documentation Status"></a> <a href="https://pypi.org/project/bagua/"><img src="https://pepy.tech/badge/bagua/month" alt="Downloads"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/pulls/baguasys/bagua" alt="Docker Pulls"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/cloud/build/baguasys/bagua" alt="Docker Cloud Build Status"></a> <a href="https://github.com/BaguaSys/bagua/blob/master/LICENSE"><img src="https://img.shields.io/github/license/BaguaSys/bagua" alt="GitHub license"></a>
+</div>
+<div align="center">
+<a href="https://github.com/BaguaSys/bagua/stargazers"><img src="https://reporoster.com/stars/BaguaSys/bagua" /><a/>
 </div>
 
 <br/>
@@ -125,4 +127,4 @@ Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
 
 You can also scan the following QR code to join our WeChat group :)
 
-<img src="https://user-images.githubusercontent.com/18649508/136324315-3a94c38f-68c8-4dca-895d-78923c067329.png" width="300"/>
+<img src="https://user-images.githubusercontent.com/18649508/137583270-b344f88e-1f1f-4990-8015-8d833e9c1d0c.png" width="300"/>

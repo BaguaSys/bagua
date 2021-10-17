@@ -93,6 +93,7 @@ class DecentralizedAlgorithm_Implementation(Algorithm):
             peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
+            group=bagua_module._bagua_process_group,
         )
 
 
@@ -187,6 +188,7 @@ class LowPrecisionDecentralizedAlgorithm_Implementation(Algorithm):
             right_peer_weight=bucket._right_peer_weight,
             hierarchical=self.hierarchical,
             compression="MinMaxUInt8",
+            group=bagua_module._bagua_process_group,
         )
 
 

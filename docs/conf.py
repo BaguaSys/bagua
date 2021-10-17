@@ -150,20 +150,8 @@ _ignore_functions = [
     "bagua.torch_api.env.get_autotune_warmup_time_s",
     "bagua.torch_api.env.get_is_output_autotune_log",
     "bagua.torch_api.globals.is_initialized",
-    "bagua.torch_api.communication.get_bagua_hyperparameters",
-    "bagua.torch_api.communication.get_hyperparameters_service_client",
-    "bagua.torch_api.communication.gen_nccl_unique_id",
-    "bagua.torch_api.communication.init_bagua_inter_communicator",
-    "bagua.torch_api.communication.init_bagua_intra_communicator",
-    "bagua.torch_api.communication.init_bagua_communicator",
-    "bagua.torch_api.communication.broadcast_coalesced",
-    "bagua.torch_api.communication.allreduce_coalesced_inplace",
-    "bagua.torch_api.communication.get_backend",
-    "bagua.torch_api.communication.start_autotune_server",
-    "bagua.torch_api.communication.run_flask_app",
 ]
 _ignore_classes = [
-    "bagua.torch_api.communication.BaguaGlobalState",
     "bagua.torch_api.algorithms.BaguaModule",
     "bagua.torch_api.algorithms.BaguaBucket",
     "bagua.torch_api.algorithms.BaguaTensor",
@@ -178,9 +166,12 @@ def skip_methods(app, what, name, obj, skip, options):
                 skip = True
                 return skip
 
-    if what == "function" and name in _ignore_functions:
-        skip = True
-        return skip
+    if what == "function":
+        for to_ignore in _ignore_functions:
+            p = re.compile(to_ignore)
+            if p.match(name):
+                skip = True
+                return skip
 
     if what == "class" and name in _ignore_classes:
         skip = True

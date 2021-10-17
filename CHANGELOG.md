@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [0.8.1] - 2021-10-16
+
+### Features
+
+#### Other
+
+- Use single bucket for decentralized algorithm to improve performance (#275)
+- Support process group (#228)
+- Add barrier api (#290)
+
+#### Python
+
+- Support moe (#208)
+- Support checkpointing for moe (#242)
+
 ## [0.8.0] - 2021-09-26
 
 ### Bug Fixes
