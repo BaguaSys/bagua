@@ -8,7 +8,7 @@ from bagua.torch_api import get_world_size
 from typing import List
 
 
-class ByteGradAlgorithm_Implementation(Algorithm):
+class ByteGradAlgorithmImplementation(Algorithm):
     def __init__(self, average: bool = True):
         """
         Implementation of the
@@ -70,7 +70,7 @@ class ByteGradAlgorithm:
         """
         self.average = average
 
-    def reify(self) -> ByteGradAlgorithm_Implementation:
-        return ByteGradAlgorithm_Implementation(
+    def reify(self) -> ByteGradAlgorithmImplementation:
+        return ByteGradAlgorithmImplementation(
             average=self.average,
         )

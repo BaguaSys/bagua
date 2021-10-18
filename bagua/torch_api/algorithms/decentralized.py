@@ -7,7 +7,7 @@ from typing import List
 import torch
 
 
-class DecentralizedAlgorithm_Implementation(Algorithm):
+class DecentralizedAlgorithmImplementation(Algorithm):
     def __init__(
         self,
         hierarchical: bool = True,
@@ -97,7 +97,7 @@ class DecentralizedAlgorithm_Implementation(Algorithm):
         )
 
 
-class LowPrecisionDecentralizedAlgorithm_Implementation(Algorithm):
+class LowPrecisionDecentralizedAlgorithmImplementation(Algorithm):
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
         Implementation of the
@@ -216,8 +216,8 @@ class DecentralizedAlgorithm:
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
 
-    def reify(self) -> DecentralizedAlgorithm_Implementation:
-        return DecentralizedAlgorithm_Implementation(
+    def reify(self) -> DecentralizedAlgorithmImplementation:
+        return DecentralizedAlgorithmImplementation(
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
             communication_interval=self.communication_interval,
@@ -238,8 +238,8 @@ class LowPrecisionDecentralizedAlgorithm:
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
-    def reify(self) -> LowPrecisionDecentralizedAlgorithm_Implementation:
-        return LowPrecisionDecentralizedAlgorithm_Implementation(
+    def reify(self) -> LowPrecisionDecentralizedAlgorithmImplementation:
+        return LowPrecisionDecentralizedAlgorithmImplementation(
             hierarchical=self.hierarchical,
             communication_interval=self.communication_interval,
         )

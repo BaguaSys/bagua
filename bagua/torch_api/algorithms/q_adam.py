@@ -100,7 +100,7 @@ class QAdamOptimizer(Optimizer):
                 param.data.add_(-step_size * update)
 
 
-class QAdamAlgorithm_Implementation(Algorithm):
+class QAdamAlgorithmImplementation(Algorithm):
     def __init__(
         self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
     ):
@@ -223,8 +223,8 @@ class QAdamAlgorithm:
         self.hierarchical = hierarchical
         self.optimizer = q_adam_optimizer
 
-    def reify(self) -> QAdamAlgorithm_Implementation:
-        return QAdamAlgorithm_Implementation(
+    def reify(self) -> QAdamAlgorithmImplementation:
+        return QAdamAlgorithmImplementation(
             q_adam_optimizer=self.optimizer,
             hierarchical=self.hierarchical
         )

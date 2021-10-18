@@ -5,7 +5,7 @@ from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm
 
 
-class GradientAllReduceAlgorithm_Implementation(Algorithm):
+class GradientAllReduceAlgorithmImplementation(Algorithm):
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
         Implementation of the
@@ -33,7 +33,6 @@ class GradientAllReduceAlgorithm_Implementation(Algorithm):
         )
 
 
-
 class GradientAllReduceAlgorithm:
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
@@ -49,8 +48,8 @@ class GradientAllReduceAlgorithm:
         self.hierarchical = hierarchical
         self.average = average
 
-    def reify(self) -> GradientAllReduceAlgorithm_Implementation:
-        return GradientAllReduceAlgorithm_Implementation(
+    def reify(self) -> GradientAllReduceAlgorithmImplementation:
+        return GradientAllReduceAlgorithmImplementation(
             hierarchical=self.hierarchical,
             average=self.average,
         )
