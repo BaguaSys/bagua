@@ -111,6 +111,15 @@ def run_switch_to(model, optimizer, loss_fn):
     )
     train_epoch(1, model, optimizer, loss_fn)
 
+    optimizer = bagua.algorithms.q_adam.QAdamOptimizer(
+        model.parameters(), warmup_steps=10
+    )
+    model = model.with_bagua(
+        model.bagua_optimizers,
+        algorithm=bagua.algorithms.q_adam.QAdamAlgorithm(optimizer, hierarchical=False),
+    )
+    train_epoch(2, model, optimizer, loss_fn)
+
 
 class TestAsyncModelAverage(unittest.TestCase):
     @skip_if_cuda_not_available()
