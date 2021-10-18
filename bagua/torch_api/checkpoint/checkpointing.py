@@ -28,7 +28,7 @@ def _has_moe_layers(model: BaguaModule) -> Tuple[bool, int]:
 def _ensure_directory_exists(filename: str):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
-        os.makedirs(dirname)
+        os.makedirs(dirname, exist_ok=True)
 
 
 def _get_optimizer_ckpt_name(
