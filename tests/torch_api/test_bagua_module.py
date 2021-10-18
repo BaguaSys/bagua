@@ -82,12 +82,11 @@ def bagua_init(model, optimizer, algorithm, process_group=None):
     return model
 
 
-def run_model_wrapper(rank, env, algorithm):
+def run_model_wrapper(rank, nranks, env, algorithm):
     # initialize subprocess env
     setup_bagua_env(rank, env)
 
-    partial_ranks = [i for i in range(bagua.get_world_size() - 1)]
-    partial_group = bagua.communication.new_group(ranks=partial_ranks)
+    partial_group = bagua.communication.new_group(ranks=list(range(nranks)))
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -99,12 +98,11 @@ def run_model_wrapper(rank, env, algorithm):
     train(model, optimizer, loss_fn, is_async=(algorithm == "async"))
 
 
-def run_model_switch_wrapper(rank, env, algorithms):
+def run_model_switch_wrapper(rank, nranks, env, algorithms):
     # initialize subprocess env
     setup_bagua_env(rank, env)
 
-    partial_ranks = [i for i in range(bagua.get_world_size() - 1)]
-    partial_group = bagua.communication.new_group(ranks=partial_ranks)
+    partial_group = bagua.communication.new_group(ranks=list(range(nranks)))
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -115,6 +113,7 @@ def run_model_switch_wrapper(rank, env, algorithms):
         pg = None if i % 2 == 0 else partial_group
         model = bagua_init(model, optimizer, algorithms[i], process_group=pg)
         train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
+        print("finished ", algorithms[i])
 
 
 class TestBaguaModule(unittest.TestCase):
@@ -166,7 +165,7 @@ class TestBaguaModule(unittest.TestCase):
 
     @skip_if_cuda_not_available()
     def test_bytegrad(self):
-        # TODO: suport odd number of ranks of process group for bytegrad
+        # TODO: suport odd number of ranks of process group for bytegrad and qadam
         nprocs = torch.cuda.device_count()
         self.run_algorithm(nprocs, nprocs // 2, run_model_wrapper, algorithm="bytegrad")
 
@@ -186,7 +185,7 @@ class TestBaguaModule(unittest.TestCase):
             "async",
             "low_prec_decentralized",
         ]
-        self.run_algorithm(nprocs, nprocs // 2, run_model_switch_wrapper, algorithms)
+        self.run_algorithm(nprocs, nprocs, run_model_switch_wrapper, algorithms)
 
 
 if __name__ == "__main__":
