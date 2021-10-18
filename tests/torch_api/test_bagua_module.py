@@ -52,7 +52,7 @@ def bagua_init(model, optimizer, algorithm, process_group=None):
     elif algorithm == "bytegrad":
         from bagua.torch_api.algorithms import bytegrad
 
-        bagua_algorithm = bytegrad.ByteGradAlgorithm()
+        bagua_algorithm = bytegrad.ByteGradAlgorithm(hierarchical=False)
     elif algorithm == "decentralized":
         from bagua.torch_api.algorithms import decentralized
 
@@ -118,10 +118,10 @@ def run_model_switch_wrapper(rank, env, algorithms):
 
 
 class TestBaguaModule(unittest.TestCase):
-    def run_algorithm(self, nprocs, local_size, fn, algorithm):
+    def run_algorithm(self, nprocs, nranks, fn, algorithm):
         env = {
             "WORLD_SIZE": str(nprocs),
-            "LOCAL_WORLD_SIZE": str(local_size),
+            "LOCAL_WORLD_SIZE": str(nprocs),
             "MASTER_ADDR": "127.0.0.1",
             "MASTER_PORT": str(find_free_port(8000, 8100)),
             "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
@@ -130,7 +130,7 @@ class TestBaguaModule(unittest.TestCase):
         mp = multiprocessing.get_context("spawn")
         processes = []
         for i in range(nprocs):
-            p = mp.Process(target=fn, args=(i, env, algorithm))
+            p = mp.Process(target=fn, args=(i, nranks, env, algorithm))
             p.start()
             processes.append(p)
 
@@ -138,39 +138,55 @@ class TestBaguaModule(unittest.TestCase):
             p.join(timeout=60)
             self.assertTrue(p.exitcode == 0)
 
-    # TODO: add test case for bytegrad and qadam
     @skip_if_cuda_not_available()
     def test_gradient_allreduce(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="gradient_allreduce")
+        self.run_algorithm(
+            nprocs, nprocs - 1, run_model_wrapper, algorithm="gradient_allreduce"
+        )
 
     @skip_if_cuda_not_available()
     def test_decentralized(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="decentralized")
+        self.run_algorithm(
+            nprocs, nprocs - 1, run_model_wrapper, algorithm="decentralized"
+        )
 
     @skip_if_cuda_not_available()
     def test_low_prec_decentralized(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="low_prec_decentralized")
+        self.run_algorithm(
+            nprocs, nprocs - 1, run_model_wrapper, algorithm="low_prec_decentralized"
+        )
 
     @skip_if_cuda_not_available()
     def test_async(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs, run_model_wrapper, algorithm="async")
+        self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="async")
+
+    @skip_if_cuda_not_available()
+    def test_bytegrad(self):
+        # TODO: suport odd number of ranks of process group for bytegrad
+        nprocs = torch.cuda.device_count()
+        self.run_algorithm(nprocs, nprocs // 2, run_model_wrapper, algorithm="bytegrad")
+
+    @skip_if_cuda_not_available()
+    def test_qadam(self):
+        nprocs = torch.cuda.device_count()
+        self.run_algorithm(nprocs, nprocs // 2, run_model_wrapper, algorithm="qadam")
 
     @skip_if_cuda_not_available()
     def test_model_switch(self):
         nprocs = torch.cuda.device_count()
         algorithms = [
+            "bytegrad",
             "decentralized",
             "gradient_allreduce",
             "qadam",
-            "bytegrad",
             "async",
             "low_prec_decentralized",
         ]
-        self.run_algorithm(nprocs, nprocs, run_model_switch_wrapper, algorithms)
+        self.run_algorithm(nprocs, nprocs // 2, run_model_switch_wrapper, algorithms)
 
 
 if __name__ == "__main__":

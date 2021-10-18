@@ -9,16 +9,18 @@ from typing import List
 
 
 class ByteGradAlgorithm(Algorithm):
-    def __init__(self, average: bool = True):
+    def __init__(self, hierarchical: bool = True, average: bool = True):
         """
         Create an instance of the
         `ByteGrad <https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad>`_
         algorithm.
 
         Args:
+            hierarchical (bool): Enable hierarchical communication.
             average (bool): If ``True``, the gradients on each worker are averaged.
                 Otherwise, they are summed.
         """
+        self.hierarchical = hierarchical
         self.average = average
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
@@ -49,7 +51,7 @@ class ByteGradAlgorithm(Algorithm):
     ):
         bucket.clear_ops()
         bucket.append_centralized_synchronous_op(
-            hierarchical=True,
+            hierarchical=self.hierarchical,
             average=self.average,
             scattergather=True,
             compression="MinMaxUInt8",
