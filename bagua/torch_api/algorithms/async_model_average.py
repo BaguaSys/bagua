@@ -40,6 +40,8 @@ class AsyncModelAverageAlgorithm_Implementation(Algorithm):
         synchronize between each other.
 
         Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
+        For example, for a model wrapped with `.with_bagua(...)`, you can abort with `model.bagua_algorithm.abort(model)`,
+        and resume with `model.bagua_algorithm.resume(model)`.
 
         Args:
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
@@ -262,6 +264,8 @@ class AsyncModelAverageAlgorithm:
         synchronize between each other.
 
         Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
+        For example, for a model wrapped with `.with_bagua(...)`, you can abort with `model.bagua_algorithm.abort(model)`,
+        and resume with `model.bagua_algorithm.resume(model)`.
 
         Args:
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
