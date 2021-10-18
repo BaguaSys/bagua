@@ -26,7 +26,7 @@ class Experts(torch.nn.Module):
         for expert in self.bagua_experts:
             # TODO: Create param groups to handle expert + data case (e.g. param.group = moe_group)
             for name, param in expert.named_parameters():
-                param.allreduce = False
+                param.expert = True
 
     def forward(self, inputs):
         chunks = inputs.chunk(self.num_local_experts, dim=1)
