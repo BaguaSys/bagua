@@ -33,6 +33,7 @@ class GradientAllReduceAlgorithm_Implementation(Algorithm):
         )
 
 
+
 class GradientAllReduceAlgorithm:
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
