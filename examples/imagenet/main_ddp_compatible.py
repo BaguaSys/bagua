@@ -18,7 +18,7 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 import bagua.torch_api as bagua
 from bisect import bisect_right
-import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
 
 
 model_names = sorted(

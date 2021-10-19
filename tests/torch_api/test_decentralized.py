@@ -1,4 +1,3 @@
-from playground.ddp_compatible.bagua.bagua.torch_api.algorithms.base import Algorithm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,7 +8,7 @@ import os
 from bagua.torch_api.utils import flatten, unflatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
-import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
 
 
 N_EPOCHS = 10

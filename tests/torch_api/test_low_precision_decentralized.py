@@ -9,7 +9,7 @@ import multiprocessing
 from bagua.torch_api.utils import apply_flattened_call, flatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
-import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
 
 
 class Net(nn.Module):

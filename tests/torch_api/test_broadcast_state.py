@@ -10,7 +10,7 @@ import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_not_available
 import torch
-import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
 
 
 def _init_bagua_env(rank, env):

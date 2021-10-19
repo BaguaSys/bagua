@@ -53,7 +53,7 @@ from transformers.data.processors.squad import (
 )
 from transformers.trainer_utils import is_main_process
 import bagua.torch_api as bagua
-import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
 
 
 try:

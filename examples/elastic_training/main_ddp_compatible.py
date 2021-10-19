@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import StepLR
 import logging
 import os
 import bagua.torch_api as bagua
-import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
 
 
 class Net(nn.Module):

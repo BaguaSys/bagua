@@ -15,7 +15,7 @@ from torchvision import models
 import numpy as np
 import bagua.torch_api as bagua
 import logging
-import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
 
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(message)s", level=logging.ERROR)
