@@ -12,6 +12,7 @@ class Algorithm:
     It provides a method that accept the specified distributed algorithm parameters
     and return a corresponding algorithm instance.
     """
+
     def reify(self):
         pass
 

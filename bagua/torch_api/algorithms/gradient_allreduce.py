@@ -48,8 +48,8 @@ class GradientAllReduceAlgorithm(Algorithm):
         self.hierarchical = hierarchical
         self.average = average
 
-    def reify(self) -> GradientAllReduceAlgorithmImplementation:
-        return GradientAllReduceAlgorithmImplementation(
+    def reify(self) -> GradientAllReduceAlgorithmImpl:
+        return GradientAllReduceAlgorithmImpl(
             hierarchical=self.hierarchical,
             average=self.average,
         )

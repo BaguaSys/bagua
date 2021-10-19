@@ -70,7 +70,7 @@ class ByteGradAlgorithm(Algorithm):
         """
         self.average = average
 
-    def reify(self) -> ByteGradAlgorithmImplementation:
-        return ByteGradAlgorithmImplementation(
+    def reify(self) -> ByteGradAlgorithmImpl:
+        return ByteGradAlgorithmImpl(
             average=self.average,
         )

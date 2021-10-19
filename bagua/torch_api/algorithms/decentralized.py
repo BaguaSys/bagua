@@ -216,8 +216,8 @@ class DecentralizedAlgorithm(Algorithm):
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
 
-    def reify(self) -> DecentralizedAlgorithmImplementation:
-        return DecentralizedAlgorithmImplementation(
+    def reify(self) -> DecentralizedAlgorithmImpl:
+        return DecentralizedAlgorithmImpl(
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
             communication_interval=self.communication_interval,
@@ -238,8 +238,8 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
-    def reify(self) -> LowPrecisionDecentralizedAlgorithmImplementation:
-        return LowPrecisionDecentralizedAlgorithmImplementation(
+    def reify(self) -> LowPrecisionDecentralizedAlgorithmImpl:
+        return LowPrecisionDecentralizedAlgorithmImpl(
             hierarchical=self.hierarchical,
             communication_interval=self.communication_interval,
         )

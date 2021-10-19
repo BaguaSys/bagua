@@ -223,8 +223,8 @@ class QAdamAlgorithm(Algorithm):
         self.hierarchical = hierarchical
         self.optimizer = q_adam_optimizer
 
-    def reify(self) -> QAdamAlgorithmImplementation:
-        return QAdamAlgorithmImplementation(
+    def reify(self) -> QAdamAlgorithmImpl:
+        return QAdamAlgorithmImpl(
             q_adam_optimizer=self.optimizer,
             hierarchical=self.hierarchical
         )

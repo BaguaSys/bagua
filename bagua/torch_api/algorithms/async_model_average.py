@@ -279,8 +279,8 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.sync_interval_ms = sync_interval_ms
         self.warmup_steps = warmup_steps
 
-    def reify(self) -> AsyncModelAverageAlgorithmImplementation:
-        return AsyncModelAverageAlgorithmImplementation(
+    def reify(self) -> AsyncModelAverageAlgorithmImpl:
+        return AsyncModelAverageAlgorithmImpl(
             peer_selection_mode=self.peer_selection_mode,
             sync_interval_ms=self.sync_interval_ms,
             warmup_steps=self.warmup_steps,
