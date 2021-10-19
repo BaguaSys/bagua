@@ -332,7 +332,7 @@ def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg='load', strict
             if optimizer is not None:
                 optimizer.load_state_dict(state_dict['optimizer'])
             if lr_scheduler is not None:
-                lr_scheduler.load_state_dict(state_dict['lr_scheduler'])
+                lr_scheduler.load_state_dict(state_dict["lr_scheduler"])
         except KeyError:
             print_rank_last('Unable to load optimizer from checkpoint {}. '
                          'Specify --no-load-optim or --finetune to prevent '
