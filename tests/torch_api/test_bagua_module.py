@@ -182,7 +182,7 @@ class TestBaguaModule(unittest.TestCase):
             "decentralized",
             "gradient_allreduce",
             "qadam",
-            "async",
+    #        "async",
             "low_prec_decentralized",
         ]
         self.run_algorithm(nprocs, nprocs, run_model_switch_wrapper, algorithms)

@@ -302,6 +302,8 @@ class BaguaModule:
         self.bagua_algorithm = algorithm
 
         if _rank_not_in_group(process_group):
+            if hasattr(self, "_bagua_algorithm_hooks"):
+                self._bagua_cleanup_algorithm()
             return self
 
         self.parameters_to_ignore = (
