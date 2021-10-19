@@ -241,6 +241,8 @@ class DistributedDataParallel_V1_9_0(Module):
         # # Module replication within process (single-process multi device)
         # self._module_copies = [self.module]
 
+        self.module = module
+
         self.bagua_init(optimizers, algorithm, process_group)
 
     @property
