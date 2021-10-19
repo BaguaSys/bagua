@@ -2,12 +2,12 @@
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from typing import List
 import torch
 
 
-class DecentralizedAlgorithm(Algorithm):
+class DecentralizedAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self,
         hierarchical: bool = True,
@@ -15,7 +15,7 @@ class DecentralizedAlgorithm(Algorithm):
         communication_interval: int = 1,
     ):
         """
-        Create an instance of the
+        Implementation of the
         `Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/decentralized>`_
         algorithm.
 
@@ -97,10 +97,10 @@ class DecentralizedAlgorithm(Algorithm):
         )
 
 
-class LowPrecisionDecentralizedAlgorithm(Algorithm):
+class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
-        Create an instance of the
+        Implementation of the
         `Low Precision Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/low-precision-decentralized>`_
         algorithm.
 
@@ -189,4 +189,57 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
             hierarchical=self.hierarchical,
             compression="MinMaxUInt8",
             group=bagua_module._bagua_process_group,
+        )
+
+
+class DecentralizedAlgorithm(Algorithm):
+    def __init__(
+        self,
+        hierarchical: bool = True,
+        peer_selection_mode: str = "all",
+        communication_interval: int = 1,
+    ):
+        """
+        Create an instance of the
+        `Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/decentralized>`_
+        algorithm.
+
+        Args:
+            hierarchical (bool): Enable hierarchical communication.
+            peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers'
+                weights are averaged in each communication step. ``"shift_one"`` means each worker
+                selects a different peer to do weights average in each communication step.
+            communication_interval (int): Number of iterations between two communication steps.
+
+        """
+        self.hierarchical = hierarchical
+        self.peer_selection_mode = peer_selection_mode
+        self.communication_interval = communication_interval
+
+    def reify(self) -> DecentralizedAlgorithmImpl:
+        return DecentralizedAlgorithmImpl(
+            hierarchical=self.hierarchical,
+            peer_selection_mode=self.peer_selection_mode,
+            communication_interval=self.communication_interval,
+        )
+
+
+class LowPrecisionDecentralizedAlgorithm(Algorithm):
+    def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
+        """
+        Create an instance of the
+        `Low Precision Decentralized SGD <https://bagua-tutorials.kwai-seattle.com/algorithms/low-precision-decentralized>`_
+        algorithm.
+
+        Args:
+            hierarchical (bool): Enable hierarchical communication.
+            communication_interval (int): Number of iterations between two communication steps.
+        """
+        self.hierarchical = hierarchical
+        self.communication_interval = communication_interval
+
+    def reify(self) -> LowPrecisionDecentralizedAlgorithmImpl:
+        return LowPrecisionDecentralizedAlgorithmImpl(
+            hierarchical=self.hierarchical,
+            communication_interval=self.communication_interval,
         )
