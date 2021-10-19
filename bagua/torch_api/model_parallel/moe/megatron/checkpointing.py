@@ -359,10 +359,9 @@ def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg="load", strict
             torch.set_rng_state(state_dict["torch_rng_state"])
             torch.cuda.set_rng_state(state_dict["cuda_rng_state"])
             # Check for empty states array
-            if not state_dict['rng_tracker_states']:
+            if not state_dict["rng_tracker_states"]:
                 raise KeyError
-            mpu.get_cuda_rng_tracker().set_states(
-                state_dict['rng_tracker_states'])
+            mpu.get_cuda_rng_tracker().set_states(state_dict["rng_tracker_states"])
         except KeyError:
             print_rank_last(
                 "Unable to load rng state from checkpoint {}. "
