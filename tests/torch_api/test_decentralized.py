@@ -82,6 +82,7 @@ def run_model(
     loss_fn = nn.MSELoss()
 
     # wrap model
+    print('pre DDP')
     model = DDP(
         model,
         optimizers=[optimizer],
@@ -91,6 +92,7 @@ def run_model(
             communication_interval=communication_interval,
         ),
     )
+    print('after DDP')
     # model = model.with_bagua(
     #     [optimizer],
     #     bagua.algorithms.decentralized.DecentralizedAlgorithm(
