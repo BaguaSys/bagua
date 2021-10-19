@@ -365,10 +365,12 @@ def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg="load", strict
             mpu.get_cuda_rng_tracker().set_states(
                 state_dict['rng_tracker_states'])
         except KeyError:
-            print_rank_last('Unable to load rng state from checkpoint {}. '
-                         'Specify --no-load-rng or --finetune to prevent '
-                         'attempting to load the rng state, '
-                         'exiting ...'.format(checkpoint_name_local))
+            print_rank_last(
+                "Unable to load rng state from checkpoint {}. "
+                "Specify --no-load-rng or --finetune to prevent "
+                "attempting to load the rng state, "
+                "exiting ...".format(checkpoint_name_local)
+            )
             sys.exit()
 
     # Some utilities want to load a checkpoint without distributed being initialized
