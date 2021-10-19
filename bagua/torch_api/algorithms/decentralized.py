@@ -7,7 +7,7 @@ from typing import List
 import torch
 
 
-class DecentralizedAlgorithmImplementation(AlgorithmImpl):
+class DecentralizedAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self,
         hierarchical: bool = True,
@@ -97,7 +97,7 @@ class DecentralizedAlgorithmImplementation(AlgorithmImpl):
         )
 
 
-class LowPrecisionDecentralizedAlgorithmImplementation(AlgorithmImpl):
+class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
         Implementation of the

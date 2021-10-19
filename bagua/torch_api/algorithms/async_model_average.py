@@ -22,7 +22,7 @@ class _AsyncInternalState(IntEnum):
     ABORT = 1
 
 
-class AsyncModelAverageAlgorithmImplementation(AlgorithmImpl):
+class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self,
         peer_selection_mode: str = "all",

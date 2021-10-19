@@ -100,7 +100,7 @@ class QAdamOptimizer(Optimizer):
                 param.data.add_(-step_size * update)
 
 
-class QAdamAlgorithmImplementation(AlgorithmImpl):
+class QAdamAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
     ):
