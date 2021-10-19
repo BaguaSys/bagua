@@ -13,6 +13,7 @@ from bagua.torch_api.communication import (
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
+from bagua.torch_api.model_parallel.moe import is_moe_param
 from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
@@ -68,7 +69,7 @@ class BaguaModule:
                 for param_name, param in module.named_parameters(recurse=False)
                 if param.requires_grad
                 and f"{module_name}.{param_name}" not in self.parameters_to_ignore
-                and (not getattr(param, "expert", False))
+                and (not is_moe_param(param))
             ]
         ]
 
@@ -299,7 +300,7 @@ class BaguaModule:
         )
 
         self.bagua_optimizers = optimizers
-        self.bagua_algorithm = algorithm
+        self.bagua_algorithm = algorithm.reify()
 
         if _rank_not_in_group(process_group):
             if hasattr(self, "_bagua_algorithm_hooks"):

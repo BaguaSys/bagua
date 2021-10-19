@@ -143,7 +143,7 @@ CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
     --num-local-experts 2 \
     --set-deterministic \
     2>&1 | tee ${logfile}
-check_moe_log ${logfile} 0.000293
+check_moe_log ${logfile} 0.000071
 
 # 4. test moe checkpoint
 logfile=$(mktemp /tmp/bagua_moe_checkpoint.XXXXXX.log)
@@ -156,4 +156,4 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python -m bagua.distributed.launch \
     --set-deterministic \
     --save-model \
     2>&1 | tee ${logfile}
-check_moe_log ${logfile} 0.000293
+check_moe_log ${logfile} 0.000071

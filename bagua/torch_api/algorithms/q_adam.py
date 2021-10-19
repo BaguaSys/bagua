@@ -3,7 +3,7 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api import get_world_size
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from torch.optim.optimizer import Optimizer
 import torch
 import math
@@ -22,7 +22,7 @@ class QAdamOptimizer(Optimizer):
     ):
         """
         Create a dedicated optimizer used for
-        `QAdam <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_ algorithm.
+        `QAdam <https://tutorials.baguasys.com/algorithms/q-adam>`_ algorithm.
 
         Args:
             params (iterable): Iterable of parameters to optimize or dicts defining
@@ -100,11 +100,13 @@ class QAdamOptimizer(Optimizer):
                 param.data.add_(-step_size * update)
 
 
-class QAdamAlgorithm(Algorithm):
-    def __init__(self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True):
+class QAdamAlgorithmImpl(AlgorithmImpl):
+    def __init__(
+        self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
+    ):
         """
-        Create an instance of the
-        `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
+        Implementation of the
+        `QAdam Algorithm <https://tutorials.baguasys.com/algorithms/q-adam>`_
         .
 
         Args:
@@ -202,4 +204,27 @@ class QAdamAlgorithm(Algorithm):
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
+        )
+
+
+class QAdamAlgorithm(Algorithm):
+    def __init__(
+        self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
+    ):
+        """
+        Create an instance of the
+        `QAdam Algorithm <https://tutorials.baguasys.com/algorithms/q-adam>`_
+        .
+
+        Args:
+            q_adam_optimizer: A QAdamOptimizer initialized with model parameters.
+            hierarchical: Enable hierarchical communication.
+        """
+        self.hierarchical = hierarchical
+        self.optimizer = q_adam_optimizer
+
+    def reify(self) -> QAdamAlgorithmImpl:
+        return QAdamAlgorithmImpl(
+            q_adam_optimizer=self.optimizer,
+            hierarchical=self.hierarchical
         )
