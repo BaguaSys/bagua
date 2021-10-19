@@ -100,7 +100,7 @@ def _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler):
     else:
         for i in range(len(model)):
             mpu.set_virtual_pipeline_model_parallel_rank(i)
-            state_dict['model%d' % i] = model[i].state_dict_for_save_checkpoint()
+            state_dict["model%d" % i] = model[i].state_dict_for_save_checkpoint()
 
     def extract_expert_param(state_dict):
         state_dict_new = state_dict.__class__()
