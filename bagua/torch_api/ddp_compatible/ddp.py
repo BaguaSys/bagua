@@ -61,7 +61,7 @@ class DistributedDataParallel_V1_9_0(Module):
         )
 
         self.bagua_optimizers = optimizers
-        self.bagua_algorithm = algorithm
+        self.bagua_algorithm = algorithm.reify()
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
@@ -313,7 +313,7 @@ class DistributedDataParallel_V1_9_0(Module):
                 for param_name, param in module.named_parameters(recurse=False)
                 if param.requires_grad
                 and f"{module_name}.{param_name}" not in self.parameters_to_ignore
-                and (not getattr(param, "expert", False))
+                and (not is_moe_param(param))
             ]
         ]
 
