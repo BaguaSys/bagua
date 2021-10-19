@@ -81,7 +81,7 @@ class BaguaTensor:
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
             torch_tensor=self,
-            getter_closure=getter_closure,
+            python_fallback=(getter_closure is not None),
         )
 
         self._bagua_ready_event = torch.cuda.Event()
@@ -123,8 +123,10 @@ class BaguaTensor:
 
     def bagua_ensure_grad(self) -> torch.Tensor:
         """
-        Return the gradient of current parameter. Create a zero gradient tensor
-        if not exist.
+        Create a zero gradient tensor for the current parameter if not exist.
+
+        Returns:
+            The original tensor.
         """
         if hasattr(self, "grad") and self.grad is not None:
             return self

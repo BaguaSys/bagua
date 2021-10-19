@@ -219,45 +219,17 @@ pub struct BaguaTensorPy {
 #[pymethods]
 impl BaguaTensorPy {
     #[new]
-    pub fn new(
-        torch_tensor: &PyAny,
-        name: String,
-        getter_closure: Option<&PyAny>,
-    ) -> PyResult<Self> {
+    pub fn new(torch_tensor: &PyAny, name: String, python_fallback: bool) -> PyResult<Self> {
         // TODO: sanity check
-        match getter_closure {
-            Some(x) => {
-                assert!(x.is_callable(), "getter_closure should be a callable");
-            }
-            None => {}
-        }
-
-        let dtype = torch_tensor
-            .getattr("dtype")
-            .expect("must pass valid torch tensor")
-            .repr()?
-            .to_string();
-        let bagua_dtype = match dtype.as_str() {
-            "torch.float32" => BaguaTensorDtype::F32,
-            "torch.float16" => BaguaTensorDtype::F16,
-            "torch.int64" => BaguaTensorDtype::I64,
-            "torch.uint8" => BaguaTensorDtype::U8,
-            _ => {
-                return Err(PyRuntimeError::new_err(format!(
-                    "unsupported tensor dtype {}",
-                    dtype
-                )))
-            }
-        };
         Ok(Self {
             inner: BaguaTensor::new_from_torch(
                 name,
+                torch_tensor.map(|x| x.into_py(x.py())),
                 torch_tensor
                     .getattr("_cdata")
                     .expect("must pass valid torch tensor")
                     .extract()?,
-                bagua_dtype,
-                getter_closure.map(|x| x.into_py(x.py())),
+                python_fallback,
             )?,
         })
     }
