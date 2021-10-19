@@ -7,7 +7,8 @@ class MoeBaseMLP(torch.nn.Module):
         from megatron import get_args
 
 
-        args = get_args()
+
+
 
         self.dense_h_to_4h = torch.nn.Linear(args.hidden_size, args.ffn_hidden_size)
         self.dense_4h_to_h = torch.nn.Linear(args.ffn_hidden_size, args.hidden_size)
