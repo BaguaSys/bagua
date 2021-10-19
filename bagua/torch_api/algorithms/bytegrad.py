@@ -12,7 +12,7 @@ class ByteGradAlgorithmImpl(AlgorithmImpl):
     def __init__(self, average: bool = True):
         """
         Implementation of the
-        `ByteGrad <https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad>`_
+        `ByteGrad <https://tutorials.baguasys.com/algorithms/bytegrad>`_
         algorithm.
 
         Args:
@@ -61,7 +61,7 @@ class ByteGradAlgorithm(Algorithm):
     def __init__(self, average: bool = True):
         """
         Create an instance of the
-        `ByteGrad <https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad>`_
+        `ByteGrad <https://tutorials.baguasys.com/algorithms/bytegrad>`_
         algorithm.
 
         Args:

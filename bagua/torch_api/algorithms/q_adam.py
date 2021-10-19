@@ -22,7 +22,7 @@ class QAdamOptimizer(Optimizer):
     ):
         """
         Create a dedicated optimizer used for
-        `QAdam <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_ algorithm.
+        `QAdam <https://tutorials.baguasys.com/algorithms/q-adam>`_ algorithm.
 
         Args:
             params (iterable): Iterable of parameters to optimize or dicts defining
@@ -106,7 +106,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
     ):
         """
         Implementation of the
-        `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
+        `QAdam Algorithm <https://tutorials.baguasys.com/algorithms/q-adam>`_
         .
 
         Args:
@@ -213,7 +213,7 @@ class QAdamAlgorithm(Algorithm):
     ):
         """
         Create an instance of the
-        `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
+        `QAdam Algorithm <https://tutorials.baguasys.com/algorithms/q-adam>`_
         .
 
         Args:

@@ -31,7 +31,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
     ):
         """
         Implementation of the
-        `AsyncModelAverage <https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average.html>`_
+        `AsyncModelAverage <https://tutorials.baguasys.com/algorithms/async-model-average.html>`_
         algorithm.
 
         The asynchronous implementation is experimental, and imposes some restrictions.
@@ -255,7 +255,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
     ):
         """
         Create an instance of the
-        `AsyncModelAverage <https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average.html>`_
+        `AsyncModelAverage <https://tutorials.baguasys.com/algorithms/async-model-average.html>`_
         algorithm.
 
         The asynchronous implementation is experimental, and imposes some restrictions.
