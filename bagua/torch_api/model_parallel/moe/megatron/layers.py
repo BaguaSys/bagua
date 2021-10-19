@@ -12,4 +12,4 @@ class MoeBaseMLP(torch.nn.Module):
 
     def forward(self, hidden_states):
         intermediate = self.dense_h_to_4h(hidden_states)
-        return  self.dense_4h_to_h(intermediate)
+        return self.dense_4h_to_h(intermediate)
