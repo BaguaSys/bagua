@@ -1,10 +1,16 @@
 <p align="center">
-<img src="https://user-images.githubusercontent.com/18649508/136457975-e4d81ced-0e43-4793-8865-1379e82921f9.png" width="200px"/>
+<img src="https://user-images.githubusercontent.com/18649508/137567125-e949ae92-8c72-41ba-9a8e-6108e33005fc.png"/>
 </p>
-
 <hr/>
 
-[![tutorials](https://img.shields.io/badge/tutorials-passing-green)](https://bagua-tutorials.kwai-seattle.com/) [![Documentation Status](https://readthedocs.org/projects/bagua/badge/?version=latest)](http://bagua.readthedocs.io/?badge=latest) [![Downloads](https://pepy.tech/badge/bagua/month)](https://pypi.org/project/bagua/) [![Docker Pulls](https://img.shields.io/docker/pulls/baguasys/bagua)](https://hub.docker.com/r/baguasys/bagua) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/baguasys/bagua)](https://hub.docker.com/r/baguasys/bagua) [![GitHub license](https://img.shields.io/github/license/BaguaSys/bagua)](https://github.com/BaguaSys/bagua/blob/master/LICENSE)
+<div align="center">
+<a href="https://bagua-tutorials.kwai-seattle.com/"><img src="https://img.shields.io/badge/tutorials-passing-green" alt="tutorials"></a> <a href="http://bagua.readthedocs.io/?badge=latest"><img src="https://readthedocs.org/projects/bagua/badge/?version=latest" alt="Documentation Status"></a> <a href="https://pypi.org/project/bagua/"><img src="https://pepy.tech/badge/bagua/month" alt="Downloads"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/pulls/baguasys/bagua" alt="Docker Pulls"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/cloud/build/baguasys/bagua" alt="Docker Cloud Build Status"></a> <a href="https://github.com/BaguaSys/bagua/blob/master/LICENSE"><img src="https://img.shields.io/github/license/BaguaSys/bagua" alt="GitHub license"></a>
+</div>
+<div align="center">
+<a href="https://github.com/BaguaSys/bagua/stargazers"><img src="https://reporoster.com/stars/BaguaSys/bagua" /><a/>
+</div>
+
+<br/>
 
 Bagua is a deep learning training acceleration framework for PyTorch developed by [AI platform@Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Bagua currently supports:
 
@@ -13,6 +19,7 @@ Bagua is a deep learning training acceleration framework for PyTorch developed b
   - Decentralized Synchronous Communication (e.g. [Decentralized SGD](https://bagua-tutorials.kwai-seattle.com/algorithms/decentralized))
   - Low Precision Communication (e.g. [ByteGrad](https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad))
   - Asynchronous Communication (e.g. [Async Model Average](https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average))
+- [**TCP Communication Acceleration (Bagua-Net)**](https://bagua-tutorials.kwai-seattle.com/more-optimizations/bagua-net): Bagua-Net is a low level communication acceleration feature provided by Bagua. It can greatly improve the throughput of AllReduce on TCP network. You can enable Bagua-Net optimization on any distributed training job that uses NCCL to do GPU communication (this includes PyTorch-DDP, Horovod, DeepSpeed, and more).
 - [**Performance Autotuning**](https://bagua-tutorials.kwai-seattle.com/performance-autotuning/): Bagua can automatically tune system parameters to achieve the highest throughput.
 - [**Generic Fused Optimizer**](https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/contrib/fused_optimizer/index.html): Bagua provides generic fused optimizer which improve the performance of optimizers by fusing the optimizer `.step()` operation on multiple layers. It can be applied to arbitrary PyTorch optimizer, in contrast to [NVIDIA Apex](https://nvidia.github.io/apex/optimizers.html)'s approach, where only some specific optimizers are implemented.
 - [**Load Balanced Data Loader**](https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/contrib/load_balancing_data_loader/index.html): When the computation complexity of samples in training data are different, for example in NLP and speech tasks, where each sample have different lengths, distributed training throughput can be greatly improved by using Bagua's load balanced data loader, which distributes samples in a way that each worker's workload are similar.
@@ -120,4 +127,4 @@ Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
 
 You can also scan the following QR code to join our WeChat group :)
 
-<img src="https://user-images.githubusercontent.com/18649508/136324315-3a94c38f-68c8-4dca-895d-78923c067329.png" width="300"/>
+<img src="https://user-images.githubusercontent.com/18649508/137583270-b344f88e-1f1f-4990-8015-8d833e9c1d0c.png" width="300"/>

@@ -43,6 +43,15 @@ class DecentralizedAlgorithm(Algorithm):
         ]
         return self.tensors
 
+    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+        all_tensors = []
+        for idx, bucket in enumerate(tensors):
+            all_tensors.extend(bucket)
+
+        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
+
+        return [bagua_bucket]
+
     def init_forward_pre_hook(self, bagua_module: BaguaModule):
         def hook(input):
             if self._should_communicate(bagua_module):
@@ -84,6 +93,7 @@ class DecentralizedAlgorithm(Algorithm):
             peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
+            group=bagua_module._bagua_process_group,
         )
 
 
@@ -178,4 +188,5 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
             right_peer_weight=bucket._right_peer_weight,
             hierarchical=self.hierarchical,
             compression="MinMaxUInt8",
+            group=bagua_module._bagua_process_group,
         )
