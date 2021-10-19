@@ -82,23 +82,23 @@ def run_model(
     loss_fn = nn.MSELoss()
 
     # wrap model
-    # model = DDP(
-    #     model,
-    #     optimizers=[optimizer],
-    #     algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm(
-    #         hierarchical=hierarchical,
-    #         peer_selection_mode=peer_selection_mode,
-    #         communication_interval=communication_interval,
-    #     ),
-    # )
-    model = model.with_bagua(
-        [optimizer],
-        bagua.algorithms.decentralized.DecentralizedAlgorithm(
+    model = DDP(
+        model,
+        optimizers=[optimizer],
+        algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm(
             hierarchical=hierarchical,
             peer_selection_mode=peer_selection_mode,
             communication_interval=communication_interval,
         ),
     )
+    # model = model.with_bagua(
+    #     [optimizer],
+    #     bagua.algorithms.decentralized.DecentralizedAlgorithm(
+    #         hierarchical=hierarchical,
+    #         peer_selection_mode=peer_selection_mode,
+    #         communication_interval=communication_interval,
+    #     ),
+    # )
 
     ret = results[rank]
 

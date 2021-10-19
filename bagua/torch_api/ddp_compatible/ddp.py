@@ -91,58 +91,58 @@ class DistributedDataParallel_V1_9_0(Module):
         self._speed_metrics_switch_on = env.get_autotune_level() >= 1
         self._speed_metrics = StatisticalAverage()
 
-        # def autotune_hook(self, input):
-        #     if self.training:
-        #         if env.get_autotune_level() >= 1 and not self._bagua_autotune_completed:
-        #             self._bagua_autotune_step()
+        def autotune_hook(self, input):
+            if self.training:
+                if env.get_autotune_level() >= 1 and not self._bagua_autotune_completed:
+                    self._bagua_autotune_step()
 
-        # def clear_post_backward_callback_queued_hook(self, input):
-        #     self._is_post_backward_callback_queued = False
+        def clear_post_backward_callback_queued_hook(self, input):
+            self._is_post_backward_callback_queued = False
 
-        # def num_iteration_step_hook(self, input):
-        #     if self.training:
-        #         self.bagua_train_step_counter += 1
+        def num_iteration_step_hook(self, input):
+            if self.training:
+                self.bagua_train_step_counter += 1
 
-        # def algorithm_reset_hook(self, input):
-        #     if self.bagua_algorithm.need_reset():
-        #         self._bagua_init_algorithm()
+        def algorithm_reset_hook(self, input):
+            if self.bagua_algorithm.need_reset():
+                self._bagua_init_algorithm()
 
-        # def algorithm_forward_pre_hook(self, input):
-        #     if self.training:
-        #         self.bagua_algorithm.init_forward_pre_hook(self)(input)
+        def algorithm_forward_pre_hook(self, input):
+            if self.training:
+                self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
-        # def record_speed_metrics_event(self, _):
-        #     if not self._speed_metrics_switch_on:
-        #         return
+        def record_speed_metrics_event(self, _):
+            if not self._speed_metrics_switch_on:
+                return
 
-        #     if hasattr(self, "_last_event_pair"):
-        #         (start, stop) = self._last_event_pair
-        #         try:
-        #             elapsed_time_s = start.elapsed_time(stop) / 1000.0
-        #             total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
-        #             total_gbytes = total_bytes / 1024.0 ** 3
-        #             speed = total_gbytes / elapsed_time_s
-        #             self._speed_metrics.record(speed)
-        #         except RuntimeError as err:
-        #             logging.debug("Ignore cuda err={}".format(err))
+            if hasattr(self, "_last_event_pair"):
+                (start, stop) = self._last_event_pair
+                try:
+                    elapsed_time_s = start.elapsed_time(stop) / 1000.0
+                    total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
+                    total_gbytes = total_bytes / 1024.0 ** 3
+                    speed = total_gbytes / elapsed_time_s
+                    self._speed_metrics.record(speed)
+                except RuntimeError as err:
+                    logging.debug("Ignore cuda err={}".format(err))
 
-        #     start_event = torch.cuda.Event(enable_timing=True)
-        #     self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
-        #     torch.cuda.current_stream().record_event(start_event)
-        #     self._last_event_pair = (start_event, self._speed_metrics_end_event)
+            start_event = torch.cuda.Event(enable_timing=True)
+            self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
+            torch.cuda.current_stream().record_event(start_event)
+            self._last_event_pair = (start_event, self._speed_metrics_end_event)
 
-        # self._bagua_framework_hooks.extend(
-        #     [
-        #         self.register_forward_pre_hook(num_iteration_step_hook),
-        #         self.register_forward_pre_hook(algorithm_reset_hook),
-        #         self.register_forward_pre_hook(algorithm_forward_pre_hook),
-        #         self.register_forward_pre_hook(record_speed_metrics_event),
-        #         self.register_forward_pre_hook(autotune_hook),
-        #         self.register_forward_pre_hook(
-        #             clear_post_backward_callback_queued_hook
-        #         ),
-        #     ]
-        # )
+        self._bagua_framework_hooks.extend(
+            [
+                self.register_forward_pre_hook(num_iteration_step_hook),
+                self.register_forward_pre_hook(algorithm_reset_hook),
+                self.register_forward_pre_hook(algorithm_forward_pre_hook),
+                self.register_forward_pre_hook(record_speed_metrics_event),
+                self.register_forward_pre_hook(autotune_hook),
+                self.register_forward_pre_hook(
+                    clear_post_backward_callback_queued_hook
+                ),
+            ]
+        )
 
         # set bucket process group
         if process_group is None:
@@ -172,74 +172,74 @@ class DistributedDataParallel_V1_9_0(Module):
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm(),
     ) -> None:
-        super().__init__()
+        super(DistributedDataParallel_V1_9_0, self).__init__()
 
-        assert any((p.requires_grad for p in module.parameters())), (
-            "DistributedDataParallel is not needed when a module "
-            "doesn't have any parameter that requires a gradient."
-        )
+        # assert any((p.requires_grad for p in module.parameters())), (
+        #     "DistributedDataParallel is not needed when a module "
+        #     "doesn't have any parameter that requires a gradient."
+        # )
 
-        if device_ids is not None and len(device_ids) > 1:
-            raise ValueError("device_ids can only be None or contain a single element.")
+        # if device_ids is not None and len(device_ids) > 1:
+        #     raise ValueError("device_ids can only be None or contain a single element.")
 
-        self.is_multi_device_module = len({p.device for p in module.parameters()}) > 1
-        distinct_device_types = {p.device.type for p in module.parameters()}
-        if len(distinct_device_types) != 1:
-            raise ValueError(
-                "DistributedDataParallel's input module must be on "
-                "the same type of devices, but input module parameters locate in {}.".format(
-                    distinct_device_types
-                )
-            )
-        self.device_type = list(distinct_device_types)[0]
+        # self.is_multi_device_module = len({p.device for p in module.parameters()}) > 1
+        # distinct_device_types = {p.device.type for p in module.parameters()}
+        # if len(distinct_device_types) != 1:
+        #     raise ValueError(
+        #         "DistributedDataParallel's input module must be on "
+        #         "the same type of devices, but input module parameters locate in {}.".format(
+        #             distinct_device_types
+        #         )
+        #     )
+        # self.device_type = list(distinct_device_types)[0]
 
-        if process_group is not None:
-            assert type(process_group) == BaguaProcessGroup
+        # if process_group is not None:
+        #     assert type(process_group) == BaguaProcessGroup
 
-        self.static_graph = False
-        self.dim = dim
-        self.module = module
-        self.device = list(self.module.parameters())[0].device
-        self.broadcast_buffers = broadcast_buffers
-        self.find_unused_parameters = find_unused_parameters
-        self.require_backward_grad_sync = True
-        self.require_forward_param_sync = True
-        self.gradient_as_bucket_view = gradient_as_bucket_view
-        if hasattr(module, "_ddp_params_and_buffers_to_ignore"):
-            self.parameters_to_ignore = module._ddp_params_and_buffers_to_ignore
-        else:
-            self.parameters_to_ignore = []
+        # self.static_graph = False
+        # self.dim = dim
+        # self.module = module
+        # self.device = list(self.module.parameters())[0].device
+        # self.broadcast_buffers = broadcast_buffers
+        # self.find_unused_parameters = find_unused_parameters
+        # self.require_backward_grad_sync = True
+        # self.require_forward_param_sync = True
+        # self.gradient_as_bucket_view = gradient_as_bucket_view
+        # if hasattr(module, "_ddp_params_and_buffers_to_ignore"):
+        #     self.parameters_to_ignore = module._ddp_params_and_buffers_to_ignore
+        # else:
+        #     self.parameters_to_ignore = []
 
-        if check_reduction:
-            # This argument is no longer used since the reducer
-            # will ensure reduction completes even if some parameters
-            # do not receive gradients.
-            warnings.warn(
-                "The `check_reduction` argument in `DistributedDataParallel` "
-                "module is deprecated. Please avoid using it."
-            )
+        # if check_reduction:
+        #     # This argument is no longer used since the reducer
+        #     # will ensure reduction completes even if some parameters
+        #     # do not receive gradients.
+        #     warnings.warn(
+        #         "The `check_reduction` argument in `DistributedDataParallel` "
+        #         "module is deprecated. Please avoid using it."
+        #     )
 
-        # Check that a module does not have Uninitialized parameters
-        for param in module.parameters():
-            if isinstance(param, torch.nn.parameter.UninitializedParameter):
-                raise RuntimeError(
-                    "Modules with uninitialized parameters can't be used with `DistributedDataParallel`. "
-                    "Run a dummy forward pass to correctly initialize the modules"
-                )
-        # used for intra-node param sync and inter-node sync as wel
-        self.broadcast_bucket_size = int(250 * 1024 * 1024)
+        # # Check that a module does not have Uninitialized parameters
+        # for param in module.parameters():
+        #     if isinstance(param, torch.nn.parameter.UninitializedParameter):
+        #         raise RuntimeError(
+        #             "Modules with uninitialized parameters can't be used with `DistributedDataParallel`. "
+        #             "Run a dummy forward pass to correctly initialize the modules"
+        #         )
+        # # used for intra-node param sync and inter-node sync as wel
+        # self.broadcast_bucket_size = int(250 * 1024 * 1024)
 
-        # reduction bucket size
-        self.bucket_bytes_cap = int(bucket_cap_mb * 1024 * 1024)
-        # Whether to perform input tensor CPU to GPU copies on a side-stream
-        self.use_side_stream_for_tensor_copies = (
-            os.environ.get("PYTORCH_DDP_USE_SIDE_STREAM", "1") == "1"
-        )
+        # # reduction bucket size
+        # self.bucket_bytes_cap = int(bucket_cap_mb * 1024 * 1024)
+        # # Whether to perform input tensor CPU to GPU copies on a side-stream
+        # self.use_side_stream_for_tensor_copies = (
+        #     os.environ.get("PYTORCH_DDP_USE_SIDE_STREAM", "1") == "1"
+        # )
 
-        # TODO(wayi@): Remove this field since SPMD is no longer supported,
-        # and also remove all the relevant unnecessary loops.
-        # Module replication within process (single-process multi device)
-        self._module_copies = [self.module]
+        # # TODO(wayi@): Remove this field since SPMD is no longer supported,
+        # # and also remove all the relevant unnecessary loops.
+        # # Module replication within process (single-process multi device)
+        # self._module_copies = [self.module]
 
         self.bagua_init(optimizers, algorithm, process_group)
 
