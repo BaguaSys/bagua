@@ -74,7 +74,7 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results, env):
     # wrap model
     model = DDP(
         model,
-        optimziers=[optimizer],
+        optimizers=[optimizer],
         algorithm=bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(
             hierarchical=hierarchical,
             communication_interval=communication_interval,
