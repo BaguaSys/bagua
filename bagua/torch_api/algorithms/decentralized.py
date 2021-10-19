@@ -3,6 +3,7 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
+from bagua.torch_api.communication import BaguaProcessGroup
 from typing import List
 import torch
 
@@ -10,6 +11,7 @@ import torch
 class DecentralizedAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self,
+        process_group: BaguaProcessGroup,
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
         communication_interval: int = 1,
@@ -20,6 +22,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         algorithm.
 
         Args:
+            process_group (BaguaProcessGroup): The process group to work on.
             hierarchical (bool): Enable hierarchical communication.
             peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers'
                 weights are averaged in each communication step. ``"shift_one"`` means each worker
@@ -27,6 +30,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
             communication_interval (int): Number of iterations between two communication steps.
 
         """
+        super(DecentralizedAlgorithmImpl, self).__init__(process_group)
         self.hierarchical = hierarchical
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
@@ -74,7 +78,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
                     bucket.decentralized_synchronous_op_copy_back_peer_weight(
                         hierarchical=self.hierarchical,
                         peer_weight=bucket._peer_weight,
-                        group=bagua_module._bagua_process_group,
+                        group=self.process_group,
                     )
 
         return hook
@@ -95,21 +99,28 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
             peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
-            group=bagua_module._bagua_process_group,
+            group=self.process_group,
         )
 
 
 class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
-    def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
+    def __init__(
+        self,
+        process_group: BaguaProcessGroup,
+        hierarchical: bool = True,
+        communication_interval: int = 1,
+    ):
         """
         Implementation of the
         `Low Precision Decentralized SGD <https://tutorials.baguasys.com/algorithms/low-precision-decentralized>`_
         algorithm.
 
         Args:
+            process_group (BaguaProcessGroup): The process group to work on.
             hierarchical (bool): Enable hierarchical communication.
             communication_interval (int): Number of iterations between two communication steps.
         """
+        super(LowPrecisionDecentralizedAlgorithmImpl, self).__init__(process_group)
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
@@ -190,7 +201,7 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
             right_peer_weight=bucket._right_peer_weight,
             hierarchical=self.hierarchical,
             compression="MinMaxUInt8",
-            group=bagua_module._bagua_process_group,
+            group=self.process_group,
         )
 
 
@@ -218,8 +229,9 @@ class DecentralizedAlgorithm(Algorithm):
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
 
-    def reify(self) -> DecentralizedAlgorithmImpl:
+    def reify(self, process_group: BaguaProcessGroup) -> DecentralizedAlgorithmImpl:
         return DecentralizedAlgorithmImpl(
+            process_group,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
             communication_interval=self.communication_interval,
@@ -240,8 +252,11 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
-    def reify(self) -> LowPrecisionDecentralizedAlgorithmImpl:
+    def reify(
+        self, process_group: BaguaProcessGroup
+    ) -> LowPrecisionDecentralizedAlgorithmImpl:
         return LowPrecisionDecentralizedAlgorithmImpl(
+            process_group,
             hierarchical=self.hierarchical,
             communication_interval=self.communication_interval,
         )

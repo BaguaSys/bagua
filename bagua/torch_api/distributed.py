@@ -294,13 +294,18 @@ class BaguaModule:
             ...      GradientAllReduce()
             ...    )
         """
-
         self.bagua_module_name = "{}_{}".format(
             self.__class__.__name__, next(BaguaModule.__id_iter)
         )
 
+        # set bucket process group
+        if process_group is None:
+            self._bagua_process_group = _get_default_group()
+        else:
+            self._bagua_process_group = process_group
+
         self.bagua_optimizers = optimizers
-        self.bagua_algorithm = algorithm.reify()
+        self.bagua_algorithm = algorithm.reify(self._bagua_process_group)
 
         if _rank_not_in_group(process_group):
             if hasattr(self, "_bagua_algorithm_hooks"):
@@ -389,12 +394,6 @@ class BaguaModule:
                 ),
             ]
         )
-
-        # set bucket process group
-        if process_group is None:
-            self._bagua_process_group = _get_default_group()
-        else:
-            self._bagua_process_group = process_group
 
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client
