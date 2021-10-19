@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import new_group, broadcast, barrier, _pg_group_ranks
 from typing import List
 from bagua.torch_api.tensor import BaguaTensor
@@ -22,7 +22,7 @@ class _AsyncInternalState(IntEnum):
     ABORT = 1
 
 
-class AsyncModelAverageAlgorithmImplementation(Algorithm):
+class AsyncModelAverageAlgorithmImplementation(AlgorithmImpl):
     def __init__(
         self,
         peer_selection_mode: str = "all",
@@ -246,7 +246,7 @@ class AsyncModelAverageAlgorithmImplementation(Algorithm):
             logging.debug("Process {} async communication resumed.".format(get_rank()))
 
 
-class AsyncModelAverageAlgorithm:
+class AsyncModelAverageAlgorithm(Algorithm):
     def __init__(
         self,
         peer_selection_mode: str = "all",

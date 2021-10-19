@@ -9,6 +9,17 @@ class Algorithm:
     """
     This is the base class that all Bagua algorithms inherit.
 
+    It provides a method that accept the specified distributed algorithm parameters
+    and return a corresponding algorithm instance.
+    """
+    def reify(self):
+        pass
+
+
+class AlgorithmImpl:
+    """
+    This is the base class that all Bagua algorithms implementation inherit.
+
     It provides methods that can be override to implement different kinds of
     distributed algorithms.
     """

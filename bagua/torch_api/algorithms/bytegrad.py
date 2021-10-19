@@ -3,12 +3,12 @@
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api import get_world_size
 from typing import List
 
 
-class ByteGradAlgorithmImplementation(Algorithm):
+class ByteGradAlgorithmImplementation(AlgorithmImpl):
     def __init__(self, average: bool = True):
         """
         Implementation of the
@@ -57,7 +57,7 @@ class ByteGradAlgorithmImplementation(Algorithm):
         )
 
 
-class ByteGradAlgorithm:
+class ByteGradAlgorithm(Algorithm):
     def __init__(self, average: bool = True):
         """
         Create an instance of the

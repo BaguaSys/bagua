@@ -2,10 +2,10 @@
 
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 
 
-class GradientAllReduceAlgorithmImplementation(Algorithm):
+class GradientAllReduceAlgorithmImplementation(AlgorithmImpl):
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
         Implementation of the
@@ -33,7 +33,7 @@ class GradientAllReduceAlgorithmImplementation(Algorithm):
         )
 
 
-class GradientAllReduceAlgorithm:
+class GradientAllReduceAlgorithm(Algorithm):
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
         Create an instance of the

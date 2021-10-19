@@ -3,7 +3,7 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api import get_world_size
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from torch.optim.optimizer import Optimizer
 import torch
 import math
@@ -100,7 +100,7 @@ class QAdamOptimizer(Optimizer):
                 param.data.add_(-step_size * update)
 
 
-class QAdamAlgorithmImplementation(Algorithm):
+class QAdamAlgorithmImplementation(AlgorithmImpl):
     def __init__(
         self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
     ):
@@ -207,7 +207,7 @@ class QAdamAlgorithmImplementation(Algorithm):
         )
 
 
-class QAdamAlgorithm:
+class QAdamAlgorithm(Algorithm):
     def __init__(
         self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True
     ):

@@ -2,12 +2,12 @@
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from typing import List
 import torch
 
 
-class DecentralizedAlgorithmImplementation(Algorithm):
+class DecentralizedAlgorithmImplementation(AlgorithmImpl):
     def __init__(
         self,
         hierarchical: bool = True,
@@ -97,7 +97,7 @@ class DecentralizedAlgorithmImplementation(Algorithm):
         )
 
 
-class LowPrecisionDecentralizedAlgorithmImplementation(Algorithm):
+class LowPrecisionDecentralizedAlgorithmImplementation(AlgorithmImpl):
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
         Implementation of the
@@ -192,7 +192,7 @@ class LowPrecisionDecentralizedAlgorithmImplementation(Algorithm):
         )
 
 
-class DecentralizedAlgorithm:
+class DecentralizedAlgorithm(Algorithm):
     def __init__(
         self,
         hierarchical: bool = True,
@@ -224,7 +224,7 @@ class DecentralizedAlgorithm:
         )
 
 
-class LowPrecisionDecentralizedAlgorithm:
+class LowPrecisionDecentralizedAlgorithm(Algorithm):
     def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
         """
         Create an instance of the
