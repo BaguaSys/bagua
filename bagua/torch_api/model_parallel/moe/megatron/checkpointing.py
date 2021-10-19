@@ -115,7 +115,6 @@ def _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler):
             elif bagua.moe.is_moe_param(v):
                 state_dict_new[k] = v.detach()
         return state_dict_new
-    #    RemotePdb('127.0.0.1', 4444).set_trace()
     state_dict["model"] = extract_expert_param(state_dict["model"])
 
     # Optimizer stuff.
