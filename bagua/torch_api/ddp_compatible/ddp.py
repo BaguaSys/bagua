@@ -20,6 +20,7 @@ from bagua.torch_api.communication import (
     _get_default_group,
     BaguaProcessGroup,
 )
+from bagua.torch_api.model_parallel.moe import is_moe_param
 from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
