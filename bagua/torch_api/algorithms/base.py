@@ -8,6 +8,18 @@ import torch
 class Algorithm:
     """
     This is the base class that all Bagua algorithms inherit.
+    """
+
+    def reify(self):
+        """
+        Reify an algorithm instance.
+        """
+        pass
+
+
+class AlgorithmImpl:
+    """
+    This is the base class that all Bagua algorithm implementations inherit.
 
     It provides methods that can be override to implement different kinds of
     distributed algorithms.

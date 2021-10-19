@@ -346,13 +346,13 @@ def main_worker(args):
             train_sampler.set_epoch(epoch)
 
         if args.algorithm == "async":
-            algorithm.resume(model)
+            model.bagua_algorithm.resume(model)
 
         # train for one epoch
         train(train_loader, model, criterion, optimizer, scaler, epoch, args)
 
         if args.algorithm == "async":
-            algorithm.abort(model)
+            model.bagua_algorithm.abort(model)
 
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, epoch, args)

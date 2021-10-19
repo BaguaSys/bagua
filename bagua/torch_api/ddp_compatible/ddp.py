@@ -27,6 +27,22 @@ from bagua.bagua_define import (
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
 
+# TODO @shjwudp: make DistributedDataParallel_V1_9_0 interface!
+
+class DistributedDataParallel_V1_9_0(Module):
+    r"""
+    PyTorch v1.9.0 DistributedDataParallel interface.
+    """
+    pass
+
+
+class BaguaDistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0):
+    r"""
+    PyTorch v1.9.0 DistributedDataParallel interface using bagua backend.
+    """
+    pass
+
+
 class DistributedDataParallel_V1_9_0(Module):
     r"""
     Pytorch DDP using bagua backend
@@ -457,9 +473,6 @@ class DistributedDataParallel_V1_9_0(Module):
             speed = self._speed_metrics.get(time_since_last_update)
 
             # report metrics
-            # TODO: @shjwudp add support for reporting tensor completion order
-            # so that the autotune service does not rely on tensor registration
-            # order
             rsp = self._bagua_autotune_client.report_metrics(
                 model_name=self.bagua_module_name,
                 rank=env.get_rank(),
