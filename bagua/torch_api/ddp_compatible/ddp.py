@@ -242,7 +242,8 @@ class DistributedDataParallel_V1_9_0(Module):
         # self._module_copies = [self.module]
 
         self.module = module
-        self.bagua_init(optimizers, algorithm, process_group)
+        self.module = self.module.with_bagua(optimizers, algorithm)
+        # self.bagua_init(optimizers, algorithm, process_group)
 
     @property
     def device_ids():

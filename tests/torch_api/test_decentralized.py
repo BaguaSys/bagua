@@ -102,7 +102,7 @@ def run_model(
 
     ret = results[rank]
 
-    ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
+    ret.init_weight.copy_(flatten([param.data for param in model.module.parameters()]))
 
     for epoch in range(N_EPOCHS):
         data = torch.randn(4, 2).cuda()
@@ -115,7 +115,7 @@ def run_model(
         loss.backward()
         optimizer.step()
 
-    ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
+    ret.bucket_weight.copy_(model.module.bagua_buckets[0]._peer_weight)
 
 
 def run_torch_model(
