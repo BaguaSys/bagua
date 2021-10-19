@@ -205,7 +205,7 @@ def train(args, train_dataset, model, tokenizer):
 
     # Distributed training (should be after apex fp16 initialization)
     if args.distributed:
-        if type(algorithm) in [gradient_allreduce.DecentralizedAlgorithm]:
+        if type(algorithm) in [decentralized.DecentralizedAlgorithm]:
             model = DDP(model, optimizers=[optimizer], algorithm=algorithm)
         elif type(algorithm) not in [gradient_allreduce.GradientAllReduceAlgorithm]:
             model = DDP(model, algorithm=algorithm)

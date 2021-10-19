@@ -9,7 +9,7 @@ cp -a /upstream /workdir
 
 export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
 
-SYNTHETIC_SCRIPT="examples/benchmark/synthetic_benchmark.py"
+SYNTHETIC_SCRIPT="examples/benchmark/synthetic_benchmark_ddp_compatible.py"
 
 function check_benchmark_log {
     logfile=$1

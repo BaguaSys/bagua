@@ -10,6 +10,7 @@ import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_not_available
 import torch
+import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
 
 
 def _init_bagua_env(rank, env):
@@ -72,15 +73,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
         opt_class, opt_hyper_param
     )
 
-    from bagua.torch_api.algorithms import gradient_allreduce
-
-    algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
-
-    bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
-    try:
-        bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
-    except Exception:
-        time.sleep(0.1)
+    bagua_model = DDP(bagua_model)
 
     model_params = [
         (k, v.clone().detach().cpu().numpy())

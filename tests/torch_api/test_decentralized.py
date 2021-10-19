@@ -1,3 +1,4 @@
+from playground.ddp_compatible.bagua.bagua.torch_api.algorithms.base import Algorithm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +9,7 @@ import os
 from bagua.torch_api.utils import flatten, unflatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
+import bagua.torch_api.ddp_compatible.DistributedDataParallel as DDP
 
 
 N_EPOCHS = 10
@@ -81,9 +83,10 @@ def run_model(
     loss_fn = nn.MSELoss()
 
     # wrap model
-    model = model.with_bagua(
-        [optimizer],
-        bagua.algorithms.decentralized.DecentralizedAlgorithm(
+    model = DDP(
+        model,
+        optimizers=[optimizer],
+        algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm(
             hierarchical=hierarchical,
             peer_selection_mode=peer_selection_mode,
             communication_interval=communication_interval,

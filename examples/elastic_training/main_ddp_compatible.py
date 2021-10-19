@@ -242,7 +242,7 @@ def main():
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"]
 
-    if type(algorithm) in [gradient_allreduce.DecentralizedAlgorithm]:
+    if type(algorithm) in [decentralized.DecentralizedAlgorithm]:
         model = DDP(model, optimizers=[optimizer], algorithm=algorithm)
     elif type(algorithm) not in [gradient_allreduce.GradientAllReduceAlgorithm]:
         model = DDP(model, algorithm=algorithm)

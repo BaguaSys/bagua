@@ -12,7 +12,7 @@ export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || 
 
 # 1. test communication_primitives api
 echo "begin to test [communication_primitives]"
-COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
+COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main_ddp_compatible.py"
 python -m bagua.distributed.launch \
     --nnodes=2 \
     --nproc_per_node 4 \
@@ -23,7 +23,7 @@ python -m bagua.distributed.launch \
 
 
 # 2. benchmark test with all communication algorithms
-SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
+SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark_ddp_compatible.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
@@ -46,7 +46,7 @@ do
 done
 
 # 3. test moe
-MOE_SCRIPT="/workdir/examples/moe/mnist_main.py"
+MOE_SCRIPT="/workdir/examples/moe/mnist_main_ddp_compatible.py"
 logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
 CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
     --nnodes=2 \
