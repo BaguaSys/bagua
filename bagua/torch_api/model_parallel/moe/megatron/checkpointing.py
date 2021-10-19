@@ -76,6 +76,7 @@ def save_checkpoint(iteration, model, optimizer, lr_scheduler):
     args = get_args()
     if not torch.distributed.is_initialized() or mpu.get_data_parallel_rank() == 0:
         from megatron.checkpointing import save_checkpoint as save_checkpoint_megatron
+
         save_checkpoint_megatron(iteration, model, optimizer, lr_scheduler)
         return
 
@@ -95,8 +96,9 @@ def _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler):
     # Arguments, iteration, and model.
     state_dict = {}
     if len(model) == 1:
-        state_dict['model'] = model[0].state_dict_for_save_checkpoint(
-            keep_vars=(mpu.get_data_parallel_rank() > 0))
+        state_dict["model"] = model[0].state_dict_for_save_checkpoint(
+            keep_vars=(mpu.get_data_parallel_rank() > 0)
+        )
     else:
         for i in range(len(model)):
             mpu.set_virtual_pipeline_model_parallel_rank(i)
@@ -148,11 +150,7 @@ def _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler):
                 for param_group in fp32_from_fp16_params:
                     param_group_copy = []
                     for param in param_group:
-                        param_copy = (
-                            param
-                            if bagua.moe.is_moe_param(param)
-                            else None
-                        )
+                        param_copy = param if bagua.moe.is_moe_param(param) else None
                         param_group_copy.append(param_copy)
                     state_dict["optimizer"]["fp32_from_fp16_params"].append(
                         param_group_copy
@@ -167,12 +165,18 @@ def _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler):
     torch.distributed.barrier()
 
 
-def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load', strict=True):
+def load_checkpoint(model, optimizer, lr_scheduler, load_arg="load", strict=True):
     args = get_args()
-    if not torch.distributed.is_initialized() or mpu.get_data_parallel_rank() == 0 or \
-            args.num_local_experts == 0:
+    if (
+        not torch.distributed.is_initialized()
+        or mpu.get_data_parallel_rank() == 0
+        or args.num_local_experts == 0
+    ):
         from megatron.checkpointing import load_checkpoint as load_checkpoint_megatron
-        return load_checkpoint_megatron(model, optimizer, lr_scheduler, load_arg, strict)
+
+        return load_checkpoint_megatron(
+            model, optimizer, lr_scheduler, load_arg, strict
+        )
 
     return _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg, strict)
 
@@ -219,7 +223,7 @@ def merge_state_dict(state_dict_rank0, state_dict_local, fp16):
     return state_dict_rank0
 
 
-def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg='load', strict=True):
+def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg="load", strict=True):
     """Load a model checkpoint and return the iteration.
     strict (bool): whether to strictly enforce that the keys in
         :attr:`state_dict` of the checkpoint match the names of
@@ -235,10 +239,10 @@ def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg='load', strict
 
     # If no tracker file, return iretation zero.
     if not os.path.isfile(tracker_filename):
-        print_rank_0('WARNING: could not find the metadata file {} '.format(
-            tracker_filename))
-        print_rank_0('    will not load any checkpoints and will start from '
-                     'random')
+        print_rank_0(
+            "WARNING: could not find the metadata file {} ".format(tracker_filename)
+        )
+        print_rank_0("    will not load any checkpoints and will start from " "random")
         return 0
 
     # Otherwise, read the tracker file and either set the iteration or
@@ -262,18 +266,21 @@ def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg='load', strict
     # Load the checkpoint.
     def load_state_dict(checkpoint_name):
         try:
-            state_dict = torch.load(checkpoint_name, map_location='cpu')
+            state_dict = torch.load(checkpoint_name, map_location="cpu")
         except ModuleNotFoundError:
             from megatron.fp16_deprecated import loss_scaler
+
             # For backward compatibility.
-            print_rank_last(' > deserializing using the old code structure ...')
-            sys.modules['fp16.loss_scaler'] = sys.modules[
-                'megatron.fp16_deprecated.loss_scaler']
-            sys.modules['megatron.fp16.loss_scaler'] = sys.modules[
-                'megatron.fp16_deprecated.loss_scaler']
-            state_dict = torch.load(checkpoint_name, map_location='cpu')
-            sys.modules.pop('fp16.loss_scaler', None)
-            sys.modules.pop('megatron.fp16.loss_scaler', None)
+            print_rank_last(" > deserializing using the old code structure ...")
+            sys.modules["fp16.loss_scaler"] = sys.modules[
+                "megatron.fp16_deprecated.loss_scaler"
+            ]
+            sys.modules["megatron.fp16.loss_scaler"] = sys.modules[
+                "megatron.fp16_deprecated.loss_scaler"
+            ]
+            state_dict = torch.load(checkpoint_name, map_location="cpu")
+            sys.modules.pop("fp16.loss_scaler", None)
+            sys.modules.pop("megatron.fp16.loss_scaler", None)
         return state_dict
 
     state_dict_rank0 = load_state_dict(checkpoint_name_rank0)
@@ -282,71 +289,76 @@ def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg='load', strict
     state_dict = merge_state_dict(state_dict_rank0, state_dict_local, args.fp16)
 
     # set checkpoint version
-    set_checkpoint_version(state_dict.get('checkpoint_version', 0))
+    set_checkpoint_version(state_dict.get("checkpoint_version", 0))
 
     # Set iteration.
     if args.finetune or release:
         iteration = 0
     else:
         try:
-            iteration = state_dict['iteration']
+            iteration = state_dict["iteration"]
         except KeyError:
             try:  # Backward compatible with older checkpoints
-                iteration = state_dict['total_iters']
+                iteration = state_dict["total_iters"]
             except KeyError:
-                print_rank_0('A metadata file exists but unable to load '
-                             'iteration from checkpoint {}, exiting'.format(
-                                 checkpoint_name))
+                print_rank_0(
+                    "A metadata file exists but unable to load "
+                    "iteration from checkpoint {}, exiting".format(checkpoint_name)
+                )
                 sys.exit()
 
     # Check arguments.
     assert args.consumed_train_samples == 0
     assert args.consumed_valid_samples == 0
-    if 'args' in state_dict:
-        checkpoint_args = state_dict['args']
+    if "args" in state_dict:
+        checkpoint_args = state_dict["args"]
         check_checkpoint_args(checkpoint_args)
-        args.consumed_train_samples = getattr(checkpoint_args,
-                                              'consumed_train_samples', 0)
+        args.consumed_train_samples = getattr(
+            checkpoint_args, "consumed_train_samples", 0
+        )
         update_num_microbatches(consumed_samples=args.consumed_train_samples)
-        args.consumed_valid_samples = getattr(checkpoint_args,
-                                              'consumed_valid_samples', 0)
+        args.consumed_valid_samples = getattr(
+            checkpoint_args, "consumed_valid_samples", 0
+        )
     else:
-        print_rank_last('could not find arguments in the checkpoint ...')
+        print_rank_last("could not find arguments in the checkpoint ...")
 
     # Model.
     if len(model) == 1:
-        model[0].load_state_dict(state_dict['model'], strict=strict)
+        model[0].load_state_dict(state_dict["model"], strict=strict)
     else:
         for i in range(len(model)):
             mpu.set_virtual_pipeline_model_parallel_rank(i)
-            model[i].load_state_dict(state_dict['model%d' % i], strict=strict)
+            model[i].load_state_dict(state_dict["model%d" % i], strict=strict)
 
     # Fix up query/key/value matrix ordering if needed
     checkpoint_version = get_checkpoint_version()
-    print_rank_0(f' checkpoint version {checkpoint_version}')
+    print_rank_0(f" checkpoint version {checkpoint_version}")
     fix_query_key_value_ordering(model, checkpoint_version)
 
     # Optimizer.
     if not release and not args.finetune and not args.no_load_optim:
         try:
             if optimizer is not None:
-                optimizer.load_state_dict(state_dict['optimizer'])
+                optimizer.load_state_dict(state_dict["optimizer"])
             if lr_scheduler is not None:
                 lr_scheduler.load_state_dict(state_dict["lr_scheduler"])
         except KeyError:
-            print_rank_last('Unable to load optimizer from checkpoint {}. '
-                         'Specify --no-load-optim or --finetune to prevent '
-                         'attempting to load the optimizer state, '
-                         'exiting ...'.format(checkpoint_name_local))
+            print_rank_last(
+                "Unable to load optimizer from checkpoint {}. "
+                "Specify --no-load-optim or --finetune to prevent "
+                "attempting to load the optimizer state, "
+                "exiting ...".format(checkpoint_name_local)
+            )
             sys.exit()
 
     # rng states.
     if not release and not args.finetune and not args.no_load_rng:
         try:
-            random.setstate(state_dict['random_rng_state'])
-            np.random.set_state(state_dict['np_rng_state'])
-            torch.set_rng_state(state_dict['torch_rng_state'])
-            torch.cuda.set_rng_state(state_dict['cuda_rng_state'])
+            random.setstate(state_dict["random_rng_state"])
+            np.random.set_state(state_dict["np_rng_state"])
+            torch.set_rng_state(state_dict["torch_rng_state"])
+            torch.cuda.set_rng_state(state_dict["cuda_rng_state"])
             # Check for empty states array
             if not state_dict['rng_tracker_states']:
                 raise KeyError
