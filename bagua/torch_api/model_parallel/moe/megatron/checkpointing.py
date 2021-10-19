@@ -21,12 +21,7 @@ import numpy as np
 from collections import OrderedDict
 
 
-from megatron import (
-        get_args,
-        mpu,
-        print_rank_0,
-        print_rank_last,
-        utils)
+from megatron import get_args, mpu, print_rank_0, print_rank_last, utils
 
 from megatron.checkpointing import (
         check_checkpoint_args,
