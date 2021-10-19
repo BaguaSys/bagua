@@ -82,7 +82,6 @@ def run_model(
     loss_fn = nn.MSELoss()
 
     # wrap model
-    print('pre DDP')
     model = DDP(
         model,
         optimizers=[optimizer],
@@ -92,7 +91,6 @@ def run_model(
             communication_interval=communication_interval,
         ),
     )
-    print('after DDP')
     # model = model.with_bagua(
     #     [optimizer],
     #     bagua.algorithms.decentralized.DecentralizedAlgorithm(
@@ -104,7 +102,7 @@ def run_model(
 
     ret = results[rank]
 
-    ret.init_weight.copy_(flatten([param.data for param in model.module.parameters()]))
+    ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
 
     for epoch in range(N_EPOCHS):
         data = torch.randn(4, 2).cuda()
@@ -117,7 +115,7 @@ def run_model(
         loss.backward()
         optimizer.step()
 
-    ret.bucket_weight.copy_(model.module.bagua_buckets[0]._peer_weight)
+    ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
 
 
 def run_torch_model(
