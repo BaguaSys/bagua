@@ -243,6 +243,7 @@ class DistributedDataParallel_V1_9_0(Module):
 
         self.module = module
         self.module = self.module.with_bagua(optimizers, algorithm)
+        print('type={}'.format(self.module))
         # self.bagua_init(optimizers, algorithm, process_group)
 
     @property
