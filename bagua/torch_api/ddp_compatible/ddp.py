@@ -172,6 +172,7 @@ class DistributedDataParallel_V1_9_0(Module):
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm(),
     ) -> None:
+        print('Hello!!')
         super(DistributedDataParallel_V1_9_0, self).__init__()
 
         # assert any((p.requires_grad for p in module.parameters())), (
@@ -243,7 +244,7 @@ class DistributedDataParallel_V1_9_0(Module):
 
         self.module = module
         self.module = self.module.with_bagua(optimizers, algorithm)
-        print('type={}'.format(self.module))
+        print('type={}'.format(self.module), flush=True)
         # self.bagua_init(optimizers, algorithm, process_group)
 
     @property
