@@ -204,7 +204,7 @@ class InnerDistributedDataParallel:
         self._speed_metrics = StatisticalAverage()
 
         def autotune_hook(self, input):
-            if self.training:
+            if self.module.training:
                 if env.get_autotune_level() >= 1 and not self._bagua_autotune_completed:
                     self._bagua_autotune_step()
 
@@ -212,7 +212,7 @@ class InnerDistributedDataParallel:
             self._is_post_backward_callback_queued = False
 
         def num_iteration_step_hook(self, input):
-            if self.training:
+            if self.module.training:
                 self.bagua_train_step_counter += 1
 
         def algorithm_reset_hook(self, input):
@@ -220,7 +220,7 @@ class InnerDistributedDataParallel:
                 self._bagua_init_algorithm()
 
         def algorithm_forward_pre_hook(self, input):
-            if self.training:
+            if self.module.training:
                 self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
         def record_speed_metrics_event(self, _):
@@ -245,12 +245,12 @@ class InnerDistributedDataParallel:
 
         self._bagua_framework_hooks.extend(
             [
-                self.register_forward_pre_hook(num_iteration_step_hook),
-                self.register_forward_pre_hook(algorithm_reset_hook),
-                self.register_forward_pre_hook(algorithm_forward_pre_hook),
-                self.register_forward_pre_hook(record_speed_metrics_event),
-                self.register_forward_pre_hook(autotune_hook),
-                self.register_forward_pre_hook(
+                self.module.register_forward_pre_hook(num_iteration_step_hook),
+                self.module.register_forward_pre_hook(algorithm_reset_hook),
+                self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
+                self.module.register_forward_pre_hook(record_speed_metrics_event),
+                self.module.register_forward_pre_hook(autotune_hook),
+                self.module.register_forward_pre_hook(
                     clear_post_backward_callback_queued_hook
                 ),
             ]
