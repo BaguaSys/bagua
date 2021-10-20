@@ -74,9 +74,6 @@ class BaguaBucket:
             self._flatten_()
             torch.cuda.empty_cache()
 
-        self._all_registered_tensors = [
-            tensor._bagua_getter_closure() for tensor in self._all_tensors
-        ]
         self.backend_bucket = B.BaguaBucketPy(
             name,
             [tensor.bagua_backend_tensor() for tensor in self._all_tensors],
@@ -90,18 +87,21 @@ class BaguaBucket:
         Returns a tensor contiguous in memory which contains the same data as :attr:`self` tensors and padding tensor (if exists).
         """
 
+        all_registered_tensors = [
+            tensor._bagua_getter_closure() for tensor in self._all_tensors
+        ]
         total_size = 0
-        for tensor in self._all_registered_tensors:
+        for tensor in all_registered_tensors:
             total_size += tensor.numel()
 
         flatten_tensor = torch.zeros(
             total_size,
-            dtype=self._all_registered_tensors[0].dtype,
-            device=self._all_registered_tensors[0].device,
+            dtype=all_registered_tensors[0].dtype,
+            device=all_registered_tensors[0].device,
         )
 
         offset = 0
-        for tensor in self._all_registered_tensors:
+        for tensor in all_registered_tensors:
             # copy data
             flatten_tensor[offset : offset + tensor.numel()] = tensor.reshape(-1)
             offset += tensor.numel()
@@ -111,23 +111,26 @@ class BaguaBucket:
         """
         Flatten inner tensors in place.
         """
-        if len(self._all_registered_tensors) == 0:
+        if len(self._all_tensors) == 0:
             return
 
         flatten_tensor = self.flattened_tensor()
 
         if self.check_flatten():
             flatten_tensor.set_(
-                self._all_registered_tensors[0].storage(), 0, flatten_tensor.shape
+                self._all_tensors[0]._bagua_getter_closure().storage(),
+                0,
+                flatten_tensor.shape,
             )
             self.backend_tensor = flatten_tensor
             return
 
         flatten_storage = flatten_tensor.storage()
         offset = 0
-        for tensor in self._all_registered_tensors:
+
+        for tensor in self._all_tensors:
             tensor.bagua_set_registered_storage(flatten_storage, offset)
-            offset += tensor.numel()
+            offset += tensor._bagua_getter_closure().numel()
 
         # set backend tensor
         self.backend_tensor = flatten_tensor
@@ -139,7 +142,9 @@ class BaguaBucket:
         Returns:
             True if the bucket's tensors are contiguous in memory.
         """
-        return check_contiguous(self._all_registered_tensors)
+        return check_contiguous(
+            [tensor._bagua_getter_closure() for tensor in self._all_tensors]
+        )
 
     def append_python_op(self, python_function: Callable[[str], None]):
         """
@@ -388,7 +393,7 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket."""
+        registered_tensors = [tensor._bagua_getter_closure() for tensor in self.tensors]
         return sum(
-            tensor.numel() * tensor.element_size()
-            for tensor in self._all_registered_tensors
+            tensor.numel() * tensor.element_size() for tensor in registered_tensors
         )
