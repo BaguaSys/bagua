@@ -129,7 +129,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         assert find_unused_parameters is False, "Not yet supported"
         self.find_unused_parameters = find_unused_parameters
 
-        self.ddp_core = InnerDistributedDataParallel(
+        self.inner_ddp = InnerDistributedDataParallel(
             self.module, optimizers, algorithm, bagua_process_group)
 
     @property
