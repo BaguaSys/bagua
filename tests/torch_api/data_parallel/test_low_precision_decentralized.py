@@ -82,7 +82,9 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results, env):
     )
 
     ret = results[rank]
-    bucket = model.bagua_buckets[0]
+    bucket = model.inner_ddp.bagua_buckets[0]
+
+    print('model.parameters={}'.format(model.parameters()))
 
     ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
 
