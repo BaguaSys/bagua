@@ -1,4 +1,3 @@
-from playground.ddp_compatible.bagua.bagua.torch_api.algorithms.base import Algorithm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

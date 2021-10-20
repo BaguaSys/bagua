@@ -1,11 +1,9 @@
 import torch
 import time
-import os
 import io
 import pickle
 import collections
 import logging
-import warnings
 import itertools
 import bagua.torch_api as bagua
 from bagua.torch_api.algorithms import gradient_allreduce
