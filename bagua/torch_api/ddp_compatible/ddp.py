@@ -287,7 +287,7 @@ class DistributedDataParallel_V1_9_0(Module):
         """
         modules_and_parameters = [
             (module, parameter)
-            for module_name, module in self.named_modules()
+            for module_name, module in self.module.named_modules()
             for parameter in [
                 (f"{module_name}.{param_name}", param)
                 # Note that we access module.named_parameters instead of
@@ -536,7 +536,7 @@ class DistributedDataParallel_V1_9_0(Module):
         raw_buckets = self._bagua_autotune_get_buckets()
         self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
 
-        for name, param in self.named_parameters():
+        for name, param in self.module.named_parameters():
 
             def real_hook_factory(param_name, parameter):
                 def real_hook(*unused):
