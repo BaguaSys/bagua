@@ -197,9 +197,7 @@ class InnerDistributedDataParallel:
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
 
-        assert hasattr(self.module, "_bagua_patches") is False, \
-            "Duplicate DistributedDataParallel wrap! Each pytorch model can "
-            "only be wrapped once."
+        assert hasattr(self.module, "_bagua_patches") is False, "Duplicate DistributedDataParallel wrap! Each pytorch model can only be wrapped once."
         self.module._bagua_patches = BaguaPatches()
         self.module._bagua_patches._bagua_algorithm_hooks = []
 
