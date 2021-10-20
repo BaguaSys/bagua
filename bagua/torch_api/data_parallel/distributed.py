@@ -28,6 +28,7 @@ from bagua.bagua_define import (
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
 
+
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
     PyTorch v1.9.0 DistributedDataParallel interface.
@@ -128,7 +129,8 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.find_unused_parameters = find_unused_parameters
 
         self.inner_ddp = InnerDistributedDataParallel(
-            self.module, optimizers, algorithm, bagua_process_group)
+            self.module, optimizers, algorithm, bagua_process_group
+        )
 
     @property
     def require_backward_grad_sync(self):
@@ -157,7 +159,6 @@ class BaguaPatches:
 
 
 class InnerDistributedDataParallel:
-
     __id_iter = itertools.count()
 
     def __init__(
@@ -165,7 +166,7 @@ class InnerDistributedDataParallel:
         module: Module,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
-        process_group: Optional[BaguaProcessGroup] = None
+        process_group: Optional[BaguaProcessGroup] = None,
     ) -> None:
         self.module = module
         self.bagua_module_name = "{}_{}".format(
@@ -178,11 +179,15 @@ class InnerDistributedDataParallel:
             []
         )  #: the parameter names to ignore during communication
         if hasattr(self.module, "_bagua_params_and_buffers_to_ignore"):
-            self.parameters_to_ignore.extend(self.module._bagua_params_and_buffers_to_ignore)
+            self.parameters_to_ignore.extend(
+                self.module._bagua_params_and_buffers_to_ignore
+            )
         if hasattr(
             self.module, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
-            self.parameters_to_ignore.extend(self.module._ddp_params_and_buffers_to_ignore)
+            self.parameters_to_ignore.extend(
+                self.module._ddp_params_and_buffers_to_ignore
+            )
 
         self.bagua_train_step_counter = 0
         """
@@ -195,7 +200,9 @@ class InnerDistributedDataParallel:
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
 
-        assert hasattr(self.module, "_bagua_patches") is False, "Duplicate DistributedDataParallel wrap! Each pytorch model can only be wrapped once."
+        assert (
+            hasattr(self.module, "_bagua_patches") is False
+        ), "Duplicate DistributedDataParallel wrap! Each pytorch model can only be wrapped once."
         self.module._bagua_patches = BaguaPatches()
         self.module._bagua_patches._bagua_algorithm_hooks = []
 
@@ -235,7 +242,9 @@ class InnerDistributedDataParallel:
                     (start, stop) = self._last_event_pair
                     try:
                         elapsed_time_s = start.elapsed_time(stop) / 1000.0
-                        total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
+                        total_bytes = sum(
+                            bucket.bytes() for bucket in self.bagua_buckets
+                        )
                         total_gbytes = total_bytes / 1024.0 ** 3
                         speed = total_gbytes / elapsed_time_s
                         self._speed_metrics.record(speed)
