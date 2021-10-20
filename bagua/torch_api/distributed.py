@@ -307,9 +307,9 @@ class BaguaModule:
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm.reify(self._bagua_process_group)
 
-        if _rank_not_in_group(process_group):
-            if hasattr(self, "_bagua_algorithm_hooks"):
-                self._bagua_cleanup_algorithm()
+        self._bagua_reset_module()
+
+        if _rank_not_in_group(self._bagua_process_group):
             return self
 
         self.parameters_to_ignore = (
@@ -386,13 +386,16 @@ class BaguaModule:
             [
                 self.register_forward_pre_hook(num_iteration_step_hook),
                 self.register_forward_pre_hook(algorithm_reset_hook),
-                self.register_forward_pre_hook(algorithm_forward_pre_hook),
                 self.register_forward_pre_hook(record_speed_metrics_event),
                 self.register_forward_pre_hook(autotune_hook),
                 self.register_forward_pre_hook(
                     clear_post_backward_callback_queued_hook
                 ),
             ]
+        )
+
+        self._bagua_algorithm_hooks.append(
+            self.register_forward_pre_hook(algorithm_forward_pre_hook),
         )
 
         # autotune service
@@ -458,6 +461,14 @@ class BaguaModule:
             hook.remove()
         self._bagua_algorithm_hooks.clear()
         self.bagua_buckets.clear()
+
+    def _bagua_reset_module(self):
+        if hasattr(self, "_bagua_framework_hooks"):
+            for hook in self._bagua_framework_hooks:
+                hook.remove()
+
+        if hasattr(self, "_bagua_algorithm_hooks"):
+            self._bagua_cleanup_algorithm()
 
     def _bagua_reset_algorithm_buckets(self):
         self._bagua_cleanup_algorithm()

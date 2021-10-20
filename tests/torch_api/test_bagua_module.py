@@ -113,7 +113,6 @@ def run_model_switch_wrapper(rank, nranks, env, algorithms):
         pg = None if i % 2 == 0 else partial_group
         model = bagua_init(model, optimizer, algorithms[i], process_group=pg)
         train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
-        print("finished ", algorithms[i])
 
 
 class TestBaguaModule(unittest.TestCase):
@@ -165,14 +164,13 @@ class TestBaguaModule(unittest.TestCase):
 
     @skip_if_cuda_not_available()
     def test_bytegrad(self):
-        # TODO: suport odd number of ranks of process group for bytegrad and qadam
         nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs // 2, run_model_wrapper, algorithm="bytegrad")
+        self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="bytegrad")
 
     @skip_if_cuda_not_available()
     def test_qadam(self):
         nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs // 2, run_model_wrapper, algorithm="qadam")
+        self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="qadam")
 
     @skip_if_cuda_not_available()
     def test_model_switch(self):
@@ -182,10 +180,10 @@ class TestBaguaModule(unittest.TestCase):
             "decentralized",
             "gradient_allreduce",
             "qadam",
-    #        "async",
+            "async",
             "low_prec_decentralized",
         ]
-        self.run_algorithm(nprocs, nprocs, run_model_switch_wrapper, algorithms)
+        self.run_algorithm(nprocs, nprocs - 1, run_model_switch_wrapper, algorithms)
 
 
 if __name__ == "__main__":
