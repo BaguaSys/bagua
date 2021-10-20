@@ -31,7 +31,6 @@ from megatron.checkpointing import (
     check_checkpoint_args,
     ensure_directory_exists,
     fix_query_key_value_ordering,
-    get_checkpoint_name,
     get_checkpoint_version,
     get_checkpoint_tracker_filename,
     read_metadata,

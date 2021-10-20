@@ -33,6 +33,7 @@ def get_moe_checkpoint_name(
         data_parallel_rank = mpu.get_data_parallel_rank()
     if data_parallel_rank == 0:
         from megatron.checkpointing import get_checkpoint_name
+
         return get_checkpoint_name(checkpoints_path, iteration, release)
 
     if release:
