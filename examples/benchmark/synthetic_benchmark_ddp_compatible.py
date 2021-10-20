@@ -5,8 +5,6 @@ You can compare the performance with the horovod script directly.
 
 import argparse
 import timeit
-from playground.ddp_compatible.bagua.bagua.torch_api import algorithms
-from playground.ddp_compatible.bagua.bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -15,7 +13,7 @@ from torchvision import models
 import numpy as np
 import bagua.torch_api as bagua
 import logging
-from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
+from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(message)s", level=logging.ERROR)

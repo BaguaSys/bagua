@@ -8,6 +8,7 @@ import os
 from bagua.torch_api.utils import flatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
+from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 
 N_EPOCHS = 10
 
@@ -100,9 +101,8 @@ def run_model(
     from bagua.torch_api.algorithms import gradient_allreduce
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
 
-    model_1 = model_1.with_bagua([optimizer_1], algorithm)
-
-    model_2 = model_2.with_bagua([optimizer_2], algorithm)
+    model_1 = DDP(model_1, optimizers=[optimizer_1], algorithm=algorithm)
+    model_2 = DDP(model_2, optimizers=[optimizer_2], algorithm=algorithm)
 
     ret = results[rank]
 
