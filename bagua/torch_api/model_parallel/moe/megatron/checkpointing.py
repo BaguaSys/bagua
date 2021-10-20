@@ -77,6 +77,7 @@ def save_checkpoint(iteration, model, optimizer, lr_scheduler):
     if not torch.distributed.is_initialized() or mpu.get_data_parallel_rank() == 0:
         from megatron.checkpointing import save_checkpoint as save_checkpoint_megatron
 
+
         save_checkpoint_megatron(iteration, model, optimizer, lr_scheduler)
         return
 
@@ -116,7 +117,8 @@ def _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler):
                 state_dict_new[k] = v.detach()
         return state_dict_new
 
-    state_dict["model"] = extract_expert_param(state_dict["model"])
+
+
 
     # Optimizer stuff.
     if not args.no_save_optim:
