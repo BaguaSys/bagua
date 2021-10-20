@@ -1,4 +1,3 @@
-from playground.ddp_compatible.bagua.bagua.torch_api import distributed
 import torch
 import time
 import os
