@@ -158,6 +158,8 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
 class InnerDistributedDataParallel:
 
+    __id_iter = itertools.count()
+
     def __init__(
         self,
         module: Module,
@@ -167,7 +169,7 @@ class InnerDistributedDataParallel:
     ) -> None:
         self.module = module
         self.bagua_module_name = "{}_{}".format(
-            self.__class__.__name__, next(DistributedDataParallel_V1_9_0.__id_iter)
+            self.__class__.__name__, next(InnerDistributedDataParallel.__id_iter)
         )
 
         self.bagua_optimizers = optimizers
@@ -264,7 +266,6 @@ class InnerDistributedDataParallel:
         self._bagua_autotune_client = get_hyperparameters_service_client()
 
         self._bagua_init_algorithm()
-
 
     def forward(self, *inputs, **kwargs):
         output = self.module(*inputs, **kwargs)
