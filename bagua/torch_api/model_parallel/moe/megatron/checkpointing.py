@@ -255,7 +255,7 @@ def _load_checkpoint_moe(
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     load_arg: Optional[str] = "load",
     strict: Optional[bool] = True,
-): -> int
+) -> int:
     """Load a model checkpoint and return the iteration.
     strict (bool): whether to strictly enforce that the keys in
         :attr:`state_dict` of the checkpoint match the names of
