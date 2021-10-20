@@ -217,7 +217,7 @@ class BaguaBucket:
 
         This operation is not inplace, which means the bucket weights is first copied to :attr:`peer_weight`, and the result of
         decentralized averaging will be in :attr:`peer_weight`. To copy :attr:`peer_weight` back to :attr:`self`, call
-        :meth:`decentralized_synchronous_op_copy_back_peer_weight`.
+        ``op.copy_back_peer_weight(self)``.
 
         This operation will be executed by the Bagua backend in
         the order they are appended when all the tensors within the bucket are marked ready.
@@ -232,6 +232,8 @@ class BaguaBucket:
                 in each communication step. ``"shift_one"`` means each worker selects a different peer to do weights average
                 in each communication step.
             group: The process group to work on. If ``None``, the default process group will be used.
+        Returns:
+            The decentralized synchronous operation itself.
         """
         if group is None:
             group = _get_default_group()
