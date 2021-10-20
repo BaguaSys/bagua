@@ -21,6 +21,8 @@ import numpy as np
 from collections import OrderedDict
 from typing import Dict, List, Optional
 from torch.nn.parallel import DistributedDataParallel as torchDDP
+from bagua.torch_api.model_parallel.moe.megatron.utils import get_moe_checkpoint_name
+from bagua.torch_api.model_parallel.moe.megatron.utils import merge_state_dict
 
 
 from megatron import get_args, mpu, print_rank_0, print_rank_last, utils
@@ -36,44 +38,6 @@ from megatron.checkpointing import (
     set_checkpoint_version,
     update_num_microbatches,
 )
-
-
-def get_moe_checkpoint_name(
-    checkpoints_path: str,
-    iteration: int,
-    release: Optional[bool] = False,
-    data_parallel_rank: Optional[int] = -1,
-) -> str:
-
-    if data_parallel_rank == -1:
-        data_parallel_rank = mpu.get_data_parallel_rank()
-    if data_parallel_rank == 0:
-        return get_checkpoint_name(checkpoints_path, iteration, release)
-
-    if release:
-        directory = "release"
-    else:
-        directory = "iter_{:07d}".format(iteration)
-    # Use both the tensor and pipeline MP rank.
-    if mpu.get_pipeline_model_parallel_world_size() == 1:
-        return os.path.join(
-            checkpoints_path,
-            directory,
-            "mp_rank_{:02d}_dp_rank_{:04d}".format(
-                mpu.get_tensor_model_parallel_rank(), data_parallel_rank
-            ),
-            "model_optim_rng.pt",
-        )
-    return os.path.join(
-        checkpoints_path,
-        directory,
-        "mp_rank_{:02d}_{:03d}_dp_rank_{:04d}".format(
-            mpu.get_tensor_model_parallel_rank(),
-            mpu.get_pipeline_model_parallel_rank(),
-            data_parallel_rank,
-        ),
-        "model_optim_rng.pt",
-    )
 
 
 def save_checkpoint(
@@ -204,52 +168,6 @@ def load_checkpoint(
         )
 
     return _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg, strict)
-
-
-def merge_state_dict(
-    state_dict_rank0: Dict[str, torch.Tensor],
-    state_dict_local: Dict[str, torch.Tensor],
-    fp16: bool,
-) -> Dict[str, torch.Tensor]:
-    """merge two state dicts, one from data parallel rank 0,
-    another only contains expert states"""
-    # from megatron import print_rank_last
-
-    def merge_model(state_dict_rank0, state_dict_local):
-        for k, v in state_dict_local.items():
-            # megatron uses both dict and OrderedDict in its state_dict
-            if isinstance(v, (OrderedDict, dict)):
-                merge_model(state_dict_rank0[k], v)
-            else:
-                state_dict_rank0[k] = v
-
-    merge_model(state_dict_rank0["model"], state_dict_local["model"])
-
-    optimizer_rank0 = (
-        state_dict_rank0["optimizer"]["optimizer"]
-        if fp16
-        else state_dict_rank0["optimizer"]
-    )
-    optimizer_local = (
-        state_dict_local["optimizer"]["optimizer"]
-        if fp16
-        else state_dict_local["optimizer"]
-    )
-
-    for k, v in optimizer_local["state"].items():
-        optimizer_rank0["state"][k] = v
-
-    if fp16:
-        for group_idx, param_group in enumerate(
-            state_dict_local["optimizer"]["fp32_from_fp16_params"]
-        ):
-            for param_in_group_idx, param in enumerate(param_group):
-                if param is not None:
-                    state_dict_rank0["optimizer"]["fp32_from_fp16_params"][group_idx][
-                        param_in_group_idx
-                    ] = param
-
-    return state_dict_rank0
 
 
 def _load_checkpoint_moe(
