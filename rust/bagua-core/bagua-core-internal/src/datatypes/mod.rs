@@ -790,35 +790,9 @@ impl BaguaTensor {
         name: String,
         torch_tensor: pyo3::Py<pyo3::PyAny>,
         torch_cdata_ptr: u64,
+        dtype: BaguaTensorDtype,
         python_fallback: bool,
     ) -> pyo3::PyResult<Self> {
-        let torch_dtype = pyo3::Python::with_gil(|py| -> pyo3::PyResult<String> {
-            let py_tensor = if python_fallback {
-                TorchTensorRaw::call_pytensor_closure(torch_tensor.as_ref(py))
-            } else {
-                TorchTensorRaw::get_pytensor(torch_cdata_ptr, &py)
-            }
-            .unwrap();
-
-            py_tensor
-                .getattr("dtype")
-                .expect("must pass valid torch tensor")
-                .repr()?
-                .to_string()
-        })?;
-        let dtype = match torch_dtype.as_str() {
-            "torch.float32" => BaguaTensorDtype::F32,
-            "torch.float16" => BaguaTensorDtype::F16,
-            "torch.int64" => BaguaTensorDtype::I64,
-            "torch.uint8" => BaguaTensorDtype::U8,
-            _ => {
-                return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
-                    "unsupported tensor dtype {}",
-                    torch_dtype
-                )))
-            }
-        };
-
         let mut tensor_raw = TorchTensorRaw {
             torch_tensor,
             torch_tensor_cdata: torch_cdata_ptr,

@@ -221,14 +221,35 @@ impl BaguaTensorPy {
     #[new]
     pub fn new(torch_tensor: &PyAny, name: String, python_fallback: bool) -> PyResult<Self> {
         // TODO: sanity check
+        let dtype = torch_tensor
+            .call_method0("_bagua_getter_closure")
+            .expect("must pass valid bagua tensor")
+            .getattr("_bagua")
+            .unwrap()
+            .repr()?
+            .to_string();
+        let bagua_dtype = match dtype.as_str() {
+            "torch.float32" => BaguaTensorDtype::F32,
+            "torch.float16" => BaguaTensorDtype::F16,
+            "torch.int64" => BaguaTensorDtype::I64,
+            "torch.uint8" => BaguaTensorDtype::U8,
+            _ => {
+                return Err(PyRuntimeError::new_err(format!(
+                    "unsupported tensor dtype {}",
+                    dtype
+                )))
+            }
+        };
+
         Ok(Self {
             inner: BaguaTensor::new_from_torch(
                 name,
-                torch_tensor.map(|x| x.into_py(x.py())),
+                torch_tensor.into_py(torch_tensor.py()),
                 torch_tensor
                     .getattr("_cdata")
                     .expect("must pass valid torch tensor")
                     .extract()?,
+                bagua_dtype,
                 python_fallback,
             )?,
         })
