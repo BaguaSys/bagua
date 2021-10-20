@@ -46,14 +46,12 @@ class QAdamOptimizer(Optimizer):
         super(QAdamOptimizer, self).__init__(params, defaults)
 
         self.params_in_group = []
-        self.exp_avgs_in_group = []
         self.step_id = 0
         self.warmup_steps = warmup_steps
 
         # initialize momentum and variance
         for group_id, group in enumerate(self.param_groups):
             params_with_grad = []
-            exp_avgs = []
             for p in group["params"]:
                 params_with_grad.append(p)
                 state = self.state[p]
@@ -64,9 +62,10 @@ class QAdamOptimizer(Optimizer):
                     state["exp_avg_sq"] = torch.zeros_like(
                         p, memory_format=torch.preserve_format
                     )
-                exp_avgs.append(state["exp_avg"])
+
+                p._q_adam_momentum = state["exp_avg"]
+
             self.params_in_group.append(params_with_grad)
-            self.exp_avgs_in_group.append(exp_avgs)
 
     def __setstate__(self, state):
         super(QAdamOptimizer, self).__setstate__(state)
@@ -132,24 +131,27 @@ class QAdamAlgorithm(Algorithm):
             param._q_adam_idx = idx
 
         tensor_groups = []
-        for param_group, m_group in zip(
-            self.optimizer.params_in_group, self.optimizer.exp_avgs_in_group
-        ):
-            for param, exp_avgs in zip(param_group, m_group):
+        for group in self.optimizer.param_groups:
+            for param in group["params"]:
                 if self.optimizer.step_id < self.warmup_steps:
-                    registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._q_adam_name, bagua_module.bagua_module_name
+                    # register grad
+                    param = param.bagua_ensure_grad().ensure_bagua_tensor(
+                        param._q_adam_name,
+                        bagua_module.bagua_module_name,
+                        getter_closure=lambda param: param.grad,
+                        setter_closure=lambda param, t: setattr(param, "grad", t),
                     )
-                    param._q_adam_grad = registered_tensor
-                    registered_tensor._q_adam_idx = param._q_adam_idx
                 else:
-                    registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._q_adam_name, bagua_module.bagua_module_name
+                    # register first momentum
+                    param = param.ensure_bagua_tensor(
+                        param._q_adam_name,
+                        bagua_module.bagua_module_name,
+                        getter_closure=lambda param: param._q_adam_momentum,
+                        setter_closure=lambda param, t: setattr(
+                            param, "_q_adam_momentum", t
+                        ),
                     )
-                    registered_tensor._q_adam_grad = param.bagua_ensure_grad()
-                    param._q_adam_momentum = registered_tensor
-                    registered_tensor._q_adam_idx = param._q_adam_idx
-                tensor_groups.append(registered_tensor)
+                tensor_groups.append(param)
         tensor_groups.sort(key=lambda x: x._q_adam_idx)
         return tensor_groups
 
@@ -179,7 +181,9 @@ class QAdamAlgorithm(Algorithm):
             def calculate_momentum(*args):
                 beta1, beta2 = self.optimizer.param_groups[0]["betas"]
                 for tensor in bucket.tensors:
-                    tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
+                    tensor._q_adam_momentum.mul_(beta1).add_(
+                        tensor.grad, alpha=1 - beta1
+                    )
 
             bucket.append_python_op(calculate_momentum)
             bucket.append_centralized_synchronous_op(
@@ -192,13 +196,17 @@ class QAdamAlgorithm(Algorithm):
 
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook_momentum(parameter_name, parameter):
-            parameter._q_adam_momentum.bagua_mark_communication_ready()
+            assert (
+                parameter.bagua_backend_tensor().data_ptr()
+                == parameter._q_adam_momentum.data_ptr()
+            ), "bagua backend tensor data_ptr should match _q_adam_momentum data_ptr"
+            parameter.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
             assert (
-                parameter.grad.data_ptr() == parameter._q_adam_grad.data_ptr()
-            ), "gradient data_ptr should match _q_adam_grad data_ptr"
-            parameter._q_adam_grad.bagua_mark_communication_ready()
+                parameter.bagua_backend_tensor().data_ptr() == parameter.grad.data_ptr()
+            ), "bagua backend tensor data_ptr should match _q_adam_grad data_ptr"
+            parameter.bagua_mark_communication_ready()
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum

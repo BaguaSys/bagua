@@ -146,7 +146,11 @@ class BaguaBucket:
             [tensor._bagua_getter_closure() for tensor in self._all_tensors]
         )
 
-    def append_python_op(self, python_function: Callable[[str], None]):
+    def append_python_op(
+        self,
+        python_function: Callable[[str], None],
+        group: Optional[BaguaProcessGroup] = None,
+    ):
         """
         Append a Python operation to a bucket. A Python operation is a Python function that
         takes the bucket's name and returns ``None``. It can do arbitrary things within the
@@ -157,11 +161,15 @@ class BaguaBucket:
 
         Args:
             python_function: The Python operation function.
+            group: The process group to work on. If ``None``, the default process group will be used.
         """
+
+        if group is None:
+            group = _get_default_group()
 
         def wrapper_function_factory(pyop):
             def wrapped_pyop(name):
-                with torch.cuda.stream(self._bagua_backend.stream):
+                with torch.cuda.stream(group.stream):
                     return pyop(name)
 
             return wrapped_pyop
