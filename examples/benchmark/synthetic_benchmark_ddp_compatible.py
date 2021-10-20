@@ -152,12 +152,7 @@ elif args.algorithm == "async":
 else:
     raise NotImplementedError
 
-if type(algorithm) in [decentralized.DecentralizedAlgorithm]:
-    model = DDP(model, optimizers=[optimizer], algorithm=algorithm)
-elif type(algorithm) not in [gradient_allreduce.GradientAllReduceAlgorithm]:
-    model = DDP(model, algorithm=algorithm)
-else:
-    model = DDP(model)
+model = DDP(model, optimizers=[optimizer], algorithm=algorithm)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
