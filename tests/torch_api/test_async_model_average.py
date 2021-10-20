@@ -85,44 +85,6 @@ def run_multiple_aborts(model, optimizer, loss_fn):
         model.bagua_algorithm.abort(model)
 
 
-def run_switch_to(model, optimizer, loss_fn):
-    for epoch in range(5):
-        train_epoch(epoch, model, optimizer, loss_fn)
-    model.bagua_algorithm.abort(model)
-
-    model = model.with_bagua(
-        model.bagua_optimizers,
-        algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm(),
-    )
-    train_epoch(1, model, optimizer, loss_fn)
-
-    model = model.with_bagua(
-        model.bagua_optimizers, algorithm=bagua.algorithms.bytegrad.ByteGradAlgorithm()
-    )
-    train_epoch(1, model, optimizer, loss_fn)
-
-    model = model.with_bagua(
-        model.bagua_optimizers,
-        algorithm=bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(),
-    )
-    train_epoch(1, model, optimizer, loss_fn)
-
-    model = model.with_bagua(
-        model.bagua_optimizers,
-        algorithm=bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(),
-    )
-    train_epoch(1, model, optimizer, loss_fn)
-
-    optimizer = bagua.algorithms.q_adam.QAdamOptimizer(
-        model.parameters(), warmup_steps=10
-    )
-    model = model.with_bagua(
-        model.bagua_optimizers,
-        algorithm=bagua.algorithms.q_adam.QAdamAlgorithm(optimizer, hierarchical=False),
-    )
-    train_epoch(2, model, optimizer, loss_fn)
-
-
 class TestAsyncModelAverage(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_algorithm(self):
@@ -163,28 +125,6 @@ class TestAsyncModelAverage(unittest.TestCase):
             p = mp.Process(
                 target=run_model_wrapper, args=(i, env, run_multiple_aborts, 10)
             )
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
-
-    @skip_if_cuda_not_available()
-    def test_switch_to(self):
-        nprocs = torch.cuda.device_count()
-        env = {
-            "WORLD_SIZE": str(nprocs),
-            "LOCAL_WORLD_SIZE": str(nprocs),
-            "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port(8000, 8100)),
-            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
-        }
-
-        mp = multiprocessing.get_context("spawn")
-        processes = []
-        for i in range(nprocs):
-            p = mp.Process(target=run_model_wrapper, args=(i, env, run_switch_to, 0))
             p.start()
             processes.append(p)
 
