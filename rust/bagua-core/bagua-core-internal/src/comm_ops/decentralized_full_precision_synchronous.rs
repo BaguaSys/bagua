@@ -99,3 +99,35 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
         *self.step.lock() += 1;
     }
 }
+
+impl DecentralizedFullPrecisionSynchronous {
+    pub fn copy_back_peer_weight(&self, bucket: Arc<BaguaBucket>) {
+        let bucket_guard = bucket.inner.lock();
+        let stream_ptr = self.communicator.stream_ptr();
+
+        let mut communication_tensor = match &self.communicator {
+            BaguaCommunicator::SingleCommunicator(_) => {
+                bucket_guard.get_communication_tensor(stream_ptr, false, false)
+            }
+            BaguaCommunicator::HierarchicalCommunicator(x) => match x {
+                BaguaHierarchicalCommunicator::Leader(_) => {
+                    bucket_guard.get_communication_tensor(stream_ptr, true, true)
+                }
+                BaguaHierarchicalCommunicator::Worker(_) => {
+                    bucket_guard.get_communication_tensor(stream_ptr, false, false)
+                }
+            },
+        };
+
+        self.communicator.execute_communication(
+            &mut communication_tensor,
+            false,
+            false,
+            true,
+            &mut |c, t| {
+                t.raw
+                    .clone_from(self.peer_weight.inner.read().raw.as_ref(), c.stream_ptr);
+            },
+        );
+    }
+}

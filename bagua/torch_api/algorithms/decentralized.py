@@ -75,10 +75,9 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
             if self._should_communicate(bagua_module):
                 bagua_module._bagua_backend.wait_pending_comm_ops()
                 for bucket in bagua_module.bagua_buckets:
-                    bucket.decentralized_synchronous_op_copy_back_peer_weight(
-                        hierarchical=self.hierarchical,
-                        peer_weight=bucket._peer_weight,
-                        group=self.process_group,
+                    print(bucket._decentralized_op, bucket.backend_bucket)
+                    bucket._decentralized_op.copy_back_peer_weight(
+                        bucket.backend_bucket
                     )
 
         return hook
@@ -95,12 +94,13 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         self._init_states(bucket)
         torch.cuda.synchronize()
         bucket.clear_ops()
-        bucket.append_decentralized_synchronous_op(
+        decentralized_op = bucket.append_decentralized_synchronous_op(
             peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
             group=self.process_group,
         )
+        bucket._decentralized_op = decentralized_op
 
 
 class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):

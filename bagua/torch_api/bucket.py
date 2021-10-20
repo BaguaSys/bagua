@@ -237,7 +237,7 @@ class BaguaBucket:
             group = _get_default_group()
 
         if hierarchical:
-            self.backend_bucket.append_decentralized_synchronous_op(
+            return self.backend_bucket.append_decentralized_synchronous_op(
                 _bagua_backend_comm(group.get_inter_node_communicator()),
                 _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
@@ -245,44 +245,13 @@ class BaguaBucket:
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
         else:
-            self.backend_bucket.append_decentralized_synchronous_op(
+            return self.backend_bucket.append_decentralized_synchronous_op(
                 _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
-
-    def decentralized_synchronous_op_copy_back_peer_weight(
-        self,
-        peer_weight: BaguaTensor,
-        hierarchical: bool = True,
-        group: Optional[BaguaProcessGroup] = None,
-    ):
-        """
-        Copy :attr:`peer_weight` back to bucket weights to end a decentralized synchronous operation.
-        See :meth:`append_decentralized_synchronous_op` for more information.
-
-        Args:
-            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
-            hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
-                will communicate will each other first. After that, machines do inter-node communication. This can
-                boost performance when the inter-node communication cost is high. Must be the same with :attr:`hierarchical` argument in
-                :meth:`append_decentralized_synchronous_op`.
-            group: The process group to work on. If ``None``, the default process group will be used.
-        """
-        if group is None:
-            group = _get_default_group()
-
-        intra_comm = group.get_intra_node_communicator()
-        inter_comm = group.get_inter_node_communicator()
-
-        if not hierarchical or not _rank_not_in_comm(inter_comm):
-            self.backend_tensor.copy_(peer_weight)
-
-        if hierarchical:
-            broadcast(self.backend_tensor, 0, intra_comm)
 
     def append_low_precision_decentralized_synchronous_op(
         self,
