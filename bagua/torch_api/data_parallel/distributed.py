@@ -37,20 +37,8 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
     PyTorch v1.9.0 DistributedDataParallel interface.
     """
 
-    def __init__(
-        self,
-        module,
-        device_ids=None,
-        output_device=None,
-        dim=0,
-        broadcast_buffers=True,
-        process_group=None,
-        bucket_cap_mb=25,
-        find_unused_parameters=False,
-        check_reduction=False,
-        gradient_as_bucket_view=False,
-    ) -> None:
-        raise NotImplementedError
+    def __init__(self) -> None:
+        super(DistributedDataParallel_V1_9_0_Interface, self).__init__()
 
     @contextmanager
     def no_sync(self):
@@ -108,6 +96,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm(),
     ) -> None:
+        super(DistributedDataParallel_V1_9_0, self).__init__()
         assert any((p.requires_grad for p in module.parameters())), (
             "DistributedDataParallel is not needed when a module "
             "doesn't have any parameter that requires a gradient."
