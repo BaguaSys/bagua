@@ -192,7 +192,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                 for tensor in bucket.tensors:
                     tensor.mul_(beta1).add_(tensor._q_adam_grad, alpha=1 - beta1)
 
-            bucket.append_python_op(calculate_momentum)
+            bucket.append_python_op(calculate_momentum, group=self.process_group)
             bucket.append_centralized_synchronous_op(
                 hierarchical=self.hierarchical,
                 average=True,
