@@ -223,8 +223,8 @@ impl BaguaTensorPy {
         // TODO: sanity check
         let dtype = torch_tensor
             .call_method0("_bagua_getter_closure")
-            .expect("must pass valid bagua tensor")
-            .getattr("_bagua")
+            .expect("must pass valid Bagua tensor")
+            .getattr("dtype")
             .unwrap()
             .repr()?
             .to_string();

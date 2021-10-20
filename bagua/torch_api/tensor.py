@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from bagua.torch_api.communication import get_backend
-from typing import Optional
+from typing import Optional, Callable
 
 import torch
 import bagua_core as B
@@ -10,7 +10,8 @@ import gorilla
 @gorilla.patches(torch.Tensor, filter=lambda name, obj: "bagua" in name)
 class BaguaTensor:
     """
-    This class patch `torch.Tensor <https://pytorch.org/docs/stable/tensors.html?highlight=tensor#torch.Tensor>`_ with additional methods.
+    This class patch `torch.Tensor <https://pytorch.org/docs/stable/tensors.html?highlight=tensor#torch.Tensor>`_
+    with additional methods.
     """
 
     def _bagua_sanity_check(self):
@@ -34,8 +35,8 @@ class BaguaTensor:
         self,
         name: Optional[str] = None,
         module_name: Optional[str] = None,
-        getter_closure=None,
-        setter_closure=None,
+        getter_closure: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        setter_closure: Optional[Callable[[torch.Tensor, torch.Tensor], None]] = None,
     ):
         """
         Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
@@ -46,9 +47,17 @@ class BaguaTensor:
             module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
+            getter_closure: A function to retrieve the tensor to be registered to the Bagua backend.
+              If ``None``, register `self` to the Bagua backend. Default: ``None``.
+            setter_closure: A function to reset the registered tensor. If ``None``, it's a no-op.
+              Default: ``None``.
 
         Returns:
             The original tensor with Bagua tensor attributes initialized.
+
+        .. note::
+            Users can retrieve the registered tensor by ``self._bagua_getter_closure()`` and reset it to
+            a new PyTorch tensor ``t`` by ``self._bagua_setter_closure(t)``.
         """
         if self.is_bagua_tensor():
             if name is not None:
@@ -84,6 +93,8 @@ class BaguaTensor:
             python_fallback=(getter_closure is not None),
         )
 
+        self._bagua_sanity_check()
+
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
         return self
@@ -92,8 +103,8 @@ class BaguaTensor:
         self,
         name: Optional[str] = None,
         module_name: Optional[str] = None,
-        getter_closure=None,
-        setter_closure=None,
+        getter_closure: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        setter_closure: Optional[Callable[[torch.Tensor, torch.Tensor], None]] = None,
     ):
         """
         Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
@@ -105,6 +116,9 @@ class BaguaTensor:
             module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
+            getter_closure: A function to retrieve the tensor to be registered to the Bagua backend.
+              See :meth:`ensure_bagua_tensor`.
+            setter_closure: A function to reset the registered tensor. See :meth:`ensure_bagua_tensor`.
 
         Returns:
             The new Bagua tensor sharing the same storage with the original tensor.
@@ -163,13 +177,14 @@ class BaguaTensor:
             0,
         )
 
-    def bagua_set_storage(
+    def bagua_set_registered_storage(
         self,
         storage: torch.Storage,
         storage_offset: int = 0,
     ):
         """
-        Sets the underlying storage using an existing `torch.Storage <https://pytorch.org/docs/stable/storage.html?highlight=storage>`_.
+        Sets the underlying storage for the registered tensor using an existing
+        `torch.Storage <https://pytorch.org/docs/stable/storage.html?highlight=storage>`_.
 
         Args:
             storage: The storage to use.

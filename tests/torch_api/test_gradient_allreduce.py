@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tests.internal.common_utils import find_free_port
+from tests.internal.multi_process import setup_bagua_env
 import unittest
 import multiprocessing
-import os
 from bagua.torch_api.utils import flatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
@@ -31,18 +31,7 @@ def _init_bagua_env(rank, env):
     torch.backends.cudnn.deterministic = True
     torch.manual_seed(rank)
     # initialize subprocess env
-    os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
-    os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
-    os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
-    os.environ["MASTER_PORT"] = env["MASTER_PORT"]
-    os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
-
-    os.environ["RANK"] = str(rank)
-    os.environ["LOCAL_RANK"] = str(rank)
-
-    # init bagua distributed process group
-    torch.cuda.set_device(rank)
-    bagua.init_process_group()
+    setup_bagua_env(rank, env)
 
 
 def run_model(
@@ -96,13 +85,12 @@ class Result(object):
         )
 
 
-class TestDecentralized(unittest.TestCase):
+class TestGradientAllReduce(unittest.TestCase):
     def run_test_locally(
         self,
         nprocs,
         hierarchical,
     ):
-        nprocs = torch.cuda.device_count()
         env = {
             "WORLD_SIZE": str(nprocs),
             "LOCAL_WORLD_SIZE": str(nprocs),
