@@ -34,6 +34,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         self.hierarchical = hierarchical
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
+        self.cuda_event = torch.cuda.Event()
 
     def _should_communicate(self, bagua_module: BaguaModule) -> bool:
         cur_step = bagua_module.bagua_train_step_counter - 1
@@ -75,6 +76,8 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
             if self._should_communicate(bagua_module):
                 bagua_module._bagua_backend.wait_pending_comm_ops()
 
+                torch.cuda.current_stream().record_event(self.cuda_event)
+                self.cuda_event.synchronize()
                 for bucket in bagua_module.bagua_buckets:
                     bucket._decentralized_op.copy_back_peer_weight(
                         bucket.backend_bucket
