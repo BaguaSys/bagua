@@ -20,7 +20,7 @@ import logging
 import concurrent
 
 
-__all__ = ["AsyncModelAverageAlgorithm"]
+__all__ = ["AsyncModelAverageAlgorithm", "AsyncModelAverageAlgorithmImpl"]
 
 
 class _AsyncInternalState(IntEnum):
