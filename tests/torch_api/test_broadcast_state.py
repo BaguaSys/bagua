@@ -10,9 +10,7 @@ import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_not_available
 import torch
-<<<<<<< HEAD
 from bagua.torch_api.ddp_compatible import DistributedDataParallel as DDP
-=======
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -30,7 +28,6 @@ class Net(nn.Module):
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
         return F.softmax(x, dim=1)
->>>>>>> origin
 
 
 def _init_bagua_env(rank, env):
@@ -87,9 +84,6 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
         opt_class, opt_hyper_param
     )
 
-<<<<<<< HEAD
-    bagua_model = DDP(bagua_model)
-=======
     for epoch in range(5):
         logging.debug("Training epoch {}".format(epoch))
         for _ in range(10):
@@ -105,8 +99,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
 
     from bagua.torch_api.algorithms import decentralized
     algorithm = decentralized.DecentralizedAlgorithm()
-    bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
->>>>>>> origin
+    bagua_model = DDP(bagua_model, optimizers=[bagua_optimizer], algorithm=algorithm)
 
     model_params = [
         (k, v.clone().detach().cpu().numpy())
