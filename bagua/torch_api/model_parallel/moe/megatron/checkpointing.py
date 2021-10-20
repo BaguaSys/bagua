@@ -19,7 +19,7 @@ import torch
 import bagua.torch_api as bagua
 import numpy as np
 from collections import OrderedDict
-from typing import Dict, List, Optional
+from typing import List, Optional
 from torch.nn.parallel import DistributedDataParallel as torchDDP
 from bagua.torch_api.model_parallel.moe.megatron.utils import get_moe_checkpoint_name
 from bagua.torch_api.model_parallel.moe.megatron.utils import merge_state_dict
