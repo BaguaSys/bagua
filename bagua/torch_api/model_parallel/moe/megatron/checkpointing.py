@@ -76,6 +76,7 @@ def save_checkpoint(iteration, model, optimizer, lr_scheduler):
     args = get_args()
     if not torch.distributed.is_initialized() or mpu.get_data_parallel_rank() == 0:
         from megatron.checkpointing import save_checkpoint as save_checkpoint_megatron
+
         save_checkpoint_megatron(iteration, model, optimizer, lr_scheduler)
         return
 
@@ -299,7 +300,9 @@ def _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg="load", strict
             except KeyError:
                 print_rank_0(
                     "A metadata file exists but unable to load "
-                    "iteration from checkpoint {}, exiting".format(checkpoint_name_local)
+                    "iteration from checkpoint {}, exiting".format(
+                        checkpoint_name_local
+                    )
                 )
                 sys.exit()
 
