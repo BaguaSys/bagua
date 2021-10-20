@@ -4,7 +4,6 @@ import multiprocessing
 import itertools
 import inspect
 from multiprocessing import Manager
-import time
 import logging
 import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port

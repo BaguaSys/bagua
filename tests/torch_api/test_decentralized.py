@@ -91,14 +91,7 @@ def run_model(
             communication_interval=communication_interval,
         ),
     )
-    # model = model.with_bagua(
-    #     [optimizer],
-    #     bagua.algorithms.decentralized.DecentralizedAlgorithm(
-    #         hierarchical=hierarchical,
-    #         peer_selection_mode=peer_selection_mode,
-    #         communication_interval=communication_interval,
-    #     ),
-    # )
+    inner_ddp = model.inner_ddp
 
     ret = results[rank]
 
@@ -115,7 +108,7 @@ def run_model(
         loss.backward()
         optimizer.step()
 
-    ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
+    ret.bucket_weight.copy_(inner_ddp.bagua_buckets[0]._peer_weight)
 
 
 def run_torch_model(
