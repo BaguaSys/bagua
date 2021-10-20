@@ -74,8 +74,8 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         def hook():
             if self._should_communicate(bagua_module):
                 bagua_module._bagua_backend.wait_pending_comm_ops()
+
                 for bucket in bagua_module.bagua_buckets:
-                    print(bucket._decentralized_op, bucket.backend_bucket)
                     bucket._decentralized_op.copy_back_peer_weight(
                         bucket.backend_bucket
                     )

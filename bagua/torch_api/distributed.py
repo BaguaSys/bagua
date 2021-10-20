@@ -386,16 +386,13 @@ class BaguaModule:
             [
                 self.register_forward_pre_hook(num_iteration_step_hook),
                 self.register_forward_pre_hook(algorithm_reset_hook),
+                self.register_forward_pre_hook(algorithm_forward_pre_hook),
                 self.register_forward_pre_hook(record_speed_metrics_event),
                 self.register_forward_pre_hook(autotune_hook),
                 self.register_forward_pre_hook(
                     clear_post_backward_callback_queued_hook
                 ),
             ]
-        )
-
-        self._bagua_algorithm_hooks.append(
-            self.register_forward_pre_hook(algorithm_forward_pre_hook),
         )
 
         # autotune service
