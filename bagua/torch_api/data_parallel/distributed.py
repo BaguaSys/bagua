@@ -126,8 +126,10 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.dim = dim
         self.module = module
         self.device = list(self.module.parameters())[0].device
-        assert self.broadcast_buffers is True, "Not yet supported"
-        assert self.find_unused_parameters is False, "Not yet supported"
+        assert broadcast_buffers is True, "Not yet supported"
+        self.broadcast_buffers = broadcast_buffers
+        assert find_unused_parameters is False, "Not yet supported"
+        self.find_unused_parameters = find_unused_parameters
 
         self.ddp_core = InnerDistributedDataParallel(
             self.module, optimizers, algorithm, bagua_process_group)
