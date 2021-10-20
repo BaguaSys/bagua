@@ -13,7 +13,10 @@ class Algorithm:
 
     def reify(self, process_group: BaguaProcessGroup):
         """
-        Reify an algorithm instance.
+        Create an algorithm instance.
+
+        Args:
+            process_group: The process group to work on.
         """
         pass
 
@@ -24,6 +27,9 @@ class AlgorithmImpl:
 
     It provides methods that can be override to implement different kinds of
     distributed algorithms.
+
+    Args:
+        process_group: The process group to work on.
     """
 
     def __init__(self, process_group: BaguaProcessGroup):
