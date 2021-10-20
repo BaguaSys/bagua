@@ -97,6 +97,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
             bagua_optimizer.step()
 
     from bagua.torch_api.algorithms import decentralized
+
     algorithm = decentralized.DecentralizedAlgorithm()
     bagua_model = DDP(bagua_model, optimizers=[bagua_optimizer], algorithm=algorithm)
 
