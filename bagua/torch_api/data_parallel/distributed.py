@@ -126,6 +126,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.broadcast_buffers = broadcast_buffers
         assert find_unused_parameters is False, "Not yet supported"
         self.find_unused_parameters = find_unused_parameters
+        self._module_copies = [self.module]
 
         self.inner_ddp = InnerDistributedDataParallel(
             self.module, optimizers, algorithm, bagua_process_group
@@ -138,6 +139,12 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     @property
     def parameters_to_ignore(self):
         return self.inner_ddp.parameters_to_ignore
+
+    def train(self, mode=True):
+        super(DistributedDataParallel_V1_9_0, self).train(mode)
+        for module in self._module_copies[1:]:
+            module.train(mode)
+        return self
 
     def forward(self, *inputs, **kwargs):
         output = self.inner_ddp.forward(*inputs, **kwargs)
