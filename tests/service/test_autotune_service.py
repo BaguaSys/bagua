@@ -58,15 +58,12 @@ class MockBaguaProcess:
         self.client = AutotuneClient(service_addr, service_port)
 
     def run(self, world_size, pg_init_method: str = "tcp://localhost:29501"):
-        print('dist.init_process_group rank={}, world_size={}, init_method={}'.format(
-            self.rank, world_size, pg_init_method), flush=True)
         dist.init_process_group(
             backend=dist.Backend.GLOO,
             rank=self.rank,
             world_size=world_size,
             init_method=pg_init_method,
         )
-        print('rank={} init_process_group done'.format(self.rank), flush=True)
 
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
@@ -101,9 +98,6 @@ class MockBaguaProcess:
             time.sleep(0.1)
             train_iter += 1
 
-            if train_iter % 100 == 0:
-                print('{} heart-beat {}'.format(time.time(), train_iter))
-
         return hp
 
 
@@ -113,7 +107,6 @@ class TestAutotuneService(unittest.TestCase):
         service_addr = "127.0.0.1"
         service_port = pick_n_free_ports(1)[0]
         nprocs = 2
-        print("service_port={}".format(service_port), flush=True)
 
         autotune_service = AutotuneService(
             nprocs,
@@ -303,7 +296,6 @@ class TestAutotuneService(unittest.TestCase):
         for (model_name, (tensor_list, spans)) in model_dict.items():
             pg_init_method = "file:///tmp/.bagua.unittest.autotune.{}".format(model_name)
             for i in range(nprocs):
-                print("pg_init_method={}".format(pg_init_method), flush=True)
                 mock = MockBaguaProcess(
                     i, service_addr, service_port, model_name,
                     tensor_list, spans
