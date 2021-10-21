@@ -191,7 +191,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
             def calculate_momentum(*args):
                 beta1, beta2 = self.optimizer.param_groups[0]["betas"]
                 for tensor in bucket.tensors:
-                    tensor._bagua_getter_closure().mul_(beta1).add_(
+                    tensor.bagua_getter_closure().mul_(beta1).add_(
                         tensor.grad, alpha=1 - beta1
                     )
 

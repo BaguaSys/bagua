@@ -87,7 +87,7 @@ class BaguaBucket:
         """
 
         all_registered_tensors = [
-            tensor._bagua_getter_closure() for tensor in self._all_tensors
+            tensor.bagua_getter_closure() for tensor in self._all_tensors
         ]
         total_size = 0
         for tensor in all_registered_tensors:
@@ -117,7 +117,7 @@ class BaguaBucket:
 
         if self.check_flatten():
             flatten_tensor.set_(
-                self._all_tensors[0]._bagua_getter_closure().storage(),
+                self._all_tensors[0].bagua_getter_closure().storage(),
                 0,
                 flatten_tensor.shape,
             )
@@ -129,7 +129,7 @@ class BaguaBucket:
 
         for tensor in self._all_tensors:
             tensor.bagua_set_registered_storage(flatten_storage, offset)
-            offset += tensor._bagua_getter_closure().numel()
+            offset += tensor.bagua_getter_closure().numel()
 
         # set backend tensor
         self.backend_tensor = flatten_tensor
@@ -142,7 +142,7 @@ class BaguaBucket:
             True if the bucket's tensors registered are contiguous in memory.
         """
         return check_contiguous(
-            [tensor._bagua_getter_closure() for tensor in self._all_tensors]
+            [tensor.bagua_getter_closure() for tensor in self._all_tensors]
         )
 
     def append_python_op(
@@ -371,7 +371,7 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket."""
-        registered_tensors = [tensor._bagua_getter_closure() for tensor in self.tensors]
+        registered_tensors = [tensor.bagua_getter_closure() for tensor in self.tensors]
         return sum(
             tensor.numel() * tensor.element_size() for tensor in registered_tensors
         )

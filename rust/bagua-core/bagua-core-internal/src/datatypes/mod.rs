@@ -532,12 +532,6 @@ impl TorchTensorRaw {
         tensor_class.call((), Some([("cdata", cdata)].into_py_dict(py.to_owned())))
     }
 
-    pub fn call_pytensor_closure<'a>(
-        torch_tensor: &'a pyo3::PyAny,
-    ) -> pyo3::PyResult<&'a pyo3::PyAny> {
-        torch_tensor.call_method0("_bagua_getter_closure")
-    }
-
     pub fn check_consistency_with_python(&self) -> pyo3::PyResult<bool> {
         fn check_consistency(
             py: pyo3::Python,
@@ -612,8 +606,11 @@ impl RawBaguaTensor for TorchTensorRaw {
     fn data_ptr(&self) -> u64 {
         if self.python_fallback {
             pyo3::Python::with_gil(|py| {
-                let py_tensor =
-                    TorchTensorRaw::call_pytensor_closure(self.torch_tensor.as_ref(py)).unwrap();
+                let py_tensor = self
+                    .torch_tensor
+                    .as_ref(py)
+                    .call_method0("bagua_getter_closure")
+                    .unwrap();
                 py_tensor
                     .call_method0("data_ptr")
                     .unwrap()
@@ -628,8 +625,11 @@ impl RawBaguaTensor for TorchTensorRaw {
     fn num_elements(&self) -> usize {
         if self.python_fallback {
             pyo3::Python::with_gil(|py| {
-                let py_tensor =
-                    TorchTensorRaw::call_pytensor_closure(self.torch_tensor.as_ref(py)).unwrap();
+                let py_tensor = self
+                    .torch_tensor
+                    .as_ref(py)
+                    .call_method0("bagua_getter_closure")
+                    .unwrap();
                 py_tensor.call_method0("numel").unwrap().extract().unwrap()
             })
         } else {
@@ -644,8 +644,11 @@ impl RawBaguaTensor for TorchTensorRaw {
     fn device_id(&self) -> usize {
         if self.python_fallback {
             pyo3::Python::with_gil(|py| {
-                let py_tensor =
-                    TorchTensorRaw::call_pytensor_closure(self.torch_tensor.as_ref(py)).unwrap();
+                let py_tensor = self
+                    .torch_tensor
+                    .as_ref(py)
+                    .call_method0("bagua_getter_closure")
+                    .unwrap();
                 py_tensor
                     .getattr("device")
                     .unwrap()

@@ -237,7 +237,7 @@ impl BaguaTensorPy {
     pub fn new(torch_tensor: &PyAny, name: String, python_fallback: bool) -> PyResult<Self> {
         // TODO: sanity check
         let dtype = torch_tensor
-            .call_method0("_bagua_getter_closure")
+            .call_method0("bagua_getter_closure")
             .expect("must pass valid Bagua tensor")
             .getattr("dtype")
             .unwrap()

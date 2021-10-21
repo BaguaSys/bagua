@@ -17,15 +17,15 @@ class BaguaTensor:
     def _bagua_sanity_check(self):
         assert (
             self._bagua_backend_tensor.data_ptr()
-            == self._bagua_getter_closure().data_ptr()
+            == self.bagua_getter_closure().data_ptr()
         )
         assert (
             self._bagua_backend_tensor.num_elements()
-            == self._bagua_getter_closure().numel()
+            == self.bagua_getter_closure().numel()
         )
         assert (
             self._bagua_backend_tensor.num_elements_allocated()
-            == self._bagua_getter_closure().numel()
+            == self.bagua_getter_closure().numel()
         )
 
     def is_bagua_tensor(self) -> bool:
@@ -53,18 +53,14 @@ class BaguaTensor:
             module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
-            getter_closure: A function to retrieve the tensor to be registered to the Bagua backend.
+            getter_closure: A function who accepts `self` as its input and returns a tensor as
+              its output. It is used to retrieve the tensor to be registered to the Bagua backend.
               If ``None``, register `self`. Default: ``None``.
-            setter_closure: A function to reset the tensor registered. If ``None``, it's a no-op.
-              Default: ``None``.
+            setter_closure: A function who accepts `self` and another tensor as its inputs. Used to
+              reset the tensor registered. If ``None``, it's a no-op. Default: ``None``.
 
         Returns:
             The original tensor with Bagua tensor attributes initialized.
-
-        .. note::
-            Once successfully returned, users can retrieve the tensor registered by calling
-            ``self._bagua_getter_closure()`` and reset it to a new PyTorch tensor ``t``
-            by ``self._bagua_setter_closure(t)``.
         """
         if self.is_bagua_tensor():
             if name is not None:
@@ -75,7 +71,12 @@ class BaguaTensor:
                 assert (
                     self.bagua_module_name == module_name
                 ), "assigning a different module name to existing bagua tensor is forbidden"
-            return self
+
+            if (
+                getter_closure == self._bagua_getter_closure
+                and setter_closure == self._bagua_setter_closure
+            ):
+                return self
 
         self.bagua_tensor_name = name if name is not None else ""
         self.bagua_module_name = module_name
@@ -87,17 +88,11 @@ class BaguaTensor:
 
         # initialize backend tensor
         if setter_closure is not None:
-            self._bagua_setter_closure = lambda t: setter_closure(self, t)
             assert (
                 getter_closure is not None
             ), "must provide `getter_closure` when `setter_closure` is not None"
-        else:
-            self._bagua_setter_closure = None
-
-        if getter_closure is not None:
-            self._bagua_getter_closure = lambda: getter_closure(self)
-        else:
-            self._bagua_getter_closure = lambda: self
+        self._bagua_getter_closure = getter_closure
+        self._bagua_setter_closure = setter_closure
 
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
@@ -110,6 +105,20 @@ class BaguaTensor:
         self._bagua_ready_event = torch.cuda.Event()
         self._bagua_bucket = None
         return self
+
+    def bagua_getter_closure(self) -> torch.Tensor:
+        """Returns the tensor registered."""
+        return (
+            self._bagua_getter_closure(self)
+            if self._bagua_getter_closure is not None
+            else self
+        )
+
+    def bagua_setter_closure(self, tensor: torch.Tensor):
+        """Sets the tensor registered to :attr:`tensor`."""
+
+        assert self._bagua_setter_closure is not None
+        self._bagua_setter_closure(self, tensor)
 
     def to_bagua_tensor(
         self,
@@ -206,13 +215,13 @@ class BaguaTensor:
         if self._bagua_setter_closure is None:
             # set directly
             with torch.no_grad():
-                self._bagua_getter_closure().set_(storage, storage_offset, self.shape)
+                self.bagua_getter_closure().set_(storage, storage_offset, self.shape)
             return
 
         with torch.no_grad():
-            t = torch.zeros_like(self._bagua_getter_closure())
+            t = torch.zeros_like(self.bagua_getter_closure())
             t.set_(storage, storage_offset, t.shape)
-            self._bagua_setter_closure(t)
+            self.bagua_setter_closure(t)
 
 
 _base = gorilla._get_base(BaguaTensor)
