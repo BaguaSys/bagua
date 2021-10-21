@@ -253,12 +253,12 @@ def main():
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):
         if args.algorithm == "async":
-            algorithm.resume(model)
+            model.bagua_algorithm.resume(model)
 
         train(args, model, train_loader, optimizer, epoch)
 
         if args.algorithm == "async":
-            algorithm.abort(model)
+            model.bagua_algorithm.abort(model)
 
         test(model, test_loader)
         scheduler.step()

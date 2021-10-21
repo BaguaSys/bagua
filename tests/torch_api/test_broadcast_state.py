@@ -5,11 +5,28 @@ import itertools
 import inspect
 from multiprocessing import Manager
 import time
-
+import logging
 import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_not_available
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        self.fc1 = nn.Linear(2, 10, bias=False)
+        self.fc2 = nn.Linear(10, 50, bias=True)
+        self.fc3 = nn.Linear(50, 4, bias=False)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
+        return F.softmax(x, dim=1)
 
 
 def _init_bagua_env(rank, env):
@@ -34,13 +51,7 @@ def _init_bagua_env(rank, env):
 
 def create_model_and_optimizer(opt_class, opt_param):
     C_in, C_out = 3, 10
-    model = torch.nn.Sequential(
-        torch.nn.Conv2d(C_in, 16, kernel_size=5, stride=1),
-        torch.nn.BatchNorm2d(16),
-        torch.nn.ReLU(),
-        torch.nn.Linear(3 * 3 * 16, C_out),
-    )
-    model = model.cuda()
+    model = Net().cuda()
     hyper_param = {
         k: v
         for k, v in opt_param.items()
@@ -72,15 +83,22 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
         opt_class, opt_hyper_param
     )
 
-    from bagua.torch_api.algorithms import gradient_allreduce
+    for epoch in range(5):
+        logging.debug("Training epoch {}".format(epoch))
+        for _ in range(10):
+            data = torch.randn(4, 2).cuda()
+            target = torch.randn(4, 4).cuda()
 
-    algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
+            bagua_optimizer.zero_grad()
+            output = bagua_model(data)
+            loss = nn.MSELoss()(output, target)
 
+            loss.backward()
+            bagua_optimizer.step()
+
+    from bagua.torch_api.algorithms import decentralized
+    algorithm = decentralized.DecentralizedAlgorithm()
     bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
-    try:
-        bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
-    except Exception:
-        time.sleep(0.1)
 
     model_params = [
         (k, v.clone().detach().cpu().numpy())
@@ -94,16 +112,13 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
 
 
 class Test_Broadcast_Module(unittest.TestCase):
-    @unittest.skip("fixme")
-#    @skip_if_cuda_not_available()
+    @skip_if_cuda_not_available()
     def test_broadcast_module(self):
         nprocs = torch.cuda.device_count()
+
         optimizers = [
-            (subclass.__name__, subclass)
-            for subclass in torch.optim.Optimizer.__subclasses__()
-            if subclass.__module__.startswith("torch.optim")
-            and subclass != torch.optim.LBFGS
-            and subclass != torch.optim.SparseAdam
+            (optim_class.__name__, optim_class)
+            for optim_class in [torch.optim.SGD, torch.optim.Adam, torch.optim.Rprop]
         ]
 
         optimizer_hyper_param = [

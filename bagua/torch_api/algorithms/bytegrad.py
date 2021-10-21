@@ -3,16 +3,16 @@
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api import get_world_size
 from typing import List
 
 
-class ByteGradAlgorithm(Algorithm):
+class ByteGradAlgorithmImpl(AlgorithmImpl):
     def __init__(self, average: bool = True):
         """
-        Create an instance of the
-        `ByteGrad <https://bagua-tutorials.kwai-seattle.com/algorithms/bytegrad>`_
+        Implementation of the
+        `ByteGrad <https://tutorials.baguasys.com/algorithms/bytegrad>`_
         algorithm.
 
         Args:
@@ -54,4 +54,23 @@ class ByteGradAlgorithm(Algorithm):
             scattergather=True,
             compression="MinMaxUInt8",
             group=bagua_module._bagua_process_group,
+        )
+
+
+class ByteGradAlgorithm(Algorithm):
+    def __init__(self, average: bool = True):
+        """
+        Create an instance of the
+        `ByteGrad <https://tutorials.baguasys.com/algorithms/bytegrad>`_
+        algorithm.
+
+        Args:
+            average (bool): If ``True``, the gradients on each worker are averaged.
+                Otherwise, they are summed.
+        """
+        self.average = average
+
+    def reify(self) -> ByteGradAlgorithmImpl:
+        return ByteGradAlgorithmImpl(
+            average=self.average,
         )

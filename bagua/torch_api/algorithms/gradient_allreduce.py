@@ -2,14 +2,14 @@
 
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 
 
-class GradientAllReduceAlgorithm(Algorithm):
+class GradientAllReduceAlgorithmImpl(AlgorithmImpl):
     def __init__(self, hierarchical: bool = False, average: bool = True):
         """
-        Create an instance of the
-        `GradientAllReduce <https://bagua-tutorials.kwai-seattle.com/algorithms/gradient-allreduce>`_
+        Implementation of the
+        `GradientAllReduce <https://tutorials.baguasys.com/algorithms/gradient-allreduce>`_
         algorithm.
 
         Args:
@@ -30,4 +30,26 @@ class GradientAllReduceAlgorithm(Algorithm):
             hierarchical=self.hierarchical,
             average=self.average,
             group=bagua_module._bagua_process_group,
+        )
+
+
+class GradientAllReduceAlgorithm(Algorithm):
+    def __init__(self, hierarchical: bool = False, average: bool = True):
+        """
+        Create an instance of the
+        `GradientAllReduce <https://tutorials.baguasys.com/algorithms/gradient-allreduce>`_
+        algorithm.
+
+        Args:
+            hierarchical (bool): Enable hierarchical communication.
+            average (bool): If ``True``, the gradients on each worker are averaged.
+                Otherwise, they are summed.
+        """
+        self.hierarchical = hierarchical
+        self.average = average
+
+    def reify(self) -> GradientAllReduceAlgorithmImpl:
+        return GradientAllReduceAlgorithmImpl(
+            hierarchical=self.hierarchical,
+            average=self.average,
         )
