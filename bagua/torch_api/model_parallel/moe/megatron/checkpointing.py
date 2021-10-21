@@ -25,15 +25,13 @@ from bagua.torch_api.model_parallel.moe.megatron.utils import get_moe_checkpoint
 from bagua.torch_api.model_parallel.moe.megatron.utils import merge_state_dict
 
 
-from megatron import get_args, mpu, print_rank_0, print_rank_last, utils
+from megatron import get_args, mpu, print_rank_0, print_rank_last
 
 from megatron.checkpointing import (
     check_checkpoint_args,
     ensure_directory_exists,
-    fix_query_key_value_ordering,
     get_checkpoint_version,
     get_checkpoint_tracker_filename,
-    read_metadata,
     set_checkpoint_version,
     update_num_microbatches,
 )
@@ -44,6 +42,7 @@ def save_checkpoint(
     model: List[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+    version22: Optional[bool] = False, 
 ):
     """Save a model checkpoint."""
     args = get_args()
@@ -54,7 +53,7 @@ def save_checkpoint(
         return
 
     if args.num_local_experts > 0:
-        _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler)
+        _save_checkpoint_moe(iteration, model, optimizer, lr_scheduler, version22)
         return
 
     # it's necessary to barrier 2 times
@@ -68,20 +67,31 @@ def _save_checkpoint_moe(
     model: List[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
+    version22: Optional[bool] = False, 
 ):
     args = get_args()
-    model = utils.unwrap_model(model)
+    if version22:
+        if hasattr(model, 'module'):
+            model = model.module
+    else:
+        from megatron import utils
+
+        model = utils.unwrap_model(model)
 
     # Arguments, iteration, and model.
     state_dict = {}
-    if len(model) == 1:
-        state_dict["model"] = model[0].state_dict_for_save_checkpoint(
-            keep_vars=(mpu.get_data_parallel_rank() > 0)
-        )
+    if version22:
+        state_dict["model"] = model.state_dict_for_save_checkpoint(
+            keep_vars=(mpu.get_data_parallel_rank() > 0))
     else:
-        for i in range(len(model)):
-            mpu.set_virtual_pipeline_model_parallel_rank(i)
-            state_dict["model%d" % i] = model[i].state_dict_for_save_checkpoint()
+        if len(model) == 1:
+            state_dict["model"] = model[0].state_dict_for_save_checkpoint(
+                keep_vars=(mpu.get_data_parallel_rank() > 0)
+            )
+        else:
+            for i in range(len(model)):
+                mpu.set_virtual_pipeline_model_parallel_rank(i)
+                state_dict["model%d" % i] = model[i].state_dict_for_save_checkpoint()
 
     def extract_expert_param(state_dict):
         state_dict_new = state_dict.__class__()
@@ -102,6 +112,7 @@ def _save_checkpoint_moe(
         if optimizer is not None:
             state_dict["optimizer"] = optimizer.state_dict()
             param_global_idx = 0
+            # TODO version26 state_dict["optimizer"]["optimizer"]["state"] is empty?
             for param_group in optimizer.optimizer.param_groups:
                 for param in param_group["params"]:
                     if not bagua.moe.is_moe_param(param):
@@ -153,6 +164,7 @@ def load_checkpoint(
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     load_arg: Optional[str] = "load",
     strict: Optional[bool] = True,
+    version22: Optional[bool] = False, 
 ) -> int:
     args = get_args()
     if (
@@ -162,11 +174,16 @@ def load_checkpoint(
     ):
         from megatron.checkpointing import load_checkpoint as load_checkpoint_megatron
 
-        return load_checkpoint_megatron(
-            model, optimizer, lr_scheduler, load_arg, strict
-        )
+        if version22:
+            return load_checkpoint_megatron(
+                model, optimizer, lr_scheduler, load_arg
+            )
+        else:
+            return load_checkpoint_megatron(
+                model, optimizer, lr_scheduler, load_arg, strict
+            )
 
-    return _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg, strict)
+    return _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg, strict, version22)
 
 
 def _load_checkpoint_moe(
@@ -175,6 +192,7 @@ def _load_checkpoint_moe(
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     load_arg: Optional[str] = "load",
     strict: Optional[bool] = True,
+    version22: Optional[bool] = False, 
 ) -> int:
     """Load a model checkpoint and return the iteration.
     strict (bool): whether to strictly enforce that the keys in
@@ -184,7 +202,13 @@ def _load_checkpoint_moe(
     args = get_args()
     load_dir = getattr(args, load_arg)
 
-    model = utils.unwrap_model(model)
+    if version22:
+        if hasattr(model, 'module'):
+            model = model.module
+    else:
+        from megatron import utils
+
+        model = utils.unwrap_model(model)
 
     # Read the tracker file and set the iteration.
     tracker_filename = get_checkpoint_tracker_filename(load_dir)
@@ -199,7 +223,25 @@ def _load_checkpoint_moe(
 
     # Otherwise, read the tracker file and either set the iteration or
     # mark it as a release checkpoint.
-    iteration, release = read_metadata(tracker_filename)
+    if version22:
+        iteration = 0
+        release = False
+        with open(tracker_filename, "r") as f:
+            metastring = f.read().strip()
+            try:
+                iteration = int(metastring)
+            except ValueError:
+                release = metastring == "release"
+                if not release:
+                    print_rank_last(
+                        "ERROR: Invalid metadata file {}. Exiting".format(tracker_filename)
+                    )
+                    sys.exit()
+        assert iteration > 0 or release, "error parsing metadata file {}".format(tracker_filename)
+    else:
+        from megatron.checkpointing import read_metadata
+
+        iteration, release = read_metadata(tracker_filename)
 
     # Checkpoint.
     checkpoint_name_rank0 = get_moe_checkpoint_name(load_dir, iteration, release, 0)
@@ -276,17 +318,23 @@ def _load_checkpoint_moe(
         print_rank_last("could not find arguments in the checkpoint ...")
 
     # Model.
-    if len(model) == 1:
-        model[0].load_state_dict(state_dict["model"], strict=strict)
+    if version22:
+        model.load_state_dict(state_dict["model"])
     else:
-        for i in range(len(model)):
-            mpu.set_virtual_pipeline_model_parallel_rank(i)
-            model[i].load_state_dict(state_dict["model%d" % i], strict=strict)
+        if len(model) == 1:
+            model[0].load_state_dict(state_dict["model"], strict=strict)
+        else:
+            for i in range(len(model)):
+                mpu.set_virtual_pipeline_model_parallel_rank(i)
+                model[i].load_state_dict(state_dict["model%d" % i], strict=strict)
 
     # Fix up query/key/value matrix ordering if needed
     checkpoint_version = get_checkpoint_version()
     print_rank_0(f" checkpoint version {checkpoint_version}")
-    fix_query_key_value_ordering(model, checkpoint_version)
+    if not version22:
+        from megatron.checkpointing import fix_query_key_value_ordering
+
+        fix_query_key_value_ordering(model, checkpoint_version)
 
     # Optimizer.
     if not release and not args.finetune and not args.no_load_optim:
