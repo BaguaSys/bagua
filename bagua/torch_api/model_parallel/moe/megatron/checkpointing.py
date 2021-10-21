@@ -19,7 +19,7 @@ import torch
 import bagua.torch_api as bagua
 import numpy as np
 from collections import OrderedDict
-from typing import List, Optional, Union
+from typing import Optional, Union
 from torch.nn.parallel import DistributedDataParallel as torchDDP
 from bagua.torch_api.model_parallel.moe.megatron.utils import get_moe_checkpoint_name
 from bagua.torch_api.model_parallel.moe.megatron.utils import merge_state_dict
@@ -39,7 +39,7 @@ from megatron.checkpointing import (
 
 def save_checkpoint(
     iteration: int,
-    model: Union[torchDDP, List[torchDDP]],
+    model: Union[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     version22: Optional[bool] = False,
@@ -64,7 +64,7 @@ def save_checkpoint(
 
 def _save_checkpoint_moe(
     iteration: int,
-    model: Union[torchDDP, List[torchDDP]],
+    model: Union[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     version22: Optional[bool] = False,
@@ -160,7 +160,7 @@ def _save_checkpoint_moe(
 
 
 def load_checkpoint(
-    model: Union[torchDDP, List[torchDDP]],
+    model: Union[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     load_arg: Optional[str] = "load",
@@ -188,7 +188,7 @@ def load_checkpoint(
 
 
 def _load_checkpoint_moe(
-    model: Union[torchDDP, List[torchDDP]],
+    model: Union[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     load_arg: Optional[str] = "load",
