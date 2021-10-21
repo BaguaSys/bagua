@@ -518,6 +518,9 @@ class BaguaModule:
             optimizer.step = new_step_factory(optimizer)
 
         for bucket in self.bagua_buckets:
+            assert (
+                bucket._bagua_backend == self._bagua_backend
+            ), "backends in module and bucket not match"
             self.bagua_algorithm.init_operations(
                 self,
                 bucket,
