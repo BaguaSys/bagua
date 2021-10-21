@@ -663,6 +663,7 @@ impl RawBaguaTensor for TorchTensorRaw {
     }
 
     fn dtype(&self) -> BaguaTensorDtype {
+        // TODO: fix dtype impl
         self.dtype
     }
 }
