@@ -98,6 +98,7 @@ def run_model(
 
     # wrap model
     from bagua.torch_api.algorithms import gradient_allreduce
+
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
 
     model_1 = model_1.with_bagua([optimizer_1], algorithm)
@@ -153,8 +154,8 @@ def run_torch_model(
     loss_fn_2 = nn.MSELoss()
 
     # wrap model
-    model_1 = torch.nn.parallel.DistributedDataParallel(model_1)
-    model_2 = torch.nn.parallel.DistributedDataParallel(model_2)
+    model_1 = torch.nn.parallel.DistributedDataParallel(model_1, device_ids=[rank])
+    model_2 = torch.nn.parallel.DistributedDataParallel(model_2, device_ids=[rank])
 
     ret = results[rank]
 

@@ -2,7 +2,13 @@
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
-from bagua.torch_api.communication import new_group, broadcast, barrier, _pg_group_ranks
+from bagua.torch_api.communication import (
+    new_group,
+    broadcast,
+    barrier,
+    _pg_group_ranks,
+    BaguaProcessGroup,
+)
 from typing import List
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.env import get_rank
@@ -14,7 +20,7 @@ import logging
 import concurrent
 
 
-__all__ = ["AsyncModelAverageAlgorithm"]
+__all__ = ["AsyncModelAverageAlgorithm", "AsyncModelAverageAlgorithmImpl"]
 
 
 class _AsyncInternalState(IntEnum):
@@ -25,6 +31,7 @@ class _AsyncInternalState(IntEnum):
 class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self,
+        process_group: BaguaProcessGroup,
         peer_selection_mode: str = "all",
         sync_interval_ms: int = 500,
         warmup_steps: int = 0,
@@ -44,6 +51,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         and resume with `model.bagua_algorithm.resume(model)`.
 
         Args:
+            process_group (BaguaProcessGroup): The process group to work on.
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
                 ``"all"`` means all workers' weights are synchronized during each communication.
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
@@ -51,6 +59,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 model averaging. Use 0 to disable.
         """
 
+        super(AsyncModelAverageAlgorithmImpl, self).__init__(process_group)
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
         self.step_id = 0
@@ -63,6 +72,11 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.scheduled = False
+
+        process_ranks = list(_pg_group_ranks[self.process_group])
+        self.thread_group = new_group(
+            process_ranks, stream=torch.cuda.Stream(priority=-1)
+        )
 
     def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
         if self.step_id < self.warmup_steps:
@@ -148,15 +162,9 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
-                group=bagua_module._bagua_process_group,
+                group=self.process_group,
             )
         else:
-            if not hasattr(self, "thread_group"):
-                process_ranks = list(_pg_group_ranks[bagua_module._bagua_process_group])
-                self.thread_group = new_group(
-                    process_ranks, stream=torch.cuda.Stream(priority=-1)
-                )
-
             async_op = bucket.append_asynchronous_model_average_op(
                 peer_selection_mode=self.peer_selection_mode, group=self.thread_group
             )
@@ -185,7 +193,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         broadcast(
             self.dummy_tensor,
             src=0,
-            comm=self.thread_group.get_global_communicator(),  # pytype: disable=attribute-error
+            comm=self.thread_group.get_global_communicator(),
         )
 
         return self.dummy_tensor.item()
@@ -223,7 +231,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         """
 
         if self.scheduled:
-            barrier(comm=bagua_module._bagua_process_group.get_global_communicator())
+            barrier(comm=self.process_group.get_global_communicator())
             self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
             self.scheduled = False
@@ -239,7 +247,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         """
 
         if not self.scheduled and hasattr(self, "future"):
-            barrier(comm=bagua_module._bagua_process_group.get_global_communicator())
+            barrier(comm=self.process_group.get_global_communicator())
             self.abort_event.clear()
             self.future = self.executor.submit(self._run_async_loop, bagua_module)
             self.scheduled = True
@@ -279,8 +287,9 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.sync_interval_ms = sync_interval_ms
         self.warmup_steps = warmup_steps
 
-    def reify(self) -> AsyncModelAverageAlgorithmImpl:
+    def reify(self, process_group: BaguaProcessGroup) -> AsyncModelAverageAlgorithmImpl:
         return AsyncModelAverageAlgorithmImpl(
+            process_group,
             peer_selection_mode=self.peer_selection_mode,
             sync_interval_ms=self.sync_interval_ms,
             warmup_steps=self.warmup_steps,
