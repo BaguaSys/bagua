@@ -298,7 +298,7 @@ class TestAutotuneService(unittest.TestCase):
         }
 
         mock_objs = []
-        pool = multiprocessing.pool.ThreadPool(nprocs * len(model_dict))
+        pool = multiprocessing.Pool(nprocs * len(model_dict))
         results = dict([(key, []) for key in model_dict.keys()])
         for (model_name, (tensor_list, spans)) in model_dict.items():
             pg_init_method = "file:///tmp/.bagua.unittest.autotune.{}".format(model_name)
