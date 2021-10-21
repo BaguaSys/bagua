@@ -294,9 +294,7 @@ class BaguaModule:
             ...      GradientAllReduce()
             ...    )
         """
-        self.bagua_module_name = "{}_{}".format(
-            self.__class__.__name__, next(BaguaModule.__id_iter)
-        )
+        self.bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
         # set bucket process group
         if process_group is None:
