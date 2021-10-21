@@ -5,7 +5,6 @@ import pickle
 import collections
 import logging
 import itertools
-import bagua.torch_api as bagua
 from bagua.torch_api.algorithms import gradient_allreduce
 from torch.nn.modules import Module
 from contextlib import contextmanager
@@ -26,6 +25,7 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
 )
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
+from typing import Callable
 
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
@@ -64,7 +64,7 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
     ):
         raise NotImplementedError
 
-    def register_comm_hook(self, state: object, hook: callable):
+    def register_comm_hook(self, state: object, hook: Callable):
         raise NotImplementedError
 
     def will_sync_module_buffers(self):
