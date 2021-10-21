@@ -96,8 +96,9 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
             loss.backward()
             bagua_optimizer.step()
 
-    from bagua.torch_api.algorithms import decentralized
-    algorithm = decentralized.DecentralizedAlgorithm()
+    from bagua.torch_api.algorithms import gradient_allreduce
+
+    algorithm = gradient_allreduce.GradientAllReduceAlgorithm()
     bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
 
     model_params = [
