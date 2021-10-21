@@ -79,7 +79,7 @@ def bagua_init(model, optimizer, algorithm, process_group=None):
 
     model = model.with_bagua([optimizer], bagua_algorithm, process_group=process_group)
 
-    return model
+    return model, optimizer
 
 
 def run_model_wrapper(rank, nranks, env, algorithm):
@@ -93,7 +93,9 @@ def run_model_wrapper(rank, nranks, env, algorithm):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     loss_fn = nn.MSELoss()
 
-    model = bagua_init(model, optimizer, algorithm, process_group=partial_group)
+    model, optimizer = bagua_init(
+        model, optimizer, algorithm, process_group=partial_group
+    )
 
     train(model, optimizer, loss_fn, is_async=(algorithm == "async"))
 
@@ -111,7 +113,7 @@ def run_model_switch_wrapper(rank, nranks, env, algorithms):
 
     for i in range(len(algorithms)):
         pg = None if i % 2 == 0 else partial_group
-        model = bagua_init(model, optimizer, algorithms[i], process_group=pg)
+        model, optimizer = bagua_init(model, optimizer, algorithms[i], process_group=pg)
         train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
 
 
