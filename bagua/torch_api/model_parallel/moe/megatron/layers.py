@@ -4,7 +4,7 @@ import bagua.torch_api as bagua
 
 class MegatronBaseMLP(torch.nn.Module):
     def __init__(self, hidden_size, ffn_hidden_size, activation=torch.nn.GELU()):
-        super(MoeBaseMLP, self).__init__()
+        super(MegatronBaseMLP, self).__init__()
 
         self.dense_h_to_4h = torch.nn.Linear(hidden_size, ffn_hidden_size)
         self.activation = activation
@@ -31,4 +31,4 @@ class MegatronMLP(torch.nn.Module):
     def forward(self, input):
         output, _, _ = self.megatron_mlp(input)
         return (output, torch.zeros(self.hidden_size, dtype=input.dtype, device=input.device))
-    
+
