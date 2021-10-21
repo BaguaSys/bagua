@@ -28,7 +28,7 @@ __all__ = [
     "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
     "gather", "gather_inplace", "scatter", "scatter_inplace",
     "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace",
-    "barrier"
+    "barrier", "BaguaProcessGroup"
 ]
 
 # Process group's global rank to local rank mapping
@@ -193,6 +193,7 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None):
 
 
 class BaguaProcessGroup:
+    """Definition of Bagua process group."""
     def __init__(self, ranks, stream, group_name):
         self.ranks = ranks
         self.stream = stream
@@ -213,13 +214,16 @@ class BaguaProcessGroup:
 
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
-    def get_global_communicator(self):
+    def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the global communicator of the current process group."""
         return get_communicator(self.group_name, "global")
 
-    def get_inter_node_communicator(self):
+    def get_inter_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the inter-node communicator of the current process group."""
         return get_communicator(self.group_name, "inter")
 
-    def get_intra_node_communicator(self):
+    def get_intra_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the intra-node communicator of the current process group."""
         return get_communicator(self.group_name, "intra")
 
 

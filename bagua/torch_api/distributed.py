@@ -36,8 +36,15 @@ class BaguaModule:
     :ivar bagua_optimizers: The optimizers passed in by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`.
     :vartype bagua_optimizers: List[torch.optim.Optimizer]
 
-    :ivar bagua_algorithm: The algorithm passed in by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`.
-    :vartype bagua_algorithm: bagua.torch_api.algorithms.Algorithm
+    :ivar bagua_algorithm: The algorithm implementation used by the module, reified by the algorithm passed in
+        by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`.
+    :vartype bagua_algorithm: bagua.torch_api.algorithms.AlgorithmImpl
+
+    :ivar process_group: The process group used by the module.
+    :vartype process_group: bagua.torch_api.communication.BaguaProcessGroup
+
+    :ivar bagua_module_name: The module's name.
+    :vartype bagua_optimizers: str
 
     :ivar parameters_to_ignore: The parameter names in ``"{module_name}.{param_name}"`` format to ignore
         when calling ``self.bagua_build_params()``.
@@ -308,6 +315,7 @@ class BaguaModule:
         self._bagua_reset_module()
 
         if _rank_not_in_group(self._bagua_process_group):
+            # return if not a participant
             return self
 
         self.parameters_to_ignore = (

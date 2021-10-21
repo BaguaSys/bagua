@@ -10,10 +10,8 @@ import torch
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.utils import check_contiguous
 from bagua.torch_api.communication import (
-    broadcast,
     BaguaProcessGroup,
     _bagua_backend_comm,
-    _rank_not_in_comm,
 )
 
 
@@ -36,7 +34,7 @@ class BaguaBucket:
         """
         self.tensors = tensors
         """
-        The tensors contained within the bucket.
+        The Bagua tensors contained in the bucket.
         """
         self.bagua_module_name = tensors[0].bagua_module_name
         for tensor in self.tensors:
@@ -84,7 +82,8 @@ class BaguaBucket:
 
     def flattened_tensor(self) -> BaguaTensor:
         """
-        Returns a tensor contiguous in memory which contains the same data as :attr:`self` tensors and padding tensor (if exists).
+        Returns a tensor contiguous in memory which contains the same data as all the tensors registered by
+        :attr:`self` tensors and padding tensor (if exists).
         """
 
         all_registered_tensors = [
@@ -109,7 +108,7 @@ class BaguaBucket:
 
     def _flatten_(self):
         """
-        Flatten inner tensors in place.
+        Flatten inner tensors registered in place.
         """
         if len(self._all_tensors) == 0:
             return
@@ -140,7 +139,7 @@ class BaguaBucket:
     def check_flatten(self) -> bool:
         """
         Returns:
-            True if the bucket's tensors are contiguous in memory.
+            True if the bucket's tensors registered are contiguous in memory.
         """
         return check_contiguous(
             [tensor._bagua_getter_closure() for tensor in self._all_tensors]

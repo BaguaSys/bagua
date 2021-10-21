@@ -29,6 +29,9 @@ class BaguaTensor:
         )
 
     def is_bagua_tensor(self) -> bool:
+        """
+        Checking if this is a Bagua tensor.
+        """
         return hasattr(self, "_bagua_backend_tensor")
 
     def ensure_bagua_tensor(
@@ -40,7 +43,10 @@ class BaguaTensor:
     ):
         """
         Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
-        A Bagua tensor is required to use Bagua's communication algorithms.
+
+        This operation will register a tensor to the Bagua backend, which is required to use
+        Bagua's communication algorithms. The tensor can be get and set by calling
+        :attr:`getter_closure` and :attr:`setter_closure` on `self` respectively.
 
         Args:
             name: The unique name of the tensor.
@@ -48,16 +54,17 @@ class BaguaTensor:
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
             getter_closure: A function to retrieve the tensor to be registered to the Bagua backend.
-              If ``None``, register `self` to the Bagua backend. Default: ``None``.
-            setter_closure: A function to reset the registered tensor. If ``None``, it's a no-op.
+              If ``None``, register `self`. Default: ``None``.
+            setter_closure: A function to reset the tensor registered. If ``None``, it's a no-op.
               Default: ``None``.
 
         Returns:
             The original tensor with Bagua tensor attributes initialized.
 
         .. note::
-            Users can retrieve the registered tensor by ``self._bagua_getter_closure()`` and reset it to
-            a new PyTorch tensor ``t`` by ``self._bagua_setter_closure(t)``.
+            Once successfully returned, users can retrieve the tensor registered by calling
+            ``self._bagua_getter_closure()`` and reset it to a new PyTorch tensor ``t``
+            by ``self._bagua_setter_closure(t)``.
         """
         if self.is_bagua_tensor():
             if name is not None:
@@ -114,7 +121,8 @@ class BaguaTensor:
         """
         Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
         The original tensor is not changed. A Bagua tensor is required to use
-        Bagua's communication algorithms.
+        Bagua's communication algorithms. See :meth:`ensure_bagua_tensor` for more
+        information.
 
         Args:
             name: The unique name of the tensor.
@@ -188,7 +196,7 @@ class BaguaTensor:
         storage_offset: int = 0,
     ):
         """
-        Sets the underlying storage for the registered tensor using an existing
+        Sets the underlying storage for the tensor registered using an existing
         `torch.Storage <https://pytorch.org/docs/stable/storage.html?highlight=storage>`_.
 
         Args:
