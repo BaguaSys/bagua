@@ -31,5 +31,5 @@ features = ["extension-module"]
 shadow-rs = "0.7"
 cpp_build = "0.5"
 cc = "1.0"
-cmd_lib = "1.2"
+cmd_lib = "1.3"
 which = "4.2"

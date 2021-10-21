@@ -7,11 +7,13 @@ from bagua.torch_api.communication import (
     get_backend,
     broadcast,
     _get_default_group,
+    _rank_not_in_group,
     BaguaProcessGroup,
 )
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
+from bagua.torch_api.model_parallel.moe import is_moe_param
 from bagua.bagua_define import (
     TensorDeclaration,
     BaguaHyperparameter,
@@ -67,7 +69,7 @@ class BaguaModule:
                 for param_name, param in module.named_parameters(recurse=False)
                 if param.requires_grad
                 and f"{module_name}.{param_name}" not in self.parameters_to_ignore
-                and (not getattr(param, "expert", False))
+                and (not is_moe_param(param))
             ]
         ]
 
@@ -186,7 +188,9 @@ class BaguaModule:
                             param_id, param_name
                         )
         for key, param in params:
-            broadcast(param, src=0)
+            broadcast(
+                param, src=0, comm=self._bagua_process_group.get_global_communicator()
+            )
         scalars = self._bagua_broadcast_scalars(scalars, src=0)
         for key, p in scalars.items():
             call_back_param[key](p)
@@ -196,7 +200,7 @@ class BaguaModule:
         b = io.BytesIO()
         pickle.dump(scalars, b)
         t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
-        broadcast(t, src=0)
+        broadcast(t, src=0, comm=self._bagua_process_group.get_global_communicator())
         if get_rank() != src:
             buf = io.BytesIO(t.cpu().numpy().tobytes())
             scalars = pickle.load(buf)
@@ -210,7 +214,9 @@ class BaguaModule:
 
         module_states = self.bagua_build_params()
         for name, state in module_states:
-            broadcast(state, src=0)
+            broadcast(
+                state, src=0, comm=self._bagua_process_group.get_global_communicator()
+            )
         for optimizer in self.bagua_optimizers:
             self._bagua_broadcast_optimizer_state(optimizer)
 
@@ -288,13 +294,22 @@ class BaguaModule:
             ...      GradientAllReduce()
             ...    )
         """
+        self.bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
-        self.bagua_module_name = "{}_{}".format(
-            self.__class__.__name__, next(BaguaModule.__id_iter)
-        )
+        # set bucket process group
+        if process_group is None:
+            self._bagua_process_group = _get_default_group()
+        else:
+            self._bagua_process_group = process_group
 
         self.bagua_optimizers = optimizers
-        self.bagua_algorithm = algorithm
+        self.bagua_algorithm = algorithm.reify(self._bagua_process_group)
+
+        self._bagua_reset_module()
+
+        if _rank_not_in_group(self._bagua_process_group):
+            return self
+
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
@@ -306,6 +321,7 @@ class BaguaModule:
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
 
         self.bagua_train_step_counter = 0
+
         """
         Number of iterations in training mode.
         """
@@ -377,12 +393,6 @@ class BaguaModule:
             ]
         )
 
-        # set bucket process group
-        if process_group is None:
-            self._bagua_process_group = _get_default_group()
-        else:
-            self._bagua_process_group = process_group
-
         # autotune service
         from bagua.torch_api.communication import get_hyperparameters_service_client
 
@@ -447,6 +457,14 @@ class BaguaModule:
         self._bagua_algorithm_hooks.clear()
         self.bagua_buckets.clear()
 
+    def _bagua_reset_module(self):
+        if hasattr(self, "_bagua_framework_hooks"):
+            for hook in self._bagua_framework_hooks:
+                hook.remove()
+
+        if hasattr(self, "_bagua_algorithm_hooks"):
+            self._bagua_cleanup_algorithm()
+
     def _bagua_reset_algorithm_buckets(self):
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
@@ -500,6 +518,9 @@ class BaguaModule:
             optimizer.step = new_step_factory(optimizer)
 
         for bucket in self.bagua_buckets:
+            assert (
+                bucket._bagua_backend == self._bagua_backend
+            ), "backends in module and bucket not match"
             self.bagua_algorithm.init_operations(
                 self,
                 bucket,

@@ -3,7 +3,7 @@ import logging
 import multiprocessing
 import socket
 import time
-import os
+import torch.distributed as dist
 from flask import Flask
 from typing import List
 from bagua.bagua_define import TensorDeclaration, BaguaCoreTelemetrySpan
@@ -57,13 +57,22 @@ class MockBaguaProcess:
         self.spans = spans
         self.client = AutotuneClient(service_addr, service_port)
 
-    def run(self):
+    def run(self, world_size, pg_init_method: str = "tcp://localhost:29501"):
+        dist.init_process_group(
+            backend=dist.Backend.GLOO,
+            rank=self.rank,
+            world_size=world_size,
+            init_method=pg_init_method,
+        )
+
         rsp = self.client.register_tensors(self.model_name, self.tensor_list)
         assert rsp.status_code == 200, "register_tensors failed, rsp={}".format(rsp)
         hp = BaguaHyperparameter().update(rsp.json()["recommended_hyperparameters"])
 
         train_iter = 0
         while True:
+            dist.barrier()
+
             score = metrics(hp.buckets, hp.is_hierarchical_reduce)
             rsp = self.client.report_metrics(
                 self.model_name, self.rank, train_iter, hp.dict(), score
@@ -109,7 +118,7 @@ class TestAutotuneService(unittest.TestCase):
         app = Flask(__name__)
         app = autotune_service.setup_app(app)
         log = logging.getLogger("werkzeug")
-        log.setLevel(logging.ERROR)
+        log.setLevel(logging.INFO)
 
         server = multiprocessing.Process(
             target=app.run,
@@ -282,25 +291,21 @@ class TestAutotuneService(unittest.TestCase):
         }
 
         mock_objs = []
-        pool = multiprocessing.pool.ThreadPool(nprocs * len(model_dict))
+        pool = multiprocessing.Pool(nprocs * len(model_dict))
         results = dict([(key, []) for key in model_dict.keys()])
-        for i in range(nprocs):
-            for (model_name, (tensor_list, spans)) in model_dict.items():
+        for (model_name, (tensor_list, spans)) in model_dict.items():
+            pg_init_method = "file:///tmp/.bagua.unittest.autotune.{}".format(model_name)
+            for i in range(nprocs):
                 mock = MockBaguaProcess(
-                    i, service_addr, service_port, model_name, tensor_list, spans
+                    i, service_addr, service_port, model_name,
+                    tensor_list, spans
                 )
                 mock_objs.append(mock)
-                ret = pool.apply_async(mock.run)
+                ret = pool.apply_async(mock.run, (nprocs, pg_init_method, ))
                 results[model_name].append(ret)
 
         pool.close()
         pool.join()
-        for root, _, files in os.walk("/tmp", topdown=False):
-            for name in files:
-                if name.startswith("bagua_autotune_"):
-                    autotune_logfile = os.path.join(root, name)
-                    print(autotune_logfile)
-                    print(open(autotune_logfile).read())
 
         for ret in results["basic"]:
             hp = ret.get()

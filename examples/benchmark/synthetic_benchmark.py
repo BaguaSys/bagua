@@ -224,4 +224,4 @@ logging.info(
 )
 
 if args.algorithm == "async":
-    algorithm.abort(model)
+    model.bagua_algorithm.abort(model)

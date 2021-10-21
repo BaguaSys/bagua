@@ -3,7 +3,8 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api import get_world_size
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
+from bagua.torch_api.communication import BaguaProcessGroup
 from torch.optim.optimizer import Optimizer
 import torch
 import math
@@ -22,7 +23,7 @@ class QAdamOptimizer(Optimizer):
     ):
         """
         Create a dedicated optimizer used for
-        `QAdam <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_ algorithm.
+        `QAdam <https://tutorials.baguasys.com/algorithms/q-adam>`_ algorithm.
 
         Args:
             params (iterable): Iterable of parameters to optimize or dicts defining
@@ -94,17 +95,24 @@ class QAdamOptimizer(Optimizer):
                 param.data.add_(-step_size * update)
 
 
-class QAdamAlgorithm(Algorithm):
-    def __init__(self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True):
+class QAdamAlgorithmImpl(AlgorithmImpl):
+    def __init__(
+        self,
+        process_group: BaguaProcessGroup,
+        q_adam_optimizer: QAdamOptimizer,
+        hierarchical: bool = True,
+    ):
         """
-        Create an instance of the
-        `QAdam Algorithm <https://bagua-tutorials.kwai-seattle.com/algorithms/q-adam>`_
+        Implementation of the
+        `QAdam Algorithm <https://tutorials.baguasys.com/algorithms/q-adam>`_
         .
 
         Args:
+            process_group: The process group to work on.
             q_adam_optimizer: A QAdamOptimizer initialized with model parameters.
             hierarchical: Enable hierarchical communication.
         """
+        super(QAdamAlgorithmImpl, self).__init__(process_group)
         self.hierarchical = hierarchical
         self.optimizer = q_adam_optimizer
         self.warmup_steps = self.optimizer.warmup_steps
@@ -158,7 +166,10 @@ class QAdamAlgorithm(Algorithm):
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
             bagua_bucket = BaguaBucket(
-                bucket, flatten=True, name=str(idx), alignment=get_world_size()
+                bucket,
+                flatten=True,
+                name=str(idx),
+                alignment=self.process_group.get_global_communicator().nranks(),
             )
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
@@ -173,7 +184,7 @@ class QAdamAlgorithm(Algorithm):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
-                group=bagua_module._bagua_process_group,
+                group=self.process_group,
             )
         else:
 
@@ -184,13 +195,13 @@ class QAdamAlgorithm(Algorithm):
                         tensor.grad, alpha=1 - beta1
                     )
 
-            bucket.append_python_op(calculate_momentum)
+            bucket.append_python_op(calculate_momentum, group=self.process_group)
             bucket.append_centralized_synchronous_op(
                 hierarchical=self.hierarchical,
                 average=True,
                 scattergather=True,
                 compression="MinMaxUInt8",
-                group=bagua_module._bagua_process_group,
+                group=self.process_group,
             )
 
     def init_backward_hook(self, bagua_module: BaguaModule):
@@ -209,4 +220,26 @@ class QAdamAlgorithm(Algorithm):
 
         return (
             hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
+        )
+
+
+class QAdamAlgorithm(Algorithm):
+    def __init__(self, q_adam_optimizer: QAdamOptimizer, hierarchical: bool = True):
+        """
+        Create an instance of the
+        `QAdam Algorithm <https://tutorials.baguasys.com/algorithms/q-adam>`_
+        .
+
+        Args:
+            q_adam_optimizer: A QAdamOptimizer initialized with model parameters.
+            hierarchical: Enable hierarchical communication.
+        """
+        self.hierarchical = hierarchical
+        self.optimizer = q_adam_optimizer
+
+    def reify(self, process_group: BaguaProcessGroup) -> QAdamAlgorithmImpl:
+        return QAdamAlgorithmImpl(
+            process_group,
+            q_adam_optimizer=self.optimizer,
+            hierarchical=self.hierarchical,
         )
