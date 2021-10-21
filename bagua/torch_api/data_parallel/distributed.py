@@ -28,7 +28,6 @@ from bagua.bagua_define import (
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
 
-
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
     PyTorch v1.9.0 DistributedDataParallel interface.
