@@ -42,7 +42,7 @@ def save_checkpoint(
     model: List[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-    version22: Optional[bool] = False, 
+    version22: Optional[bool] = False,
 ):
     """Save a model checkpoint."""
     args = get_args()
@@ -67,11 +67,11 @@ def _save_checkpoint_moe(
     model: List[torchDDP],
     optimizer: Optional[torch.optim.Optimizer] = None,
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
-    version22: Optional[bool] = False, 
+    version22: Optional[bool] = False,
 ):
     args = get_args()
     if version22:
-        if hasattr(model, 'module'):
+        if hasattr(model, "module"):
             model = model.module
     else:
         from megatron import utils
@@ -82,7 +82,8 @@ def _save_checkpoint_moe(
     state_dict = {}
     if version22:
         state_dict["model"] = model.state_dict_for_save_checkpoint(
-            keep_vars=(mpu.get_data_parallel_rank() > 0))
+            keep_vars=(mpu.get_data_parallel_rank() > 0)
+        )
     else:
         if len(model) == 1:
             state_dict["model"] = model[0].state_dict_for_save_checkpoint(
@@ -164,7 +165,7 @@ def load_checkpoint(
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     load_arg: Optional[str] = "load",
     strict: Optional[bool] = True,
-    version22: Optional[bool] = False, 
+    version22: Optional[bool] = False,
 ) -> int:
     args = get_args()
     if (
@@ -175,15 +176,15 @@ def load_checkpoint(
         from megatron.checkpointing import load_checkpoint as load_checkpoint_megatron
 
         if version22:
-            return load_checkpoint_megatron(
-                model, optimizer, lr_scheduler, load_arg
-            )
+            return load_checkpoint_megatron(model, optimizer, lr_scheduler, load_arg)
         else:
             return load_checkpoint_megatron(
                 model, optimizer, lr_scheduler, load_arg, strict
             )
 
-    return _load_checkpoint_moe(model, optimizer, lr_scheduler, load_arg, strict, version22)
+    return _load_checkpoint_moe(
+        model, optimizer, lr_scheduler, load_arg, strict, version22
+    )
 
 
 def _load_checkpoint_moe(
@@ -192,7 +193,7 @@ def _load_checkpoint_moe(
     lr_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
     load_arg: Optional[str] = "load",
     strict: Optional[bool] = True,
-    version22: Optional[bool] = False, 
+    version22: Optional[bool] = False,
 ) -> int:
     """Load a model checkpoint and return the iteration.
     strict (bool): whether to strictly enforce that the keys in
@@ -203,7 +204,7 @@ def _load_checkpoint_moe(
     load_dir = getattr(args, load_arg)
 
     if version22:
-        if hasattr(model, 'module'):
+        if hasattr(model, "module"):
             model = model.module
     else:
         from megatron import utils
@@ -234,10 +235,14 @@ def _load_checkpoint_moe(
                 release = metastring == "release"
                 if not release:
                     print_rank_last(
-                        "ERROR: Invalid metadata file {}. Exiting".format(tracker_filename)
+                        "ERROR: Invalid metadata file {}. Exiting".format(
+                            tracker_filename
+                        )
                     )
                     sys.exit()
-        assert iteration > 0 or release, "error parsing metadata file {}".format(tracker_filename)
+        assert iteration > 0 or release, "error parsing metadata file {}".format(
+            tracker_filename
+        )
     else:
         from megatron.checkpointing import read_metadata
 

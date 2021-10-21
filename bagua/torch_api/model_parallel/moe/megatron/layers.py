@@ -18,7 +18,14 @@ class MegatronBaseMLP(torch.nn.Module):
 
 
 class MegatronMLP(torch.nn.Module):
-    def __init__(self, hidden_size, ffn_hidden_size, num_local_experts, top_k, activation=torch.nn.GELU()):
+    def __init__(
+        self,
+        hidden_size,
+        ffn_hidden_size,
+        num_local_experts,
+        top_k,
+        activation=torch.nn.GELU(),
+    ):
         super(MegatronMLP, self).__init__()
 
         self.hidden_size = hidden_size
@@ -26,9 +33,12 @@ class MegatronMLP(torch.nn.Module):
             hidden_size,
             MegatronBaseMLP(hidden_size, ffn_hidden_size, activation),
             num_local_experts,
-            top_k)
+            top_k,
+        )
 
     def forward(self, input):
         output, _, _ = self.megatron_mlp(input)
-        return (output, torch.zeros(self.hidden_size, dtype=input.dtype, device=input.device))
-    
+        return (
+            output,
+            torch.zeros(self.hidden_size, dtype=input.dtype, device=input.device),
+        )
