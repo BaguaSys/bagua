@@ -97,7 +97,7 @@ class BaguaModule:
             ...    )
         """
 
-        self.inner_ddp = InnerDistributedDataParallel(
+        self._bagua_inner_ddp = InnerDistributedDataParallel(
             self,
             optimizers,
             algorithm,
@@ -105,7 +105,7 @@ class BaguaModule:
         )
 
         self._bagua_framework_hooks = []
-        for hook in self.inner_ddp.bagua_forward_pre_hooks:
+        for hook in self._bagua_inner_ddp.bagua_forward_pre_hooks:
             self._bagua_framework_hooks.append(
                 self.register_forward_pre_hook(hook)
             )
