@@ -35,7 +35,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         peer_selection_mode: str = "all",
         sync_interval_ms: int = 500,
         warmup_steps: int = 0,
-        wait_util_comm_ops_finished: bool = False,
+        ensure_communication_in_each_iteration: bool = False
     ):
         """
         Implementation of the
@@ -58,13 +58,14 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
             warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous
                 model averaging. Use 0 to disable.
-            wait_util_comm_ops_finished: (bool): Wait util communication ops finished.
+            ensure_communication_in_each_iteration: (bool): Ensure there's at least one data exchange between all workers in each iteration.
+                This may slow down the training process when the communication cost is high.
         """
 
         super(AsyncModelAverageAlgorithmImpl, self).__init__(process_group)
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
-        self.wait_util_comm_ops_finished = wait_util_comm_ops_finished
+        self.ensure_communication_in_each_iteration = ensure_communication_in_each_iteration
         self.step_id = 0
         self.warmup_steps = warmup_steps
 
@@ -72,7 +73,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         self.abort_event = threading.Event()
 
-        if self.wait_util_comm_ops_finished:
+        if self.ensure_communication_in_each_iteration:
             self.comm_ops_finished_event = threading.Event()
             self.comm_ops_finished_event.set()
         else:
@@ -278,7 +279,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         peer_selection_mode: str = "all",
         sync_interval_ms: int = 500,
         warmup_steps: int = 0,
-        wait_util_comm_ops_finished: bool = False,
+        ensure_communication_in_each_iteration: bool = False
     ):
         """
         Create an instance of the
@@ -300,13 +301,14 @@ class AsyncModelAverageAlgorithm(Algorithm):
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
             warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous
                 model averaging. Use 0 to disable.
-            wait_util_comm_ops_finished: (bool): Wait util communication ops finished.
+            ensure_communication_in_each_iteration: (bool): Ensure there's at least one data exchange between all workers in each iteration.
+                This may slow down the training process when the communication cost is high.
         """
 
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
         self.warmup_steps = warmup_steps
-        self.wait_util_comm_ops_finished = wait_util_comm_ops_finished
+        self.ensure_communication_in_each_iteration = ensure_communication_in_each_iteration
 
     def reify(self, process_group: BaguaProcessGroup) -> AsyncModelAverageAlgorithmImpl:
         return AsyncModelAverageAlgorithmImpl(
@@ -314,5 +316,5 @@ class AsyncModelAverageAlgorithm(Algorithm):
             peer_selection_mode=self.peer_selection_mode,
             sync_interval_ms=self.sync_interval_ms,
             warmup_steps=self.warmup_steps,
-            wait_util_comm_ops_finished=self.wait_util_comm_ops_finished,
+            ensure_communication_in_each_iteration=self.ensure_communication_in_each_iteration,
         )
