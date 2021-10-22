@@ -38,7 +38,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
     def init_tensors(self, inner_ddp: InnerDistributedDataParallel) -> List[BaguaTensor]:
         parameters = inner_ddp.bagua_build_params()
         self.tensors = [
-            param.ensure_bagua_tensor(name, inner_ddp.bauga_module_name)
+            param.ensure_bagua_tensor(name, inner_ddp.bagua_module_name)
             for name, param in parameters.__reversed__()
         ]
         return self.tensors
@@ -118,7 +118,7 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
     def init_tensors(self, inner_ddp: InnerDistributedDataParallel) -> List[BaguaTensor]:
         parameters = inner_ddp.bagua_build_params()
         self.tensors = [
-            param.ensure_bagua_tensor(name, inner_ddp.bauga_module_name)
+            param.ensure_bagua_tensor(name, inner_ddp.bagua_module_name)
             for name, param in parameters.__reversed__()
         ]
         optimizer_param_ids = [

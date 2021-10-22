@@ -82,12 +82,12 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         for name, param in parameters.__reversed__():
             if self.step_id < self.warmup_steps:
                 grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                    name, inner_ddp.bauga_module_name
+                    name, inner_ddp.bagua_module_name
                 )
                 param._bagua_grad = grad
                 tensors.append(grad)
             else:
-                p = param.ensure_bagua_tensor(name, inner_ddp.bauga_module_name)
+                p = param.ensure_bagua_tensor(name, inner_ddp.bagua_module_name)
                 tensors.append(p)
 
         return tensors
