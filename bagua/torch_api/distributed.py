@@ -105,12 +105,6 @@ class BaguaModule:
         self.bagua_algorithm = self.bagua_ddp.bagua_algorithm
         self.bagua_optimizers = self.bagua_ddp.bagua_optimizers
 
-        self._bagua_framework_hooks = []
-        for hook in self.bagua_ddp.bagua_forward_pre_hooks:
-            self._bagua_framework_hooks.append(
-                self.register_forward_pre_hook(hook)
-            )
-
         return self
 
 

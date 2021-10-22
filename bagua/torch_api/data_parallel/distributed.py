@@ -205,13 +205,16 @@ class InnerDistributedDataParallel:
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
 
-        assert (
-            hasattr(self.module, "_bagua_patches") is False
-        ), "Duplicate DistributedDataParallel wrap! Each pytorch model can only be wrapped once."
-        self.module._bagua_patches = BaguaPatches()
-        self.module._bagua_patches._bagua_algorithm_hooks = []
+        # assert (
+        #     hasattr(self.module, "_bagua_patches") is False
+        # ), "Duplicate DistributedDataParallel wrap! Each pytorch model can only be wrapped once."
+        if hasattr(self.module, "_bagua_patches"):
+            self._bagua_cleanup_algorithm()
 
-        self._bagua_algorithm_hooks = self.module._bagua_patches._bagua_algorithm_hooks
+        self.module._bagua_patches = BaguaPatches()
+        patch = self.module._bagua_patches
+        patch._bagua_algorithm_hooks = []
+
         self._bagua_backend = get_backend(self.bagua_module_name)
         self._bagua_hyperparameters = BaguaHyperparameter()
         self._speed_metrics_switch_on = env.get_autotune_level() >= 1
@@ -266,13 +269,13 @@ class InnerDistributedDataParallel:
             torch.cuda.current_stream().record_event(start_event)
             ddp._last_event_pair = (start_event, ddp._speed_metrics_end_event)
 
-        self.bagua_forward_pre_hooks = [
-            num_iteration_step_hook,
-            algorithm_reset_hook,
-            algorithm_forward_pre_hook,
-            record_speed_metrics_event,
-            autotune_hook,
-            clear_post_backward_callback_queued_hook,
+        patch._bagua_algorithm_hooks.extend[
+            self.module.register_forward_pre_hook(num_iteration_step_hook),
+            self.module.register_forward_pre_hook(algorithm_reset_hook),
+            self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
+            self.module.register_forward_pre_hook(record_speed_metrics_event),
+            self.module.register_forward_pre_hook(autotune_hook),
+            self.module.register_forward_pre_hook(clear_post_backward_callback_queued_hook),
         ]
 
         # autotune service
@@ -574,10 +577,11 @@ class InnerDistributedDataParallel:
         self._bagua_reset_algorithm_buckets()
 
     def _bagua_cleanup_algorithm(self):
-        if self._bagua_algorithm_hooks is not None:
-            for hook in self._bagua_algorithm_hooks:
+        patch = self.module._bagua_patches
+        if patch._bagua_algorithm_hooks is not None:
+            for hook in patch._bagua_algorithm_hooks:
                 hook.remove()
-            self._bagua_algorithm_hooks.clear()
+            patch._bagua_algorithm_hooks.clear()
         self.bagua_buckets.clear()
 
     def _bagua_reset_algorithm_buckets(self):
