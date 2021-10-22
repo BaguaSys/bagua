@@ -97,7 +97,6 @@ class BaguaTensor:
         self._bagua_backend_tensor = B.BaguaTensorPy(
             name=self.bagua_tensor_name,
             torch_tensor=self,
-            python_fallback=(getter_closure is not None),
         )
 
         self._bagua_sanity_check()
