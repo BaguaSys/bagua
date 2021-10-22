@@ -655,7 +655,6 @@ impl RawBaguaTensor for TorchTensorRaw {
                 .as_ref(py)
                 .call_method0("bagua_getter_closure")
                 .unwrap();
-
             let dtype = py_tensor
                 .getattr("dtype")
                 .unwrap()
@@ -663,7 +662,6 @@ impl RawBaguaTensor for TorchTensorRaw {
                 .unwrap()
                 .extract::<String>()
                 .unwrap();
-            //.to_string();
             match dtype.as_str() {
                 "float32" => BaguaTensorDtype::F32,
                 "float16" => BaguaTensorDtype::F16,
