@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
-from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.data_parallel import InnerDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import new_group, broadcast, barrier, _pg_group_ranks
 from typing import List
@@ -76,33 +76,33 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         return [bagua_bucket]
 
-    def init_tensors(self, bagua_module: BaguaModule) -> List[BaguaTensor]:
-        parameters = bagua_module.bagua_build_params()
+    def init_tensors(self, inner_ddp: InnerDistributedDataParallel) -> List[BaguaTensor]:
+        parameters = inner_ddp.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
             if self.step_id < self.warmup_steps:
                 grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                    name, bagua_module.bagua_module_name
+                    name, inner_ddp.inner_ddp_name
                 )
                 param._bagua_grad = grad
                 tensors.append(grad)
             else:
-                p = param.ensure_bagua_tensor(name, bagua_module.bagua_module_name)
+                p = param.ensure_bagua_tensor(name, inner_ddp.inner_ddp_name)
                 tensors.append(p)
 
         return tensors
 
-    def init_forward_pre_hook(self, bagua_module: BaguaModule):
+    def init_forward_pre_hook(self, inner_ddp: InnerDistributedDataParallel):
         def hook(input):
             if (
                 self.step_id > self.warmup_steps
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
-                self._lock_model(bagua_module)
+                self._lock_model(inner_ddp)
 
                 if not hasattr(self, "future"):
                     self.future = self.executor.submit(
-                        self._run_async_loop, bagua_module
+                        self._run_async_loop, inner_ddp
                     )
                     self.scheduled = True
                     logging.debug(
@@ -111,19 +111,19 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         return hook
 
-    def init_backward_hook(self, bagua_module: BaguaModule):
+    def init_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
         def hook(parameter_name, parameter):
             if self.step_id <= self.warmup_steps:
                 parameter._bagua_grad.bagua_mark_communication_ready()
 
         return hook
 
-    def init_post_backward_hook(self, bagua_module: BaguaModule):
+    def init_post_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
         def hook():
             if self.step_id <= self.warmup_steps:
-                bagua_module._bagua_backend.wait_pending_comm_ops()
+                inner_ddp._bagua_backend.wait_pending_comm_ops()
             else:
-                self._unlock_model(bagua_module)
+                self._unlock_model(inner_ddp)
 
         return hook
 
@@ -138,21 +138,21 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_module: BaguaModule,
+        inner_ddp: InnerDistributedDataParallel,
         bucket: BaguaBucket,
     ):
-        bagua_module._bagua_backend.wait_pending_comm_ops()
+        inner_ddp._bagua_backend.wait_pending_comm_ops()
         bucket.clear_ops()
 
         if self.step_id < self.warmup_steps:
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
-                group=bagua_module._bagua_process_group,
+                group=inner_ddp._bagua_process_group,
             )
         else:
             if not hasattr(self, "thread_group"):
-                process_ranks = list(_pg_group_ranks[bagua_module._bagua_process_group])
+                process_ranks = list(_pg_group_ranks[inner_ddp._bagua_process_group])
                 self.thread_group = new_group(
                     process_ranks, stream=torch.cuda.Stream(priority=-1)
                 )
@@ -162,18 +162,18 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             )
             bucket._async_op = async_op
 
-    def _lock_model(self, bagua_module: BaguaModule):
+    def _lock_model(self, inner_ddp: InnerDistributedDataParallel):
         torch.cuda.current_stream().record_event(self.cuda_event)
         self.cuda_event.synchronize()
 
-        for bucket in bagua_module.bagua_buckets:
+        for bucket in inner_ddp.bagua_buckets:
             bucket._async_op.lock_weight()
 
-    def _unlock_model(self, bagua_module: BaguaModule):
+    def _unlock_model(self, inner_ddp: InnerDistributedDataParallel):
         torch.cuda.current_stream().record_event(self.cuda_event)
         self.cuda_event.synchronize()
 
-        for bucket in bagua_module.bagua_buckets:
+        for bucket in inner_ddp.bagua_buckets:
             bucket._async_op.unlock_weight()
 
     def _negotiate(self):
@@ -190,7 +190,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         return self.dummy_tensor.item()
 
-    def _run_async_loop(self, bagua_module: BaguaModule):
+    def _run_async_loop(self, inner_ddp: InnerDistributedDataParallel):
         comm_step = 0
         while True:
             state = self._negotiate()
@@ -198,11 +198,11 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 break
 
             start_time = time.time()
-            for bucket in bagua_module.bagua_buckets:
+            for bucket in inner_ddp.bagua_buckets:
                 for tensor in bucket.tensors:
                     tensor.bagua_mark_communication_ready_without_synchronization()
 
-            bagua_module._bagua_backend.wait_pending_comm_ops()
+            inner_ddp._bagua_backend.wait_pending_comm_ops()
             duration = (time.time() - start_time) * 1000
 
             logging.debug(
@@ -213,35 +213,35 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
 
-    def abort(self, bagua_module: BaguaModule):
+    def abort(self, inner_ddp: InnerDistributedDataParallel):
         """
         Stop background asynchronous communications. Should be called after training.
 
         Args:
-            bagua_module: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
+            inner_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
         """
 
         if self.scheduled:
-            barrier(comm=bagua_module._bagua_process_group.get_global_communicator())
+            barrier(comm=inner_ddp._bagua_process_group.get_global_communicator())
             self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
             self.scheduled = False
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
-    def resume(self, bagua_module: BaguaModule):
+    def resume(self, inner_ddp: InnerDistributedDataParallel):
         """
         Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
         Args:
-            bagua_module: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
+            inner_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
         """
 
         if not self.scheduled and hasattr(self, "future"):
-            barrier(comm=bagua_module._bagua_process_group.get_global_communicator())
+            barrier(comm=inner_ddp._bagua_process_group.get_global_communicator())
             self.abort_event.clear()
-            self.future = self.executor.submit(self._run_async_loop, bagua_module)
+            self.future = self.executor.submit(self._run_async_loop, inner_ddp)
             self.scheduled = True
             logging.debug("Process {} async communication resumed.".format(get_rank()))
 

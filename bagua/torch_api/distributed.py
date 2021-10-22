@@ -25,7 +25,6 @@ import torch
 import torch.nn
 import itertools
 from typing import List, Tuple, Optional
-from .data_parallel import InnerDistributedDataParallel
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -97,15 +96,17 @@ class BaguaModule:
             ...    )
         """
 
-        self._bagua_inner_ddp = InnerDistributedDataParallel(
+        self.bagua_ddp = bagua.torch_api.data_parallel.InnerDistributedDataParallel(
             self,
             optimizers,
             algorithm,
             process_group,
         )
+        self.bagua_algorithm = self.bagua_ddp.bagua_algorithm
+        self.bagua_optimizers = self.bagua_ddp.bagua_optimizers
 
         self._bagua_framework_hooks = []
-        for hook in self._bagua_inner_ddp.bagua_forward_pre_hooks:
+        for hook in self.bagua_ddp.bagua_forward_pre_hooks:
             self._bagua_framework_hooks.append(
                 self.register_forward_pre_hook(hook)
             )

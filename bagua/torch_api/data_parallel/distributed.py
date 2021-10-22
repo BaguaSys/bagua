@@ -159,6 +159,10 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             self.inner_ddp.require_backward_grad_sync = old_require_backward_grad_sync
 
 
+class BaguaPatches:
+    pass
+
+
 class InnerDistributedDataParallel:
     __id_iter = itertools.count()
 
@@ -220,45 +224,47 @@ class InnerDistributedDataParallel:
         else:
             self._bagua_process_group = process_group
 
+        ddp = self
+
         def autotune_hook(self, input):
             if self.training:
-                if get_autotune_level() >= 1 and not self._bagua_autotune_completed:
-                    self._bagua_autotune_step()
+                if env.get_autotune_level() >= 1 and not ddp._bagua_autotune_completed:
+                    ddp._bagua_autotune_step()
 
         def clear_post_backward_callback_queued_hook(self, input):
-            self._is_post_backward_callback_queued = False
+            ddp._is_post_backward_callback_queued = False
 
         def num_iteration_step_hook(self, input):
             if self.training:
-                self.bagua_train_step_counter += 1
+                ddp.bagua_train_step_counter += 1
 
         def algorithm_reset_hook(self, input):
-            if self.bagua_algorithm.need_reset():
-                self._bagua_init_algorithm()
+            if ddp.bagua_algorithm.need_reset():
+                ddp._bagua_init_algorithm()
 
         def algorithm_forward_pre_hook(self, input):
             if self.training:
-                self.bagua_algorithm.init_forward_pre_hook(self)(input)
+                ddp.bagua_algorithm.init_forward_pre_hook(ddp)(input)
 
         def record_speed_metrics_event(self, _):
-            if not self._speed_metrics_switch_on:
+            if not ddp._speed_metrics_switch_on:
                 return
 
-            if hasattr(self, "_last_event_pair"):
-                (start, stop) = self._last_event_pair
+            if hasattr(ddp, "_last_event_pair"):
+                (start, stop) = ddp._last_event_pair
                 try:
                     elapsed_time_s = start.elapsed_time(stop) / 1000.0
-                    total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
+                    total_bytes = sum(bucket.bytes() for bucket in ddp.bagua_buckets)
                     total_gbytes = total_bytes / 1024.0 ** 3
                     speed = total_gbytes / elapsed_time_s
-                    self._speed_metrics.record(speed)
+                    ddp._speed_metrics.record(speed)
                 except RuntimeError as err:
                     logging.debug("Ignore cuda err={}".format(err))
 
             start_event = torch.cuda.Event(enable_timing=True)
-            self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
+            ddp._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
             torch.cuda.current_stream().record_event(start_event)
-            self._last_event_pair = (start_event, self._speed_metrics_end_event)
+            ddp._last_event_pair = (start_event, ddp._speed_metrics_end_event)
 
         self.bagua_forward_pre_hooks = [
             num_iteration_step_hook,

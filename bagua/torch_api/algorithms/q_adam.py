@@ -2,7 +2,7 @@
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api import get_world_size
-from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.data_parallel import InnerDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from torch.optim.optimizer import Optimizer
 import torch
@@ -126,8 +126,8 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
         else:
             return False
 
-    def init_tensors(self, bagua_module: BaguaModule):
-        parameters = bagua_module.bagua_build_params()
+    def init_tensors(self, inner_ddp: InnerDistributedDataParallel):
+        parameters = inner_ddp.bagua_build_params()
 
         for idx, (name, param) in enumerate(parameters.__reversed__()):
             param._q_adam_name = name
@@ -140,13 +140,13 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
             for param, exp_avgs in zip(param_group, m_group):
                 if self.optimizer.step_id < self.warmup_steps:
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
-                        param._q_adam_name, bagua_module.bagua_module_name
+                        param._q_adam_name, inner_ddp.inner_ddp_name
                     )
                     param._q_adam_grad = registered_tensor
                     registered_tensor._q_adam_idx = param._q_adam_idx
                 else:
                     registered_tensor = exp_avgs.ensure_bagua_tensor(
-                        param._q_adam_name, bagua_module.bagua_module_name
+                        param._q_adam_name, inner_ddp.inner_ddp_name
                     )
                     registered_tensor._q_adam_grad = param.bagua_ensure_grad()
                     param._q_adam_momentum = registered_tensor
@@ -166,7 +166,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_module: BaguaModule,
+        inner_ddp: InnerDistributedDataParallel,
         bucket: BaguaBucket,
     ):
         bucket.clear_ops()
@@ -174,7 +174,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
-                group=bagua_module._bagua_process_group,
+                group=inner_ddp._bagua_process_group,
             )
         else:
 
@@ -189,10 +189,10 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                 average=True,
                 scattergather=True,
                 compression="MinMaxUInt8",
-                group=bagua_module._bagua_process_group,
+                group=inner_ddp._bagua_process_group,
             )
 
-    def init_backward_hook(self, bagua_module: BaguaModule):
+    def init_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
         def hook_momentum(parameter_name, parameter):
             parameter._q_adam_momentum.bagua_mark_communication_ready()
 
