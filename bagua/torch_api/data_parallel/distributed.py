@@ -131,6 +131,12 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             self.module, optimizers, algorithm, bagua_process_group
         )
 
+        self._bagua_framework_hooks = []
+        for hook in self.inner_ddp.bagua_forward_pre_hooks:
+            self._bagua_framework_hooks.append(
+                self.register_forward_pre_hook(hook)
+            )
+
     @property
     def require_backward_grad_sync(self):
         return self.inner_ddp.require_backward_grad_sync
@@ -140,7 +146,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         return self.inner_ddp.parameters_to_ignore
 
     def forward(self, *inputs, **kwargs):
-        output = self.inner_ddp.forward(*inputs, **kwargs)
+        output = self.module(*inputs, **kwargs)
         return output
 
     @contextmanager
@@ -151,10 +157,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             yield
         finally:
             self.inner_ddp.require_backward_grad_sync = old_require_backward_grad_sync
-
-
-class BaguaPatches:
-    pass
 
 
 class InnerDistributedDataParallel:
@@ -218,52 +220,101 @@ class InnerDistributedDataParallel:
         else:
             self._bagua_process_group = process_group
 
+        def autotune_hook(self, input):
+            if self.training:
+                if get_autotune_level() >= 1 and not self._bagua_autotune_completed:
+                    self._bagua_autotune_step()
+
+        def clear_post_backward_callback_queued_hook(self, input):
+            self._is_post_backward_callback_queued = False
+
+        def num_iteration_step_hook(self, input):
+            if self.training:
+                self.bagua_train_step_counter += 1
+
+        def algorithm_reset_hook(self, input):
+            if self.bagua_algorithm.need_reset():
+                self._bagua_init_algorithm()
+
+        def algorithm_forward_pre_hook(self, input):
+            if self.training:
+                self.bagua_algorithm.init_forward_pre_hook(self)(input)
+
+        def record_speed_metrics_event(self, _):
+            if not self._speed_metrics_switch_on:
+                return
+
+            if hasattr(self, "_last_event_pair"):
+                (start, stop) = self._last_event_pair
+                try:
+                    elapsed_time_s = start.elapsed_time(stop) / 1000.0
+                    total_bytes = sum(bucket.bytes() for bucket in self.bagua_buckets)
+                    total_gbytes = total_bytes / 1024.0 ** 3
+                    speed = total_gbytes / elapsed_time_s
+                    self._speed_metrics.record(speed)
+                except RuntimeError as err:
+                    logging.debug("Ignore cuda err={}".format(err))
+
+            start_event = torch.cuda.Event(enable_timing=True)
+            self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
+            torch.cuda.current_stream().record_event(start_event)
+            self._last_event_pair = (start_event, self._speed_metrics_end_event)
+
+        self.bagua_forward_pre_hooks = [
+            num_iteration_step_hook,
+            algorithm_reset_hook,
+            algorithm_forward_pre_hook,
+            record_speed_metrics_event,
+            autotune_hook,
+            clear_post_backward_callback_queued_hook,
+        ]
+
         # autotune service
         self._bagua_autotune_client = get_hyperparameters_service_client()
 
         self._bagua_init_algorithm()
 
-    def forward(self, *inputs, **kwargs):
-        if self.module.training:
-            # num_iteration_step_hook
-            self.bagua_train_step_counter += 1
+    # def forward(self, *inputs, **kwargs):
+    #     if self.module.training:
+    #         # num_iteration_step_hook
+    #         self.bagua_train_step_counter += 1
 
-            # algorithm_reset_hook
-            if self.bagua_algorithm.need_reset():
-                self._bagua_init_algorithm()
+    #         # algorithm_reset_hook
+    #         if self.bagua_algorithm.need_reset():
+    #             self._bagua_init_algorithm()
 
-            # algorithm_forward_pre_hook
-            self.bagua_algorithm.init_forward_pre_hook(self)(input)
+    #         # algorithm_forward_pre_hook
+    #         self.bagua_algorithm.init_forward_pre_hook(self)(input)
 
-            # record_speed_metrics_event
-            if self._speed_metrics_switch_on:
-                if hasattr(self, "_last_event_pair"):
-                    (start, stop) = self._last_event_pair
-                    try:
-                        elapsed_time_s = start.elapsed_time(stop) / 1000.0
-                        total_bytes = sum(
-                            bucket.bytes() for bucket in self.bagua_buckets
-                        )
-                        total_gbytes = total_bytes / 1024.0 ** 3
-                        speed = total_gbytes / elapsed_time_s
-                        self._speed_metrics.record(speed)
-                    except RuntimeError as err:
-                        logging.debug("Ignore cuda err={}".format(err))
+    #         # record_speed_metrics_event
+    #         if self._speed_metrics_switch_on:
+    #             if hasattr(self, "_last_event_pair"):
+    #                 (start, stop) = self._last_event_pair
+    #                 try:
+    #                     elapsed_time_s = start.elapsed_time(stop) / 1000.0
+    #                     total_bytes = sum(
+    #                         bucket.bytes() for bucket in self.bagua_buckets
+    #                     )
+    #                     total_gbytes = total_bytes / 1024.0 ** 3
+    #                     speed = total_gbytes / elapsed_time_s
+    #                     self._speed_metrics.record(speed)
+    #                 except RuntimeError as err:
+    #                     logging.debug("Ignore cuda err={}".format(err))
 
-                start_event = torch.cuda.Event(enable_timing=True)
-                self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
-                torch.cuda.current_stream().record_event(start_event)
-                self._last_event_pair = (start_event, self._speed_metrics_end_event)
+    #             start_event = torch.cuda.Event(enable_timing=True)
+    #             self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
+    #             torch.cuda.current_stream().record_event(start_event)
+    #             self._last_event_pair = (start_event, self._speed_metrics_end_event)
 
-            # autotune_hook
-            if env.get_autotune_level() >= 1 and not self._bagua_autotune_completed:
-                self._bagua_autotune_step()
+    #         # autotune_hook
+    #         if env.get_autotune_level() >= 1 and not self._bagua_autotune_completed:
+    #             self._bagua_autotune_step()
 
-            # clear_post_backward_callback_queued_hook
-            self._is_post_backward_callback_queued = False
+    #         # clear_post_backward_callback_queued_hook
+    #         self._is_post_backward_callback_queued = False
 
-        output = self.module(*inputs, **kwargs)
-        return output
+    #     output = self.module(*inputs, **kwargs)
+    #     return output
 
     def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
         """
