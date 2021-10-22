@@ -239,8 +239,7 @@ impl BaguaTensorPy {
         let dtype = torch_tensor
             .call_method0("bagua_getter_closure")
             .expect("must pass valid Bagua tensor")
-            .getattr("dtype")
-            .unwrap()
+            .getattr("dtype")?
             .call_method0("__reduce__")?
             .extract::<String>()?;
         match dtype.as_str() {
