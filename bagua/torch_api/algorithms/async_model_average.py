@@ -35,6 +35,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         peer_selection_mode: str = "all",
         sync_interval_ms: int = 500,
         warmup_steps: int = 0,
+        wait_util_comm_ops_finished: bool = False,
     ):
         """
         Implementation of the
@@ -57,17 +58,25 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
             warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous
                 model averaging. Use 0 to disable.
+            wait_util_comm_ops_finished: (bool): Wait util communication ops finished.
         """
 
         super(AsyncModelAverageAlgorithmImpl, self).__init__(process_group)
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
+        self.wait_util_comm_ops_finished = wait_util_comm_ops_finished
         self.step_id = 0
         self.warmup_steps = warmup_steps
 
         self.cuda_event = torch.cuda.Event()
 
         self.abort_event = threading.Event()
+
+        if self.wait_util_comm_ops_finished:
+            self.comm_ops_finished_event = threading.Event()
+            self.comm_ops_finished_event.set()
+        else:
+            self.comm_ops_finished_event = None
         self.dummy_tensor = torch.Tensor([0]).byte().cuda()
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -112,6 +121,9 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 self.step_id > self.warmup_steps
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
+                if self.comm_ops_finished_event:
+                    self.comm_ops_finished_event.wait()
+
                 self._lock_model(bagua_module)
 
                 if not hasattr(self, "future"):
@@ -205,6 +217,9 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             if state == _AsyncInternalState.ABORT:
                 break
 
+            if self.comm_ops_finished_event:
+                self.comm_ops_finished_event.clear()
+
             start_time = time.time()
             for bucket in bagua_module.bagua_buckets:
                 for tensor in bucket.tensors:
@@ -212,6 +227,9 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
             bagua_module._bagua_backend.wait_pending_comm_ops()
             duration = (time.time() - start_time) * 1000
+
+            if self.comm_ops_finished_event:
+                self.comm_ops_finished_event.set()
 
             logging.debug(
                 "Process {} async communication cost {}ms, comm_step={}".format(
@@ -260,6 +278,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         peer_selection_mode: str = "all",
         sync_interval_ms: int = 500,
         warmup_steps: int = 0,
+        wait_util_comm_ops_finished: bool = False,
     ):
         """
         Create an instance of the
@@ -281,11 +300,13 @@ class AsyncModelAverageAlgorithm(Algorithm):
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
             warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous
                 model averaging. Use 0 to disable.
+            wait_util_comm_ops_finished: (bool): Wait util communication ops finished.
         """
 
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
         self.warmup_steps = warmup_steps
+        self.wait_util_comm_ops_finished = wait_util_comm_ops_finished
 
     def reify(self, process_group: BaguaProcessGroup) -> AsyncModelAverageAlgorithmImpl:
         return AsyncModelAverageAlgorithmImpl(
@@ -293,4 +314,5 @@ class AsyncModelAverageAlgorithm(Algorithm):
             peer_selection_mode=self.peer_selection_mode,
             sync_interval_ms=self.sync_interval_ms,
             warmup_steps=self.warmup_steps,
+            wait_util_comm_ops_finished=self.wait_util_comm_ops_finished,
         )
