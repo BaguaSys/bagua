@@ -269,14 +269,16 @@ class InnerDistributedDataParallel:
             torch.cuda.current_stream().record_event(start_event)
             ddp._last_event_pair = (start_event, ddp._speed_metrics_end_event)
 
-        patch._bagua_algorithm_hooks.extend[
+        patch._bagua_algorithm_hooks.extend([
             self.module.register_forward_pre_hook(num_iteration_step_hook),
             self.module.register_forward_pre_hook(algorithm_reset_hook),
             self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
             self.module.register_forward_pre_hook(record_speed_metrics_event),
             self.module.register_forward_pre_hook(autotune_hook),
-            self.module.register_forward_pre_hook(clear_post_backward_callback_queued_hook),
-        ]
+            self.module.register_forward_pre_hook(
+                clear_post_backward_callback_queued_hook
+            ),
+        ])
 
         # autotune service
         self._bagua_autotune_client = get_hyperparameters_service_client()

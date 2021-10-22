@@ -1,4 +1,4 @@
-from bagua.torch_api.data_parallel import InnerDistributedDataParallel
+from bagua.torch_api.distributed import BaguaModule as InnerDistributedDataParallel
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from typing import List
@@ -50,7 +50,7 @@ class AlgorithmImpl:
         tensors = []
         for name, param in parameters.__reversed__():
             grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                name, inner_ddp.inner_ddp_name
+                name, inner_ddp.bauga_module_name
             )
             param._bagua_grad = grad
             tensors.append(grad)

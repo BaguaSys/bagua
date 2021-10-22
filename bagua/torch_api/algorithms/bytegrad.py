@@ -2,7 +2,7 @@
 
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
-from bagua.torch_api.data_parallel import InnerDistributedDataParallel
+from bagua.torch_api.distributed import BaguaModule as InnerDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api import get_world_size
 from typing import List

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
-from bagua.torch_api.data_parallel import InnerDistributedDataParallel
+from bagua.torch_api.distributed import BaguaModule as InnerDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import new_group, broadcast, barrier, _pg_group_ranks
 from typing import List
@@ -82,12 +82,12 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         for name, param in parameters.__reversed__():
             if self.step_id < self.warmup_steps:
                 grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                    name, inner_ddp.inner_ddp_name
+                    name, inner_ddp.bauga_module_name
                 )
                 param._bagua_grad = grad
                 tensors.append(grad)
             else:
-                p = param.ensure_bagua_tensor(name, inner_ddp.inner_ddp_name)
+                p = param.ensure_bagua_tensor(name, inner_ddp.bauga_module_name)
                 tensors.append(p)
 
         return tensors
