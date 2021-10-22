@@ -581,14 +581,9 @@ class InnerDistributedDataParallel:
 
     def _bagua_cleanup_algorithm(self):
         patch = self.module._bagua_patches
-
         for hook in patch._bagua_algorithm_hooks:
             hook.remove()
         patch._bagua_algorithm_hooks.clear()
-
-        for hook in patch._bagua_framework_hooks:
-            hook.remove()
-        patch._bagua_framework_hooks.clear()
 
         self.bagua_buckets.clear()
 
@@ -605,7 +600,12 @@ class InnerDistributedDataParallel:
                     if not self.require_backward_grad_sync:
                         return
 
-                    self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
+                    print('param_name={}'.format(param_name))
+                    try:
+                        self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
+                    except:
+                        print('param_name={}'.format(param_name))
+                        raise
 
                     def real_post_backward_hook(*unused):
                         self.bagua_algorithm.init_post_backward_hook(self)()
