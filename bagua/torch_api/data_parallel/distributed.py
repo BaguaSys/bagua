@@ -131,12 +131,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             self.module, optimizers, algorithm, bagua_process_group
         )
 
-        self._bagua_framework_hooks = []
-        for hook in self.inner_ddp.bagua_forward_pre_hooks:
-            self._bagua_framework_hooks.append(
-                self.register_forward_pre_hook(hook)
-            )
-
     @property
     def require_backward_grad_sync(self):
         return self.inner_ddp.require_backward_grad_sync
