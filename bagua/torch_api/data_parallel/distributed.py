@@ -214,6 +214,7 @@ class InnerDistributedDataParallel:
         self.module._bagua_patches = BaguaPatches()
         patch = self.module._bagua_patches
         patch._bagua_algorithm_hooks = []
+        patch._bagua_framework_hooks = []
 
         self._bagua_backend = get_backend(self.bagua_module_name)
         self._bagua_hyperparameters = BaguaHyperparameter()
@@ -269,7 +270,7 @@ class InnerDistributedDataParallel:
             torch.cuda.current_stream().record_event(start_event)
             ddp._last_event_pair = (start_event, ddp._speed_metrics_end_event)
 
-        patch._bagua_algorithm_hooks.extend([
+        patch._bagua_framework_hooks.extend([
             self.module.register_forward_pre_hook(num_iteration_step_hook),
             self.module.register_forward_pre_hook(algorithm_reset_hook),
             self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
@@ -580,13 +581,19 @@ class InnerDistributedDataParallel:
 
     def _bagua_cleanup_algorithm(self):
         patch = self.module._bagua_patches
-        if patch._bagua_algorithm_hooks is not None:
-            for hook in patch._bagua_algorithm_hooks:
-                hook.remove()
-            patch._bagua_algorithm_hooks.clear()
+
+        for hook in patch._bagua_algorithm_hooks:
+            hook.remove()
+        patch._bagua_algorithm_hooks.clear()
+
+        for hook in patch._bagua_framework_hooks:
+            hook.remove()
+        patch._bagua_framework_hooks.clear()
+
         self.bagua_buckets.clear()
 
     def _bagua_reset_algorithm_buckets(self):
+        patch = self.module._bagua_patches
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
         self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
@@ -620,7 +627,7 @@ class InnerDistributedDataParallel:
                 grad_acc = param_tmp.grad_fn.next_functions[0][0]
                 hook = grad_acc.register_hook(real_hook_factory(name, param))
                 hook.grad_acc = grad_acc
-                self._bagua_algorithm_hooks.append(hook)
+                patch._bagua_algorithm_hooks.append(hook)
 
         optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(self)
 
