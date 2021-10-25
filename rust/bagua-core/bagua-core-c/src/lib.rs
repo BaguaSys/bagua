@@ -6,10 +6,7 @@ use std::ffi::CString;
 use std::iter;
 
 use bagua_core_internal::communicators::BaguaSingleCommunicator;
-use bagua_core_internal::datatypes::{BaguaTensor, BaguaBucket, BaguaTensorDtype};
-// use bagua_core_internal::telemetry::{
-//     BaguaCommCoreTelemetry, RegisterModelsRequest, TensorDeclaration,
-// };
+use bagua_core_internal::datatypes::{BaguaBucket, BaguaTensor, BaguaTensorDtype};
 use bagua_core_internal::BaguaCommBackend;
 use libc::c_char;
 use std::{slice, str};
@@ -188,10 +185,7 @@ pub extern "C" fn bagua_bucket_c_create(
         }
     };
 
-    let new_bucket = BaguaBucket::new(
-        tensors.as_slice(),
-        cstr_to_str(name_ptr, name_size),
-    );
+    let new_bucket = BaguaBucket::new(tensors.as_slice(), cstr_to_str(name_ptr, name_size));
     let new_bucket = match new_bucket {
         Ok(bucket) => bucket,
         Err(error) => {
