@@ -5,12 +5,12 @@ extern crate log;
 use std::ffi::CString;
 use std::iter;
 
-use bagua_core_internal::communicators::{BaguaCommOpConfig, BaguaSingleCommunicator};
+use bagua_core_internal::communicators::BaguaSingleCommunicator;
 use bagua_core_internal::datatypes::BaguaBucket;
 use bagua_core_internal::datatypes::BaguaTensor;
-use bagua_core_internal::telemetry::{
-    BaguaCommCoreTelemetry, RegisterModelsRequest, TensorDeclaration,
-};
+// use bagua_core_internal::telemetry::{
+//     BaguaCommCoreTelemetry, RegisterModelsRequest, TensorDeclaration,
+// };
 use bagua_core_internal::BaguaCommBackend;
 use libc::c_char;
 use std::{slice, str};
@@ -437,77 +437,77 @@ pub struct BaguaCommCoreTelemetryC {
     inner: BaguaCommCoreTelemetry,
 }
 
-#[no_mangle]
-pub extern "C" fn bagua_comm_core_telemetry_c_create(
-    server_addr_ptr: *const c_char,
-    server_addr_len: usize,
-) -> *mut BaguaCommCoreTelemetryC {
-    let obj = BaguaCommCoreTelemetryC {
-        inner: BaguaCommCoreTelemetry::new(cstr_to_str(server_addr_ptr, server_addr_len)),
-    };
+// #[no_mangle]
+// pub extern "C" fn bagua_comm_core_telemetry_c_create(
+//     server_addr_ptr: *const c_char,
+//     server_addr_len: usize,
+// ) -> *mut BaguaCommCoreTelemetryC {
+//     let obj = BaguaCommCoreTelemetryC {
+//         inner: BaguaCommCoreTelemetry::new(cstr_to_str(server_addr_ptr, server_addr_len)),
+//     };
 
-    Box::into_raw(Box::new(obj))
-}
+//     Box::into_raw(Box::new(obj))
+// }
 
-#[no_mangle]
-pub extern "C" fn bagua_comm_core_telemetry_c_destroy(ptr: &mut *mut BaguaCommCoreTelemetryC) {
-    if ptr.is_null() {
-        return;
-    }
+// #[no_mangle]
+// pub extern "C" fn bagua_comm_core_telemetry_c_destroy(ptr: &mut *mut BaguaCommCoreTelemetryC) {
+//     if ptr.is_null() {
+//         return;
+//     }
 
-    let _ = unsafe { Box::from_raw(*ptr) };
+//     let _ = unsafe { Box::from_raw(*ptr) };
 
-    *ptr = ::std::ptr::null_mut();
-}
+//     *ptr = ::std::ptr::null_mut();
+// }
 
-#[no_mangle]
-pub extern "C" fn bagua_comm_core_telemetry_c_register_models(
-    ptr: *mut BaguaCommCoreTelemetryC,
-    tensors_ptr: *const *mut TensorDeclarationC,
-    tensors_len: usize,
-    ordered_tensors: *mut usize,
-    buckets_sizes: *mut usize,
-) -> i32 {
-    if ptr.is_null() {
-        return -1;
-    }
+// #[no_mangle]
+// pub extern "C" fn bagua_comm_core_telemetry_c_register_models(
+//     ptr: *mut BaguaCommCoreTelemetryC,
+//     tensors_ptr: *const *mut TensorDeclarationC,
+//     tensors_len: usize,
+//     ordered_tensors: *mut usize,
+//     buckets_sizes: *mut usize,
+// ) -> i32 {
+//     if ptr.is_null() {
+//         return -1;
+//     }
 
-    let mut tensors: Vec<TensorDeclaration> = Default::default();
-    unsafe {
-        let slice: &[*mut TensorDeclarationC] = slice::from_raw_parts(tensors_ptr, tensors_len);
-        for tensor_ptr in slice.iter() {
-            tensors.push(((*(*tensor_ptr)).inner).clone());
-        }
-    }
+//     let mut tensors: Vec<TensorDeclaration> = Default::default();
+//     unsafe {
+//         let slice: &[*mut TensorDeclarationC] = slice::from_raw_parts(tensors_ptr, tensors_len);
+//         for tensor_ptr in slice.iter() {
+//             tensors.push(((*(*tensor_ptr)).inner).clone());
+//         }
+//     }
 
-    let req = RegisterModelsRequest {
-        tensor_list: tensors.clone(),
-    };
+//     let req = RegisterModelsRequest {
+//         tensor_list: tensors.clone(),
+//     };
 
-    let rsp = unsafe { (*ptr).inner.register_models(req) };
-    let rsp = rsp.unwrap();
+//     let rsp = unsafe { (*ptr).inner.register_models(req) };
+//     let rsp = rsp.unwrap();
 
-    let mut ordered_tensors_id = 0;
-    let mut buckets_sizes_id = 0;
-    for bucket in rsp.recommended_hyperparameters.buckets.iter() {
-        for td in bucket.iter() {
-            let td_id = tensors.iter().position(|x| x.name == td.name).unwrap();
+//     let mut ordered_tensors_id = 0;
+//     let mut buckets_sizes_id = 0;
+//     for bucket in rsp.recommended_hyperparameters.buckets.iter() {
+//         for td in bucket.iter() {
+//             let td_id = tensors.iter().position(|x| x.name == td.name).unwrap();
 
-            unsafe {
-                let slice: &mut [usize] = slice::from_raw_parts_mut(ordered_tensors, tensors_len);
-                slice[ordered_tensors_id] = td_id;
+//             unsafe {
+//                 let slice: &mut [usize] = slice::from_raw_parts_mut(ordered_tensors, tensors_len);
+//                 slice[ordered_tensors_id] = td_id;
 
-                ordered_tensors_id += 1;
-            }
-        }
+//                 ordered_tensors_id += 1;
+//             }
+//         }
 
-        unsafe {
-            let slice: &mut [usize] = slice::from_raw_parts_mut(buckets_sizes, tensors_len);
-            slice[buckets_sizes_id] = bucket.len();
+//         unsafe {
+//             let slice: &mut [usize] = slice::from_raw_parts_mut(buckets_sizes, tensors_len);
+//             slice[buckets_sizes_id] = bucket.len();
 
-            buckets_sizes_id += 1;
-        }
-    }
+//             buckets_sizes_id += 1;
+//         }
+//     }
 
-    return 0;
-}
+//     return 0;
+// }
