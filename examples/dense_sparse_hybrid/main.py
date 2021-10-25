@@ -1,5 +1,4 @@
 import bagua.torch_api as bagua
-from bagua.torch_api import BaguaTensor
 from bagua.torch_api.bucket import BaguaBucket
 from argparse import ArgumentParser
 import torch
