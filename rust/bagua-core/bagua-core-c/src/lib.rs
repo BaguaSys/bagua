@@ -6,8 +6,7 @@ use std::ffi::CString;
 use std::iter;
 
 use bagua_core_internal::communicators::BaguaSingleCommunicator;
-use bagua_core_internal::datatypes::BaguaBucket;
-use bagua_core_internal::datatypes::BaguaTensor;
+use bagua_core_internal::datatypes::{BaguaTensor, BaguaBucket, BaguaTensorDtype};
 // use bagua_core_internal::telemetry::{
 //     BaguaCommCoreTelemetry, RegisterModelsRequest, TensorDeclaration,
 // };
@@ -113,22 +112,45 @@ pub struct BaguaTensorC {
     inner: BaguaTensor,
 }
 
+#[repr(u32)]
+enum BaguaTensorDtypeFFI {
+    F32,
+    F16,
+    U8,
+    I64,
+    U64,
+}
+
+impl BaguaTensorDtypeFFI {
+    pub fn inner(&self) -> BaguaTensorDtype {
+        match self {
+            BaguaTensorDtypeFFI::F32 => BaguaTensorDtype::F32,
+            BaguaTensorDtypeFFI::F16 => BaguaTensorDtype::F16,
+            BaguaTensorDtypeFFI::U8 => BaguaTensorDtype::U8,
+            BaguaTensorDtypeFFI::I64 => BaguaTensorDtype::I64,
+            BaguaTensorDtypeFFI::U64 => BaguaTensorDtype::U64,
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn bagua_tensor_c_create(
-    ptr: u64,
-    num_elem: usize,
-    num_elem_allocated: usize,
-    dtype_ptr: *const c_char,
-    dtype_size: usize,
+    name_ptr: *const c_char,
+    name_size: usize,
     device_id: usize,
+    data_ptr: u64,
+    num_elem: usize,
+    dtype: BaguaTensorDtypeFFI,
+    ready_cuda_event_ptr: u64,
 ) -> *mut BaguaTensorC {
     let obj = BaguaTensorC {
         inner: BaguaTensor::new(
-            ptr,
-            num_elem,
-            num_elem_allocated,
-            cstr_to_str(dtype_ptr, dtype_size),
+            cstr_to_str(name_ptr, name_size),
             device_id,
+            data_ptr,
+            num_elem,
+            dtype.inner(),
+            ready_cuda_event_ptr,
         ),
     };
 
@@ -156,8 +178,6 @@ pub extern "C" fn bagua_bucket_c_create(
     tensors_len: usize,
     name_ptr: *const c_char,
     name_size: usize,
-    inplace: bool,
-    align_bytes: usize,
 ) -> *mut BaguaBucketC {
     let tensor_ptr_slice: &[*mut BaguaTensorC] =
         unsafe { slice::from_raw_parts(tensors_ptr, tensors_len) };
@@ -171,8 +191,6 @@ pub extern "C" fn bagua_bucket_c_create(
     let new_bucket = BaguaBucket::new(
         tensors.as_slice(),
         cstr_to_str(name_ptr, name_size),
-        inplace,
-        align_bytes,
     );
     let new_bucket = match new_bucket {
         Ok(bucket) => bucket,
@@ -379,49 +397,49 @@ pub extern "C" fn bagua_comm_backend_c_wait_pending_comm_ops(ptr: *mut BaguaComm
     return 0;
 }
 
-pub struct TensorDeclarationC {
-    inner: TensorDeclaration,
-}
+// pub struct TensorDeclarationC {
+//     inner: TensorDeclaration,
+// }
 
-#[no_mangle]
-pub extern "C" fn bagua_tensor_declaration_c_create(
-    name_ptr: *const c_char,
-    name_size: usize,
-    num_elements: usize,
-    dtype_ptr: *const c_char,
-    dtype_size: usize,
-) -> *mut TensorDeclarationC {
-    let obj = TensorDeclarationC {
-        inner: TensorDeclaration {
-            name: cstr_to_str(name_ptr, name_size).to_string(),
-            num_elements: num_elements,
-            dtype: cstr_to_str(dtype_ptr, dtype_size).to_string(),
-        },
-    };
+// #[no_mangle]
+// pub extern "C" fn bagua_tensor_declaration_c_create(
+//     name_ptr: *const c_char,
+//     name_size: usize,
+//     num_elements: usize,
+//     dtype_ptr: *const c_char,
+//     dtype_size: usize,
+// ) -> *mut TensorDeclarationC {
+//     let obj = TensorDeclarationC {
+//         inner: TensorDeclaration {
+//             name: cstr_to_str(name_ptr, name_size).to_string(),
+//             num_elements: num_elements,
+//             dtype: cstr_to_str(dtype_ptr, dtype_size).to_string(),
+//         },
+//     };
 
-    Box::into_raw(Box::new(obj))
-}
+//     Box::into_raw(Box::new(obj))
+// }
 
-#[no_mangle]
-pub extern "C" fn bagua_tensor_declaration_c_destroy(ptr: &mut *mut TensorDeclarationC) {
-    if ptr.is_null() {
-        return;
-    }
+// #[no_mangle]
+// pub extern "C" fn bagua_tensor_declaration_c_destroy(ptr: &mut *mut TensorDeclarationC) {
+//     if ptr.is_null() {
+//         return;
+//     }
 
-    let _ = unsafe { Box::from_raw(*ptr) };
+//     let _ = unsafe { Box::from_raw(*ptr) };
 
-    *ptr = ::std::ptr::null_mut();
-}
+//     *ptr = ::std::ptr::null_mut();
+// }
 
-#[no_mangle]
-pub extern "C" fn bagua_tensor_declaration_c_get_name(ptr: *mut TensorDeclarationC) -> *mut c_char {
-    if ptr.is_null() {
-        return std::ptr::null_mut();
-    }
+// #[no_mangle]
+// pub extern "C" fn bagua_tensor_declaration_c_get_name(ptr: *mut TensorDeclarationC) -> *mut c_char {
+//     if ptr.is_null() {
+//         return std::ptr::null_mut();
+//     }
 
-    let c_str = unsafe { CString::new((*ptr).inner.name.clone()).unwrap() };
-    c_str.into_raw()
-}
+//     let c_str = unsafe { CString::new((*ptr).inner.name.clone()).unwrap() };
+//     c_str.into_raw()
+// }
 
 #[no_mangle]
 pub extern "C" fn cstring_free(s: *mut c_char) {
@@ -433,9 +451,9 @@ pub extern "C" fn cstring_free(s: *mut c_char) {
     }
 }
 
-pub struct BaguaCommCoreTelemetryC {
-    inner: BaguaCommCoreTelemetry,
-}
+// pub struct BaguaCommCoreTelemetryC {
+//     inner: BaguaCommCoreTelemetry,
+// }
 
 // #[no_mangle]
 // pub extern "C" fn bagua_comm_core_telemetry_c_create(
