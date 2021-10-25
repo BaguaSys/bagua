@@ -113,7 +113,7 @@ pub struct BaguaTensorC {
 }
 
 #[repr(u32)]
-enum BaguaTensorDtypeFFI {
+pub enum BaguaTensorDtypeFFI {
     F32,
     F16,
     U8,
