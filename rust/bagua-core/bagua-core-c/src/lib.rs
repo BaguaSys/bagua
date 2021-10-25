@@ -223,60 +223,60 @@ pub extern "C" fn bagua_bucket_c_append_centralized_synchronous_op(
     }
 }
 
-pub struct BaguaCommOpConfigC {
-    inner: BaguaCommOpConfig,
-}
+// pub struct BaguaCommOpConfigC {
+//     inner: BaguaCommOpConfig,
+// }
 
-#[no_mangle]
-pub extern "C" fn bagua_comm_op_config_c_create(
-    communicator_internode: *mut BaguaSingleCommunicatorC,
-    communicator_intranode: *mut BaguaSingleCommunicatorC,
-    hierarchical: bool,
-    average: bool,
-    scattergather: bool,
-    compression_ptr: *const c_char,
-    compression_len: usize,
-    is_decentralized: bool,
-    peer_selection_mode_ptr: *const c_char,
-    peer_selection_mode_len: usize,
-    communication_interval: usize,
-) -> *mut BaguaCommOpConfigC {
-    let compression = if compression_ptr.is_null() {
-        None
-    } else {
-        Some(cstr_to_str(compression_ptr, compression_len).to_string())
-    };
+// #[no_mangle]
+// pub extern "C" fn bagua_comm_op_config_c_create(
+//     communicator_internode: *mut BaguaSingleCommunicatorC,
+//     communicator_intranode: *mut BaguaSingleCommunicatorC,
+//     hierarchical: bool,
+//     average: bool,
+//     scattergather: bool,
+//     compression_ptr: *const c_char,
+//     compression_len: usize,
+//     is_decentralized: bool,
+//     peer_selection_mode_ptr: *const c_char,
+//     peer_selection_mode_len: usize,
+//     communication_interval: usize,
+// ) -> *mut BaguaCommOpConfigC {
+//     let compression = if compression_ptr.is_null() {
+//         None
+//     } else {
+//         Some(cstr_to_str(compression_ptr, compression_len).to_string())
+//     };
 
-    let obj = unsafe {
-        BaguaCommOpConfigC {
-            inner: BaguaCommOpConfig {
-                communicator_internode: Some((*communicator_internode).inner.clone()),
-                communicator_intranode: Some((*communicator_intranode).inner.clone()),
-                hierarchical: hierarchical,
-                average: average,
-                scattergather: scattergather,
-                compression: compression,
-                is_decentralized: is_decentralized,
-                peer_selection_mode: cstr_to_str(peer_selection_mode_ptr, peer_selection_mode_len)
-                    .to_string(),
-                communication_interval: communication_interval,
-            },
-        }
-    };
+//     let obj = unsafe {
+//         BaguaCommOpConfigC {
+//             inner: BaguaCommOpConfig {
+//                 communicator_internode: Some((*communicator_internode).inner.clone()),
+//                 communicator_intranode: Some((*communicator_intranode).inner.clone()),
+//                 hierarchical: hierarchical,
+//                 average: average,
+//                 scattergather: scattergather,
+//                 compression: compression,
+//                 is_decentralized: is_decentralized,
+//                 peer_selection_mode: cstr_to_str(peer_selection_mode_ptr, peer_selection_mode_len)
+//                     .to_string(),
+//                 communication_interval: communication_interval,
+//             },
+//         }
+//     };
 
-    Box::into_raw(Box::new(obj))
-}
+//     Box::into_raw(Box::new(obj))
+// }
 
-#[no_mangle]
-pub extern "C" fn bagua_comm_op_config_c_destroy(ptr: &mut *mut BaguaCommOpConfigC) {
-    if ptr.is_null() {
-        return;
-    }
+// #[no_mangle]
+// pub extern "C" fn bagua_comm_op_config_c_destroy(ptr: &mut *mut BaguaCommOpConfigC) {
+//     if ptr.is_null() {
+//         return;
+//     }
 
-    let _ = unsafe { Box::from_raw(*ptr) };
+//     let _ = unsafe { Box::from_raw(*ptr) };
 
-    *ptr = ::std::ptr::null_mut();
-}
+//     *ptr = ::std::ptr::null_mut();
+// }
 
 pub struct BaguaCommBackendC {
     inner: BaguaCommBackend,
