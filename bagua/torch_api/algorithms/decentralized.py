@@ -3,6 +3,7 @@ from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule as InnerDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
+from bagua.torch_api.communication import BaguaProcessGroup
 from typing import List
 import torch
 
@@ -10,6 +11,7 @@ import torch
 class DecentralizedAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self,
+        process_group: BaguaProcessGroup,
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
         communication_interval: int = 1,
@@ -20,6 +22,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         algorithm.
 
         Args:
+            process_group (BaguaProcessGroup): The process group to work on.
             hierarchical (bool): Enable hierarchical communication.
             peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers'
                 weights are averaged in each communication step. ``"shift_one"`` means each worker
@@ -27,9 +30,11 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
             communication_interval (int): Number of iterations between two communication steps.
 
         """
+        super(DecentralizedAlgorithmImpl, self).__init__(process_group)
         self.hierarchical = hierarchical
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
+        self.cuda_event = torch.cuda.Event()
 
     def _should_communicate(self, inner_ddp: InnerDistributedDataParallel) -> bool:
         cur_step = inner_ddp.bagua_train_step_counter - 1
@@ -70,9 +75,12 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         def hook():
             if self._should_communicate(inner_ddp):
                 inner_ddp._bagua_backend.wait_pending_comm_ops()
+
+                torch.cuda.current_stream().record_event(self.cuda_event)
+                self.cuda_event.synchronize()
                 for bucket in inner_ddp.bagua_buckets:
-                    bucket.decentralized_synchronous_op_copy_back_peer_weight(
-                        hierarchical=self.hierarchical, peer_weight=bucket._peer_weight
+                    bucket._decentralized_op.copy_back_peer_weight(
+                        bucket.backend_bucket
                     )
 
         return hook
@@ -89,25 +97,33 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         self._init_states(bucket)
         torch.cuda.synchronize()
         bucket.clear_ops()
-        bucket.append_decentralized_synchronous_op(
+        decentralized_op = bucket.append_decentralized_synchronous_op(
             peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
-            group=inner_ddp._bagua_process_group,
+            group=inner_ddp.process_group,
         )
+        bucket._decentralized_op = decentralized_op
 
 
 class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
-    def __init__(self, hierarchical: bool = True, communication_interval: int = 1):
+    def __init__(
+        self,
+        process_group: BaguaProcessGroup,
+        hierarchical: bool = True,
+        communication_interval: int = 1,
+    ):
         """
         Implementation of the
         `Low Precision Decentralized SGD <https://tutorials.baguasys.com/algorithms/low-precision-decentralized>`_
         algorithm.
 
         Args:
+            process_group (BaguaProcessGroup): The process group to work on.
             hierarchical (bool): Enable hierarchical communication.
             communication_interval (int): Number of iterations between two communication steps.
         """
+        super(LowPrecisionDecentralizedAlgorithmImpl, self).__init__(process_group)
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
@@ -188,7 +204,7 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
             right_peer_weight=bucket._right_peer_weight,
             hierarchical=self.hierarchical,
             compression="MinMaxUInt8",
-            group=inner_ddp._bagua_process_group,
+            group=inner_ddp.process_group,
         )
 
 
@@ -216,8 +232,9 @@ class DecentralizedAlgorithm(Algorithm):
         self.peer_selection_mode = peer_selection_mode
         self.communication_interval = communication_interval
 
-    def reify(self) -> DecentralizedAlgorithmImpl:
+    def reify(self, process_group: BaguaProcessGroup) -> DecentralizedAlgorithmImpl:
         return DecentralizedAlgorithmImpl(
+            process_group,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
             communication_interval=self.communication_interval,
@@ -238,8 +255,11 @@ class LowPrecisionDecentralizedAlgorithm(Algorithm):
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
-    def reify(self) -> LowPrecisionDecentralizedAlgorithmImpl:
+    def reify(
+        self, process_group: BaguaProcessGroup
+    ) -> LowPrecisionDecentralizedAlgorithmImpl:
         return LowPrecisionDecentralizedAlgorithmImpl(
+            process_group,
             hierarchical=self.hierarchical,
             communication_interval=self.communication_interval,
         )

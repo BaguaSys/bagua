@@ -154,8 +154,8 @@ def run_torch_model(
     loss_fn_2 = nn.MSELoss()
 
     # wrap model
-    model_1 = torch.nn.parallel.DistributedDataParallel(model_1)
-    model_2 = torch.nn.parallel.DistributedDataParallel(model_2)
+    model_1 = torch.nn.parallel.DistributedDataParallel(model_1, device_ids=[rank])
+    model_2 = torch.nn.parallel.DistributedDataParallel(model_2, device_ids=[rank])
 
     ret = results[rank]
 

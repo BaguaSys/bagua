@@ -1130,26 +1130,28 @@ impl BaguaBucket {
         hierarchical: bool,
         peer_selection_mode: String,
         peer_weight: BaguaTensor,
-    ) {
+    ) -> Arc<DecentralizedFullPrecisionSynchronous> {
         let communicator =
             BaguaCommunicator::new(communicator_internode, communicator_intranode, hierarchical)
                 .expect("cannot create communicator");
-        let comm_op: Arc<dyn CommOpTrait + Send + Sync> = Arc::new(
-            DecentralizedFullPrecisionSynchronous {
-                communicator,
-                peer_selection_mode: match peer_selection_mode.as_str() {
-                    "all" => PeerSelectionMode::All,
-                    "shift_one" => PeerSelectionMode::ShiftOne,
-                    &_ => {
-                        unimplemented!("unsupported peer_selection_mode for decentralized algorithm (should be `all` or `shift_one`)")
-                    }
-                },
-                step: Default::default(),
-                peer_weight,
+        let comm_op = Arc::new(DecentralizedFullPrecisionSynchronous {
+            communicator,
+            peer_selection_mode: match peer_selection_mode.as_str() {
+                "all" => PeerSelectionMode::All,
+                "shift_one" => PeerSelectionMode::ShiftOne,
+                &_ => {
+                    unimplemented!("unsupported peer_selection_mode for decentralized algorithm (should be `all` or `shift_one`)")
+                }
             },
-        );
+            step: Default::default(),
+            peer_weight,
+        });
 
-        self.inner.lock().comm_ops.push(comm_op);
+        self.inner
+            .lock()
+            .comm_ops
+            .push(comm_op.clone() as Arc<dyn CommOpTrait + Send + Sync>);
+        comm_op
     }
 
     pub fn append_low_precision_decentralized_synchronous_op(

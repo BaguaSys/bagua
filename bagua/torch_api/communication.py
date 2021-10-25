@@ -92,16 +92,6 @@ def _get_default_group():
     return _default_pg
 
 
-def _rank_not_in_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
-    """
-    Return ``True`` if the current process's rank is not in a given communicator.
-
-    """
-    if comm is None:
-        return False
-    return comm == CommMember.NON_COMM_MEMBER
-
-
 def _bagua_backend_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
     """
     Return ``None`` if the current process's rank is not in a given communicator.
@@ -274,6 +264,26 @@ def get_communicator(group_name: str, comm_name: str):
     )
     comm.cuda_stream = pg.stream
     return comm
+
+
+def _rank_not_in_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
+    """
+    Return ``True`` if the current process's rank is not in a given communicator.
+
+    """
+    if comm is None:
+        return False
+    return comm == CommMember.NON_COMM_MEMBER
+
+
+def _rank_not_in_group(group: Optional[BaguaProcessGroup] = None):
+    """
+    Return ``True`` if the current process is not in a given process group.
+
+    """
+    if group is None:
+        return False
+    return _rank_not_in_comm(group.get_global_communicator())
 
 
 @lru_cache(maxsize=None)

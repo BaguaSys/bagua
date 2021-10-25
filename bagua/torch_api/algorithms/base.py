@@ -1,6 +1,7 @@
 from bagua.torch_api.distributed import BaguaModule as InnerDistributedDataParallel
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api.communication import BaguaProcessGroup
 from typing import List
 import torch
 
@@ -10,9 +11,12 @@ class Algorithm:
     This is the base class that all Bagua algorithms inherit.
     """
 
-    def reify(self):
+    def reify(self, process_group: BaguaProcessGroup):
         """
-        Reify an algorithm instance.
+        Create an algorithm instance.
+
+        Args:
+            process_group: The process group to work on.
         """
         pass
 
@@ -23,7 +27,13 @@ class AlgorithmImpl:
 
     It provides methods that can be override to implement different kinds of
     distributed algorithms.
+
+    Args:
+        process_group: The process group to work on.
     """
+
+    def __init__(self, process_group: BaguaProcessGroup):
+        self.process_group = process_group
 
     def need_reset(self) -> bool:
         """

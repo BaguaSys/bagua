@@ -8,6 +8,7 @@ from bagua.torch_api.communication import (
     get_backend,
     broadcast,
     _get_default_group,
+    _rank_not_in_group,
     BaguaProcessGroup,
 )
 import bagua
@@ -95,6 +96,7 @@ class BaguaModule:
             ...      GradientAllReduce()
             ...    )
         """
+        self.bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
         self.bagua_ddp = bagua.torch_api.data_parallel.InnerDistributedDataParallel(
             self,

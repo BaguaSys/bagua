@@ -9,7 +9,6 @@ import multiprocessing
 from bagua.torch_api.utils import apply_flattened_call, flatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
-from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 
 
 class Net(nn.Module):
@@ -72,18 +71,16 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results, env):
     loss_fn = nn.MSELoss()
 
     # wrap model
-    model = DDP(
-        model,
-        optimizers=[optimizer],
-        algorithm=bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(
+    model = model.with_bagua(
+        [optimizer],
+        bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(
             hierarchical=hierarchical,
             communication_interval=communication_interval,
         ),
     )
 
     ret = results[rank]
-    inner_ddp = model.inner_ddp
-    bucket = inner_ddp.bagua_buckets[0]
+    bucket = model.bagua_buckets[0]
 
     ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
 

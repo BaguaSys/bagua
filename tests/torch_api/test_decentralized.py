@@ -8,7 +8,6 @@ import os
 from bagua.torch_api.utils import flatten, unflatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
-from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 
 
 N_EPOCHS = 10
@@ -82,16 +81,14 @@ def run_model(
     loss_fn = nn.MSELoss()
 
     # wrap model
-    model = DDP(
-        model,
-        optimizers=[optimizer],
-        algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm(
+    model = model.with_bagua(
+        [optimizer],
+        bagua.algorithms.decentralized.DecentralizedAlgorithm(
             hierarchical=hierarchical,
             peer_selection_mode=peer_selection_mode,
             communication_interval=communication_interval,
         ),
     )
-    inner_ddp = model.inner_ddp
 
     ret = results[rank]
 
@@ -108,7 +105,7 @@ def run_model(
         loss.backward()
         optimizer.step()
 
-    ret.bucket_weight.copy_(inner_ddp.bagua_buckets[0]._peer_weight)
+    ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
 
 
 def run_torch_model(

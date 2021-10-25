@@ -135,7 +135,11 @@ class BaguaBucket:
         """
         return check_contiguous(self._all_tensors)
 
-    def append_python_op(self, python_function: Callable[[str], None]):
+    def append_python_op(
+        self,
+        python_function: Callable[[str], None],
+        group: Optional[BaguaProcessGroup] = None,
+    ):
         """
         Append a Python operation to a bucket. A Python operation is a Python function that
         takes the bucket's name and returns ``None``. It can do arbitrary things within the
@@ -146,11 +150,15 @@ class BaguaBucket:
 
         Args:
             python_function: The Python operation function.
+            group: The process group to work on. If ``None``, the default process group will be used.
         """
+
+        if group is None:
+            group = _get_default_group()
 
         def wrapper_function_factory(pyop):
             def wrapped_pyop(name):
-                with torch.cuda.stream(self._bagua_backend.stream):
+                with torch.cuda.stream(group.stream):
                     return pyop(name)
 
             return wrapped_pyop
@@ -217,7 +225,7 @@ class BaguaBucket:
 
         This operation is not inplace, which means the bucket weights is first copied to :attr:`peer_weight`, and the result of
         decentralized averaging will be in :attr:`peer_weight`. To copy :attr:`peer_weight` back to :attr:`self`, call
-        :meth:`decentralized_synchronous_op_copy_back_peer_weight`.
+        ``op.copy_back_peer_weight(self)``.
 
         This operation will be executed by the Bagua backend in
         the order they are appended when all the tensors within the bucket are marked ready.
@@ -232,12 +240,14 @@ class BaguaBucket:
                 in each communication step. ``"shift_one"`` means each worker selects a different peer to do weights average
                 in each communication step.
             group: The process group to work on. If ``None``, the default process group will be used.
+        Returns:
+            The decentralized synchronous operation itself.
         """
         if group is None:
             group = _get_default_group()
 
         if hierarchical:
-            self.backend_bucket.append_decentralized_synchronous_op(
+            return self.backend_bucket.append_decentralized_synchronous_op(
                 _bagua_backend_comm(group.get_inter_node_communicator()),
                 _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
@@ -245,44 +255,13 @@ class BaguaBucket:
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
         else:
-            self.backend_bucket.append_decentralized_synchronous_op(
+            return self.backend_bucket.append_decentralized_synchronous_op(
                 _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
                 peer_weight=peer_weight._bagua_backend_tensor,
             )
-
-    def decentralized_synchronous_op_copy_back_peer_weight(
-        self,
-        peer_weight: BaguaTensor,
-        hierarchical: bool = True,
-        group: Optional[BaguaProcessGroup] = None,
-    ):
-        """
-        Copy :attr:`peer_weight` back to bucket weights to end a decentralized synchronous operation.
-        See :meth:`append_decentralized_synchronous_op` for more information.
-
-        Args:
-            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
-            hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
-                will communicate will each other first. After that, machines do inter-node communication. This can
-                boost performance when the inter-node communication cost is high. Must be the same with :attr:`hierarchical` argument in
-                :meth:`append_decentralized_synchronous_op`.
-            group: The process group to work on. If ``None``, the default process group will be used.
-        """
-        if group is None:
-            group = _get_default_group()
-
-        intra_comm = group.get_intra_node_communicator()
-        inter_comm = group.get_inter_node_communicator()
-
-        if not hierarchical or not _rank_not_in_comm(inter_comm):
-            self.backend_tensor.copy_(peer_weight)
-
-        if hierarchical:
-            broadcast(self.backend_tensor, 0, intra_comm)
 
     def append_low_precision_decentralized_synchronous_op(
         self,
