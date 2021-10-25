@@ -145,7 +145,7 @@ pub extern "C" fn bagua_tensor_c_create(
 ) -> *mut BaguaTensorC {
     let obj = BaguaTensorC {
         inner: BaguaTensor::new(
-            cstr_to_str(name_ptr, name_size),
+            cstr_to_str(name_ptr, name_size).to_string(),
             device_id,
             data_ptr,
             num_elem,
