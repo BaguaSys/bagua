@@ -1,5 +1,6 @@
 workspace = { members = [
     "bagua-core-internal",
     "bagua-core-py",
+    "bagua-core-c",
     "bagua-opentelemetry",
 ], exclude = [] }
