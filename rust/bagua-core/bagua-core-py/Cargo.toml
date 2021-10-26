@@ -14,7 +14,7 @@ path = "src/lib.rs"
 bagua-core-internal = { path = "../bagua-core-internal" }
 ndarray = "0.15.3"
 tracing = "0.1"
-tracing-subscriber = "0.2"
+tracing-subscriber = "0.3"
 anyhow = "1.0"
 color-eyre = "0.5"
 numpy = "0.14.1"
