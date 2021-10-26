@@ -552,12 +552,7 @@ class InnerDistributedDataParallel:
                     if not self.require_backward_grad_sync:
                         return
 
-                    print('param_name={}'.format(param_name))
-                    try:
-                        self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
-                    except:
-                        print('param_name={}'.format(param_name))
-                        raise
+                    self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
 
                     def real_post_backward_hook(*unused):
                         self.bagua_algorithm.init_post_backward_hook(self)()
