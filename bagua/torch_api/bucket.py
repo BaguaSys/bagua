@@ -129,7 +129,7 @@ class BaguaBucket:
         offset = 0
 
         for tensor in self._all_tensors:
-            tensor.bagua_set_registered_storage(flatten_storage, offset)
+            tensor.bagua_set_storage(flatten_storage, offset)
             offset += tensor.bagua_getter_closure().numel()
 
         # set backend tensor
