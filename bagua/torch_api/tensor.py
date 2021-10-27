@@ -54,7 +54,7 @@ class BaguaTensor:
         :attr:`setter_closure` takes the registered tensor and another tensor as inputs and returns nothing.
         It is mainly used for changing the tensor which will be used in runtime. For example when one of
         a model's parameter ``param`` is registered as a Bagua tensor, and :attr:`getter_closure` is ``lambda x: x.grad``,
-        the :attr:`setter_closure` can be ``lambda param, new_grad_tensor: param.grad = new_grad_tensor``.
+        the :attr:`setter_closure` can be ``lambda param, new_grad_tensor: setattr(param, "grad", new_grad_tensor)``.
         When the :attr:`setter_closure` is called, the tensor used in later operations will be changed
         to ``new_grad_tensor``.
 

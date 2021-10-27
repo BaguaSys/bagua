@@ -84,7 +84,7 @@ class BaguaBucket:
         """
         Returns a tensor contiguous in memory which contains the same data as inner tensors, i.e.
         returned by calling :meth:`~bagua.torch_api.tensor.BaguaTensor.bagua_getter_closure` on
-        ``self`` tensors and padding tensor (if exists).
+        :attr:`self` tensors and padding tensor (if exists).
         """
 
         all_registered_tensors = [
