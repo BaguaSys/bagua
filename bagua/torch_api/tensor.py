@@ -65,7 +65,7 @@ class BaguaTensor:
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
             getter_closure: A function that accepts a Pytorch tensor as its input and returns a Pytorch tensor as
               its output. Could be ``None``, which means an identity mapping ``lambda x: x`` is used. Default: ``None``.
-            setter_closure: A function that accepts two Pytorch tensor its inputs and returns nothing. Could be ``None``,
+            setter_closure: A function that accepts two Pytorch tensors as its inputs and returns nothing. Could be ``None``,
               which is a no-op. Default: ``None``.
 
         Returns:
@@ -115,7 +115,7 @@ class BaguaTensor:
         return self
 
     def bagua_getter_closure(self) -> torch.Tensor:
-        """Returns the tensor that used in runtime."""
+        """Returns the tensor that will be used in runtime."""
         return (
             self._bagua_getter_closure(self)
             if self._bagua_getter_closure is not None
@@ -123,7 +123,7 @@ class BaguaTensor:
         )
 
     def bagua_setter_closure(self, tensor: torch.Tensor):
-        """Sets the tensor that used in runtime to :attr:`tensor`."""
+        """Sets the tensor that will be used in runtime to a new Pytorch tensor :attr:`tensor`."""
 
         assert self._bagua_setter_closure is not None
         self._bagua_setter_closure(self, tensor)
@@ -148,7 +148,7 @@ class BaguaTensor:
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
             getter_closure: A function that accepts a Pytorch tensor as its input and returns a Pytorch tensor as
               its output. See :meth:`ensure_bagua_tensor`.
-            setter_closure: A function that accepts two Pytorch tensor its inputs and returns nothing. See :meth:`ensure_bagua_tensor`.
+            setter_closure: A function that accepts two Pytorch tensors as its inputs and returns nothing. See :meth:`ensure_bagua_tensor`.
 
         Returns:
             The new Bagua tensor sharing the same storage with the original tensor.
