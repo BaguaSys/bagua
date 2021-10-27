@@ -43,7 +43,7 @@ class BaguaModule:
     :ivar process_group: The process group used by the module.
     :vartype process_group: bagua.torch_api.communication.BaguaProcessGroup
 
-    :ivar bagua_module_name: The module's name.
+    :ivar bagua_module_name: The module's name. Bagua uses the module name to distinguish different modules.
     :vartype bagua_optimizers: str
 
     :ivar parameters_to_ignore: The parameter names in ``"{module_name}.{param_name}"`` format to ignore

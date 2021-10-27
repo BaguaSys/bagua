@@ -45,19 +45,28 @@ class BaguaTensor:
         Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
 
         This operation will register a tensor to the Bagua backend, which is required to use
-        Bagua's communication algorithms. The tensor can be get and set by calling
-        :attr:`getter_closure` and :attr:`setter_closure` on `self` respectively.
+        Bagua's communication algorithms. :attr:`getter_closure` takes the registered tensor
+        as input and returns a Pytorch tensor. When using the registered tensor, the
+        :attr:`getter_closure` will be called, whose return value will be used
+        for communication and other operations. For example, if one of a model's parameter ``param``
+        is registered, and :attr:`getter_closure` is ``lambda x: x.grad``, during runtime its gradient will be used.
+
+        :attr:`setter_closure` takes the registered tensor and another tensor as inputs and returns nothing.
+        It is mainly used for changing the tensor which will be used in runtime. For example when one of
+        a model's parameter ``param`` is registered as a Bagua tensor, and :attr:`getter_closure` is ``lambda x: x.grad``,
+        the :attr:`setter_closure` can be ``lambda param, new_grad_tensor: param.grad = new_grad_tensor``.
+        When the :attr:`setter_closure` is called, the tensor used in later operations will be changed
+        to ``new_grad_tensor``.
 
         Args:
             name: The unique name of the tensor.
             module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
-            getter_closure: A function who accepts `self` as its input and returns a tensor as
-              its output. It is used to retrieve the tensor to be registered to the Bagua backend.
-              If ``None``, register `self`. Default: ``None``.
-            setter_closure: A function who accepts `self` and another tensor as its inputs. Used to
-              reset the tensor registered. If ``None``, it's a no-op. Default: ``None``.
+            getter_closure: A function that accepts a Pytorch tensor as its input and returns a Pytorch tensor as
+              its output. Could be ``None``, which means an identity mapping ``lambda x: x`` is used. Default: ``None``.
+            setter_closure: A function that accepts two Pytorch tensor its inputs and returns nothing. Could be ``None``,
+              which is a no-op. Default: ``None``.
 
         Returns:
             The original tensor with Bagua tensor attributes initialized.
@@ -106,7 +115,7 @@ class BaguaTensor:
         return self
 
     def bagua_getter_closure(self) -> torch.Tensor:
-        """Returns the tensor registered."""
+        """Returns the tensor that used in runtime."""
         return (
             self._bagua_getter_closure(self)
             if self._bagua_getter_closure is not None
@@ -114,7 +123,7 @@ class BaguaTensor:
         )
 
     def bagua_setter_closure(self, tensor: torch.Tensor):
-        """Sets the tensor registered to :attr:`tensor`."""
+        """Sets the tensor that used in runtime to :attr:`tensor`."""
 
         assert self._bagua_setter_closure is not None
         self._bagua_setter_closure(self, tensor)
@@ -137,9 +146,9 @@ class BaguaTensor:
             module_name: The name of the model of which the tensor belongs to.
               The model name can be acquired using ``model.bagua_module_name``.
               This is required to call :meth:`bagua_mark_communication_ready` related methods.
-            getter_closure: A function to retrieve the tensor to be registered to the Bagua backend.
-              See :meth:`ensure_bagua_tensor`.
-            setter_closure: A function to reset the registered tensor. See :meth:`ensure_bagua_tensor`.
+            getter_closure: A function that accepts a Pytorch tensor as its input and returns a Pytorch tensor as
+              its output. See :meth:`ensure_bagua_tensor`.
+            setter_closure: A function that accepts two Pytorch tensor its inputs and returns nothing. See :meth:`ensure_bagua_tensor`.
 
         Returns:
             The new Bagua tensor sharing the same storage with the original tensor.
@@ -198,13 +207,13 @@ class BaguaTensor:
             0,
         )
 
-    def bagua_set_registered_storage(
+    def bagua_set_storage(
         self,
         storage: torch.Storage,
         storage_offset: int = 0,
     ):
         """
-        Sets the underlying storage for the tensor registered using an existing
+        Sets the underlying storage for the tensor returned by :attr:`getter_closure` with an existing
         `torch.Storage <https://pytorch.org/docs/stable/storage.html?highlight=storage>`_.
 
         Args:

@@ -215,15 +215,15 @@ class BaguaProcessGroup:
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
     def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
-        """Returns the global communicator of the current process group."""
+        """Returns the global communicator of current process group."""
         return get_communicator(self.group_name, "global")
 
     def get_inter_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
-        """Returns the inter-node communicator of the current process group."""
+        """Returns the inter-node communicator of current process group."""
         return get_communicator(self.group_name, "inter")
 
     def get_intra_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
-        """Returns the intra-node communicator of the current process group."""
+        """Returns the intra-node communicator of current process group."""
         return get_communicator(self.group_name, "intra")
 
 

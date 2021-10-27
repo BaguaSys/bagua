@@ -235,7 +235,6 @@ pub struct BaguaTensorPy {
 impl BaguaTensorPy {
     #[new]
     pub fn new(torch_tensor: &PyAny, name: String) -> PyResult<Self> {
-        // TODO: sanity check
         let dtype = torch_tensor
             .call_method0("bagua_getter_closure")
             .expect("must pass valid Bagua tensor")
