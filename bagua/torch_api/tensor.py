@@ -123,7 +123,11 @@ class BaguaTensor:
         )
 
     def bagua_setter_closure(self, tensor: torch.Tensor):
-        """Sets the tensor that will be used in runtime to a new Pytorch tensor :attr:`tensor`."""
+        """Sets the tensor that will be used in runtime to a new Pytorch tensor :attr:`tensor`.
+
+        Args:
+            tensor: The new tensor to be set to.
+        """
 
         assert self._bagua_setter_closure is not None
         self._bagua_setter_closure(self, tensor)
@@ -213,7 +217,7 @@ class BaguaTensor:
         storage_offset: int = 0,
     ):
         """
-        Sets the underlying storage for the tensor returned by :attr:`getter_closure` with an existing
+        Sets the underlying storage for the tensor returned by :meth:`bagua_getter_closure` with an existing
         `torch.Storage <https://pytorch.org/docs/stable/storage.html?highlight=storage>`_.
 
         Args:
