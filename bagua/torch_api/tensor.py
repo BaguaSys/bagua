@@ -12,6 +12,22 @@ class BaguaTensor:
     """
     This class patch `torch.Tensor <https://pytorch.org/docs/stable/tensors.html?highlight=tensor#torch.Tensor>`_
     with additional methods.
+
+    A Bagua tensor is required to use Bagua's communication algorithms.
+
+    Bagua Tensor features a proxy structure, where the actual tensor used by backend is accessed via a "Proxy Tensor".
+    The proxy tensor is registered in Bagua, whenever the Bagua backend needs a tensor (for example use it for
+    communication), it calls the :meth:`bagua_getter_closure` on the proxy tensor to get the tensor that is actually
+    worked on. We call this tensor "Effective Tensor".
+
+    For example, in the gradient allreduce algorithm, the effective tensor that needs to be exchanged between
+    machines is the gradient.  In this case, we will register the model parameters as proxy tensor, and register
+    :attr:`bagua_getter_closure` to be ``lambda proxy_tensor: proxy_tensor.grad``. In this way, even if the gradient
+    tensor is recreated or changed during runtime, Bagua can still use the correct tensor for communication,
+    since the :attr:`proxy_tensor` serves as the root for access and is never replaced.
+
+    The :attr:`bagua_setter_closure` is used to replace the effective tensor during runtime. It is intended to be used
+    to replace the effective tensor with customized workflow.
     """
 
     def _bagua_sanity_check(self):
