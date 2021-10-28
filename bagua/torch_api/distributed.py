@@ -331,7 +331,7 @@ class BaguaModule:
         ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
 
-        self.bagua_do_flatten = do_flatten
+        self._bagua_do_flatten = do_flatten
 
         self.bagua_train_step_counter = 0
 
@@ -482,7 +482,7 @@ class BaguaModule:
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
         self.bagua_buckets.extend(
-            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.bagua_do_flatten)
+            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self._bagua_do_flatten)
         )
 
         for name, param in self.named_parameters():

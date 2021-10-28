@@ -48,6 +48,15 @@ def apply_flattened_call_all(tensors, call):
         apply_flattened_call(tensors, call)
 
 
+def check_contiguous(tensors):
+    data_ptr = None
+    for t in tensors:
+        if data_ptr is not None and t.data_ptr() != data_ptr:
+            return False
+        data_ptr = t.data_ptr() + t.numel() * t.element_size()
+    return True
+
+
 def get_flattened_tensor(tensors: List[torch.Tensor]) -> torch.Tensor:
     if len(tensors) == 0:
         return
@@ -67,15 +76,6 @@ def get_flattened_tensor(tensors: List[torch.Tensor]) -> torch.Tensor:
         offset += tensor.numel()
 
     return flatten_tensor
-
-
-def check_contiguous(tensors):
-    data_ptr = None
-    for t in tensors:
-        if data_ptr is not None and t.data_ptr() != data_ptr:
-            return False
-        data_ptr = t.data_ptr() + t.numel() * t.element_size()
-    return True
 
 
 def to_bagua_datatype(datatype):

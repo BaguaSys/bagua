@@ -87,10 +87,10 @@ class BaguaBucket:
         :attr:`self` tensors and padding tensor (if exists).
         """
 
-        all_registered_tensors = [
+        all_effective_tensors = [
             tensor.bagua_getter_closure() for tensor in self._all_tensors
         ]
-        return get_flattened_tensor(all_registered_tensors)
+        return get_flattened_tensor(all_effective_tensors)
 
     def _flatten_(self):
         """
@@ -357,7 +357,7 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket."""
-        registered_tensors = [tensor.bagua_getter_closure() for tensor in self.tensors]
+        effective_tensors = [tensor.bagua_getter_closure() for tensor in self.tensors]
         return sum(
-            tensor.numel() * tensor.element_size() for tensor in registered_tensors
+            tensor.numel() * tensor.element_size() for tensor in effective_tensors
         )

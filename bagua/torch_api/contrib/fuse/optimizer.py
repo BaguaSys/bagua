@@ -11,84 +11,82 @@ __all__ = ["fuse_optimizer", "fuse_step"]
 
 
 def flatten_param_and_states(optimizer: torch.optim.Optimizer):
-    _supported_params_types = [
-        "torch.cuda.FloatTensor",
-        "torch.cuda.HalfTensor",
-        "torch.FloatTensor",
-        "torch.HalfTensor",
-    ]
+    # _supported_params_types = [
+    #     "torch.cuda.FloatTensor",
+    #     "torch.cuda.HalfTensor",
+    #     "torch.FloatTensor",
+    #     "torch.HalfTensor",
+    # ]
 
+    type_params = {}
     for group in optimizer.param_groups:
+        for param in group["params"]:
 
-        for param_type in _supported_params_types:
-            params = [param for param in group["params"] if param.type() == param_type]
+            params_of_type = type_params.get(param.type(), [])
+            params_of_type.append(param)
+            type_params[param.type()] = params_of_type
 
-            if len(params) == 0:
-                continue
+    for type, params in type_params.items():
+        grads = [p.bagua_ensure_grad().grad for p in params]
 
-            weights = [p.data for p in params]
-            grads = [p.bagua_ensure_grad() for p in params]
+        state_tensors, state_scalars, succ = _get_state_by_name(optimizer.state, params)
 
-            state_tensors, state_scalars, succ = _get_state_by_name(
-                optimizer.state, params
-            )
+        if not succ:
+            continue
 
-            if not succ:
-                continue
+        _flatten_(params)
+        _flatten_(grads)
+        logging.debug(f"flatten {type} params done")
 
-            flatten_weight_tensor = get_flattened_tensor(weights)
-            flatten_grad_tensor = get_flattened_tensor(grads)
+        for name, tensors in state_tensors.items():
+            _flatten_(tensors)
+            logging.debug(f"flatten state {name} done")
+
+        grads = [p.grad for p in params]
+        state_tensors, state_scalars, succ = _get_state_by_name(optimizer.state, params)
+
+        check_contiguous(params)
+        check_contiguous(grads)
+        for name, tensors in state_tensors.items():
+            check_contiguous(tensors)
+
+
+def _flatten_(tensors: List[torch.Tensor]):
+    if len(tensors) == 0:
+        return
+
+    if not check_contiguous(tensors):
+        flatten_tensor = get_flattened_tensor(tensors)
+        flatten_storage = flatten_tensor.storage()
+
+        offset = 0
+        for tensor in tensors:
+            tensor.set_(flatten_storage, offset, tensor.shape)
+            offset += tensor.numel()
+            logging.debug(f"flatten done {offset}")
+
+    # flatten effective tensors if exist
+    has_effective_tensor = all([tensor.is_bagua_tensor() for tensor in tensors])
+    if has_effective_tensor:
+        eff_tensors = [tensor.bagua_getter_closure() for tensor in tensors]
+
+        if not check_contiguous(eff_tensors):
+            flatten_eff_tensor = get_flattened_tensor(eff_tensors)
+            flatten_eff_storage = flatten_eff_tensor.storage()
 
             offset = 0
-            for p in params:
-                with torch.no_grad():
-                    z = torch.zeros_like(p.data)
-                    z.set_(flatten_weight_tensor.storage(), offset, p.shape)
-                    p.data = z
-
-                    t = torch.zeros_like(p.data)
-                    t.set_(flatten_grad_tensor.storage(), offset, p.shape)
-                    p.grad = t
-
-                offset += p.numel()
-                logging.debug(f"flatten param done {offset}")
-
-            for name, tensors in state_tensors.items():
-                flatten_state_tensor = get_flattened_tensor(tensors)
-
-                offset = 0
-                for p in params:
-                    state = optimizer.state[p]
-
-                    with torch.no_grad():
-                        t = torch.zeros_like(state[name])
-                        t.set_(
-                            flatten_state_tensor.storage(), offset, state[name].shape
-                        )
-                        state[name] = t
-
-                    offset += state[name].numel()
-                    logging.debug(f"flatten state {name} done {offset}")
-
-            weights = [p.data for p in params]
-            grads = [p.grad.data for p in params]
-
-            state_tensors, state_scalars, succ = _get_state_by_name(
-                optimizer.state, params
-            )
-
-            check_contiguous(weights)
-            check_contiguous(grads)
-            for name, tensors in state_tensors.items():
-                check_contiguous(tensors)
+            for tensor in tensors:
+                tensor.bagua_set_storage(flatten_eff_storage, offset)
+                offset += tensor.bagua_getter_closure().numel()
+                logging.debug(f"flatten effective tensor done {offset}")
 
 
 def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
-    allocate_size_a = a.numel() * a.element_size()
-    allocate_size_b = b.numel() * b.element_size()
+    size_a = a.numel() * a.element_size()
+    size_b = b.numel() * b.element_size()
 
-    return (a.data_ptr() == b.data_ptr() + allocate_size_b) or (
-        b.data_ptr() == a.data_ptr() + allocate_size_a
+    return (a.data_ptr() == b.data_ptr() + size_a) or (
+        b.data_ptr() == a.data_ptr() + size_b
     )
 
 
@@ -137,6 +135,9 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]]):
     for i in range(1, len(constraints)):
         grouped_indices = intersect(grouped_indices, constraints[i])
 
+    logging.debug(
+        f"calculate mutual groups: {grouped_indices}, constraints: {constraints}"
+    )
     return grouped_indices
 
 
@@ -145,39 +146,22 @@ def intersect(a: List[List[int]], b: List[List[int]]):
     return c
 
 
-def colocate_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
-    logging.debug(f"Ready to colocate tensors, grouped indices: {grouped_indices}.")
+def group_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
+    logging.debug(f"Ready to group tensors, grouped indices: {grouped_indices}.")
 
-    tensor_map = {idx: tensor for idx, tensor in enumerate(tensors)}
-
-    colocated = []
+    grouped_tensors = []
     for indices in grouped_indices:
-        start = -1
-        offset = 0
-        for i in indices:
-            tensor = tensor_map[i]
-            if start == -1:
-                start = tensor.storage_offset()
+        ts = [tensors[idx] for idx in indices]
+        assert check_contiguous(ts), "tensors grouped must be contiguous"
 
-            assert (
-                start + offset == tensor.storage_offset()
-            ), "tensors collocated must be contiguous"
-
-            offset += (
-                tensor.bagua_tensor.num_elem_allocated()
-                if hasattr(tensor, "bagua_tensor")
-                else tensor.numel()
-            )
-
+        total_size = sum([t.numel() for t in ts])
         with torch.no_grad():
-            tensor_view = torch.zeros(offset, dtype=tensors[0].dtype).to(
-                tensors[0].device
-            )
-            tensor_view.set_(tensors[0].data.storage(), start, tensor_view.shape)
+            tensor_view = torch.zeros(total_size, dtype=ts[0].dtype).to(ts[0].device)
+            tensor_view.set_(ts[0].storage(), 0, tensor_view.shape)
 
-            colocated.append(tensor_view)
+            grouped_tensors.append(tensor_view)
 
-    return colocated
+    return grouped_tensors
 
 
 def fuse_optimizer(
@@ -189,9 +173,11 @@ def fuse_optimizer(
     Convert any optimizer into a fused optimizer.
 
     A fused optimizer can fuse multiple parameter updates into one. To achieve this, users need to:
-    1) flatten parameter tensors in the same group into contiguous ones by setting :attr:`do_flatten=True`,
-    which is also the default behavior of a fused optimizer; 2) fuse multiple parameter tensors contiguous in memory
-    into one and perform fused parameter updates by calling :meth:`fuse_step`.
+
+    | 1) flatten parameter tensors in the same group into contiguous ones by setting :attr:`do_flatten=True`,
+         which is also the default behavior of a fused optimizer;
+    | 2) fuse multiple parameter tensors contiguous in memory into one and perform fused parameter
+         updates by calling :meth:`fuse_step`.
 
     This fused optimizer is implemented for general use. It can be used used in conjunction with
     a :class:`~bagua.torch_api.distributed.BaguaModule` as well as a
@@ -239,10 +225,10 @@ def fuse_optimizer(
     """
 
     fused_optimizer = copy.copy(optimizer)
-    fused_optimizer._do_flatten = do_flatten
-    fused_optimizer._check_flatten = check_flatten
 
-    optimizer._fused_optimizer = fused_optimizer
+    optimizer._bagua_fused_optimizer = fused_optimizer
+    optimizer._bagua_do_flatten = do_flatten
+    optimizer._bagua_check_flatten = do_flatten and check_flatten
 
     if do_flatten:
         flatten_param_and_states(optimizer)
@@ -254,6 +240,10 @@ def fuse_optimizer(
     return optimizer
 
 
+def is_fused_optimizer(optimizer: torch.optim.Optimizer):
+    return hasattr(optimizer, "_bagua_fused_optimizer")
+
+
 def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
     r"""Fuse parameters and perform a single optimization step (parameter update).
 
@@ -262,21 +252,26 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
     is equivalent to :meth:`step`.
 
     Args:
+        optimizer: A fused optimizer.
         closure (Callable): A closure that reevaluates the model and
             returns the loss. Optional for most optimizers.
 
     .. note::
         This function will not modify metadata of parameter tensors.
     """
-    assert hasattr(
-        optimizer, "_fused_optimizer"
-    ), "Should init fused optimizer by calling `fuse_optimizer`."
 
-    do_fuse(optimizer._fused_optimizer)
-    return optimizer._fused_optimizer.step(closure)
+    if is_fused_optimizer(optimizer):
+        do_fuse(
+            optimizer._bagua_fused_optimizer,
+            check_flatten=optimizer._bagua_check_flatten,
+        )
+        return optimizer._bagua_fused_optimizer.step(closure)
+
+    logging.debug("Fall back to normal step")
+    return optimizer.step(closure)
 
 
-def do_fuse(optimizer: torch.optim.Optimizer):
+def do_fuse(optimizer: torch.optim.Optimizer, check_flatten):
     for index, group in enumerate(optimizer.param_groups):
         params = group["params"]
 
@@ -288,48 +283,50 @@ def do_fuse(optimizer: torch.optim.Optimizer):
         if not succ:
             continue
 
-        if optimizer._do_flatten and optimizer._check_flatten:
-            if not check_contiguous(weights):
-                logging.warn(
-                    "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
-                )
+        if check_flatten and not check_contiguous(weights):
+            logging.warn(
+                "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
+            )
+            check_flatten = False
 
-            if not check_contiguous(grads):
-                logging.warn(
-                    "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
-                )
+        if check_flatten and not check_contiguous(grads):
+            logging.warn(
+                "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
+            )
+            check_flatten = False
 
-            for name, tensors in state_tensors.items():
-                if not check_contiguous(weights):
-                    logging.warn(
-                        "Parameter state {} are not contiguous in memory, should not change the data pointers elsewhere.".format(
-                            name
-                        )
+        for name, tensors in state_tensors.items():
+            if check_flatten and not check_contiguous(tensors):
+                logging.warn(
+                    "Parameter state {} are not contiguous in memory, should not change the data pointers elsewhere.".format(
+                        name
                     )
+                )
+                check_flatten = False
 
         grouped_indices = calculate_mutual_groups(
             [weights, grads] + list(state_tensors.values())
         )
 
         if len(grouped_indices) > 0:
-            # colocate params
-            colocated_weights = colocate_tensors(weights, grouped_indices)
-            colocated_grads = colocate_tensors(grads, grouped_indices)
+            # group params
+            grouped_weights = group_tensors(weights, grouped_indices)
+            grouped_grads = group_tensors(grads, grouped_indices)
 
-            colocated_states = {}
+            grouped_states = {}
             for name, tensors in state_tensors.items():
-                ts = colocate_tensors(tensors, grouped_indices)
-                colocated_states[name] = ts
+                ts = group_tensors(tensors, grouped_indices)
+                grouped_states[name] = ts
 
             new_params = []
-            for i in range(len(colocated_weights)):
+            for i in range(len(grouped_weights)):
                 with torch.no_grad():
-                    p = torch.nn.Parameter(colocated_weights[i], requires_grad=False)
-                    p.grad = colocated_grads[i]
+                    p = torch.nn.Parameter(grouped_weights[i], requires_grad=False)
+                    p.grad = grouped_grads[i]
 
                 new_params.append(p)
 
-                for name, ts in colocated_states.items():
+                for name, ts in grouped_states.items():
                     optimizer.state[p][name] = ts[i]
 
                 for name, v in state_scalars.items():
