@@ -16,7 +16,6 @@ from bagua.torch_api.communication import (
     from_torch_group,
     BaguaProcessGroup,
 )
-from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
 from bagua.torch_api.model_parallel.moe import is_moe_param
 from bagua.bagua_define import (
     TensorDeclaration,

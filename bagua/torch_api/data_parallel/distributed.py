@@ -10,6 +10,7 @@ from bagua.torch_api.communication import (
     from_torch_group,
     BaguaProcessGroup,
 )
+from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
 from bagua.torch_api.model_parallel.moe import is_moe_param
 from typing import Callable
 from .inner_distributed import InnerDistributedDataParallel
@@ -109,8 +110,16 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         assert find_unused_parameters is False, "Not yet supported"
         self.find_unused_parameters = find_unused_parameters
 
+        bagua_process_group = None
+        if bagua_process_group is None:
+            bagua_process_group = None
+        elif type(bagua_process_group) is TorchProcessGroup:
+            bagua_process_group = process_group.bagua_patch()
+        elif type(bagua_process_group) is BaguaProcessGroup:
+            bagua_process_group = process_group
+
         self.inner_ddp = InnerDistributedDataParallel(
-            self.module, optimizers, algorithm, process_group
+            self.module, optimizers, algorithm, bagua_process_group
         )
 
     @property
