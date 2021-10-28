@@ -55,7 +55,7 @@ class BaguaBucket:
                 # padding tensor must be of name bagua_padding_tensor, so that they are always marked as ready for communication in the backend
                 self.padding_tensor = torch.zeros(
                     padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device
-                ).to_bagua_tensor(
+                ).ensure_bagua_tensor(
                     "bagua_padding_tensor_bucket_" + name,
                     module_name=self.bagua_module_name,
                 )
@@ -243,7 +243,7 @@ class BaguaBucket:
 
         Args:
             peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().ensure_bagua_tensor(...)`` to create such a tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
@@ -292,12 +292,12 @@ class BaguaBucket:
 
         Args:
             weight (BaguaTensor): Model replica of current worker's local model. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().ensure_bagua_tensor(...)`` to create such a tensor.
             left_peer_weight (BaguaTensor): Model replica of current worker's left peer. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor,
+                with the bucket tensors total size. Use ``self.flattened_tensor().ensure_bagua_tensor(...)`` to create such a tensor,
                 then copy the initializing weights of current worker's left peer to the tensor.
             right_peer_weight (BaguaTensor): Model replica of current worker's right peer. It should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
+                with the bucket tensors total size. Use ``self.flattened_tensor().ensure_bagua_tensor(...)`` to create such a tensor.
                 then copy the initializing weights of current worker's right peer to the tensor.
             hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
                 will communicate will each other first. After that, machines do inter-node communication. This can

@@ -450,7 +450,7 @@ def send(tensor: torch.Tensor, dst: int, comm: Optional[B.BaguaSingleCommunicato
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.send(tensor.to_bagua_tensor().bagua_backend_tensor(), dst)
+        comm.send(tensor.ensure_bagua_tensor().bagua_backend_tensor(), dst)
 
     comm.cuda_stream.synchronize()
 
@@ -476,7 +476,7 @@ def recv(tensor: torch.Tensor, src: int, comm: Optional[B.BaguaSingleCommunicato
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.recv(tensor.to_bagua_tensor().bagua_backend_tensor(), src)
+        comm.recv(tensor.ensure_bagua_tensor().bagua_backend_tensor(), src)
 
     comm.cuda_stream.synchronize()
 
@@ -499,7 +499,7 @@ def broadcast_coalesced(tensors, src=0, comm: Optional[B.BaguaSingleCommunicator
 
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
-        comm.broadcast(coalesced.to_bagua_tensor().bagua_backend_tensor(), src)
+        comm.broadcast(coalesced.ensure_bagua_tensor().bagua_backend_tensor(), src)
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
             buf.copy_(synced)
 
@@ -534,7 +534,7 @@ def broadcast(tensor: torch.Tensor, src: int = 0, comm: Optional[B.BaguaSingleCo
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.broadcast(tensor.to_bagua_tensor().bagua_backend_tensor(), src)
+        comm.broadcast(tensor.ensure_bagua_tensor().bagua_backend_tensor(), src)
 
     # TODO: remove
     comm.cuda_stream.synchronize()
@@ -579,8 +579,8 @@ def reduce(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.reduce(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
             dst,
             int(op),
         )
@@ -606,7 +606,7 @@ def reduce_inplace(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.reduce_inplace(
-            tensor.to_bagua_tensor().bagua_backend_tensor(), dst, int(op)
+            tensor.ensure_bagua_tensor().bagua_backend_tensor(), dst, int(op)
         )
 
     comm.cuda_stream.synchronize()
@@ -634,7 +634,7 @@ def allreduce_coalesced_inplace(
     with torch.cuda.stream(comm.cuda_stream):
         coalesced = flatten(tensors)
         comm.allreduce_inplace(
-            coalesced.to_bagua_tensor("allreduce_coalesced"), int(op)
+            coalesced.ensure_bagua_tensor("allreduce_coalesced"), int(op)
         )
 
         for buf, synced in zip(tensors, unflatten(coalesced, tensors)):
@@ -709,8 +709,8 @@ def allreduce(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.allreduce(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
             int(op),
         )
 
@@ -737,7 +737,7 @@ def allreduce_inplace(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.allreduce_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), int(op))
+        comm.allreduce_inplace(tensor.ensure_bagua_tensor().bagua_backend_tensor(), int(op))
 
     comm.cuda_stream.synchronize()
 
@@ -774,8 +774,8 @@ def allgather(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.allgather(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
         )
 
     comm.cuda_stream.synchronize()
@@ -799,7 +799,7 @@ def allgather_inplace(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.allgather_inplace(tensor.to_bagua_tensor().bagua_backend_tensor())
+        comm.allgather_inplace(tensor.ensure_bagua_tensor().bagua_backend_tensor())
 
     comm.cuda_stream.synchronize()
 
@@ -837,8 +837,8 @@ def gather(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.gather(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
             dst,
         )
 
@@ -875,7 +875,7 @@ def gather_inplace(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.gather_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), count, dst)
+        comm.gather_inplace(tensor.ensure_bagua_tensor().bagua_backend_tensor(), count, dst)
 
     comm.cuda_stream.synchronize()
 
@@ -914,8 +914,8 @@ def scatter(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.scatter(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
             src,
         )
 
@@ -953,7 +953,7 @@ def scatter_inplace(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.scatter_inplace(
-            tensor.to_bagua_tensor().bagua_backend_tensor(), count, src
+            tensor.ensure_bagua_tensor().bagua_backend_tensor(), count, src
         )
 
     comm.cuda_stream.synchronize()
@@ -993,8 +993,8 @@ def reduce_scatter(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.reduce_scatter(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
             int(op),
         )
 
@@ -1028,7 +1028,7 @@ def reduce_scatter_inplace(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.reduce_scatter_inplace(
-            tensor.to_bagua_tensor().bagua_backend_tensor(), int(op)
+            tensor.ensure_bagua_tensor().bagua_backend_tensor(), int(op)
         )
 
     comm.cuda_stream.synchronize()
@@ -1067,8 +1067,8 @@ def alltoall(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.alltoall(
-            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
-            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
+            recv_tensor.ensure_bagua_tensor().bagua_backend_tensor(),
         )
 
     comm.cuda_stream.synchronize()
@@ -1092,7 +1092,7 @@ def alltoall_inplace(
     comm.cuda_stream.wait_event(event)
 
     with torch.cuda.stream(comm.cuda_stream):
-        comm.alltoall_inplace(tensor.to_bagua_tensor().bagua_backend_tensor())
+        comm.alltoall_inplace(tensor.ensure_bagua_tensor().bagua_backend_tensor())
 
     comm.cuda_stream.synchronize()
 
@@ -1118,7 +1118,7 @@ def barrier(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
 
     with torch.cuda.stream(comm.cuda_stream):
         tensor = torch.ones([1], device=torch.cuda.current_device())
-        comm.allreduce_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), op=ReduceOp.SUM)
+        comm.allreduce_inplace(tensor.ensure_bagua_tensor().bagua_backend_tensor(), op=ReduceOp.SUM)
 
     event = comm.cuda_stream.record_event()
     event.synchronize()
