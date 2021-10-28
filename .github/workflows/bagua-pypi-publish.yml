@@ -111,11 +111,11 @@ jobs:
       CIBW_BEFORE_BUILD: "pip install git+https://github.com/rossant/auditwheel.git@include-exclude"
 
     steps:
+      - run: add-apt-repository ppa:git-core/ppa -y && apt update && apt install -y git
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
           submodules: recursive
-
       - name: setup python
         uses: actions/setup-python@v2
         with:
