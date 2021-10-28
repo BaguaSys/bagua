@@ -12,8 +12,9 @@ from bagua.torch_api.communication import (
 )
 from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
 from bagua.torch_api.model_parallel.moe import is_moe_param
-from typing import Callable
+from typing import Any, Callable, Optional
 from .inner_distributed import InnerDistributedDataParallel
+from torch.nn.parallel import DistributedDataParallel as TorchDistributedDataParallel
 from typing import List
 
 
@@ -114,7 +115,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         if bagua_process_group is None:
             bagua_process_group = None
         elif type(bagua_process_group) is TorchProcessGroup:
-            bagua_process_group = process_group.bagua_patch()
+            bagua_process_group = process_group.bagua_patch().bagua_pg
         elif type(bagua_process_group) is BaguaProcessGroup:
             bagua_process_group = process_group
 
@@ -143,3 +144,56 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         finally:
             self.inner_ddp.require_backward_grad_sync = old_require_backward_grad_sync
 
+
+def DistributedDataParallel(
+    module,
+    device_ids=None,
+    output_device=None,
+    dim=0,
+    broadcast_buffers=True,
+    process_group=None,
+    bucket_cap_mb=25,
+    find_unused_parameters=False,
+    check_reduction=False,
+    gradient_as_bucket_view=False,
+    # The following bagua parameters
+    optimizers: List[torch.optim.Optimizer] = [],
+    algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm()
+) -> Any[DistributedDataParallel_V1_9_0, TorchDistributedDataParallel]:
+    fallback_pass = [
+        device_ids is not None,
+        output_device is not None,
+        dim != 0,
+        broadcast_buffers is True,
+        find_unused_parameters is True,
+        gradient_as_bucket_view is True,
+        check_reduction is True,
+    ]
+    if any(fallback_pass):
+        return TorchDistributedDataParallel(
+            module=module,
+            device_ids=device_ids,
+            output_device=output_device,
+            dim=dim,
+            broadcast_buffers=broadcast_buffers,
+            process_group=process_group,
+            bucket_cap_mb=bucket_cap_mb,
+            find_unused_parameters=find_unused_parameters,
+            check_reduction=check_reduction,
+            gradient_as_bucket_view=gradient_as_bucket_view,
+        )
+
+    return DistributedDataParallel_V1_9_0(
+        module=module,
+        device_ids=device_ids,
+        output_device=output_device,
+        dim=dim,
+        broadcast_buffers=broadcast_buffers,
+        process_group=process_group,
+        bucket_cap_mb=bucket_cap_mb,
+        find_unused_parameters=find_unused_parameters,
+        check_reduction=check_reduction,
+        gradient_as_bucket_view=gradient_as_bucket_view,
+        optimizers=optimizers,
+        algorithm=algorithm,
+    )
