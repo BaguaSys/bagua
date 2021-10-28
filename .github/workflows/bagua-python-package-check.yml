@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     container: baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8
     steps:
-    - run: add-apt-repository ppa:git-core/ppa -y && apt update && apt install -y git
+    - run: sudo add-apt-repository ppa:git-core/ppa -y && sudo apt update && sudo apt install -y git
     - uses: actions/checkout@v2
       with:
         submodules: recursive
