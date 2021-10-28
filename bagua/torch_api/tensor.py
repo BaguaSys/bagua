@@ -26,28 +26,10 @@ class BaguaTensor:
     tensor is recreated or changed during runtime, Bagua can still use the correct tensor for communication,
     since the :attr:`proxy_tensor` serves as the root for access and is never replaced.
     
-    Their relation can be seen in the following diagram::
+    Their relation can be seen in the following diagram:
 
-                  ┌────────────────┐
-                  │ Bagua Backend  │
-                  └──────▲────────┘
-                         │
-                       access
-                         │
-        ┌────────────────┼────────────────┐
-        │Bagua Tensor    │                │
-        │        ┌───────┴────────┐       │
-        │        │  Proxy Tensor  │       │
-        │        └───┬─────▲─────┘       │
-        │            │      │             │
-        │ setter_closure  getter_closure  │
-        │            │      │             │
-        │     ┌──────▼─────┴───────┐     │
-        │     │  Effective Tensor   │     │
-        │     └─────────────────────┘     │
-        │                                 │
-        └─────────────────────────────────┘
-        
+    .. image:: https://user-images.githubusercontent.com/18649508/139179394-51d0c0f5-e233-4ada-8e5e-0e70a889540d.png
+    
     The :attr:`bagua_setter_closure` is used to replace the effective tensor during runtime. It is intended to be used
     to replace the effective tensor with customized workflow.
     """
