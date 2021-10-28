@@ -37,7 +37,7 @@ class InnerDistributedDataParallel:
         module: Module,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
-        process_group: Optional[TorchProcessGroup] = None,
+        process_group: Optional[BaguaProcessGroup] = None,
     ) -> None:
         self.module = module
         self.bagua_module_name = "{}_{}".format(
@@ -45,7 +45,7 @@ class InnerDistributedDataParallel:
         )
 
         self.bagua_optimizers = optimizers
-        self.bagua_algorithm = algorithm.reify()
+        self.bagua_algorithm = algorithm.reify(process_group)
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
