@@ -192,14 +192,7 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None):
 
     ranks = list(c10d._pg_group_ranks[group].keys())
 
-    torch_pg_unique_id = id(group)
-    if torch_pg_unique_id not in from_torch_group.bagua_pg_dict:
-        from_torch_group.bagua_pg_dict[torch_pg_unique_id] = new_group(ranks, stream)
-
-    return from_torch_group.bagua_pg_dict[torch_pg_unique_id]
-
-
-from_torch_group.bagua_pg_dict = {}
+    return new_group(ranks, stream)
 
 
 @gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
