@@ -82,7 +82,7 @@ class BaguaBucket:
 
     def flattened_tensor(self) -> torch.Tensor:
         """
-        Returns a tensor contiguous in memory which contains the same data as inner tensors, i.e.
+        Returns a tensor contiguous in memory which contains the same data as effective tensors, i.e.
         returned by calling :meth:`~bagua.torch_api.tensor.BaguaTensor.bagua_getter_closure` on
         :attr:`self` tensors and padding tensor (if exists).
         """
@@ -109,7 +109,7 @@ class BaguaBucket:
 
     def _flatten_(self):
         """
-        Flatten inner tensors in place.
+        Flatten effective tensors in place.
         """
         if len(self._all_tensors) == 0:
             return
@@ -140,7 +140,7 @@ class BaguaBucket:
     def check_flatten(self) -> bool:
         """
         Returns:
-            True if inner tensors are contiguous in memory.
+            True if effective tensors are contiguous in memory.
         """
         return check_contiguous(
             [tensor.bagua_getter_closure() for tensor in self._all_tensors]

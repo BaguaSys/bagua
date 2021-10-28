@@ -23,28 +23,9 @@ class BaguaTensor:
     the effective tensor during runtime. It is intended to be used to replace the effective tensor with customized
     workflow.
 
-    Their relation can be seen in the following diagram::
-
-                     ----------------
-                    |  Bagua Backend |
-                     -------x--------
-                            |
-                          access
-                            |
-           -------------------------------------
-          | Bagua Tensor    |                   |
-          |                 |                   |
-          |           ---------------           |
-          |          |  Proxy Tensor |          |
-          |           ------------x--           |
-          |               |       |             |
-          |    setter_closure    getter_closure |
-          |               |       |             |
-          |        -------x--------------       |
-          |       |   Effective Tensor   |      |
-          |        ----------------------       |
-          |                                     |
-           -------------------------------------
+   Their relation can be seen in the following diagram:
+   
+    .. image:: https://user-images.githubusercontent.com/18649508/139179394-51d0c0f5-e233-4ada-8e5e-0e70a889540d.png
 
     For example, in the gradient allreduce algorithm, the effective tensor that needs to be exchanged between
     machines is the gradient.  In this case, we will register the model parameters as proxy tensor, and register
