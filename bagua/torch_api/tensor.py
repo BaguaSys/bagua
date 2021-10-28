@@ -26,7 +26,7 @@ class BaguaTensor:
     tensor is recreated or changed during runtime, Bagua can still use the correct tensor for communication,
     since the :attr:`proxy_tensor` serves as the root for access and is never replaced.
     
-    Their relation can be seen in the following diagram:
+    Their relation can be seen in the following diagram::
 
                   ┌───────────────┐
                   │ Bagua Backend │
