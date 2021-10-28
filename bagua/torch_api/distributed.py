@@ -16,7 +16,7 @@ import torch
 import torch.nn
 import itertools
 from typing import List, Tuple, Optional
-from bagua.torch_api.data_parallel import InnerDistributedDataParallel
+from bagua.torch_api.data_parallel.inner_distributed import InnerDistributedDataParallel
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
