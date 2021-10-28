@@ -13,43 +13,44 @@ class BaguaTensor:
     This class patch `torch.Tensor <https://pytorch.org/docs/stable/tensors.html?highlight=tensor#torch.Tensor>`_
     with additional methods.
 
-    A Bagua tensor is required to use Bagua's communication algorithms.
+    A Bagua tensor is required to use Bagua's communication algorithms. Users can convert a PyTorch tensor to Bagua
+    tensor by :meth:`ensure_bagua_tensor` or :meth:`to_bagua_tensor`.
 
-    Bagua Tensor features a proxy structure, where the actual tensor used by backend is accessed via a "Proxy Tensor".
+    Bagua tensor features a proxy structure, where the actual tensor used by backend is accessed via a "Proxy Tensor".
     The proxy tensor is registered in Bagua, whenever the Bagua backend needs a tensor (for example use it for
     communication), it calls the :meth:`bagua_getter_closure` on the proxy tensor to get the tensor that is actually
-    worked on. We call this tensor "Effective Tensor".
+    worked on. We call this tensor "Effective Tensor". The :attr:`bagua_setter_closure` is also provided to replace
+    the effective tensor during runtime. It is intended to be used to replace the effective tensor with customized
+    workflow.
+
+    Their relation can be seen in the following diagram::
+
+                     ----------------
+                    |  Bagua Backend |
+                     -------x--------
+                            |
+                          access
+                            |
+           -------------------------------------
+          | Bagua Tensor    |                   |
+          |                 |                   |
+          |           ---------------           |
+          |          |  Proxy Tensor |          |
+          |           ------------x--           |
+          |               |       |             |
+          |    setter_closure    getter_closure |
+          |               |       |             |
+          |        -------x--------------       |
+          |       |   Effective Tensor   |      |
+          |        ----------------------       |
+          |                                     |
+           -------------------------------------
 
     For example, in the gradient allreduce algorithm, the effective tensor that needs to be exchanged between
     machines is the gradient.  In this case, we will register the model parameters as proxy tensor, and register
-    :attr:`bagua_getter_closure` to be ``lambda proxy_tensor: proxy_tensor.grad``. In this way, even if the gradient
-    tensor is recreated or changed during runtime, Bagua can still use the correct tensor for communication,
-    since the :attr:`proxy_tensor` serves as the root for access and is never replaced.
-    
-    Their relation can be seen in the following diagram::
-
-                  ┌───────────────┐
-                  │ Bagua Backend │
-                  └──────▲────────┘
-                         │
-                       access
-                         │
-        ┌────────────────┼────────────────┐
-        │Bagua Tensor    │                │
-        │        ┌───────┴────────┐       │
-        │        │  Proxy Tensor  │       │
-        │        └───┬──────▲─────┘       │
-        │            │      │             │
-        │ setter_closure  getter_closure  │
-        │            │      │             │
-        │     ┌──────▼──────┴───────┐     │
-        │     │  Effective Tensor   │     │
-        │     └─────────────────────┘     │
-        │                                 │
-        └─────────────────────────────────┘
-
-    The :attr:`bagua_setter_closure` is used to replace the effective tensor during runtime. It is intended to be used
-    to replace the effective tensor with customized workflow.
+    :attr:`getter_closure` to be ``lambda proxy_tensor: proxy_tensor.grad``. In this way, even if the gradient
+    tensor is recreated or changed during runtime, Bagua can still identify the correct tensor and use it
+    for communication, since the proxy tensor serves as the root for access and is never replaced.
     """
 
     def _bagua_sanity_check(self):
@@ -81,19 +82,19 @@ class BaguaTensor:
     ):
         """
         Convert a PyTorch tensor or parameter to Bagua tensor inplace and return it.
+        A Bagua tensor is required to use Bagua's communication algorithms.
 
-        This operation will register a tensor to the Bagua backend, which is required to use
-        Bagua's communication algorithms. :attr:`getter_closure` takes the registered tensor
-        as input and returns a Pytorch tensor. When using the registered tensor, the
-        :attr:`getter_closure` will be called, whose return value will be used
-        for communication and other operations. For example, if one of a model's parameter ``param``
-        is registered, and :attr:`getter_closure` is ``lambda x: x.grad``, during runtime its gradient will be used.
+        This operation will register :attr:`self` as proxy tensor to the Bagua backend. :attr:`getter_closure` takes
+        the proxy tensor as input and returns a Pytorch tensor. When using the Bagua tensor, the :attr:`getter_closure`
+        will be called and returns the effective tensor which will be used for communication and other operations.
+        For example, if one of a model's parameter ``param`` is registered as proxy tensor, and :attr:`getter_closure`
+        is ``lambda x: x.grad``, during runtime its gradient will be used.
 
-        :attr:`setter_closure` takes the registered tensor and another tensor as inputs and returns nothing.
-        It is mainly used for changing the tensor which will be used in runtime. For example when one of
-        a model's parameter ``param`` is registered as a Bagua tensor, and :attr:`getter_closure` is ``lambda x: x.grad``,
+        :attr:`setter_closure` takes the proxy tensor and another tensor as inputs and returns nothing.
+        It is mainly used for changing the effective tensor used in runtime. For example when one of
+        a model's parameter ``param`` is registered as proxy tensor, and :attr:`getter_closure` is ``lambda x: x.grad``,
         the :attr:`setter_closure` can be ``lambda param, new_grad_tensor: setattr(param, "grad", new_grad_tensor)``.
-        When the :attr:`setter_closure` is called, the tensor used in later operations will be changed
+        When the :attr:`setter_closure` is called, the effective tensor used in later operations will be changed
         to ``new_grad_tensor``.
 
         Args:
@@ -255,7 +256,7 @@ class BaguaTensor:
         storage_offset: int = 0,
     ):
         """
-        Sets the underlying storage for the tensor returned by :meth:`bagua_getter_closure` with an existing
+        Sets the underlying storage for the effective tensor returned by :meth:`bagua_getter_closure` with an existing
         `torch.Storage <https://pytorch.org/docs/stable/storage.html?highlight=storage>`_.
 
         Args:
