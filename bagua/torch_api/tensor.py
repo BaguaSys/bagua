@@ -28,8 +28,8 @@ class BaguaTensor:
     
     Their relation can be seen in the following diagram::
 
-                  ┌───────────────┐
-                  │ Bagua Backend │
+                  ┌────────────────┐
+                  │ Bagua Backend  │
                   └──────▲────────┘
                          │
                        access
@@ -38,16 +38,16 @@ class BaguaTensor:
         │Bagua Tensor    │                │
         │        ┌───────┴────────┐       │
         │        │  Proxy Tensor  │       │
-        │        └───┬──────▲─────┘       │
+        │        └───┬─────▲─────┘       │
         │            │      │             │
         │ setter_closure  getter_closure  │
         │            │      │             │
-        │     ┌──────▼──────┴───────┐     │
+        │     ┌──────▼─────┴───────┐     │
         │     │  Effective Tensor   │     │
         │     └─────────────────────┘     │
         │                                 │
         └─────────────────────────────────┘
-
+        
     The :attr:`bagua_setter_closure` is used to replace the effective tensor during runtime. It is intended to be used
     to replace the effective tensor with customized workflow.
     """
