@@ -13,6 +13,7 @@ from bagua.torch_api.communication import (
 from bagua.torch_api.model_parallel.moe import is_moe_param
 from typing import Callable
 from .inner_distributed import InnerDistributedDataParallel
+from typing import List
 
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
