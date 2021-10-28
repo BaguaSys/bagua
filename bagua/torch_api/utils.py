@@ -56,14 +56,14 @@ def get_flattened_tensor(tensors: List[torch.Tensor]) -> torch.Tensor:
     for tensor in tensors:
         total_size += tensor.numel()
 
-    flatten_tensor = torch.zeros(total_size, dtype=tensors[0].dtype).to(
-        tensors[0].device
+    flatten_tensor = torch.zeros(
+        total_size, dtype=tensors[0].dtype, device=tensors[0].device
     )
 
     offset = 0
     for tensor in tensors:
         # copy data
-        flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
+        flatten_tensor[offset : offset + tensor.numel()] = tensor.reshape(-1)
         offset += tensor.numel()
 
     return flatten_tensor

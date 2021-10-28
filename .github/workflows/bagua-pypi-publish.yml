@@ -2,6 +2,10 @@ on: push
 
 name: pypi publish
 
+concurrency: 
+  group: environment-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -18,8 +22,9 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
       - name: Publish package
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
@@ -30,12 +35,124 @@ jobs:
           name: bagua-pypi-package
           path: |
             dist/*
-  check_install:
+
+  check_source_install:
     runs-on: ubuntu-latest
     container: baguasys/bagua:latest
-    needs: publish
+    needs:
+      - publish
     steps:
     - run: rustup default stable
     - name: Check install with pip
       run: |
         python -m pip install --pre bagua --upgrade
+
+  check_wheel_install:
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda-version:
+          - "113"
+          - "111"
+          - "102"
+        os:
+          - ubuntu-20.04
+        python-major-version:
+          - "3"
+        python-minor-version:
+          - "7"
+          - "8"
+          - "9"
+          # - "10"
+    env:
+      BAGUA_CUDA_VERSION: "${{ matrix.cuda-version }}"
+
+    runs-on: ${{ matrix.os }}
+    needs:
+      - wheel
+    steps:
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ format('{0}.{1}', matrix.python-major-version, matrix.python-minor-version) }}
+          architecture: 'x64'
+      - name: Check install with pip
+        run: |
+          python -m pip install --pre bagua-cuda${BAGUA_CUDA_VERSION} --upgrade
+
+  wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda-version:
+          - "113"
+          - "111"
+          - "102"
+        arch:
+          - x86_64
+        os:
+          - ubuntu-20.04
+        python-major-version:
+          - "3"
+        python-minor-version:
+          - "7"
+          - "8"
+          - "9"
+          # - "10"
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      CIBW_BUILD: "${{ format('cp{0}{1}*', matrix.python-major-version, matrix.python-minor-version) || '*' }}"
+      CIBW_MANYLINUX_X86_64_IMAGE: "baguasys/manylinux-cuda:${{ matrix.cuda-version }}"
+      CIBW_ARCHS_LINUX: "${{ matrix.arch || 'auto' }}"
+      CIBW_ENVIRONMENT: 'AUDITWHEEL_PLAT="manylinux2014_${{ matrix.arch }}" BAGUA_CUDA_VERSION="${{ matrix.cuda-version }}"'
+      CIBW_REPAIR_WHEEL_COMMAND: "auditwheel show {wheel} && auditwheel repair -w {dest_dir} --exclude libnccl {wheel}"
+      CIBW_BEFORE_BUILD: "pip install git+https://github.com/rossant/auditwheel.git@include-exclude"
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ format('{0}.{1}', matrix.python-major-version, matrix.python-minor-version) }}
+          architecture: 'x64'
+      - name: install dependencies
+        run: |
+          pip install --upgrade setuptools pip wheel
+          pip install cibuildwheel==2.1.3
+      - name: show environment
+        run: |
+          pip freeze
+      - name: list target wheels
+        run: |
+          python -m cibuildwheel . --print-build-identifiers
+      - name: build wheels
+        run: |
+          python -m cibuildwheel .
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wheels-${{ matrix.name }}
+          path: "wheelhouse/*"
+          if-no-files-found: error
+
+      - name: Publish a Python distribution to PyPI
+        if: github.ref == 'refs/heads/master' && !startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: wheelhouse/
+          skip_existing: true
+
+      - name: Publish package
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: wheelhouse/

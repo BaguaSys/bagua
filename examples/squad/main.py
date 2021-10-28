@@ -405,7 +405,7 @@ def train(args, train_dataset, model, tokenizer):
         tb_writer.close()
 
     if args.algorithm == "async":
-        algorithm.abort(model)
+        model.bagua_algorithm.abort(model)
 
     return global_step, tr_loss / global_step
 

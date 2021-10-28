@@ -2,11 +2,12 @@ import unittest
 import torch
 import os
 from bagua.torch_api.communication import (
-    init_bagua_communicator,
+    _get_default_group,
     allreduce,
     send,
     recv,
     allgather,
+    barrier,
 )
 from tests.internal.common_utils import find_free_port
 import multiprocessing
@@ -43,7 +44,7 @@ def run_abort(rank, nprocs, results, env):
     os.environ["NCCL_PROTO"] = "^LL128"
 
     comm_stream = torch.cuda.Stream()
-    comm = init_bagua_communicator(model_name="test_comm", stream=comm_stream)
+    comm = _get_default_group().get_global_communicator()
 
     def abort():
         time.sleep(10)
@@ -111,6 +112,11 @@ def run_allgather(rank, nprocs, results, env):
     results[rank].ret[0] = ret
 
 
+def run_barrier(rank, nprocs, results, env):
+    init_env(rank, env)
+    barrier()
+
+
 class TestCommunication(unittest.TestCase):
     def run_test_locally(self, fn):
         nprocs = torch.cuda.device_count()
@@ -163,6 +169,10 @@ class TestCommunication(unittest.TestCase):
         results = self.run_test_locally(run_allgather)
         for ret in results:
             self.assertTrue(ret.ret.item())
+
+    @skip_if_cuda_not_available()
+    def test_barrier(self):
+        self.run_test_locally(run_barrier)
 
 
 if __name__ == "__main__":

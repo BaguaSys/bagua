@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-from bagua.torch_api.communication import get_backend
+from bagua.torch_api.communication import get_backend, _get_default_group
 from typing import List, Callable, Optional
 
 import bagua_core as B
@@ -9,7 +9,10 @@ import torch
 
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
-from bagua.torch_api.communication import broadcast
+from bagua.torch_api.communication import (
+    BaguaProcessGroup,
+    _bagua_backend_comm,
+)
 
 
 class BaguaBucket:
@@ -31,7 +34,7 @@ class BaguaBucket:
         """
         self.tensors = tensors
         """
-        The tensors contained within the bucket.
+        The Bagua tensors contained in the bucket.
         """
         self.bagua_module_name = tensors[0].bagua_module_name
         for tensor in self.tensors:
@@ -52,7 +55,10 @@ class BaguaBucket:
                 # padding tensor must be of name bagua_padding_tensor, so that they are always marked as ready for communication in the backend
                 self.padding_tensor = torch.zeros(
                     padding, dtype=self.tensors[0].dtype, device=self.tensors[0].device
-                ).to_bagua_tensor("bagua_padding_tensor_bucket_" + name)
+                ).to_bagua_tensor(
+                    "bagua_padding_tensor_bucket_" + name,
+                    module_name=self.bagua_module_name,
+                )
 
         self._all_tensors = (
             self.tensors + [self.padding_tensor]
@@ -64,45 +70,52 @@ class BaguaBucket:
         self.flatten = flatten
         if self.flatten:
             self._flatten_()
+            torch.cuda.empty_cache()
 
         self.backend_bucket = B.BaguaBucketPy(
-            name, [tensor._bagua_backend_tensor for tensor in self._all_tensors]
+            name,
+            [tensor.bagua_backend_tensor() for tensor in self._all_tensors],
         )
 
         for tensor in self._all_tensors:
             tensor._bagua_bucket = self
 
-    def flattened_tensor(self) -> BaguaTensor:
+    def flattened_tensor(self) -> torch.Tensor:
         """
-        Returns a tensor contiguous in memory which contains the same data as :attr:`self` tensors and padding tensor (if exists).
+        Returns a tensor contiguous in memory which contains the same data as effective tensors, i.e.
+        returned by calling :meth:`~bagua.torch_api.tensor.BaguaTensor.bagua_getter_closure` on
+        :attr:`self` tensors and padding tensor (if exists).
         """
 
-        return get_flattened_tensor(self._all_tensors)
+        all_registered_tensors = [
+            tensor.bagua_getter_closure() for tensor in self._all_tensors
+        ]
+        return get_flattened_tensor(all_registered_tensors)
 
     def _flatten_(self):
         """
-        Flatten inner tensors in place.
+        Flatten effective tensors in place.
         """
-        if self.check_flatten():
-            return
-
         if len(self._all_tensors) == 0:
             return
-        total_size = 0
-        for tensor in self._all_tensors:
-            total_size += tensor.numel()
 
-        flatten_tensor = torch.zeros(total_size, dtype=self._all_tensors[0].dtype).to(
-            self._all_tensors[0].device
-        )
+        flatten_tensor = self.flattened_tensor()
+
+        if self.check_flatten():
+            flatten_tensor.set_(
+                self._all_tensors[0].bagua_getter_closure().storage(),
+                0,
+                flatten_tensor.shape,
+            )
+            self.backend_tensor = flatten_tensor
+            return
+
         flatten_storage = flatten_tensor.storage()
-
         offset = 0
+
         for tensor in self._all_tensors:
-            # copy data
-            flatten_tensor[offset : offset + tensor.numel()] = tensor.data.reshape(-1)
             tensor.bagua_set_storage(flatten_storage, offset)
-            offset += tensor.numel()
+            offset += tensor.bagua_getter_closure().numel()
 
         # set backend tensor
         self.backend_tensor = flatten_tensor
@@ -112,11 +125,17 @@ class BaguaBucket:
     def check_flatten(self) -> bool:
         """
         Returns:
-            True if the bucket's tensors are contiguous in memory.
+            True if effective tensors are contiguous in memory.
         """
-        return check_contiguous(self._all_tensors)
+        return check_contiguous(
+            [tensor.bagua_getter_closure() for tensor in self._all_tensors]
+        )
 
-    def append_python_op(self, python_function: Callable[[str], None]):
+    def append_python_op(
+        self,
+        python_function: Callable[[str], None],
+        group: Optional[BaguaProcessGroup] = None,
+    ):
         """
         Append a Python operation to a bucket. A Python operation is a Python function that
         takes the bucket's name and returns ``None``. It can do arbitrary things within the
@@ -127,11 +146,15 @@ class BaguaBucket:
 
         Args:
             python_function: The Python operation function.
+            group: The process group to work on. If ``None``, the default process group will be used.
         """
+
+        if group is None:
+            group = _get_default_group()
 
         def wrapper_function_factory(pyop):
             def wrapped_pyop(name):
-                with torch.cuda.stream(self._bagua_backend.stream):
+                with torch.cuda.stream(group.stream):
                     return pyop(name)
 
             return wrapped_pyop
@@ -144,6 +167,7 @@ class BaguaBucket:
         average: bool = True,
         scattergather: bool = False,
         compression: Optional[str] = None,
+        group: Optional[BaguaProcessGroup] = None,
     ):
         """
         Append a centralized synchronous operation to a bucket. It will sum or average the tensors in the bucket
@@ -161,11 +185,15 @@ class BaguaBucket:
                 of allreduce. This is required for using compression.
             compression: If not ``None``, the tensors will be compressed for communication. Currently ``"MinMaxUInt8"`` is
                 supported.
+            group: The process group to work on. If ``None``, the default process group will be used.
         """
+        if group is None:
+            group = _get_default_group()
+
         if hierarchical:
             self.backend_bucket.append_centralized_synchronous_op(
-                self._bagua_backend.internode_communicator,
-                self._bagua_backend.intranode_communicator,
+                _bagua_backend_comm(group.get_inter_node_communicator()),
+                _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
                 average=average,
                 scattergather=scattergather,
@@ -173,7 +201,7 @@ class BaguaBucket:
             )
         else:
             self.backend_bucket.append_centralized_synchronous_op(
-                self._bagua_backend.global_communicator,
+                _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 average=average,
@@ -186,13 +214,14 @@ class BaguaBucket:
         peer_weight: BaguaTensor,
         hierarchical: bool = True,
         peer_selection_mode: str = "all",
+        group: Optional[BaguaProcessGroup] = None,
     ):
         """
         Append a decentralized synchronous operation to a bucket. It will do gossipy style model averaging among workers.
 
         This operation is not inplace, which means the bucket weights is first copied to :attr:`peer_weight`, and the result of
         decentralized averaging will be in :attr:`peer_weight`. To copy :attr:`peer_weight` back to :attr:`self`, call
-        :meth:`decentralized_synchronous_op_copy_back_peer_weight`.
+        ``op.copy_back_peer_weight(self)``.
 
         This operation will be executed by the Bagua backend in
         the order they are appended when all the tensors within the bucket are marked ready.
@@ -206,48 +235,29 @@ class BaguaBucket:
             peer_selection_mode (str): Can be ``"all"`` or ``"shift_one"``. ``"all"`` means all workers' weights are averaged
                 in each communication step. ``"shift_one"`` means each worker selects a different peer to do weights average
                 in each communication step.
+            group: The process group to work on. If ``None``, the default process group will be used.
+        Returns:
+            The decentralized synchronous operation itself.
         """
+        if group is None:
+            group = _get_default_group()
 
         if hierarchical:
-            self.backend_bucket.append_decentralized_synchronous_op(
-                self._bagua_backend.internode_communicator,
-                self._bagua_backend.intranode_communicator,
+            return self.backend_bucket.append_decentralized_synchronous_op(
+                _bagua_backend_comm(group.get_inter_node_communicator()),
+                _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                peer_weight=peer_weight._bagua_backend_tensor,
+                peer_weight=peer_weight.bagua_backend_tensor(),
             )
         else:
-            self.backend_bucket.append_decentralized_synchronous_op(
-                self._bagua_backend.global_communicator,
+            return self.backend_bucket.append_decentralized_synchronous_op(
+                _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode=peer_selection_mode,
-                peer_weight=peer_weight._bagua_backend_tensor,
+                peer_weight=peer_weight.bagua_backend_tensor(),
             )
-
-    def decentralized_synchronous_op_copy_back_peer_weight(
-        self, peer_weight: BaguaTensor, hierarchical: bool = True
-    ):
-        """
-        Copy :attr:`peer_weight` back to bucket weights to end a decentralized synchronous operation.
-        See :meth:`append_decentralized_synchronous_op` for more information.
-
-        Args:
-            peer_weight (BaguaTensor):  A tensor used for averaging model with peers, should be of the same size
-                with the bucket tensors total size. Use ``self.flattened_tensor().to_bagua_tensor(...)`` to create such a tensor.
-            hierarchical (bool): Enable hierarchical communication. Which means the GPUs on the same machine
-                will communicate will each other first. After that, machines do inter-node communication. This can
-                boost performance when the inter-node communication cost is high. Must be the same with :attr:`hierarchical` argument in
-                :meth:`append_decentralized_synchronous_op`.
-        """
-        intra_comm = self._bagua_backend.intranode_communicator
-        inter_comm = self._bagua_backend.internode_communicator
-
-        if not hierarchical or (inter_comm is not None):
-            self.backend_tensor.copy_(peer_weight)
-
-        if hierarchical:
-            broadcast(self.backend_tensor, 0, intra_comm)
 
     def append_low_precision_decentralized_synchronous_op(
         self,
@@ -256,6 +266,7 @@ class BaguaBucket:
         right_peer_weight: BaguaTensor,
         hierarchical: bool = True,
         compression: str = "MinMaxUInt8",
+        group: Optional[BaguaProcessGroup] = None,
     ):
         """
         Append a low precision decentralized synchronous operation to a bucket. It will compress the difference
@@ -277,32 +288,37 @@ class BaguaBucket:
                 will communicate will each other first. After that, machines do inter-node communication. This can
                 boost performance when the inter-node communication cost is high.
             compression (str): The way how tensors are compressed for communication. Currently ``"MinMaxUInt8"`` is supported.
+            group: The process group to work on. If ``None``, the default process group will be used.
         """
+        if group is None:
+            group = _get_default_group()
 
         if hierarchical:
             self.backend_bucket.append_low_precision_decentralized_synchronous_op(
-                self._bagua_backend.internode_communicator,
-                self._bagua_backend.intranode_communicator,
+                _bagua_backend_comm(group.get_inter_node_communicator()),
+                _bagua_backend_comm(group.get_intra_node_communicator()),
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
                 compression=compression,
-                weight=weight._bagua_backend_tensor,
-                left_peer_weight=left_peer_weight._bagua_backend_tensor,
-                right_peer_weight=right_peer_weight._bagua_backend_tensor,
+                weight=weight.bagua_backend_tensor(),
+                left_peer_weight=left_peer_weight.bagua_backend_tensor(),
+                right_peer_weight=right_peer_weight.bagua_backend_tensor(),
             )
         else:
             self.backend_bucket.append_low_precision_decentralized_synchronous_op(
-                self._bagua_backend.global_communicator,
+                _bagua_backend_comm(group.get_global_communicator()),
                 None,
                 hierarchical=hierarchical,
                 peer_selection_mode="ring",
                 compression=compression,
-                weight=weight._bagua_backend_tensor,
-                left_peer_weight=left_peer_weight._bagua_backend_tensor,
-                right_peer_weight=right_peer_weight._bagua_backend_tensor,
+                weight=weight.bagua_backend_tensor(),
+                left_peer_weight=left_peer_weight.bagua_backend_tensor(),
+                right_peer_weight=right_peer_weight.bagua_backend_tensor(),
             )
 
-    def append_asynchronous_model_average_op(self, peer_selection_mode: str):
+    def append_asynchronous_model_average_op(
+        self, peer_selection_mode: str, group: Optional[BaguaProcessGroup] = None
+    ):
 
         """
         Append an asynchronous model average operation to a bucket. This operation will enable continuous
@@ -318,12 +334,15 @@ class BaguaBucket:
         Args:
             peer_selection_mode (str): The way how workers communicate with each otehr. Currently ``"all"`` is supported.
                 ``"all"`` means all workers' weights are averaged during each communication.
+            group: The process group to work on. If ``None``, the default process group will be used.
         Returns:
             The asynchronous model average operation itself.
         """
+        if group is None:
+            group = _get_default_group()
 
         return self.backend_bucket.append_decentralized_asynchronous_op(
-            self._bagua_backend.global_communicator,
+            _bagua_backend_comm(group.get_global_communicator()),
             None,
             peer_selection_mode=peer_selection_mode,
             torch_stream=torch.cuda.current_stream().cuda_stream,
@@ -338,4 +357,7 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket."""
-        return sum(tensor.numel() * tensor.element_size() for tensor in self.tensors)
+        registered_tensors = [tensor.bagua_getter_closure() for tensor in self.tensors]
+        return sum(
+            tensor.numel() * tensor.element_size() for tensor in registered_tensors
+        )

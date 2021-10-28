@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm
+from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
+from bagua.torch_api.communication import (
+    new_group,
+    broadcast,
+    barrier,
+    _pg_group_ranks,
+    BaguaProcessGroup,
+)
 from typing import List
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.env import get_rank
@@ -12,7 +19,8 @@ import torch
 import logging
 import concurrent
 
-__all__ = ["AsyncModelAverageAlgorithm"]
+
+__all__ = ["AsyncModelAverageAlgorithm", "AsyncModelAverageAlgorithmImpl"]
 
 
 class _AsyncInternalState(IntEnum):
@@ -20,16 +28,17 @@ class _AsyncInternalState(IntEnum):
     ABORT = 1
 
 
-class AsyncModelAverageAlgorithm(Algorithm):
+class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
     def __init__(
         self,
+        process_group: BaguaProcessGroup,
         peer_selection_mode: str = "all",
         sync_interval_ms: int = 500,
         warmup_steps: int = 0,
     ):
         """
-        Create an instance of the
-        `AsyncModelAverage <https://bagua-tutorials.kwai-seattle.com/algorithms/async-model-average.html>`_
+        Implementation of the
+        `AsyncModelAverage <https://tutorials.baguasys.com/algorithms/async-model-average.html>`_
         algorithm.
 
         The asynchronous implementation is experimental, and imposes some restrictions.
@@ -38,8 +47,11 @@ class AsyncModelAverageAlgorithm(Algorithm):
         synchronize between each other.
 
         Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
+        For example, for a model wrapped with `.with_bagua(...)`, you can abort with `model.bagua_algorithm.abort(model)`,
+        and resume with `model.bagua_algorithm.resume(model)`.
 
         Args:
+            process_group (BaguaProcessGroup): The process group to work on.
             peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
                 ``"all"`` means all workers' weights are synchronized during each communication.
             sync_interval_ms (int): Number of milliseconds between model synchronizations.
@@ -47,6 +59,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
                 model averaging. Use 0 to disable.
         """
 
+        super(AsyncModelAverageAlgorithmImpl, self).__init__(process_group)
         self.peer_selection_mode = peer_selection_mode
         self.sync_interval_ms = sync_interval_ms
         self.step_id = 0
@@ -55,15 +68,18 @@ class AsyncModelAverageAlgorithm(Algorithm):
         self.cuda_event = torch.cuda.Event()
 
         self.abort_event = threading.Event()
-        self.dummy_tensor = torch.Tensor([0]).byte()
-        self.main_group = torch.distributed.new_group(backend="gloo")
-        self.thread_group = torch.distributed.new_group(backend="gloo")
+        self.dummy_tensor = torch.Tensor([0]).byte().cuda()
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.scheduled = False
 
+        process_ranks = list(_pg_group_ranks[self.process_group])
+        self.thread_group = new_group(
+            process_ranks, stream=torch.cuda.Stream(priority=-1)
+        )
+
     def tensors_to_buckets(
-        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+        self, do_flatten: bool, tensors: List[List[BaguaTensor]]
     ) -> List[BaguaBucket]:
         if self.step_id < self.warmup_steps:
             return super().tensors_to_buckets(tensors, do_flatten)
@@ -81,11 +97,13 @@ class AsyncModelAverageAlgorithm(Algorithm):
         tensors = []
         for name, param in parameters.__reversed__():
             if self.step_id < self.warmup_steps:
-                grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                    name, bagua_module.bagua_module_name
+                param = param.bagua_ensure_grad().ensure_bagua_tensor(
+                    name,
+                    bagua_module.bagua_module_name,
+                    getter_closure=lambda param: param.grad,
+                    setter_closure=lambda param, t: setattr(param, "grad", t),
                 )
-                param._bagua_grad = grad
-                tensors.append(grad)
+                tensors.append(param)
             else:
                 p = param.ensure_bagua_tensor(name, bagua_module.bagua_module_name)
                 tensors.append(p)
@@ -114,7 +132,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
     def init_backward_hook(self, bagua_module: BaguaModule):
         def hook(parameter_name, parameter):
             if self.step_id <= self.warmup_steps:
-                parameter._bagua_grad.bagua_mark_communication_ready()
+                parameter.bagua_mark_communication_ready()
 
         return hook
 
@@ -148,10 +166,11 @@ class AsyncModelAverageAlgorithm(Algorithm):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
+                group=self.process_group,
             )
         else:
             async_op = bucket.append_asynchronous_model_average_op(
-                peer_selection_mode=self.peer_selection_mode,
+                peer_selection_mode=self.peer_selection_mode, group=self.thread_group
             )
             bucket._async_op = async_op
 
@@ -175,14 +194,18 @@ class AsyncModelAverageAlgorithm(Algorithm):
         else:
             self.dummy_tensor[0] = _AsyncInternalState.RESUME
 
-        torch.distributed.broadcast(self.dummy_tensor, src=0, group=self.thread_group)
+        broadcast(
+            self.dummy_tensor,
+            src=0,
+            comm=self.thread_group.get_global_communicator(),
+        )
+
         return self.dummy_tensor.item()
 
     def _run_async_loop(self, bagua_module: BaguaModule):
         comm_step = 0
         while True:
             state = self._negotiate()
-
             if state == _AsyncInternalState.ABORT:
                 break
 
@@ -212,7 +235,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         """
 
         if self.scheduled:
-            torch.distributed.barrier(group=self.main_group)
+            barrier(comm=self.process_group.get_global_communicator())
             self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
             self.scheduled = False
@@ -228,8 +251,50 @@ class AsyncModelAverageAlgorithm(Algorithm):
         """
 
         if not self.scheduled and hasattr(self, "future"):
-            torch.distributed.barrier(group=self.main_group)
+            barrier(comm=self.process_group.get_global_communicator())
             self.abort_event.clear()
             self.future = self.executor.submit(self._run_async_loop, bagua_module)
             self.scheduled = True
             logging.debug("Process {} async communication resumed.".format(get_rank()))
+
+
+class AsyncModelAverageAlgorithm(Algorithm):
+    def __init__(
+        self,
+        peer_selection_mode: str = "all",
+        sync_interval_ms: int = 500,
+        warmup_steps: int = 0,
+    ):
+        """
+        Create an instance of the
+        `AsyncModelAverage <https://tutorials.baguasys.com/algorithms/async-model-average.html>`_
+        algorithm.
+
+        The asynchronous implementation is experimental, and imposes some restrictions.
+        With such asynchronous algorithm, the number of iterations on each worker are different. Therefore
+        the current implementation assumes that the dataset is an endless stream, and all workers continuously
+        synchronize between each other.
+
+        Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
+        For example, for a model wrapped with `.with_bagua(...)`, you can abort with `model.bagua_algorithm.abort(model)`,
+        and resume with `model.bagua_algorithm.resume(model)`.
+
+        Args:
+            peer_selection_mode (str): The way how workers communicate with each other. Currently ``"all"`` is supported.
+                ``"all"`` means all workers' weights are synchronized during each communication.
+            sync_interval_ms (int): Number of milliseconds between model synchronizations.
+            warmup_steps (int): Number of steps to warm up by doing gradient allreduce before doing asynchronous
+                model averaging. Use 0 to disable.
+        """
+
+        self.peer_selection_mode = peer_selection_mode
+        self.sync_interval_ms = sync_interval_ms
+        self.warmup_steps = warmup_steps
+
+    def reify(self, process_group: BaguaProcessGroup) -> AsyncModelAverageAlgorithmImpl:
+        return AsyncModelAverageAlgorithmImpl(
+            process_group,
+            peer_selection_mode=self.peer_selection_mode,
+            sync_interval_ms=self.sync_interval_ms,
+            warmup_steps=self.warmup_steps,
+        )
