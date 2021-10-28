@@ -14,7 +14,7 @@ class BaguaTensor:
     with additional methods.
 
     A Bagua tensor is required to use Bagua's communication algorithms. Users can convert a PyTorch tensor to Bagua
-    tensor by :meth:`ensure_bagua_tensor` or :meth:`ensure_bagua_tensor`.
+    tensor by :meth:`ensure_bagua_tensor`.
 
     Bagua tensor features a proxy structure, where the actual tensor used by backend is accessed via a **"Proxy Tensor"**.
     The proxy tensor is registered in Bagua, whenever the Bagua backend needs a tensor (for example use it for
