@@ -12,7 +12,7 @@ from bagua.torch_api.communication import (
 )
 from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
 from bagua.torch_api.model_parallel.moe import is_moe_param
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 from .inner_distributed import InnerDistributedDataParallel
 from torch.nn.parallel import DistributedDataParallel as TorchDistributedDataParallel
 from typing import List
@@ -159,7 +159,7 @@ def DistributedDataParallel(
     # The following bagua parameters
     optimizers: List[torch.optim.Optimizer] = [],
     algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm()
-) -> Any[DistributedDataParallel_V1_9_0, TorchDistributedDataParallel]:
+):
     fallback_pass = [
         device_ids is not None,
         output_device is not None,
