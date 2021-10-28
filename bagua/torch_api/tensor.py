@@ -25,6 +25,28 @@ class BaguaTensor:
     :attr:`bagua_getter_closure` to be ``lambda proxy_tensor: proxy_tensor.grad``. In this way, even if the gradient
     tensor is recreated or changed during runtime, Bagua can still use the correct tensor for communication,
     since the :attr:`proxy_tensor` serves as the root for access and is never replaced.
+    
+    Their relation can be seen in the following diagram:
+
+                  ┌───────────────┐
+                  │ Bagua Backend │
+                  └──────▲────────┘
+                         │
+                       access
+                         │
+        ┌────────────────┼────────────────┐
+        │Bagua Tensor    │                │
+        │        ┌───────┴────────┐       │
+        │        │  Proxy Tensor  │       │
+        │        └───┬──────▲─────┘       │
+        │            │      │             │
+        │ setter_closure  getter_closure  │
+        │            │      │             │
+        │     ┌──────▼──────┴───────┐     │
+        │     │  Effective Tensor   │     │
+        │     └─────────────────────┘     │
+        │                                 │
+        └─────────────────────────────────┘
 
     The :attr:`bagua_setter_closure` is used to replace the effective tensor during runtime. It is intended to be used
     to replace the effective tensor with customized workflow.
