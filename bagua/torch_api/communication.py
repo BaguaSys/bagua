@@ -20,6 +20,9 @@ from bagua.service.autotune_service import AutotuneClient
 from functools import lru_cache
 from datetime import timedelta
 from typing import Optional, List
+import torch.distributed.distributed_c10d as c10d
+from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
+import gorilla
 
 # fmt: off
 __all__ = [
@@ -189,7 +192,37 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None):
 
     ranks = list(c10d._pg_group_ranks[group].keys())
 
-    return new_group(ranks, stream)
+    torch_pg_unique_id = id(group)
+    if torch_pg_unique_id not in from_torch_group.bagua_pg_dict:
+        from_torch_group.bagua_pg_dict[torch_pg_unique_id] = new_group(ranks, stream)
+
+    return from_torch_group.bagua_pg_dict[torch_pg_unique_id]
+
+
+from_torch_group.bagua_pg_dict = {}
+
+
+@gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
+class BaguaProcessGroupPatch:
+    def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
+        ranks = list(c10d._pg_group_ranks[self].keys())
+
+        self.bagua_pg = new_group(ranks, stream)
+
+    def bagua_get_global_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "global")
+
+    def bagua_get_inter_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "inter")
+
+    def bagua_get_intra_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "intra")
+
+
+_base = gorilla._get_base(BaguaProcessGroupPatch)
+_decorator_data = gorilla.get_decorator_data(_base)
+for patch in _decorator_data.patches:
+    gorilla.apply(patch)
 
 
 class BaguaProcessGroup:

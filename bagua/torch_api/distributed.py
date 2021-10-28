@@ -1,8 +1,4 @@
 from __future__ import annotations
-import collections
-import io
-from multiprocessing import process
-import pickle
 
 from bagua.torch_api.communication import (
     get_backend,
@@ -15,17 +11,12 @@ import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 from bagua.torch_api.env import get_autotune_level, get_rank
 from bagua.torch_api.model_parallel.moe import is_moe_param
-from bagua.bagua_define import (
-    TensorDeclaration,
-    BaguaHyperparameter,
-)
 import gorilla
-import time
-import logging
 import torch
 import torch.nn
 import itertools
 from typing import List, Tuple, Optional
+from bagua.torch_api.data_parallel import InnerDistributedDataParallel
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -98,7 +89,7 @@ class BaguaModule:
         """
         self.bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
-        self.bagua_ddp = bagua.torch_api.data_parallel.InnerDistributedDataParallel(
+        self.bagua_ddp = InnerDistributedDataParallel(
             self,
             optimizers,
             algorithm,

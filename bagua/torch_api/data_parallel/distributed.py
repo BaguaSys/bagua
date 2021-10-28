@@ -112,12 +112,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             )
         self.device_type = list(distinct_device_types)[0]
 
-        bagua_process_group = None
-        if type(process_group) is BaguaProcessGroup:
-            bagua_process_group = process_group
-        elif type(process_group) is TorchProcessGroup:
-            bagua_process_group = from_torch_group(process_group)
-
         self.static_graph = False
         self.dim = dim
         self.module = module
@@ -128,7 +122,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.find_unused_parameters = find_unused_parameters
 
         self.inner_ddp = InnerDistributedDataParallel(
-            self.module, optimizers, algorithm, bagua_process_group
+            self.module, optimizers, algorithm, process_group
         )
 
     @property
@@ -165,7 +159,7 @@ class InnerDistributedDataParallel:
         module: Module,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
-        process_group: Optional[BaguaProcessGroup] = None,
+        process_group: Optional[TorchProcessGroup] = None,
     ) -> None:
         self.module = module
         self.bagua_module_name = "{}_{}".format(
@@ -332,15 +326,6 @@ class InnerDistributedDataParallel:
             raise NotImplementedError("sparse gradient not supported yet")
 
         return parameters
-
-    @contextmanager
-    def no_sync(self):
-        old_require_backward_grad_sync = self.require_backward_grad_sync
-        self.require_backward_grad_sync = False
-        try:
-            yield
-        finally:
-            self.require_backward_grad_sync = old_require_backward_grad_sync
 
     # Copyright 2020 Uber Technologies, Inc. All Rights Reserved.
     # Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.

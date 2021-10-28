@@ -1,4 +1,4 @@
-from bagua.torch_api.distributed import BaguaModule as InnerDistributedDataParallel
+from bagua.torch_api.data_parallel import InnerDistributedDataParallel
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.communication import BaguaProcessGroup
