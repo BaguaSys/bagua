@@ -16,10 +16,10 @@ class BaguaTensor:
     A Bagua tensor is required to use Bagua's communication algorithms. Users can convert a PyTorch tensor to Bagua
     tensor by :meth:`ensure_bagua_tensor` or :meth:`to_bagua_tensor`.
 
-    Bagua tensor features a proxy structure, where the actual tensor used by backend is accessed via a "Proxy Tensor".
+    Bagua tensor features a proxy structure, where the actual tensor used by backend is accessed via a **"Proxy Tensor"**.
     The proxy tensor is registered in Bagua, whenever the Bagua backend needs a tensor (for example use it for
     communication), it calls the :meth:`bagua_getter_closure` on the proxy tensor to get the tensor that is actually
-    worked on. We call this tensor "Effective Tensor". The :attr:`bagua_setter_closure` is also provided to replace
+    worked on. We call this tensor **"Effective Tensor"**. The :attr:`bagua_setter_closure` is also provided to replace
     the effective tensor during runtime. It is intended to be used to replace the effective tensor with customized
     workflow.
 
