@@ -17,7 +17,7 @@ import triton.language as tl
 # Forward Pass
 @triton.jit
 def _layer_norm_fwd_fused(X, Y, W, B, M, V, stride, N, eps, **META):
-    BLOCK_SIZE = META['BLOCK_SIZE']
+    BLOCK_SIZE = META["BLOCK_SIZE"]
     # position of elements processed by this program
     row = tl.program_id(0)
     cols = tl.arange(0, BLOCK_SIZE)
@@ -81,7 +81,7 @@ def _layer_norm_bwd_dx_fused(DX, DY, DW, DB, X, W, B, M, V, Lock, stride, N, eps
     wdy = tl.where(mask, wdy, 0.)
     mean1 = tl.sum(xhat * wdy, axis=0) / N
     mean2 = tl.sum(wdy, axis=0) / N
-    dx = (wdy - (xhat * mean1 + mean2))*rstd
+    dx = (wdy - (xhat * mean1 + mean2)) * rstd
     # write-back dx
     tl.store(DX + cols, dx, mask=mask)
     # accumulate partial sums for dw/db
@@ -131,8 +131,8 @@ class _LayerNorm(torch.autograd.Function):
         # reshape input data into 2D tensor
         x_arg = x.reshape(-1, x.shape[-1])
         M, N = x_arg.shape
-        mean = torch.empty((M,), dtype=torch.float32, device='cuda')
-        rstd = torch.empty((M,), dtype=torch.float32, device='cuda')
+        mean = torch.empty((M,), dtype=torch.float32, device="cuda")
+        rstd = torch.empty((M,), dtype=torch.float32, device="cuda")
         # Less than 64KB per feature: enqueue fused kernel
         MAX_FUSED_SIZE = 65536 // x.element_size()
         BLOCK_SIZE = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
@@ -175,10 +175,10 @@ class _LayerNorm(torch.autograd.Function):
         M, N = x_arg.shape
         _layer_norm_bwd_dx_fused[(M,)](dx, dy, _dw, _db, x, w, b, m, v, locks,
                                        x_arg.stride(0), N, ctx.eps,
-                                       BLOCK_SIZE_N=ctx.BLOCK_SIZE, 
+                                       BLOCK_SIZE_N=ctx.BLOCK_SIZE,
                                        GROUP_SIZE_M=GROUP_SIZE_M,
                                        num_warps=ctx.num_warps)
-        grid = lambda meta: [triton.cdiv(N, meta['BLOCK_SIZE_N'])]
+        grid = lambda meta: [triton.cdiv(N, meta["BLOCK_SIZE_N"])]
         # accumulate partial sums in separate kernel
         _layer_norm_bwd_dwdb[grid](_dw, _db, dw, db, GROUP_SIZE_M, N, BLOCK_SIZE_M=32, BLOCK_SIZE_N=128)
         return dx, None, dw, db, None
@@ -193,7 +193,7 @@ class FusedLayerNorm(nn.Module):
     def __init__(self, normalized_shape, eps=1e-5):
         super(FusedLayerNorm, self).__init__()
         if isinstance(normalized_shape, numbers.Integral):
-            normalized_shape = (normalized_shape,) 
+            normalized_shape = (normalized_shape,)
         self.normalized_shape = tuple(normalized_shape)
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(self.normalized_shape, device="cuda"))
