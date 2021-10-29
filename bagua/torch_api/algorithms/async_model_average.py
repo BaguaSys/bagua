@@ -79,7 +79,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         )
 
     def tensors_to_buckets(
-        self, do_flatten: bool, tensors: List[List[BaguaTensor]]
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
     ) -> List[BaguaBucket]:
         if self.step_id < self.warmup_steps:
             return super().tensors_to_buckets(tensors, do_flatten)

@@ -140,7 +140,7 @@ class BaguaModule:
             for group in optimizer.param_groups:
                 for p in group["params"]:
                     if p.requires_grad and id(p) not in optimizer_state_dict["state"]:
-                        p.grad = p.data.new(p.size()).zero_()
+                        p.bagua_ensure_grad()
                         if isinstance(optimizer, torch.optim.SparseAdam):
                             p.grad = p.grad.to_sparse()
             optimizer_state_dict = optimizer.state_dict()

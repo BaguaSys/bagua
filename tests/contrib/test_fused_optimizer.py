@@ -49,16 +49,25 @@ def construct_model_and_optimizer(opt, flag_param, device):
 def train_model(model, optimizer, device, num_epochs):
     input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
 
-    for epoch in range(num_epochs):
+    for _ in range(num_epochs):
         optimizer.zero_grad()
         output = model(input)
         loss = output.sum()
         loss.backward()
 
-        if epoch % 2 == 0:
-            optimizer.step()
-        else:
-            optimizer.fuse_step()
+        optimizer.step()
+
+
+def train_model_fused(model, optimizer, device, num_epochs):
+    input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
+
+    for _ in range(num_epochs):
+        optimizer.zero_grad()
+        output = model(input)
+        loss = output.sum()
+        loss.backward()
+
+        optimizer.fuse_step()
 
 
 def bagua_init(model, optimizer, algorithm, do_flatten):
@@ -70,7 +79,7 @@ def bagua_init(model, optimizer, algorithm, do_flatten):
     elif algorithm == "bytegrad":
         from bagua.torch_api.algorithms import bytegrad
 
-        bagua_algorithm = bytegrad.ByteGradAlgorithm(hierarchical=False)
+        bagua_algorithm = bytegrad.ByteGradAlgorithm()
     elif algorithm == "decentralized":
         from bagua.torch_api.algorithms import decentralized
 
@@ -100,6 +109,24 @@ def bagua_init(model, optimizer, algorithm, do_flatten):
     return model, optimizer
 
 
+def setup_bagua_env():
+    # init env
+    os.environ["WORLD_SIZE"] = "1"
+    os.environ["LOCAL_WORLD_SIZE"] = "1"
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["MASTER_PORT"] = str(find_free_port(8000, 8100))
+    os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port(9000, 9100))
+
+    os.environ["RANK"] = "0"
+    os.environ["LOCAL_RANK"] = "0"
+
+    # init bagua distributed process group
+    torch.cuda.set_device(0)
+    # TODO: remove this after process group destroy supported
+    if not bagua.communication.is_initialized():
+        bagua.init_process_group()
+
+
 def run(opt, flag_param, device, num_epochs):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
 
@@ -111,7 +138,19 @@ def run_fused(opt, flag_param, device, num_epochs):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
     optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=True)
 
+    train_model_fused(model, optimizer, device, num_epochs=num_epochs)
+    return model.parameters(), optimizer._bagua_fused_count
+
+
+def run_with_bagua(opt, flag_param, device, num_epochs, algorithm):
+    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+
+    model, optimizer = bagua_init(model, optimizer, algorithm, do_flatten=True)
+
     train_model(model, optimizer, device, num_epochs=num_epochs)
+
+    if algorithm == "async":
+        model.bagua_algorithm.abort(model)
     return model.parameters()
 
 
@@ -119,36 +158,36 @@ def run_fused_with_bagua(
     opt, flag_param, device, num_epochs, algorithm, optimizer_flatten, bagua_flatten
 ):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
-    train_model(model, optimizer, device, 1)
-
-    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
 
     # First fuse optimizer, then wrap module
     optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=optimizer_flatten)
     model, optimizer = bagua_init(model, optimizer, algorithm, bagua_flatten)
 
-    train_model(model, optimizer, device, num_epochs=num_epochs - 1)
-    return model.parameters()
+    train_model_fused(model, optimizer, device, num_epochs=num_epochs)
+
+    if algorithm == "async":
+        model.bagua_algorithm.abort(model)
+    return model.parameters(), optimizer._bagua_fused_count
 
 
 def run_fused_with_bagua_v2(
     opt, flag_param, device, num_epochs, algorithm, optimizer_flatten, bagua_flatten
 ):
     model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
-    train_model(model, optimizer, device, 1)
-
-    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
 
     # First wrap module, then fuse optimizer
     model, optimizer = bagua_init(model, optimizer, algorithm, bagua_flatten)
     optimizer = bagua.contrib.fuse_optimizer(optimizer, do_flatten=optimizer_flatten)
 
-    train_model(model, optimizer, device, num_epochs=num_epochs - 1)
-    return model.parameters()
+    train_model_fused(model, optimizer, device, num_epochs=num_epochs)
+
+    if algorithm == "async":
+        model.bagua_algorithm.abort(model)
+    return model.parameters(), optimizer._bagua_fused_count
 
 
 class TestFusedOptimizer(unittest.TestCase):
-    def run_all_optimizers_once(self, fn1, fn2, device, num_epochs):
+    def run_all_optimizers_once(self, fn1, fn2, device, num_epochs, fused_count):
         optimizer_list = [
             optim.SGD,
             optim.SGD,
@@ -202,143 +241,136 @@ class TestFusedOptimizer(unittest.TestCase):
         count = 0
         for opt, flag_param in zip(optimizer_list, flag_params):
             res1 = fn1(opt, flag_param, device=device, num_epochs=num_epochs)
-            res2 = fn2(opt, flag_param, device=device, num_epochs=num_epochs)
+            res2, cnt2 = fn2(opt, flag_param, device=device, num_epochs=num_epochs)
 
             for p1, p2 in zip(res1, res2):
                 self.assertTrue(torch.equal(p1, p2))
+            self.assertTrue(cnt2 == fused_count)
 
             count += 1
             logging.info(f"Tests Passed [{count}/{len(optimizer_list)}]")
 
-    def run_fused_optimizer_with_bagua(self, fn):
-        # init env
-        os.environ["WORLD_SIZE"] = "1"
-        os.environ["LOCAL_WORLD_SIZE"] = "1"
-        os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(find_free_port(8000, 8100))
-        os.environ["BAGUA_SERVICE_PORT"] = str(find_free_port(9000, 9100))
-
-        os.environ["RANK"] = "0"
-        os.environ["LOCAL_RANK"] = "0"
-
-        # init bagua distributed process group
-        torch.cuda.set_device(0)
-        bagua.init_process_group()
-
-        self.run_all_optimizers_once(fn1=run, fn2=fn, device="cuda:0", num_epochs=1001)
+    def run_fused_with_bagua_wrapper(self, fn1, fn2, num_epochs, fused_cnt):
+        self.run_all_optimizers_once(fn1, fn2, "cuda:0", num_epochs, fused_cnt)
 
     @skip_if_cuda_available()
     def test_fused_optimizer(self):
         self.run_all_optimizers_once(
-            fn1=run, fn2=run_fused, device="cpu", num_epochs=1001
+            fn1=run, fn2=run_fused, device="cpu", num_epochs=101, fused_count=1
         )
 
     @skip_if_cuda_not_available()
     def test_gradient_allreduce(self):
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "gradient_allreduce", True, True
-            )
+        setup_bagua_env()
+        # check: optimizer param groups is flattened, should fuse
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "gradient_allreduce", True, False
+            ),
+            num_epochs=101,
+            fused_cnt=1,
         )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "gradient_allreduce", True, False
-            )
+        # check: both are falttened, should not fuse
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "gradient_allreduce", True, True
+            ),
+            num_epochs=101,
+            fused_cnt=0,
         )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "gradient_allreduce", False, True
-            )
+        # check: bagua module is falttened, should not fuse
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "gradient_allreduce", False, True
+            ),
+            num_epochs=101,
+            fused_cnt=0,
         )
 
     @skip_if_cuda_not_available()
     def test_bytegrad(self):
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "bytegrad", True, True
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "bytegrad", True, False
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "bytegrad", False, True
-            )
+        setup_bagua_env()
+        # check: optimizer param groups is flattened, should fuse
+        self.run_fused_with_bagua_wrapper(
+            fn1=lambda p1, p2, device, num_epochs: run_with_bagua(
+                p1, p2, device, num_epochs, "bytegrad"
+            ),
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "bytegrad", True, False
+            ),
+            num_epochs=101,
+            fused_cnt=1,
         )
 
     @skip_if_cuda_not_available()
     def test_decentralized(self):
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "decentralized", True, True
-            )
+        setup_bagua_env()
+        # check: optimizer param groups is flattened, should fuse
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "decentralized", True, False
+            ),
+            num_epochs=101,
+            fused_cnt=1,
         )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "decentralized", True, False
-            )
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "decentralized", True, True
+            ),
+            num_epochs=101,
+            fused_cnt=0,
         )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "decentralized", False, True
-            )
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "decentralized", False, True
+            ),
+            num_epochs=101,
+            fused_cnt=0,
         )
 
     @skip_if_cuda_not_available()
     def test_async(self):
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "async", True, True
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "async", True, False
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "async", False, True
-            )
+        setup_bagua_env()
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "async", True, False
+            ),
+            num_epochs=101,
+            fused_cnt=1,
         )
 
     @skip_if_cuda_not_available()
     def test_low_prec_decentralized(self):
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "low_prec_decentralized", True, True
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "low_prec_decentralized", True, False
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "low_prec_decentralized", False, True
-            )
+        setup_bagua_env()
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "low_prec_decentralized", True, False
+            ),
+            num_epochs=101,
+            fused_cnt=1,
         )
 
     @skip_if_cuda_not_available()
     def test_qadam(self):
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "qadam", True, True
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "qadam", True, False
-            )
-        )
-        self.run_fused_optimizer_with_bagua(
-            fn=lambda p1, p2, p3, p4: run_fused_with_bagua(
-                p1, p2, p3, p4, "qadam", False, True
-            )
+        return
+        setup_bagua_env()
+        self.run_fused_with_bagua_wrapper(
+            fn1=lambda p1, p2, device, num_epochs: run_with_bagua(
+                p1, p2, device, num_epochs, "qadam"
+            ),
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
+                p1, p2, device, num_epochs, "qadam", True, False
+            ),
+            num_epochs=101,
+            fused_cnt=1,
         )
 
     @skip_if_cuda_available()

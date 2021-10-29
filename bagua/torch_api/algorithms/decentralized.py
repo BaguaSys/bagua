@@ -48,12 +48,14 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         ]
         return self.tensors
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         all_tensors = []
         for idx, bucket in enumerate(tensors):
             all_tensors.extend(bucket)
 
-        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
+        bagua_bucket = BaguaBucket(all_tensors, flatten=do_flatten, name=str(0))
 
         return [bagua_bucket]
 
