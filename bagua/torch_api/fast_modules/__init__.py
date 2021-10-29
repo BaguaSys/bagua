@@ -1,1 +1,1 @@
-from .fused_layernorm import *
+from .fused_layernorm import FusedLayerNorm  # noqa: F401

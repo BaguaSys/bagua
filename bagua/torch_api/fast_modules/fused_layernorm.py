@@ -287,6 +287,7 @@ class _LayerNorm(torch.autograd.Function):
         dx = dx.reshape_as(x)
         return dx, dw, db, None
 
+
 class FusedLayerNorm(nn.Module):
     """
     Handle a layer normalization, like torch.nn.LayerNorm_.
