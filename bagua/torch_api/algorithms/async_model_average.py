@@ -88,7 +88,8 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         for idx, bucket in enumerate(tensors):
             all_tensors.extend(bucket)
 
-        bagua_bucket = BaguaBucket(all_tensors, flatten=do_flatten, name=str(0))
+        # TODO: async support inplace bucket at present
+        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
 
         return [bagua_bucket]
 

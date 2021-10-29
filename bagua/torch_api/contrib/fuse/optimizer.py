@@ -2,6 +2,7 @@ import torch
 from typing import List
 import copy
 import logging
+from itertools import chain
 from functools import reduce
 from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 import gorilla
@@ -64,7 +65,7 @@ def _flatten_tensors_(tensors):
             tensor.set_(flatten_storage, offset, tensor.shape)
 
         offset += tensor.numel()
-        logging.debug(f"flatten done {offset}, data_ptr={tensor.data_ptr()}")
+        logging.debug(f"flatten done {offset}")
 
     check_contiguous(tensors)
 
@@ -87,9 +88,7 @@ def _flatten_tensors_with_closure(tensors, params, getter_closure, setter_closur
             setter_closure(param, z)
 
         offset += tensor.numel()
-        logging.debug(
-            f"flatten with closure done {offset}, data_ptr={tensor.data_ptr()}, new data_ptr={getter_closure(param).data_ptr()}"
-        )
+        logging.debug(f"flatten with closure done {offset}")
 
     check_contiguous([getter_closure(p) for p in params])
 
@@ -240,9 +239,10 @@ def fuse_optimizer(
     if is_fused_optimizer(optimizer):
         raise RuntimeError("trying to fuse an optimizer twice!")
 
-    optimizer._bagua_fused_optimizer = None
     optimizer._bagua_check_flatten = do_flatten and check_flatten
     optimizer._bagua_fused_count = 0
+    optimizer._bagua_cloned_attrs = {}
+    optimizer._bagua_fused_optimizer = make_optimizer_instance(optimizer)
 
     if do_flatten:
         flatten_param_and_states(optimizer)
@@ -256,6 +256,31 @@ def fuse_optimizer(
 
 def is_fused_optimizer(optimizer: torch.optim.Optimizer):
     return hasattr(optimizer, "_bagua_fused_optimizer")
+
+
+def make_optimizer_instance(optimizer: torch.optim.Optimizer):
+    ignore_attrs = [
+        "_bagua_check_flatten",
+        "_bagua_fused_count",
+        "_bagua_cloned_attrs",
+    ]
+    new_optimizer = copy.copy(optimizer)
+
+    for attr in dir(optimizer):
+        if attr not in ignore_attrs and attr not in dir(new_optimizer):
+            logging.warning(
+                f"Clone attribute {attr} to fused optimizer, should not modify it in `optimizer.step()`."
+            )
+            setattr(new_optimizer, attr, getattr(optimizer, attr))
+            optimizer._bagua_cloned_attrs[attr] = getattr(optimizer, attr)
+
+    # Note: optimizer and fused optimizer share the same `state` object, but different `param_groups` object
+    new_optimizer.param_groups = []
+    for group in optimizer.param_groups:
+        new_group = {"params": list(group["params"])}
+        new_optimizer.add_param_group(new_group)
+
+    return new_optimizer
 
 
 def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
@@ -278,17 +303,14 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
         optimizer
     ), "Should init fused optimizer by calling `fuse_optimizer`."
 
-    fused_optimizer = copy.copy(optimizer)
-    optimizer._bagua_fused_optimizer = fused_optimizer
-    do_fuse(
-        optimizer,
-        check_flatten=optimizer._bagua_check_flatten,
-    )
-    return optimizer._bagua_fused_optimizer.step(closure)
+    do_fuse(optimizer)
+    optimizer._bagua_fused_optimizer.step(closure)
+    _sanity_check_(optimizer)
 
 
-def do_fuse(optimizer: torch.optim.Optimizer, check_flatten):
+def do_fuse(optimizer: torch.optim.Optimizer):
     _fused_optimizer = optimizer._bagua_fused_optimizer
+
     for index, group in enumerate(_fused_optimizer.param_groups):
         params = group["params"]
 
@@ -302,66 +324,48 @@ def do_fuse(optimizer: torch.optim.Optimizer, check_flatten):
         if not succ:
             continue
 
-        if check_flatten and not check_contiguous(weights):
-            logging.warning(
-                "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
-            )
-            check_flatten = False
-
-        if check_flatten and not check_contiguous(grads):
-            logging.warning(
-                "Parameter gradients are not contiguous in memory, should not change the data pointers elsewhere."
-            )
-            check_flatten = False
-
-        for name, tensors in state_tensors.items():
-            if check_flatten and not check_contiguous(tensors):
-                logging.warning(
-                    "Parameter state {} are not contiguous in memory, should not change the data pointers elsewhere.".format(
-                        name
-                    )
-                )
-                check_flatten = False
+        if optimizer._bagua_check_flatten:
+            _faltten_check_(weights, grads, state_tensors)
 
         grouped_indices = calculate_mutual_groups(
             [weights, grads] + list(state_tensors.values())
         )
 
-        if len(grouped_indices) > 0:
-            optimizer._bagua_fused_count += 1
-            # group params
-            grouped_weights = group_tensors(weights, grouped_indices)
-            grouped_grads = group_tensors(grads, grouped_indices)
+        if len(grouped_indices) == 0:
+            continue
 
-            grouped_states = {}
-            for name, tensors in state_tensors.items():
-                ts = group_tensors(tensors, grouped_indices)
-                grouped_states[name] = ts
+        # group params
+        grouped_weights = group_tensors(weights, grouped_indices)
+        grouped_grads = group_tensors(grads, grouped_indices)
 
-            new_params = []
-            for i in range(len(grouped_weights)):
-                with torch.no_grad():
-                    p = torch.nn.Parameter(grouped_weights[i], requires_grad=False)
-                    p.grad = grouped_grads[i]
+        # group states
+        grouped_states = {}
+        for name, tensors in state_tensors.items():
+            ts = group_tensors(tensors, grouped_indices)
+            grouped_states[name] = ts
 
-                new_params.append(p)
+        new_params = []
+        for i in range(len(grouped_weights)):
+            with torch.no_grad():
+                p = torch.nn.Parameter(grouped_weights[i], requires_grad=False)
+                p.grad = grouped_grads[i]
 
-                for name, ts in grouped_states.items():
-                    _fused_optimizer.state[p][name] = ts[i]
+            for name, ts in grouped_states.items():
+                _fused_optimizer.state[p][name] = ts[i]
 
-                for name, v in state_scalars.items():
-                    _fused_optimizer.state[p][name] = v
+            for name, v in state_scalars.items():
+                _fused_optimizer.state[p][name] = v
 
-            # add other params and remove dup states
-            grouped_indices_flat = list(reduce(lambda x, y: x + y, grouped_indices))
-            for idx, param in enumerate(params):
-                if idx not in grouped_indices_flat:
-                    new_params.append(param)
-                elif _fused_optimizer.state.get(param) is not None:
-                    logging.debug(f"Ready to delete state for param {idx}")
-                    del _fused_optimizer.state[param]
+            new_params.append(p)
 
-            group["params"] = new_params
+        # add other params
+        grouped_indices_flat = list(reduce(lambda x, y: x + y, grouped_indices))
+        for idx, param in enumerate(params):
+            if idx not in grouped_indices_flat:
+                new_params.append(param)
+
+        group["params"] = new_params
+        optimizer._bagua_fused_count += 1
 
 
 def _get_state_by_name(optimizer_state, params):
@@ -413,3 +417,33 @@ def _get_state_by_name(optimizer_state, params):
                 return None, None, False
 
     return state_tensors, state_scalars, True
+
+
+def _faltten_check_(weights, grads, state_tensors):
+    check_flatten = True
+    if check_flatten and not check_contiguous(weights):
+        logging.warning(
+            "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
+        )
+        check_flatten = False
+
+    if check_flatten and not check_contiguous(grads):
+        logging.warning(
+            "Parameter gradients are not contiguous in memory, should not change the data pointers elsewhere."
+        )
+        check_flatten = False
+
+    for name, tensors in state_tensors.items():
+        if check_flatten and not check_contiguous(tensors):
+            logging.warning(
+                "Parameter state {} are not contiguous in memory, should not change the data pointers elsewhere.".format(
+                    name
+                )
+            )
+            check_flatten = False
+
+
+def _sanity_check_(optimizer: torch.optim.Optimizer):
+    for attr in optimizer._bagua_cloned_attrs:
+        if getattr(optimizer, attr) != getattr(optimizer._bagua_fused_optimizer, attr):
+            logging.error(f"Cloned Attribute {attr} changed in `optimizer.step()`.")

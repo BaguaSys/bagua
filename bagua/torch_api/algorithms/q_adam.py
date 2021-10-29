@@ -44,7 +44,7 @@ class QAdamOptimizer(Optimizer):
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         super(QAdamOptimizer, self).__init__(params, defaults)
-
+        # TODO: maintain step_id in optimizer state
         self.step_id = 0
         self.warmup_steps = warmup_steps
 
