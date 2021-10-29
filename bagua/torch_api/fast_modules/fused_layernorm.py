@@ -178,6 +178,7 @@ class _LayerNorm(torch.autograd.Function):
                                        BLOCK_SIZE_N=ctx.BLOCK_SIZE,
                                        GROUP_SIZE_M=GROUP_SIZE_M,
                                        num_warps=ctx.num_warps)
+
         def triton_cdiv(N):
             def make_cdiv(meta):
                 return [triton.cdiv(N, meta["BLOCK_SIZE_N"])]
