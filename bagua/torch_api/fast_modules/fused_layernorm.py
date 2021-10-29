@@ -1,3 +1,12 @@
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab. All rights reserved.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+
+# CREDITS: This comes almost as-is from the Triton layer norm tutorial
+# https://github.com/openai/triton/blob/master/python/tutorials/05-layer-norm.py
+
 import torch
 import torch.nn as nn
 import numbers
@@ -181,9 +190,6 @@ class FusedLayerNorm(nn.Module):
     Handle a layer normalization, like torch.nn.LayerNorm_.
     This implementation should be measurably faster than the default PyTorch layernorm (as of PyTorch 1.9),
     both for training and inference worloads.
-    .. NOTE: Computations under Torch AMP are kept as float32 by default, one can change this to be float16
-        by setting the flag `xformers.triton.k_layer_norm._triton_layernorm_fp16_enabled = True`
-    .. _torch.nn.LayerNorm: https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html
     """
     def __init__(self, normalized_shape, eps=1e-5):
         super(FusedLayerNorm, self).__init__()
