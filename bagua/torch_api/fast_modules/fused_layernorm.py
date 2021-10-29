@@ -13,12 +13,13 @@ import numbers
 import triton
 import triton.language as tl
 
+
 # Forward Pass
 @triton.jit
 def _layer_norm_fwd_fused(X, Y, W, B, M, V, stride, N, eps, **META):
     BLOCK_SIZE = META['BLOCK_SIZE']
     # position of elements processed by this program
-    row =  tl.program_id(0)
+    row = tl.program_id(0)
     cols = tl.arange(0, BLOCK_SIZE)
     mask = cols < N
     # offset data pointers to start at the row of interest
@@ -30,9 +31,9 @@ def _layer_norm_fwd_fused(X, Y, W, B, M, V, stride, N, eps, **META):
     mean = tl.sum(x, axis=0) / N
     # compute std
     xmean = tl.where(mask, x - mean, 0.)
-    var   = tl.sum(xmean * xmean, axis=0) / N
-    rstd  = 1 / tl.sqrt(var + eps)
-    xhat  = xmean*rstd
+    var = tl.sum(xmean * xmean, axis=0) / N
+    rstd = 1 / tl.sqrt(var + eps)
+    xhat = xmean*rstd
     # write-back mean/rstd
     tl.store(M + row, mean)
     tl.store(V + row, rstd)
@@ -46,17 +47,15 @@ def _layer_norm_fwd_fused(X, Y, W, B, M, V, stride, N, eps, **META):
 
 # Backward pass (DX + partial DW + partial DB)
 @triton.jit
-def _layer_norm_bwd_dx_fused(DX, DY, DW, DB, X, W, B, M, V, Lock,
-                       stride, N, eps, 
-                       **META):
-    GROUP_SIZE_M = META['GROUP_SIZE_M']
-    BLOCK_SIZE_N = META['BLOCK_SIZE_N']
+def _layer_norm_bwd_dx_fused(DX, DY, DW, DB, X, W, B, M, V, Lock, stride, N, eps, **META):
+    GROUP_SIZE_M = META["GROUP_SIZE_M"]
+    BLOCK_SIZE_N = META["BLOCK_SIZE_N"]
     # position of elements processed by this program
-    row =  tl.program_id(0)
+    row = tl.program_id(0)
     cols = tl.arange(0, BLOCK_SIZE_N)
     mask = cols < N
     # offset data pointers to start at the row of interest
-    X  += row * stride
+    X += row * stride
     DY += row * stride
     DX += row * stride
     # offset locks and weight/bias gradient pointer
@@ -65,28 +64,28 @@ def _layer_norm_bwd_dx_fused(DX, DY, DW, DB, X, W, B, M, V, Lock,
     # these buffers stay in the L2, which allow this kernel
     # to be fast
     lock_id = row % GROUP_SIZE_M
-    Lock   += lock_id
-    Count   = Lock + GROUP_SIZE_M
-    DW      = DW + lock_id*N + cols
-    DB      = DB + lock_id*N + cols
+    Lock += lock_id
+    Count = Lock + GROUP_SIZE_M
+    DW = DW + lock_id*N + cols
+    DB = DB + lock_id*N + cols
     # load data to SRAM
-    x     = tl.load(X  + cols, mask=mask, other=0).to(tl.float32)
-    dy    = tl.load(DY + cols, mask=mask, other=0).to(tl.float32)
-    w     = tl.load(W  + cols, mask=mask).to(tl.float32)
-    mean  = tl.load(M + row)
-    rstd  = tl.load(V + row)
+    x = tl.load(X  + cols, mask=mask, other=0).to(tl.float32)
+    dy = tl.load(DY + cols, mask=mask, other=0).to(tl.float32)
+    w = tl.load(W  + cols, mask=mask).to(tl.float32)
+    mean = tl.load(M + row)
+    rstd = tl.load(V + row)
     # compute dx
-    xhat  = (x - mean)*rstd
-    wdy   = w * dy
-    xhat  = tl.where(mask, xhat, 0.)
-    wdy   = tl.where(mask, wdy , 0.)
+    xhat = (x - mean)*rstd
+    wdy = w * dy
+    xhat = tl.where(mask, xhat, 0.)
+    wdy = tl.where(mask, wdy , 0.)
     mean1 = tl.sum(xhat * wdy, axis=0) / N
     mean2 = tl.sum(wdy, axis=0) / N
-    dx    = (wdy - (xhat*mean1 + mean2))*rstd
+    dx = (wdy - (xhat*mean1 + mean2))*rstd
     # write-back dx
     tl.store(DX + cols, dx, mask=mask)
     # accumulate partial sums for dw/db
-    partial_dw = (dy*xhat).to(w.dtype)
+    partial_dw = (dy * xhat).to(w.dtype)
     partial_db = (dy).to(w.dtype)
     while tl.atomic_cas(Lock, 0, 1) == 1:
         pass
@@ -107,25 +106,24 @@ def _layer_norm_bwd_dx_fused(DX, DY, DW, DB, X, W, B, M, V, Lock,
 @triton.jit
 def _layer_norm_bwd_dwdb(DW, DB, FINAL_DW, FINAL_DB, M, N, **meta):
     pid = tl.program_id(0)
-    BLOCK_SIZE_M = meta['BLOCK_SIZE_M']
-    BLOCK_SIZE_N = meta['BLOCK_SIZE_N']
+    BLOCK_SIZE_M = meta["BLOCK_SIZE_M"]
+    BLOCK_SIZE_N = meta["BLOCK_SIZE_N"]
     cols = pid*BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
-    dw   = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
-    db   = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    dw = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    db = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
     for i in range(0, M, BLOCK_SIZE_M):
-        rows = i + tl.arange(0, meta['BLOCK_SIZE_M'])
+        rows = i + tl.arange(0, meta["BLOCK_SIZE_M"])
         mask = (rows[:, None] < M) & (cols[None, :] < N)
         offs = rows[:, None]*N + cols[None, :]
         dw += tl.load(DW + offs, mask=mask, other=0.)
         db += tl.load(DB + offs, mask=mask, other=0.)
     sum_dw = tl.sum(dw, axis=0)
     sum_db = tl.sum(db, axis=0)
-    tl.store(FINAL_DW + cols, sum_dw, mask=cols<N)
-    tl.store(FINAL_DB + cols, sum_db, mask=cols<N)
+    tl.store(FINAL_DW + cols, sum_dw, mask=cols < N)
+    tl.store(FINAL_DB + cols, sum_db, mask=cols < N)
 
 
 class _LayerNorm(torch.autograd.Function):
-
     @staticmethod
     def forward(ctx, x, normalized_shape, weight, bias, eps):
         # allocate output
@@ -137,7 +135,7 @@ class _LayerNorm(torch.autograd.Function):
         rstd = torch.empty((M, ), dtype=torch.float32, device='cuda')
         # Less than 64KB per feature: enqueue fused kernel
         MAX_FUSED_SIZE = 65536 // x.element_size()
-        BLOCK_SIZE     = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
+        BLOCK_SIZE = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
         if N > BLOCK_SIZE:
             raise RuntimeError("This layer norm doesn't support feature dim >= 64KB.")
         # heuristics for number of warps
@@ -148,8 +146,8 @@ class _LayerNorm(torch.autograd.Function):
                                     BLOCK_SIZE=BLOCK_SIZE, num_warps=num_warps)
         ctx.save_for_backward(x, weight, bias, mean, rstd)
         ctx.BLOCK_SIZE = BLOCK_SIZE
-        ctx.num_warps  = num_warps
-        ctx.eps        = eps
+        ctx.num_warps = num_warps
+        ctx.eps = eps
         return y
 
     @staticmethod
@@ -158,15 +156,18 @@ class _LayerNorm(torch.autograd.Function):
         # heuristics for amount of parallel reduction stream for DG/DB
         N = w.shape[0]
         GROUP_SIZE_M = 64
-        if N <= 8192: GROUP_SIZE_M = 96
-        if N <= 4096: GROUP_SIZE_M = 128
-        if N <= 1024: GROUP_SIZE_M = 256
+        if N <= 8192:
+            GROUP_SIZE_M = 96
+        if N <= 4096:
+            GROUP_SIZE_M = 128
+        if N <= 1024:
+            GROUP_SIZE_M = 256
         # allocate output
-        locks = torch.zeros(2*GROUP_SIZE_M, dtype=torch.int32, device='cuda')
+        locks = torch.zeros(2 * GROUP_SIZE_M, dtype=torch.int32, device='cuda')
         _dw = torch.empty((GROUP_SIZE_M, w.shape[0]), dtype=x.dtype, device=w.device)
         _db = torch.empty((GROUP_SIZE_M, w.shape[0]), dtype=x.dtype, device=w.device)
-        dw  = torch.empty((w.shape[0],), dtype=w.dtype, device=w.device)
-        db  = torch.empty((w.shape[0],), dtype=w.dtype, device=w.device)
+        dw = torch.empty((w.shape[0],), dtype=w.dtype, device=w.device)
+        db = torch.empty((w.shape[0],), dtype=w.dtype, device=w.device)
         dx = torch.empty_like(dy)
         # enqueue kernel using forward pass heuristics
         # also compute partial sums for DW and DB
@@ -179,9 +180,7 @@ class _LayerNorm(torch.autograd.Function):
                                        num_warps=ctx.num_warps)
         grid = lambda meta: [triton.cdiv(N, meta['BLOCK_SIZE_N'])]
         # accumulate partial sums in separate kernel
-        _layer_norm_bwd_dwdb[grid](_dw, _db, dw, db, GROUP_SIZE_M, N, 
-                                   BLOCK_SIZE_M = 32, 
-                                   BLOCK_SIZE_N = 128)
+        _layer_norm_bwd_dwdb[grid](_dw, _db, dw, db, GROUP_SIZE_M, N, BLOCK_SIZE_M = 32, BLOCK_SIZE_N = 128)
         return dx, None, dw, db, None
 
 
