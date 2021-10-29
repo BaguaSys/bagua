@@ -33,7 +33,7 @@ def _layer_norm_fwd_fused(X, Y, W, B, M, V, stride, N, eps, **META):
     xmean = tl.where(mask, x - mean, 0.)
     var = tl.sum(xmean * xmean, axis=0) / N
     rstd = 1 / tl.sqrt(var + eps)
-    xhat = xmean*rstd
+    xhat = xmean * rstd
     # write-back mean/rstd
     tl.store(M + row, mean)
     tl.store(V + row, rstd)
@@ -66,22 +66,22 @@ def _layer_norm_bwd_dx_fused(DX, DY, DW, DB, X, W, B, M, V, Lock, stride, N, eps
     lock_id = row % GROUP_SIZE_M
     Lock += lock_id
     Count = Lock + GROUP_SIZE_M
-    DW = DW + lock_id*N + cols
-    DB = DB + lock_id*N + cols
+    DW = DW + lock_id * N + cols
+    DB = DB + lock_id * N + cols
     # load data to SRAM
-    x = tl.load(X  + cols, mask=mask, other=0).to(tl.float32)
+    x = tl.load(X + cols, mask=mask, other=0).to(tl.float32)
     dy = tl.load(DY + cols, mask=mask, other=0).to(tl.float32)
-    w = tl.load(W  + cols, mask=mask).to(tl.float32)
+    w = tl.load(W + cols, mask=mask).to(tl.float32)
     mean = tl.load(M + row)
     rstd = tl.load(V + row)
     # compute dx
-    xhat = (x - mean)*rstd
+    xhat = (x - mean) * rstd
     wdy = w * dy
     xhat = tl.where(mask, xhat, 0.)
-    wdy = tl.where(mask, wdy , 0.)
+    wdy = tl.where(mask, wdy, 0.)
     mean1 = tl.sum(xhat * wdy, axis=0) / N
     mean2 = tl.sum(wdy, axis=0) / N
-    dx = (wdy - (xhat*mean1 + mean2))*rstd
+    dx = (wdy - (xhat * mean1 + mean2))*rstd
     # write-back dx
     tl.store(DX + cols, dx, mask=mask)
     # accumulate partial sums for dw/db
@@ -108,13 +108,13 @@ def _layer_norm_bwd_dwdb(DW, DB, FINAL_DW, FINAL_DB, M, N, **meta):
     pid = tl.program_id(0)
     BLOCK_SIZE_M = meta["BLOCK_SIZE_M"]
     BLOCK_SIZE_N = meta["BLOCK_SIZE_N"]
-    cols = pid*BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    cols = pid * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
     dw = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
     db = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
     for i in range(0, M, BLOCK_SIZE_M):
         rows = i + tl.arange(0, meta["BLOCK_SIZE_M"])
         mask = (rows[:, None] < M) & (cols[None, :] < N)
-        offs = rows[:, None]*N + cols[None, :]
+        offs = rows[:, None] * N + cols[None, :]
         dw += tl.load(DW + offs, mask=mask, other=0.)
         db += tl.load(DB + offs, mask=mask, other=0.)
     sum_dw = tl.sum(dw, axis=0)
@@ -131,8 +131,8 @@ class _LayerNorm(torch.autograd.Function):
         # reshape input data into 2D tensor
         x_arg = x.reshape(-1, x.shape[-1])
         M, N = x_arg.shape
-        mean = torch.empty((M, ), dtype=torch.float32, device='cuda')
-        rstd = torch.empty((M, ), dtype=torch.float32, device='cuda')
+        mean = torch.empty((M,), dtype=torch.float32, device='cuda')
+        rstd = torch.empty((M,), dtype=torch.float32, device='cuda')
         # Less than 64KB per feature: enqueue fused kernel
         MAX_FUSED_SIZE = 65536 // x.element_size()
         BLOCK_SIZE = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
@@ -141,8 +141,8 @@ class _LayerNorm(torch.autograd.Function):
         # heuristics for number of warps
         num_warps = min(max(BLOCK_SIZE // 256, 1), 8)
         # enqueue kernel
-        _layer_norm_fwd_fused[(M,)](x_arg, y, weight, bias, mean, rstd, 
-                                    x_arg.stride(0), N, eps, 
+        _layer_norm_fwd_fused[(M,)](x_arg, y, weight, bias, mean, rstd,
+                                    x_arg.stride(0), N, eps,
                                     BLOCK_SIZE=BLOCK_SIZE, num_warps=num_warps)
         ctx.save_for_backward(x, weight, bias, mean, rstd)
         ctx.BLOCK_SIZE = BLOCK_SIZE
@@ -163,7 +163,7 @@ class _LayerNorm(torch.autograd.Function):
         if N <= 1024:
             GROUP_SIZE_M = 256
         # allocate output
-        locks = torch.zeros(2 * GROUP_SIZE_M, dtype=torch.int32, device='cuda')
+        locks = torch.zeros(2 * GROUP_SIZE_M, dtype=torch.int32, device="cuda")
         _dw = torch.empty((GROUP_SIZE_M, w.shape[0]), dtype=x.dtype, device=w.device)
         _db = torch.empty((GROUP_SIZE_M, w.shape[0]), dtype=x.dtype, device=w.device)
         dw = torch.empty((w.shape[0],), dtype=w.dtype, device=w.device)
@@ -180,7 +180,7 @@ class _LayerNorm(torch.autograd.Function):
                                        num_warps=ctx.num_warps)
         grid = lambda meta: [triton.cdiv(N, meta['BLOCK_SIZE_N'])]
         # accumulate partial sums in separate kernel
-        _layer_norm_bwd_dwdb[grid](_dw, _db, dw, db, GROUP_SIZE_M, N, BLOCK_SIZE_M = 32, BLOCK_SIZE_N = 128)
+        _layer_norm_bwd_dwdb[grid](_dw, _db, dw, db, GROUP_SIZE_M, N, BLOCK_SIZE_M=32, BLOCK_SIZE_N=128)
         return dx, None, dw, db, None
 
 
@@ -196,8 +196,8 @@ class FusedLayerNorm(nn.Module):
             normalized_shape = (normalized_shape,) 
         self.normalized_shape = tuple(normalized_shape)
         self.eps = eps
-        self.weight = nn.Parameter(torch.ones(self.normalized_shape, device='cuda'))
-        self.bias = nn.Parameter(torch.zeros(self.normalized_shape, device='cuda'))
+        self.weight = nn.Parameter(torch.ones(self.normalized_shape, device="cuda"))
+        self.bias = nn.Parameter(torch.zeros(self.normalized_shape, device="cuda"))
 
     def forward(self, x):
         return _LayerNorm.apply(x, self.normalized_shape, self.weight, self.bias, self.eps)
