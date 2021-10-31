@@ -1,7 +1,6 @@
 import unittest
 import torch
 import torch.nn as nn
-import triton
 from bagua.torch_api.fast_modules import FusedLayerNorm
 
 
@@ -11,7 +10,7 @@ class TestLayerNorm(unittest.TestCase):
         N, C = 16, 8
         inp_ = torch.randn(N, C).cuda()
         inp_.requires_grad_(True)
-        dy = 0.1*torch.randn_like(inp_)
+        dy = 0.1 * torch.randn_like(inp_)
 
         layer_norm = nn.LayerNorm(8, device='cuda')
         fused_layernorm = FusedLayerNorm(8)
@@ -30,6 +29,7 @@ class TestLayerNorm(unittest.TestCase):
         self.assertTrue(
             torch.allclose(dx_tri, dx_tor)
         )
+
 
 if __name__ == "__main__":
     unittest.main()
