@@ -146,7 +146,7 @@ class BaguaTensor:
         The new Bagua tensor will share the same storage with the input PyTorch tensor.
         A Bagua tensor is required to use Bagua's communication algorithms.
         See :meth:`ensure_bagua_tensor` for more information.
-        
+
         Caveat: Be aware that if the original tensor changes to use a different storage
         using for example ``torch.Tensor.set_(...)``, the new Bagua tensor will still
         use the old storage.
