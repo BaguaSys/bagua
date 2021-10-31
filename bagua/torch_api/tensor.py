@@ -14,7 +14,7 @@ class BaguaTensor:
     with additional methods.
 
     A Bagua tensor is required to use Bagua's communication algorithms. Users can convert a PyTorch tensor to Bagua
-    tensor by :meth:`ensure_bagua_tensor` or :meth:`to_bagua_tensor`.
+    tensor by :meth:`ensure_bagua_tensor`.
 
     Bagua tensor features a proxy structure, where the actual tensor used by backend is accessed via a **"Proxy Tensor"**.
     The proxy tensor is registered in Bagua, whenever the Bagua backend needs a tensor (for example use it for
@@ -134,6 +134,39 @@ class BaguaTensor:
         self._bagua_bucket = None
         return self
 
+    def to_bagua_tensor(
+        self,
+        name: Optional[str] = None,
+        module_name: Optional[str] = None,
+        getter_closure: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        setter_closure: Optional[Callable[[torch.Tensor, torch.Tensor], None]] = None,
+    ):
+        """
+        Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
+        The new Bagua tensor will share the same storage with the input PyTorch tensor.
+        A Bagua tensor is required to use Bagua's communication algorithms.
+        See :meth:`ensure_bagua_tensor` for more information.
+
+        Caveat: Be aware that if the original tensor changes to use a different storage
+        using for example ``torch.Tensor.set_(...)``, the new Bagua tensor will still
+        use the old storage.
+
+        Args:
+            name: The unique name of the tensor.
+            module_name: The name of the model of which the tensor belongs to.
+              The model name can be acquired using ``model.bagua_module_name``.
+              This is required to call :meth:`bagua_mark_communication_ready` related methods.
+            getter_closure: A function that accepts a Pytorch tensor as its input and returns a Pytorch tensor as
+              its output. See :meth:`ensure_bagua_tensor`.
+            setter_closure: A function that accepts two Pytorch tensors as its inputs and returns nothing. See :meth:`ensure_bagua_tensor`.
+        Returns:
+            The new Bagua tensor sharing the same storage with the original tensor.
+        """
+        new_tensor = self.view(self.dtype)
+        return new_tensor.ensure_bagua_tensor(
+            name, module_name, getter_closure, setter_closure
+        )
+
     def bagua_getter_closure(self) -> torch.Tensor:
         """Returns the tensor that will be used in runtime."""
         return (
@@ -151,36 +184,6 @@ class BaguaTensor:
 
         assert self._bagua_setter_closure is not None
         self._bagua_setter_closure(self, tensor)
-
-    def to_bagua_tensor(
-        self,
-        name: Optional[str] = None,
-        module_name: Optional[str] = None,
-        getter_closure: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
-        setter_closure: Optional[Callable[[torch.Tensor, torch.Tensor], None]] = None,
-    ):
-        """
-        Create a new Bagua tensor from a PyTorch tensor or parameter and return it.
-        The original tensor is not changed. A Bagua tensor is required to use
-        Bagua's communication algorithms. See :meth:`ensure_bagua_tensor` for more
-        information.
-
-        Args:
-            name: The unique name of the tensor.
-            module_name: The name of the model of which the tensor belongs to.
-              The model name can be acquired using ``model.bagua_module_name``.
-              This is required to call :meth:`bagua_mark_communication_ready` related methods.
-            getter_closure: A function that accepts a Pytorch tensor as its input and returns a Pytorch tensor as
-              its output. See :meth:`ensure_bagua_tensor`.
-            setter_closure: A function that accepts two Pytorch tensors as its inputs and returns nothing. See :meth:`ensure_bagua_tensor`.
-
-        Returns:
-            The new Bagua tensor sharing the same storage with the original tensor.
-        """
-        new_tensor = torch.Tensor(cdata=self._cdata)
-        return new_tensor.ensure_bagua_tensor(
-            name, module_name, getter_closure, setter_closure
-        )
 
     def bagua_backend_tensor(self) -> B.BaguaTensorPy:
         """
