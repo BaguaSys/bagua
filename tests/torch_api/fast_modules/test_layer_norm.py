@@ -12,7 +12,7 @@ class TestLayerNorm(unittest.TestCase):
         inp_.requires_grad_(True)
         dy = 0.1 * torch.randn_like(inp_)
 
-        layer_norm = nn.LayerNorm(8, device='cuda')
+        layer_norm = nn.LayerNorm(8, device="cuda")
         fused_layernorm = FusedLayerNorm(8)
 
         output_torch = layer_norm(inp_)
@@ -26,9 +26,7 @@ class TestLayerNorm(unittest.TestCase):
         dx_tor = inp_.grad.clone()
 
         self.assertTrue(torch.allclose(output_torch, output_triton))
-        self.assertTrue(
-            torch.allclose(dx_tri, dx_tor)
-        )
+        self.assertTrue(torch.allclose(dx_tri, dx_tor))
 
 
 if __name__ == "__main__":
