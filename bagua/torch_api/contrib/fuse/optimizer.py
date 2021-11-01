@@ -2,7 +2,6 @@ import torch
 from typing import List
 import copy
 import logging
-from itertools import chain
 from functools import reduce
 from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 import gorilla
@@ -11,7 +10,7 @@ import gorilla
 __all__ = ["fuse_optimizer", "fuse_step"]
 
 
-def flatten_param_and_states(optimizer: torch.optim.Optimizer):
+def flatten_params_and_states(optimizer: torch.optim.Optimizer):
 
     type_params = {}
     for group in optimizer.param_groups:
@@ -23,13 +22,13 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
 
     for param_type, params in type_params.items():
         grads = [p.bagua_ensure_grad().grad for p in params]
-        state_tensors, state_scalars, succ = _get_state_by_name(optimizer.state, params)
+        state_tensors, state_scalars = get_optimizer_param_states(optimizer, params)
 
-        if not succ:
+        if state_tensors is None:
             continue
 
-        _flatten_tensors_(params)
-        _flatten_tensors_with_closure(
+        flatten_tensors(params)
+        flatten_tensors_with_closure(
             grads,
             params,
             getter_closure=lambda p: p.grad,
@@ -41,7 +40,7 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
             def set_state_fn(p, t):
                 optimizer.state[p][name] = t
 
-            _flatten_tensors_with_closure(
+            flatten_tensors_with_closure(
                 tensors,
                 params,
                 getter_closure=lambda p: optimizer.state[p][name],
@@ -49,7 +48,7 @@ def flatten_param_and_states(optimizer: torch.optim.Optimizer):
             )
 
 
-def _flatten_tensors_(tensors):
+def flatten_tensors(tensors: List[torch.Tensor]):
     if len(tensors) == 0:
         return
 
@@ -70,7 +69,7 @@ def _flatten_tensors_(tensors):
     check_contiguous(tensors)
 
 
-def _flatten_tensors_with_closure(tensors, params, getter_closure, setter_closure):
+def flatten_tensors_with_closure(tensors, params, getter_closure, setter_closure):
     if len(tensors) == 0:
         return
 
@@ -93,7 +92,7 @@ def _flatten_tensors_with_closure(tensors, params, getter_closure, setter_closur
     check_contiguous([getter_closure(p) for p in params])
 
 
-def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
+def _is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
     size_a = a.numel() * a.element_size()
     size_b = b.numel() * b.element_size()
 
@@ -102,7 +101,7 @@ def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
     )
 
 
-def find_continuous_tensors(tensors: List[torch.Tensor]):
+def _find_continuous_tensors(tensors: List[torch.Tensor]):
     tensor_list = zip(tensors, list(range(len(tensors))))
     sorted_tensor_list = sorted(tensor_list, key=lambda x: x[0].data_ptr())
 
@@ -111,7 +110,7 @@ def find_continuous_tensors(tensors: List[torch.Tensor]):
     tmp_indices = []
 
     for tensor, idx in sorted_tensor_list:
-        if len(tmp_tensors) > 0 and not is_contiguous_tensor(tensor, tmp_tensors[-1]):
+        if len(tmp_tensors) > 0 and not _is_contiguous_tensor(tensor, tmp_tensors[-1]):
             if len(tmp_tensors) > 1:
                 grouped_indices.append(tmp_indices)
             tmp_tensors = []
@@ -135,17 +134,15 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]]):
             tensors
         ), "Tensors to calculate mutual groups must have equal size."
 
-        grouped_indices = find_continuous_tensors(tensors)
-
+        grouped_indices = _find_continuous_tensors(tensors)
         constraints.append(grouped_indices)
 
-    # no constraints, group them all
     if len(constraints) == 0:
         return constraints
 
     grouped_indices = constraints[0]
     for i in range(1, len(constraints)):
-        grouped_indices = intersect(grouped_indices, constraints[i])
+        grouped_indices = _intersect(grouped_indices, constraints[i])
 
     logging.debug(
         f"calculate mutual groups: {grouped_indices}, constraints: {constraints}"
@@ -153,12 +150,12 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]]):
     return grouped_indices
 
 
-def intersect(a: List[List[int]], b: List[List[int]]):
+def _intersect(a: List[List[int]], b: List[List[int]]):
     c = [value for value in a if value in b]
     return c
 
 
-def group_tensors(tensors: List[torch.Tensor], indices: List[int]):
+def group_tensors(tensors: List[torch.Tensor], indices: List[int]) -> torch.Tensor:
     if len(indices) == 0:
         return
 
@@ -175,14 +172,17 @@ def group_tensors(tensors: List[torch.Tensor], indices: List[int]):
         return tensor_view
 
 
-def ungroup_tensor(tensor_view: torch.Tensor, tensors: List[torch.Tensor]):
+def ungroup_tensor(
+    tensor_view: torch.Tensor, tensors: List[torch.Tensor]
+) -> List[torch.Tensor]:
+    """Ungroup :attr:`tensor_view` to a list of tensors that have same data types and sizes with :attr:`tensors`."""
 
     offset = 0
     ungrouped = []
     for tensor in tensors:
         if tensor_view.dtype != tensor.dtype:
             logging.warning(
-                "Fused optimizer does not know how to ungroup states, since param state has different datatype with param."
+                "Fused optimizer failed to recover parameter state from fused parameter state, due to dismatch of datatype between parameter and parameter state."
             )
             return
 
@@ -194,7 +194,7 @@ def ungroup_tensor(tensor_view: torch.Tensor, tensors: List[torch.Tensor]):
 
     if offset != tensor_view.numel():
         logging.warning(
-            "Fused optimizer does not know how to ungroup states, since param state has different size with param."
+            "Fused optimizer failed to recover parameter state from fused parameter state, due to dismatch of size between parameter and parameter state."
         )
         return
 
@@ -270,7 +270,7 @@ def fuse_optimizer(
     optimizer._bagua_fused_optimizer = make_optimizer_instance(optimizer)
 
     if do_flatten:
-        flatten_param_and_states(optimizer)
+        flatten_params_and_states(optimizer)
 
     if not hasattr(optimizer, "fuse_step"):
         patch = gorilla.Patch(optimizer.__class__, "fuse_step", fuse_step)
@@ -329,8 +329,8 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
 
     do_fuse(optimizer)
     optimizer._bagua_fused_optimizer.step(closure)
-    _sanity_check_(optimizer)
-    _sync_state(optimizer)
+    check_optimizer(optimizer)
+    sync_optimizer_state(optimizer)
 
 
 def do_fuse(optimizer: torch.optim.Optimizer):
@@ -344,13 +344,32 @@ def do_fuse(optimizer: torch.optim.Optimizer):
         weights = [p.data for p in params]
         grads = [p.grad for p in params]
 
-        state_tensors, state_scalars, succ = _get_state_by_name(optimizer.state, params)
+        state_tensors, state_scalars = get_optimizer_param_states(optimizer, params)
 
-        if not succ:
+        if state_tensors is None:
             continue
 
-        if optimizer._bagua_check_flatten:
-            _flatten_check_(weights, grads, state_tensors)
+        check_flatten = optimizer._bagua_check_flatten
+        if check_flatten and not check_contiguous(weights):
+            logging.warning(
+                "Parameter weights storage changed after flattened in fused optimizer, may degrade performance."
+            )
+            check_flatten = False
+
+        if check_flatten and not check_contiguous(grads):
+            logging.warning(
+                "Parameter gradients storage changed after flattened in fused optimizer, may degrade performance."
+            )
+            check_flatten = False
+
+        for name, tensors in state_tensors.items():
+            if check_flatten and not check_contiguous(tensors):
+                logging.warning(
+                    "Parameter state {} storage changed after flattened in fused optimizer, may degrade performance.".format(
+                        name
+                    )
+                )
+                check_flatten = False
 
         grouped_indices = calculate_mutual_groups(
             [weights, grads] + list(state_tensors.values())
@@ -396,9 +415,16 @@ def do_fuse(optimizer: torch.optim.Optimizer):
         _fused_optimizer.add_param_group(new_group)
 
 
-def _sync_state(optimizer):
-    _fused_optimizer = optimizer._bagua_fused_optimizer
+def check_optimizer(optimizer):
+    # make sure cloned attributes are not modified
+    for attr in optimizer._bagua_cloned_attrs:
+        if getattr(optimizer, attr) != getattr(optimizer._bagua_fused_optimizer, attr):
+            logging.error(
+                f"Should not change attribute {attr} in `optimizer.step(), maintain it in optimizer state.`"
+            )
 
+
+def sync_optimizer_state(optimizer):
     # write back state for original params
     # Note: we should make sure every module parameter in original params groups has the right state
     for group, fused_group in zip(
@@ -408,8 +434,8 @@ def _sync_state(optimizer):
         params = group["params"]
         fused_params = fused_group["params"]
 
-        fused_state_tensors, fused_state_scalars, succ = _get_state_by_name(
-            optimizer.state, fused_params
+        fused_state_tensors, fused_state_scalars = get_optimizer_param_states(
+            optimizer, fused_params
         )
 
         for fp in fused_params:
@@ -436,84 +462,56 @@ def _sync_state(optimizer):
             del optimizer.state[fp]
 
 
-def _get_state_by_name(optimizer_state, params):
+def get_optimizer_param_states(optimizer, params):
     state_tensors = {}
     state_scalars = {}
 
-    if len(optimizer_state) > 0:
-        state_tensors = {
-            name: []
-            for name, value in optimizer_state[params[0]].items()
-            if isinstance(value, torch.Tensor)
-        }
-        state_scalars = {
-            name: value
-            for name, value in optimizer_state[params[0]].items()
-            if not isinstance(value, torch.Tensor)
-        }
+    state_tensor_names = set(
+        [
+            k
+            for p in params
+            for k, v in optimizer.state[p].items()
+            if isinstance(v, torch.Tensor)
+        ]
+    )
+    state_scalar_names = set(
+        [
+            k
+            for p in params
+            for k, v in optimizer.state[p].items()
+            if not isinstance(v, torch.Tensor)
+        ]
+    )
+
+    for name in state_tensor_names:
+        tensors = []
+        for p in params:
+            if name not in optimizer.state[p]:
+                logging.error(
+                    f"Unexpected parameter state {name}, failed not fuse optimizer."
+                )
+                return None, None
+
+            tensors.append(optimizer.state[p][name])
+
+        state_tensors[name] = tensors
+
+    for name in state_scalar_names:
+        scalar = None
 
         for p in params:
-            st = optimizer_state[p]
-
-            for name, value in st.items():
-                if isinstance(value, torch.Tensor):
-                    if state_tensors.get(name) is None:
-                        logging.error(
-                            f"Unexpected tensor in state {name}, could not fuse optimizer."
-                        )
-                        return None, None, False
-
-                    state_tensors[name].append(value)
-                else:
-                    if state_scalars.get(name) is None:
-                        logging.error(
-                            f"Unexpected scalar value in state {name}, could not fuse optimizer."
-                        )
-                        return None, None, False
-
-                    if value != state_scalars[name]:
-                        logging.error(
-                            f"Parameter state '{name}' does not match, could not fuse optimizer."
-                        )
-                        return None, None, False
-
-        for name, tensors in state_tensors.items():
-            if len(tensors) != len(params):
+            if name not in optimizer.state[p]:
                 logging.error(
-                    f"Parameter state '{name}' does not match, could not fuse optimizer."
+                    f"Unexpected parameter state {name}, failed not fuse optimizer."
                 )
-                return None, None, False
+                return None, None
 
-    return state_tensors, state_scalars, True
-
-
-def _flatten_check_(weights, grads, state_tensors):
-    check_flatten = True
-    if check_flatten and not check_contiguous(weights):
-        logging.warning(
-            "Parameter weights storage changed after flattened in fused optimizer, may degrade performance."
-        )
-        check_flatten = False
-
-    if check_flatten and not check_contiguous(grads):
-        logging.warning(
-            "Parameter gradients storage changed after flattened in fused optimizer, may degrade performance."
-        )
-        check_flatten = False
-
-    for name, tensors in state_tensors.items():
-        if check_flatten and not check_contiguous(tensors):
-            logging.warning(
-                "Parameter state {} storage changed after flattened in fused optimizer, may degrade performance.".format(
-                    name
+            if scalar is not None and scalar != optimizer.state[p][name]:
+                logging.error(
+                    f"Parameter state '{name}' does not match, failed not fuse optimizer."
                 )
-            )
-            check_flatten = False
+                return None, None
 
+            state_scalars[name] = optimizer.state[p][name]
 
-def _sanity_check_(optimizer: torch.optim.Optimizer):
-    for attr in optimizer._bagua_cloned_attrs:
-        if getattr(optimizer, attr) != getattr(optimizer._bagua_fused_optimizer, attr):
-            logging.error(
-                f"Should not change attribute {attr} in `optimizer.step(), maintain it in optimizer state.`"
-            )
+    return state_tensors, state_scalars
