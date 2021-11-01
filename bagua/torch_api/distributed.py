@@ -97,14 +97,17 @@ class BaguaModule:
         if process_group is None:
             process_group = _get_default_group()
 
+        bagua_module_name = None
         if hasattr(self, "bagua_ddp"):
-            self.bagua_ddp = InnerDistributedDataParallel(
-                self,
-                optimizers=optimizers,
-                algorithm=algorithm,
-                process_group=process_group,
-                bagua_module_name=self.bagua_ddp.bagua_module_name,
-            )
+            bagua_module_name = self.bagua_ddp.bagua_module_name
+
+        self.bagua_ddp = InnerDistributedDataParallel(
+            self,
+            optimizers=optimizers,
+            algorithm=algorithm,
+            process_group=process_group,
+            bagua_module_name=bagua_module_name,
+        )
 
         return self
 
