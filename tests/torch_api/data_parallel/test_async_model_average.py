@@ -144,7 +144,7 @@ class TestAsyncModelAverage(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
+            self.assertTrue(p.exitcode == 0, msg="exitcode={}".format(p.exitcode))
 
     @skip_if_cuda_not_available()
     def test_multiple_aborts(self):
