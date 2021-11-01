@@ -113,7 +113,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
         bagua_process_group = None
         if bagua_process_group is None:
-            bagua_process_group = None
+            bagua_process_group = _get_default_group()
         elif type(bagua_process_group) is TorchProcessGroup:
             bagua_process_group = process_group.bagua_patch().bagua_pg
         elif type(bagua_process_group) is BaguaProcessGroup:

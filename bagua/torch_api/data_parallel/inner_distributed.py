@@ -36,7 +36,7 @@ class InnerDistributedDataParallel:
         module: Module,
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
-        process_group: Optional[BaguaProcessGroup] = None,
+        process_group: BaguaProcessGroup,
     ) -> None:
         self.module = module
         self.bagua_module_name = "{}_{}".format(
@@ -86,12 +86,6 @@ class InnerDistributedDataParallel:
         self._speed_metrics_switch_on = env.get_autotune_level() >= 1
         self._speed_metrics = StatisticalAverage()
         self.require_backward_grad_sync = True
-
-        # set bucket process group
-        if process_group is None:
-            self.process_group = _get_default_group()
-        else:
-            self.process_group = process_group
 
         ddp = self
 

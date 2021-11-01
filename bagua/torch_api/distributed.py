@@ -89,6 +89,9 @@ class BaguaModule:
         """
         self.bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
+        if process_group is None:
+            process_group = _get_default_group()
+
         self.bagua_ddp = InnerDistributedDataParallel(
             self,
             optimizers,
