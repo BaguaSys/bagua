@@ -87,7 +87,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
 
     def _init_states(self, bucket: BaguaBucket):
         weight_tensor = bucket.flattened_tensor()
-        bucket._peer_weight = weight_tensor.to_bagua_tensor("peer_weight")
+        bucket._peer_weight = weight_tensor.ensure_bagua_tensor("peer_weight")
 
     def init_operations(
         self,
@@ -182,11 +182,11 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
         left_peer_weight_tensor = bucket.flattened_tensor()
         right_peer_weight_tensor = bucket.flattened_tensor()
 
-        bucket._weight = weight_tensor.to_bagua_tensor("weight")
-        bucket._left_peer_weight = left_peer_weight_tensor.to_bagua_tensor(
+        bucket._weight = weight_tensor.ensure_bagua_tensor("weight")
+        bucket._left_peer_weight = left_peer_weight_tensor.ensure_bagua_tensor(
             "left_peer_weight"
         )
-        bucket._right_peer_weight = right_peer_weight_tensor.to_bagua_tensor(
+        bucket._right_peer_weight = right_peer_weight_tensor.ensure_bagua_tensor(
             "right_peer_weight"
         )
 

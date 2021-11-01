@@ -31,7 +31,7 @@ __all__ = [
     "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
     "gather", "gather_inplace", "scatter", "scatter_inplace",
     "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace",
-    "barrier"
+    "barrier", "BaguaProcessGroup"
 ]
 
 # Process group's global rank to local rank mapping
@@ -63,6 +63,64 @@ class ReduceOp(IntEnum):
     BAND = 8
     BXOR = 9
     AVG = 10
+
+
+@gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
+class BaguaProcessGroupPatch:
+    def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
+        ranks = list(c10d._pg_group_ranks[self].keys())
+
+        self.bagua_pg = new_group(ranks, stream)
+
+    def bagua_get_global_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "global")
+
+    def bagua_get_inter_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "inter")
+
+    def bagua_get_intra_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "intra")
+
+
+_base = gorilla._get_base(BaguaProcessGroupPatch)
+_decorator_data = gorilla.get_decorator_data(_base)
+for patch in _decorator_data.patches:
+    gorilla.apply(patch)
+
+
+class BaguaProcessGroup:
+    """Definition of Bagua process group."""
+    def __init__(self, ranks, stream, group_name):
+        self.ranks = ranks
+        self.stream = stream
+        self.group_name = group_name
+
+        self.intra_ranks = list(
+            filter(
+                lambda rank: rank // get_local_size() == get_rank() // get_local_size(),
+                ranks,
+            )
+        )
+        self.inter_ranks = list(
+            filter(
+                lambda rank: rank % get_local_size() == ranks[0] % get_local_size(),
+                ranks,
+            )
+        )
+
+        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
+
+    def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the global communicator of current process group."""
+        return get_communicator(self.group_name, "global")
+
+    def get_inter_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the inter-node communicator of current process group."""
+        return get_communicator(self.group_name, "inter")
+
+    def get_intra_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the intra-node communicator of current process group."""
+        return get_communicator(self.group_name, "intra")
 
 
 def _check_default_pg():
@@ -107,7 +165,7 @@ def _bagua_backend_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
 
 def new_group(
     ranks: Optional[List[int]] = None, stream: Optional[torch.cuda.Stream] = None
-):
+) -> BaguaProcessGroup:
     """
     Creates a new process group.
 
@@ -175,7 +233,7 @@ def new_group(
     return pg
 
 
-def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None):
+def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None) -> BaguaProcessGroup:
     """
     Convert a Pytorch process group to its equivalent Bagua process group.
 
@@ -193,60 +251,6 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None):
     ranks = list(c10d._pg_group_ranks[group].keys())
 
     return new_group(ranks, stream)
-
-
-@gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
-class BaguaProcessGroupPatch:
-    def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
-        ranks = list(c10d._pg_group_ranks[self].keys())
-
-        self.bagua_pg = new_group(ranks, stream)
-
-    def bagua_get_global_communicator(self):
-        return get_communicator(self.bagua_pg.group_name, "global")
-
-    def bagua_get_inter_node_communicator(self):
-        return get_communicator(self.bagua_pg.group_name, "inter")
-
-    def bagua_get_intra_node_communicator(self):
-        return get_communicator(self.bagua_pg.group_name, "intra")
-
-
-_base = gorilla._get_base(BaguaProcessGroupPatch)
-_decorator_data = gorilla.get_decorator_data(_base)
-for patch in _decorator_data.patches:
-    gorilla.apply(patch)
-
-
-class BaguaProcessGroup:
-    def __init__(self, ranks, stream, group_name):
-        self.ranks = ranks
-        self.stream = stream
-        self.group_name = group_name
-
-        self.intra_ranks = list(
-            filter(
-                lambda rank: rank // get_local_size() == get_rank() // get_local_size(),
-                ranks,
-            )
-        )
-        self.inter_ranks = list(
-            filter(
-                lambda rank: rank % get_local_size() == ranks[0] % get_local_size(),
-                ranks,
-            )
-        )
-
-        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
-
-    def get_global_communicator(self):
-        return get_communicator(self.group_name, "global")
-
-    def get_inter_node_communicator(self):
-        return get_communicator(self.group_name, "inter")
-
-    def get_intra_node_communicator(self):
-        return get_communicator(self.group_name, "intra")
 
 
 @lru_cache(maxsize=None)

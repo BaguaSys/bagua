@@ -235,17 +235,17 @@ pub struct BaguaTensorPy {
 impl BaguaTensorPy {
     #[new]
     pub fn new(torch_tensor: &PyAny, name: String) -> PyResult<Self> {
-        // TODO: sanity check
         let dtype = torch_tensor
-            .getattr("dtype")
-            .expect("must pass valid torch tensor")
-            .repr()?
-            .to_string();
-        let bagua_dtype = match dtype.as_str() {
-            "torch.float32" => BaguaTensorDtype::F32,
-            "torch.float16" => BaguaTensorDtype::F16,
-            "torch.int64" => BaguaTensorDtype::I64,
-            "torch.uint8" => BaguaTensorDtype::U8,
+            .call_method0("bagua_getter_closure")
+            .expect("must pass valid Bagua tensor")
+            .getattr("dtype")?
+            .call_method0("__reduce__")?
+            .extract::<String>()?;
+        match dtype.as_str() {
+            "float32" => BaguaTensorDtype::F32,
+            "float16" => BaguaTensorDtype::F16,
+            "int64" => BaguaTensorDtype::I64,
+            "uint8" => BaguaTensorDtype::U8,
             _ => {
                 return Err(PyRuntimeError::new_err(format!(
                     "unsupported tensor dtype {}",
@@ -253,15 +253,9 @@ impl BaguaTensorPy {
                 )))
             }
         };
+
         Ok(Self {
-            inner: BaguaTensor::new_from_torch(
-                name,
-                torch_tensor
-                    .getattr("_cdata")
-                    .expect("must pass valid torch tensor")
-                    .extract()?,
-                bagua_dtype,
-            )?,
+            inner: BaguaTensor::new_from_torch(name, torch_tensor.into_py(torch_tensor.py()))?,
         })
     }
 
@@ -395,6 +389,7 @@ impl BaguaBucketPy {
         for t in tensors.iter() {
             tensors_inner.push(&t.inner)
         }
+
         Ok(Self {
             inner: BaguaBucket::new(tensors_inner.as_slice(), name)
                 .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))?,
