@@ -75,11 +75,8 @@ class InnerDistributedDataParallel:
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
 
-        # assert (
-        #     hasattr(self.module, "_bagua_patches") is False
-        # ), "Duplicate DistributedDataParallel wrap! Each pytorch model can only be wrapped once."
         if hasattr(self.module, "_bagua_patches"):
-            self._bagua_cleanup_algorithm()
+            self._reset_algorithm_state()
 
         self.module._bagua_patches = BaguaPatches()
         patch = self.module._bagua_patches
@@ -464,3 +461,12 @@ class InnerDistributedDataParallel:
         self._bagua_backend.register_ordered_buckets(
             [bucket.backend_bucket for bucket in self.bagua_buckets]
         )
+
+    def _reset_algorithm_state(self):
+        patch = self.module._bagua_patches
+        if hasattr(patch, "_bagua_framework_hooks"):
+            for hook in patch._bagua_framework_hooks:
+                hook.remove()
+
+        if hasattr(patch, "_bagua_algorithm_hooks"):
+            self._bagua_cleanup_algorithm()

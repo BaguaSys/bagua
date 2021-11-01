@@ -110,6 +110,7 @@ def run_model_switch_wrapper(rank, nranks, env, algorithms):
     for i in range(len(algorithms)):
         model, optimizer = bagua_init(model, optimizer, algorithms[i])
         train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
+        print('algorithm={} done'.format(algorithms[i]))
 
 
 class TestBaguaModule(unittest.TestCase):
@@ -131,43 +132,43 @@ class TestBaguaModule(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
+            self.assertEqual(p.exitcode, 0)
 
-    @skip_if_cuda_not_available()
-    def test_gradient_allreduce(self):
-        nprocs = torch.cuda.device_count()
-        self.run_algorithm(
-            nprocs, nprocs - 1, run_model_wrapper, algorithm="gradient_allreduce"
-        )
+    # @skip_if_cuda_not_available()
+    # def test_gradient_allreduce(self):
+    #     nprocs = torch.cuda.device_count()
+    #     self.run_algorithm(
+    #         nprocs, nprocs - 1, run_model_wrapper, algorithm="gradient_allreduce"
+    #     )
 
-    @skip_if_cuda_not_available()
-    def test_decentralized(self):
-        nprocs = torch.cuda.device_count()
-        self.run_algorithm(
-            nprocs, nprocs - 1, run_model_wrapper, algorithm="decentralized"
-        )
+    # @skip_if_cuda_not_available()
+    # def test_decentralized(self):
+    #     nprocs = torch.cuda.device_count()
+    #     self.run_algorithm(
+    #         nprocs, nprocs - 1, run_model_wrapper, algorithm="decentralized"
+    #     )
 
-    @skip_if_cuda_not_available()
-    def test_low_prec_decentralized(self):
-        nprocs = torch.cuda.device_count()
-        self.run_algorithm(
-            nprocs, nprocs - 1, run_model_wrapper, algorithm="low_prec_decentralized"
-        )
+    # @skip_if_cuda_not_available()
+    # def test_low_prec_decentralized(self):
+    #     nprocs = torch.cuda.device_count()
+    #     self.run_algorithm(
+    #         nprocs, nprocs - 1, run_model_wrapper, algorithm="low_prec_decentralized"
+    #     )
 
-    @skip_if_cuda_not_available()
-    def test_async(self):
-        nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="async")
+    # @skip_if_cuda_not_available()
+    # def test_async(self):
+    #     nprocs = torch.cuda.device_count()
+    #     self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="async")
 
-    @skip_if_cuda_not_available()
-    def test_bytegrad(self):
-        nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="bytegrad")
+    # @skip_if_cuda_not_available()
+    # def test_bytegrad(self):
+    #     nprocs = torch.cuda.device_count()
+    #     self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="bytegrad")
 
-    @skip_if_cuda_not_available()
-    def test_qadam(self):
-        nprocs = torch.cuda.device_count()
-        self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="qadam")
+    # @skip_if_cuda_not_available()
+    # def test_qadam(self):
+    #     nprocs = torch.cuda.device_count()
+    #     self.run_algorithm(nprocs, nprocs - 1, run_model_wrapper, algorithm="qadam")
 
     @skip_if_cuda_not_available()
     def test_model_switch(self):
