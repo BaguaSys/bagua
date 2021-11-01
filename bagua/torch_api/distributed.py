@@ -97,12 +97,14 @@ class BaguaModule:
         if process_group is None:
             process_group = _get_default_group()
 
-        self.bagua_ddp = InnerDistributedDataParallel(
-            self,
-            optimizers,
-            algorithm,
-            process_group,
-        )
+        if hasattr(self, "bagua_ddp"):
+            self.bagua_ddp = InnerDistributedDataParallel(
+                self,
+                optimizers=optimizers,
+                algorithm=algorithm,
+                process_group=process_group,
+                bagua_module_name=self.bagua_ddp.bagua_module_name,
+            )
 
         return self
 
@@ -117,6 +119,10 @@ class BaguaModule:
     @property
     def bagua_optimizers(self):
         return self.bagua_ddp.bagua_optimizers
+
+    @property
+    def bagua_buckets(self):
+        return self.bagua_ddp.bagua_buckets
 
 
 _base = gorilla._get_base(BaguaModule)
