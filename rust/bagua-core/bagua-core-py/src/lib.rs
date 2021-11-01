@@ -1,6 +1,7 @@
 #![allow(clippy::needless_return)]
 
 use bagua_core_internal::comm_ops::decentralized_full_precision_asynchronous::DecentralizedFullPrecisionAsynchronous;
+use bagua_core_internal::comm_ops::decentralized_full_precision_synchronous::DecentralizedFullPrecisionSynchronous;
 use bagua_core_internal::communicators::BaguaSingleCommunicator;
 use bagua_core_internal::datatypes::{
     BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype,
@@ -212,6 +213,20 @@ impl DecentralizedFullPrecisionAsynchronousPy {
 }
 
 #[pyclass(dict)]
+pub struct DecentralizedFullPrecisionSynchronousPy {
+    inner: Arc<DecentralizedFullPrecisionSynchronous>,
+}
+
+#[pymethods]
+impl DecentralizedFullPrecisionSynchronousPy {
+    pub fn copy_back_peer_weight(&self, bucket: PyRef<BaguaBucketPy>) {
+        let bucket_inner = &bucket.inner;
+        self.inner
+            .copy_back_peer_weight(Arc::new((*bucket_inner).clone()))
+    }
+}
+
+#[pyclass(dict)]
 pub struct BaguaTensorPy {
     inner: BaguaTensor,
 }
@@ -220,17 +235,17 @@ pub struct BaguaTensorPy {
 impl BaguaTensorPy {
     #[new]
     pub fn new(torch_tensor: &PyAny, name: String) -> PyResult<Self> {
-        // TODO: sanity check
         let dtype = torch_tensor
-            .getattr("dtype")
-            .expect("must pass valid torch tensor")
-            .repr()?
-            .to_string();
-        let bagua_dtype = match dtype.as_str() {
-            "torch.float32" => BaguaTensorDtype::F32,
-            "torch.float16" => BaguaTensorDtype::F16,
-            "torch.int64" => BaguaTensorDtype::I64,
-            "torch.uint8" => BaguaTensorDtype::U8,
+            .call_method0("bagua_getter_closure")
+            .expect("must pass valid Bagua tensor")
+            .getattr("dtype")?
+            .call_method0("__reduce__")?
+            .extract::<String>()?;
+        match dtype.as_str() {
+            "float32" => BaguaTensorDtype::F32,
+            "float16" => BaguaTensorDtype::F16,
+            "int64" => BaguaTensorDtype::I64,
+            "uint8" => BaguaTensorDtype::U8,
             _ => {
                 return Err(PyRuntimeError::new_err(format!(
                     "unsupported tensor dtype {}",
@@ -238,15 +253,9 @@ impl BaguaTensorPy {
                 )))
             }
         };
+
         Ok(Self {
-            inner: BaguaTensor::new_from_torch(
-                name,
-                torch_tensor
-                    .getattr("_cdata")
-                    .expect("must pass valid torch tensor")
-                    .extract()?,
-                bagua_dtype,
-            )?,
+            inner: BaguaTensor::new_from_torch(name, torch_tensor.into_py(torch_tensor.py()))?,
         })
     }
 
@@ -380,6 +389,7 @@ impl BaguaBucketPy {
         for t in tensors.iter() {
             tensors_inner.push(&t.inner)
         }
+
         Ok(Self {
             inner: BaguaBucket::new(tensors_inner.as_slice(), name)
                 .map_err(|e| PyRuntimeError::new_err(format!("{:?}", e)))?,
@@ -431,15 +441,16 @@ impl BaguaBucketPy {
         hierarchical: bool,
         peer_selection_mode: String,
         peer_weight: PyRef<BaguaTensorPy>,
-    ) -> PyResult<()> {
-        self.inner.append_decentralized_synchronous_op(
-            communicator_internode.map(|x| &x.inner),
-            communicator_intranode.map(|x| &x.inner),
-            hierarchical,
-            peer_selection_mode,
-            (*peer_weight).inner.clone(),
-        );
-        Ok(())
+    ) -> DecentralizedFullPrecisionSynchronousPy {
+        DecentralizedFullPrecisionSynchronousPy {
+            inner: self.inner.append_decentralized_synchronous_op(
+                communicator_internode.map(|x| &x.inner),
+                communicator_intranode.map(|x| &x.inner),
+                hierarchical,
+                peer_selection_mode,
+                (*peer_weight).inner.clone(),
+            ),
+        }
     }
 
     #[args(hierarchical = "false")]
@@ -527,6 +538,7 @@ fn bagua_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<BaguaBucketPy>()?;
     m.add_class::<BaguaSingleCommunicatorPy>()?;
     m.add_class::<DecentralizedFullPrecisionAsynchronousPy>()?;
+    m.add_class::<DecentralizedFullPrecisionSynchronousPy>()?;
 
     #[pyfn(m, "show_version")]
     fn show_version(_py: Python) {

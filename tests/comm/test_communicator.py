@@ -56,7 +56,7 @@ def run_abort(rank, nprocs, results, env):
         data = torch.rand(10).cuda()
 
     for _ in range(rank + 1):
-        comm.allreduce_inplace(data.to_bagua_tensor().bagua_backend_tensor(), 10)
+        comm.allreduce_inplace(data.ensure_bagua_tensor().bagua_backend_tensor(), 10)
 
     comm_stream.synchronize()
 

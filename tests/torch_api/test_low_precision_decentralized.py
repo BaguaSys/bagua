@@ -7,6 +7,7 @@ import os
 import unittest
 import multiprocessing
 from bagua.torch_api.utils import apply_flattened_call, flatten
+from bagua.torch_api.communication import _rank_not_in_group
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
 
@@ -62,8 +63,9 @@ def _init_torch_env(rank, nprocs, backend):
     )
 
 
-def run_model(rank, nprocs, hierarchical, communication_interval, results, env):
+def run_model(rank, nprocs, nranks, hierarchical, communication_interval, results, env):
     _init_bagua_env(rank, env)
+    group = bagua.communication.new_group(ranks=list(range(nranks)))
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -77,10 +79,10 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results, env):
             hierarchical=hierarchical,
             communication_interval=communication_interval,
         ),
+        process_group=group,
     )
 
     ret = results[rank]
-    bucket = model.bagua_buckets[0]
 
     ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
 
@@ -96,9 +98,11 @@ def run_model(rank, nprocs, hierarchical, communication_interval, results, env):
         optimizer.step()
 
     ret.bucket_weight.copy_(flatten([param.data for param in model.parameters()]))
-    ret.weight.copy_(torch.norm(bucket._weight))
-    ret.left_peer_weight.copy_(torch.norm(bucket._left_peer_weight))
-    ret.right_peer_weight.copy_(torch.norm(bucket._right_peer_weight))
+    if not _rank_not_in_group(group):
+        bucket = model.bagua_buckets[0]
+        ret.weight.copy_(torch.norm(bucket._weight))
+        ret.left_peer_weight.copy_(torch.norm(bucket._left_peer_weight))
+        ret.right_peer_weight.copy_(torch.norm(bucket._right_peer_weight))
 
 
 def run_torch_model(
@@ -251,8 +255,9 @@ class LowPrecDecentralizedAlgor(nn.Module):
 
 
 class TestLowPrecisionDecentralized(unittest.TestCase):
-    def run_test_locally(self, hierarchical, communication_interval):
-        nprocs = torch.cuda.device_count()
+    def run_test_locally(self, nprocs, nranks, hierarchical, communication_interval):
+        assert nranks >= 0
+
         env = {
             "WORLD_SIZE": str(nprocs),
             "LOCAL_WORLD_SIZE": str(nprocs),
@@ -267,7 +272,15 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
         for i in range(nprocs):
             p = mp.Process(
                 target=run_model,
-                args=(i, nprocs, hierarchical, communication_interval, results, env),
+                args=(
+                    i,
+                    nprocs,
+                    nranks,
+                    hierarchical,
+                    communication_interval,
+                    results,
+                    env,
+                ),
             )
             p.start()
             processes.append(p)
@@ -276,9 +289,9 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
             p.join(timeout=60)
             self.assertTrue(p.exitcode == 0)
 
-        for rank in range(nprocs):
-            left_peer_rank = (rank + nprocs - 1) % nprocs
-            right_peer_rank = (rank + 1) % nprocs
+        for rank in range(nranks):
+            left_peer_rank = (rank + nranks - 1) % nranks
+            right_peer_rank = (rank + 1) % nranks
 
             if hierarchical:
                 # all workers have equal weights
@@ -300,8 +313,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                     )
                 )
 
-    def run_diff_locally(self, hierarchical, communication_interval, backend):
-        nprocs = torch.cuda.device_count()
+    def run_diff_locally(self, nprocs, hierarchical, communication_interval, backend):
         env = {}
 
         mp = multiprocessing.get_context("spawn")
@@ -342,6 +354,7 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
                 args=(
                     i,
                     nprocs,
+                    nprocs,
                     hierarchical,
                     communication_interval,
                     bagua_results,
@@ -377,19 +390,25 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
 
     @skip_if_cuda_not_available()
     def test_algorithm(self):
-        self.run_test_locally(hierarchical=False, communication_interval=1)
-        self.run_test_locally(hierarchical=True, communication_interval=1)
+        nprocs = torch.cuda.device_count()
+        self.run_test_locally(
+            nprocs, nprocs - 1, hierarchical=False, communication_interval=1
+        )
+        self.run_test_locally(
+            nprocs, nprocs - 1, hierarchical=True, communication_interval=1
+        )
 
     @skip_if_cuda_not_available()
     def test_compare(self):
+        nprocs = torch.cuda.device_count()
         self.run_diff_locally(
-            hierarchical=False, communication_interval=1, backend="gloo"
+            nprocs, hierarchical=False, communication_interval=1, backend="gloo"
         )
         self.run_diff_locally(
-            hierarchical=False, communication_interval=2, backend="gloo"
+            nprocs, hierarchical=False, communication_interval=2, backend="gloo"
         )
         self.run_diff_locally(
-            hierarchical=True, communication_interval=1, backend="nccl"
+            nprocs, hierarchical=True, communication_interval=1, backend="nccl"
         )
 
 

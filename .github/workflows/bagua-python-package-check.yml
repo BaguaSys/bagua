@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: baguasys/bagua:latest
+    container: baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8
     steps:
     - uses: actions/checkout@v2
       with:
@@ -28,4 +28,4 @@ jobs:
     - name: Test with pytest
       run: |
         rm -rf bagua bagua_core
-        pytest --timeout=300 --timeout_method=thread
+        pytest -s --timeout=300 --timeout_method=thread
