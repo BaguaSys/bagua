@@ -521,16 +521,26 @@ class BaguaModule:
             if not hasattr(optimizer, "_bagua_original_step"):
                 optimizer._bagua_original_step = optimizer.step
 
-            def new_step_factory(optimizer):
+            # TODO: optimizer can be fused after bagua module wrap
+            if hasattr(optimizer, "fuse_step") and not hasattr(
+                optimizer, "_bagua_original_fuse_step"
+            ):
+                optimizer._bagua_original_fuse_step = optimizer.fuse_step
+
+            def new_step_factory(optimizer, func_name):
                 def new_step(self, *args, **kwargs):
-                    result = self._bagua_original_step(*args, **kwargs)
+                    result = getattr(self, func_name)(*args, **kwargs)
 
                     optimizer_hook(self)
                     return result
 
                 return MethodType(new_step, optimizer)
 
-            optimizer.step = new_step_factory(optimizer)
+            optimizer.step = new_step_factory(optimizer, "_bagua_original_step")
+            if hasattr(optimizer, "fuse_step"):
+                optimizer.fuse_step = new_step_factory(
+                    optimizer, "_bagua_original_fuse_step"
+                )
 
         for bucket in self.bagua_buckets:
             assert (

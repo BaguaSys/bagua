@@ -102,7 +102,7 @@ def is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
     )
 
 
-def group_continuous_tensors(tensors: List[torch.Tensor]):
+def find_continuous_tensors(tensors: List[torch.Tensor]):
     tensor_list = zip(tensors, list(range(len(tensors))))
     sorted_tensor_list = sorted(tensor_list, key=lambda x: x[0].data_ptr())
 
@@ -135,7 +135,7 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]]):
             tensors
         ), "Tensors to calculate mutual groups must have equal size."
 
-        grouped_indices = group_continuous_tensors(tensors)
+        grouped_indices = find_continuous_tensors(tensors)
 
         constraints.append(grouped_indices)
 
@@ -158,22 +158,47 @@ def intersect(a: List[List[int]], b: List[List[int]]):
     return c
 
 
-def group_tensors(tensors: List[torch.Tensor], grouped_indices: List[List[int]]):
-    logging.debug(f"Ready to group tensors, grouped indices: {grouped_indices}.")
+def group_tensors(tensors: List[torch.Tensor], indices: List[int]):
+    if len(indices) == 0:
+        return
 
-    grouped_tensors = []
-    for indices in grouped_indices:
-        ts = [tensors[idx] for idx in indices]
-        assert check_contiguous(ts), "tensors grouped must be contiguous"
+    to_group = [tensors[idx] for idx in indices]
+    assert check_contiguous(to_group), "tensors grouped must be contiguous"
 
-        total_size = sum([t.numel() for t in ts])
-        with torch.no_grad():
-            tensor_view = torch.zeros(total_size, dtype=ts[0].dtype).to(ts[0].device)
-            tensor_view.set_(ts[0].storage(), 0, tensor_view.shape)
+    total_size = sum([t.numel() for t in to_group])
+    with torch.no_grad():
+        tensor_view = torch.zeros(
+            total_size, dtype=to_group[0].dtype, device=to_group[0].device
+        )
+        tensor_view.set_(to_group[0].storage(), 0, tensor_view.shape)
 
-            grouped_tensors.append(tensor_view)
+        return tensor_view
 
-    return grouped_tensors
+
+def ungroup_tensor(tensor_view: torch.Tensor, tensors: List[torch.Tensor]):
+
+    offset = 0
+    ungrouped = []
+    for tensor in tensors:
+        if tensor_view.dtype != tensor.dtype:
+            logging.warning(
+                "Fused optimizer does not know how to ungroup states, since param state has different datatype with param."
+            )
+            return
+
+        z = torch.zeros_like(tensor)
+        z.set_(tensor_view.storage(), offset, tensor.shape)
+
+        offset += tensor.numel()
+        ungrouped.append(z)
+
+    if offset != tensor_view.numel():
+        logging.warning(
+            "Fused optimizer does not know how to ungroup states, since param state has different size with param."
+        )
+        return
+
+    return ungrouped
 
 
 def fuse_optimizer(
@@ -274,11 +299,10 @@ def make_optimizer_instance(optimizer: torch.optim.Optimizer):
             setattr(new_optimizer, attr, getattr(optimizer, attr))
             optimizer._bagua_cloned_attrs[attr] = getattr(optimizer, attr)
 
-    # Note: optimizer and fused optimizer share the same `state` object, but different `param_groups` object
-    new_optimizer.param_groups = []
-    for group in optimizer.param_groups:
-        new_group = {"params": list(group["params"])}
-        new_optimizer.add_param_group(new_group)
+    # new_optimizer.param_groups = []
+    # for group in optimizer.param_groups:
+    #     new_group = {"params": list(group["params"])}
+    #     new_optimizer.add_param_group(new_group)
 
     return new_optimizer
 
@@ -306,66 +330,110 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
     do_fuse(optimizer)
     optimizer._bagua_fused_optimizer.step(closure)
     _sanity_check_(optimizer)
+    _sync_state(optimizer)
 
 
 def do_fuse(optimizer: torch.optim.Optimizer):
     _fused_optimizer = optimizer._bagua_fused_optimizer
 
-    for index, group in enumerate(_fused_optimizer.param_groups):
+    # Note: optimizer and fused optimizer share the same state, but different param groups
+    _fused_optimizer.param_groups = []
+    for index, group in enumerate(optimizer.param_groups):
         params = group["params"]
 
         weights = [p.data for p in params]
         grads = [p.grad for p in params]
 
-        state_tensors, state_scalars, succ = _get_state_by_name(
-            _fused_optimizer.state, params
-        )
+        state_tensors, state_scalars, succ = _get_state_by_name(optimizer.state, params)
 
         if not succ:
             continue
 
         if optimizer._bagua_check_flatten:
-            _faltten_check_(weights, grads, state_tensors)
+            _flatten_check_(weights, grads, state_tensors)
 
         grouped_indices = calculate_mutual_groups(
             [weights, grads] + list(state_tensors.values())
         )
 
         if len(grouped_indices) == 0:
+            _fused_optimizer.add_param_group(group)
             continue
 
-        # group params
-        grouped_weights = group_tensors(weights, grouped_indices)
-        grouped_grads = group_tensors(grads, grouped_indices)
-
-        # group states
-        grouped_states = {}
-        for name, tensors in state_tensors.items():
-            ts = group_tensors(tensors, grouped_indices)
-            grouped_states[name] = ts
+        optimizer._bagua_fused_count += 1
 
         new_params = []
-        for i in range(len(grouped_weights)):
-            with torch.no_grad():
-                p = torch.nn.Parameter(grouped_weights[i], requires_grad=False)
-                p.grad = grouped_grads[i]
 
+        for indices in grouped_indices:
+            grouped_weight = group_tensors(weights, indices)
+            grouped_grad = group_tensors(grads, indices)
+
+            grouped_states = {}
+            for name, tensors in state_tensors.items():
+                ts = group_tensors(tensors, indices)
+                grouped_states[name] = ts
+
+            with torch.no_grad():
+                p = torch.nn.Parameter(grouped_weight, requires_grad=False)
+                p.grad = grouped_grad
+                p._bagua_fused_param_ids = indices
+
+            # sync original param state to fused param state
             for name, ts in grouped_states.items():
-                _fused_optimizer.state[p][name] = ts[i]
+                optimizer.state[p][name] = ts
 
             for name, v in state_scalars.items():
-                _fused_optimizer.state[p][name] = v
+                optimizer.state[p][name] = v
 
             new_params.append(p)
 
-        # add other params
         grouped_indices_flat = list(reduce(lambda x, y: x + y, grouped_indices))
         for idx, param in enumerate(params):
             if idx not in grouped_indices_flat:
                 new_params.append(param)
 
-        group["params"] = new_params
-        optimizer._bagua_fused_count += 1
+        new_group = {"params": new_params}
+        _fused_optimizer.add_param_group(new_group)
+
+
+def _sync_state(optimizer):
+    _fused_optimizer = optimizer._bagua_fused_optimizer
+
+    # write back state for original params
+    # Note: we should make sure every module parameter in original params groups has the right state
+    for group, fused_group in zip(
+        optimizer.param_groups, optimizer._bagua_fused_optimizer.param_groups
+    ):
+
+        params = group["params"]
+        fused_params = fused_group["params"]
+
+        fused_state_tensors, fused_state_scalars, succ = _get_state_by_name(
+            optimizer.state, fused_params
+        )
+
+        for fp in fused_params:
+            if not hasattr(fp, "_bagua_fused_param_ids"):
+                continue
+
+            original_params = [params[i] for i in fp._bagua_fused_param_ids]
+
+            for name in fused_state_tensors.keys():
+                state_tensors = ungroup_tensor(
+                    optimizer.state[fp][name], original_params
+                )
+
+                if state_tensors is not None:
+                    for p, state in zip(original_params, state_tensors):
+                        optimizer.state[p][name] = state
+
+            for name, v in fused_state_scalars.items():
+                for p in original_params:
+                    optimizer.state[p][name] = v
+
+            # clear outdated state for fused param
+            logging.debug("delete outdated params state")
+            del optimizer.state[fp]
 
 
 def _get_state_by_name(optimizer_state, params):
@@ -419,24 +487,24 @@ def _get_state_by_name(optimizer_state, params):
     return state_tensors, state_scalars, True
 
 
-def _faltten_check_(weights, grads, state_tensors):
+def _flatten_check_(weights, grads, state_tensors):
     check_flatten = True
     if check_flatten and not check_contiguous(weights):
         logging.warning(
-            "Parameter weights are not contiguous in memory, should not change the data pointers elsewhere."
+            "Parameter weights storage changed after flattened in fused optimizer, may degrade performance."
         )
         check_flatten = False
 
     if check_flatten and not check_contiguous(grads):
         logging.warning(
-            "Parameter gradients are not contiguous in memory, should not change the data pointers elsewhere."
+            "Parameter gradients storage changed after flattened in fused optimizer, may degrade performance."
         )
         check_flatten = False
 
     for name, tensors in state_tensors.items():
         if check_flatten and not check_contiguous(tensors):
             logging.warning(
-                "Parameter state {} are not contiguous in memory, should not change the data pointers elsewhere.".format(
+                "Parameter state {} storage changed after flattened in fused optimizer, may degrade performance.".format(
                     name
                 )
             )
@@ -446,4 +514,6 @@ def _faltten_check_(weights, grads, state_tensors):
 def _sanity_check_(optimizer: torch.optim.Optimizer):
     for attr in optimizer._bagua_cloned_attrs:
         if getattr(optimizer, attr) != getattr(optimizer._bagua_fused_optimizer, attr):
-            logging.error(f"Cloned Attribute {attr} changed in `optimizer.step()`.")
+            logging.error(
+                f"Should not change attribute {attr} in `optimizer.step(), maintain it in optimizer state.`"
+            )
