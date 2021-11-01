@@ -45,6 +45,7 @@ class InnerDistributedDataParallel:
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm.reify(process_group)
+        self.process_group = process_group
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
