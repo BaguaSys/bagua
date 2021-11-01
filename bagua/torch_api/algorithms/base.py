@@ -61,7 +61,7 @@ class AlgorithmImpl:
         for name, param in parameters.__reversed__():
             param = param.bagua_ensure_grad().ensure_bagua_tensor(
                 name,
-                bagua_module.bagua_module_name,
+                inner_ddp.bagua_module_name,
                 getter_closure=lambda param: param.grad,
                 setter_closure=lambda param, t: setattr(param, "grad", t),
             )

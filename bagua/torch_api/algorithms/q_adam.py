@@ -139,7 +139,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                     # register grad
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
-                        bagua_module.bagua_module_name,
+                        inner_ddp.bagua_module_name,
                         getter_closure=lambda param: param.grad,
                         setter_closure=lambda param, t: setattr(param, "grad", t),
                     )
@@ -150,7 +150,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
 
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
-                        bagua_module.bagua_module_name,
+                        inner_ddp.bagua_module_name,
                         getter_closure=lambda param: self.optimizer.state[param][
                             "exp_avg"
                         ],
