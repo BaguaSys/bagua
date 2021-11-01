@@ -167,7 +167,11 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             bagua_process_group = process_group
 
         self.inner_ddp = InnerDistributedDataParallel(
-            self.module, optimizers, algorithm, bagua_process_group, self.inner_ddp.bagua_module_name
+            self.module,
+            optimizers=optimizers,
+            algorithm=algorithm,
+            process_group=bagua_process_group,
+            bagua_module_name=self.inner_ddp.bagua_module_name,
         )
 
     @property
