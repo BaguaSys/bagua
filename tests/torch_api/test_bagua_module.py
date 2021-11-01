@@ -86,15 +86,13 @@ def run_model_wrapper(rank, nranks, env, algorithm):
     # initialize subprocess env
     setup_bagua_env(rank, env)
 
-    partial_group = bagua.communication.new_group(ranks=list(range(nranks)))
-
     # construct model and optimizer, etc.
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     loss_fn = nn.MSELoss()
 
     model, optimizer = bagua_init(
-        model, optimizer, algorithm, process_group=partial_group
+        model, optimizer, algorithm
     )
 
     train(model, optimizer, loss_fn, is_async=(algorithm == "async"))
@@ -104,16 +102,13 @@ def run_model_switch_wrapper(rank, nranks, env, algorithms):
     # initialize subprocess env
     setup_bagua_env(rank, env)
 
-    partial_group = bagua.communication.new_group(ranks=list(range(nranks)))
-
     # construct model and optimizer, etc.
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     loss_fn = nn.MSELoss()
 
     for i in range(len(algorithms)):
-        pg = None if i % 2 == 0 else partial_group
-        model, optimizer = bagua_init(model, optimizer, algorithms[i], process_group=pg)
+        model, optimizer = bagua_init(model, optimizer, algorithms[i])
         train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
 
 
