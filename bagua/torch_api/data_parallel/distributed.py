@@ -170,6 +170,10 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             self.module, optimizers, algorithm, bagua_process_group
         )
 
+    @property
+    def bagua_algorithm(self):
+        return self.inner_ddp.bagua_algorithm
+
 
 def DistributedDataParallel(
     module,
