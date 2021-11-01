@@ -2,7 +2,7 @@
 
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.data_parallel.inner_distributed import InnerDistributedDataParallel
-from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
+from bagua.torch_api.algorithms.base import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
 
 

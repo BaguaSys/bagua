@@ -1,5 +1,5 @@
 import torch
-from bagua.torch_api.algorithms import gradient_allreduce
+from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
 from torch.nn.modules import Module
 from contextlib import contextmanager
 from bagua.torch_api.communication import (
@@ -80,7 +80,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         gradient_as_bucket_view=False,
         # The following bagua parameters
         optimizers: List[torch.optim.Optimizer] = [],
-        algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm(),
+        algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
     ) -> None:
         super(DistributedDataParallel_V1_9_0, self).__init__()
         assert any((p.requires_grad for p in module.parameters())), (
