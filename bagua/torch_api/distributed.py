@@ -97,21 +97,26 @@ class BaguaModule:
         if process_group is None:
             process_group = _get_default_group()
 
-        if _rank_not_in_group(process_group):
-            # return if not a participant
-            return self
-
         self.bagua_ddp = InnerDistributedDataParallel(
             self,
             optimizers,
             algorithm,
             process_group,
         )
-        self.bagua_module_name = self.bagua_ddp.bagua_module_name
-        self.bagua_algorithm = self.bagua_ddp.bagua_algorithm
-        self.bagua_optimizers = self.bagua_ddp.bagua_optimizers
 
         return self
+
+    @property
+    def bagua_module_name(self):
+        return self.bagua_ddp.bagua_module_name
+
+    @property
+    def bagua_algorithm(self):
+        return self.bagua_ddp.bagua_algorithm
+
+    @property
+    def bagua_optimizers(self):
+        return self.bagua_ddp.bagua_optimizers
 
 
 _base = gorilla._get_base(BaguaModule)
