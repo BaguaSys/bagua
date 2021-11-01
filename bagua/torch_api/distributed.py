@@ -107,20 +107,11 @@ class BaguaModule:
             algorithm,
             process_group,
         )
+        self.bagua_module_name = self.bagua_ddp.bagua_module_name
+        self.bagua_algorithm = self.bagua_ddp.bagua_algorithm
+        self.bagua_optimizers = self.bagua_ddp.bagua_optimizers
 
         return self
-
-    @property
-    def bagua_module_name(self):
-        return self.bagua_ddp.bagua_module_name
-
-    @property
-    def bagua_algorithm(self):
-        return self.bagua_ddp.bagua_algorithm
-
-    @property
-    def bagua_optimizers(self):
-        return self.bagua_ddp.bagua_optimizers
 
 
 _base = gorilla._get_base(BaguaModule)
