@@ -1,5 +1,5 @@
 import torch
-from typing import List
+from typing import List, Dict, Optional
 import copy
 import logging
 from functools import reduce
@@ -7,10 +7,13 @@ from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 import gorilla
 
 
-__all__ = ["fuse_optimizer", "fuse_step"]
+__all__ = ["fuse_optimizer", "fuse_step", "is_fused_optimizer"]
 
 
 def flatten_params_and_states(optimizer: torch.optim.Optimizer):
+    """
+    Flatten parameter tensors in the sampe group into contiguous ones.
+    """
 
     type_params = {}
     for group in optimizer.param_groups:
@@ -49,6 +52,9 @@ def flatten_params_and_states(optimizer: torch.optim.Optimizer):
 
 
 def flatten_tensors(tensors: List[torch.Tensor]):
+    """
+    Flatten :attr:`tensors` into contiguous one.
+    """
     if len(tensors) == 0:
         return
 
@@ -93,6 +99,9 @@ def flatten_tensors_with_closure(tensors, params, getter_closure, setter_closure
 
 
 def _is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
+    """
+    Checking if tensor :attr:`a` and tensor :attr:`b` are contiguous.
+    """
     size_a = a.numel() * a.element_size()
     size_b = b.numel() * b.element_size()
 
@@ -174,8 +183,10 @@ def group_tensors(tensors: List[torch.Tensor], indices: List[int]) -> torch.Tens
 
 def ungroup_tensor(
     tensor_view: torch.Tensor, tensors: List[torch.Tensor]
-) -> List[torch.Tensor]:
-    """Ungroup :attr:`tensor_view` to a list of tensors that have same data types and sizes with :attr:`tensors`."""
+) -> Optional[List[torch.Tensor]]:
+    """
+    Ungroup :attr:`tensor_view` to a list of tensors that have same data types and sizes with :attr:`tensors`.
+    """
 
     offset = 0
     ungrouped = []
@@ -276,6 +287,9 @@ def fuse_optimizer(
 
 
 def is_fused_optimizer(optimizer: torch.optim.Optimizer):
+    """
+    Checking if :attr:`optimizer` is a fused optimizer or not.
+    """
     return hasattr(optimizer, "_bagua_fused_optimizer")
 
 
@@ -459,8 +473,8 @@ def sync_optimizer_state(optimizer):
 
 
 def get_optimizer_param_states(optimizer, params):
-    state_tensors = {}
-    state_scalars = {}
+    state_tensors = {}  # type: Dict[str, List[torch.Tensor]]
+    state_scalars = {}  # type: Dict[str, Any]
 
     state_tensor_names = set(
         [
