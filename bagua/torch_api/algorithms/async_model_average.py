@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
-from bagua.torch_api.data_parallel import DistributedDataParallel
 from bagua.torch_api.data_parallel.inner_distributed import InnerDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import (
@@ -224,22 +223,25 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
 
-    def abort(self, bagua_ddp: Union[DistributedDataParallel, InnerDistributedDataParallel]):
+    def abort(self, bagua_ddp: Union[InnerDistributedDataParallel]):
         """
         Stop background asynchronous communications. Should be called after
         training.
 
         Args:
-            inner_ddp (Union[DistributedDataParallel, InnerDistributedDataParallel]): Bagua distributed data parallel module.
+            inner_ddp (Union[InnerDistributedDataParallel]): Bagua distributed data parallel module.
         """
 
-        if type(bagua_ddp) is DistributedDataParallel:
-            bagua_ddp = bagua_ddp.inner
-        elif type(bagua_ddp) is InnerDistributedDataParallel:
+        if type(bagua_ddp) is InnerDistributedDataParallel:
             pass
-        else:
-            # Is BaguaModule
+        elif hasattr(bagua_ddp, "inner"):
+            # Is bagua.torch_api.data_parallel.DistributedDataParallel
+            bagua_ddp = bagua_ddp.inner
+        elif hasattr(bagua_ddp, "bagua_ddp"):
+            # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
+        else:
+            raise Exception("unexcept input bagua_ddp={}".format(type(bagua_ddp)))
 
         if self.scheduled:
             barrier(comm=bagua_ddp.process_group.get_global_communicator())
@@ -248,21 +250,24 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             self.scheduled = False
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
-    def resume(self, bagua_ddp: Union[DistributedDataParallel, InnerDistributedDataParallel]):
+    def resume(self, bagua_ddp: Union[InnerDistributedDataParallel]):
         """
         Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
         Args:
-            inner_ddp (Union[DistributedDataParallel, InnerDistributedDataParallel]): Bagua distributed data parallel module.
+            inner_ddp (Union[InnerDistributedDataParallel]): Bagua distributed data parallel module.
         """
 
-        if type(bagua_ddp) is DistributedDataParallel:
-            bagua_ddp = bagua_ddp.inner
-        elif type(bagua_ddp) is InnerDistributedDataParallel:
+        if type(bagua_ddp) is InnerDistributedDataParallel:
             pass
-        else:
-            # Is BaguaModule
+        elif hasattr(bagua_ddp, "inner"):
+            # Is bagua.torch_api.data_parallel.DistributedDataParallel
+            bagua_ddp = bagua_ddp.inner
+        elif hasattr(bagua_ddp, "bagua_ddp"):
+            # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
+        else:
+            raise Exception("unexcept input bagua_ddp={}".format(type(bagua_ddp)))
 
         if not self.scheduled and hasattr(self, "future"):
             barrier(comm=bagua_ddp.process_group.get_global_communicator())
