@@ -164,7 +164,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
-                group=inner_ddp.process_group,
+                group=self.process_group,
             )
         else:
             async_op = bucket.append_asynchronous_model_average_op(
@@ -244,7 +244,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             raise Exception("unexcept input bagua_ddp={}".format(type(bagua_ddp)))
 
         if self.scheduled:
-            barrier(comm=bagua_ddp.process_group.get_global_communicator())
+            barrier(comm=self.process_group.get_global_communicator())
             self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
             self.scheduled = False
@@ -270,7 +270,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             raise Exception("unexcept input bagua_ddp={}".format(type(bagua_ddp)))
 
         if not self.scheduled and hasattr(self, "future"):
-            barrier(comm=bagua_ddp.process_group.get_global_communicator())
+            barrier(comm=self.process_group.get_global_communicator())
             self.abort_event.clear()
             self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
             self.scheduled = True

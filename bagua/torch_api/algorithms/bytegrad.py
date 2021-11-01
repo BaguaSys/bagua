@@ -65,7 +65,7 @@ class ByteGradAlgorithmImpl(AlgorithmImpl):
             average=self.average,
             scattergather=True,
             compression="MinMaxUInt8",
-            group=inner_ddp.process_group,
+            group=self.process_group,
         )
 
 

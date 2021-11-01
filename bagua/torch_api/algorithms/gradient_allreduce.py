@@ -37,7 +37,7 @@ class GradientAllReduceAlgorithmImpl(AlgorithmImpl):
         bucket.append_centralized_synchronous_op(
             hierarchical=self.hierarchical,
             average=self.average,
-            group=inner_ddp.process_group,
+            group=self.process_group,
         )
 
 

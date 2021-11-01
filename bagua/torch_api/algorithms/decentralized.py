@@ -101,7 +101,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
             peer_weight=bucket._peer_weight,
             hierarchical=self.hierarchical,
             peer_selection_mode=self.peer_selection_mode,
-            group=inner_ddp.process_group,
+            group=self.process_group,
         )
         bucket._decentralized_op = decentralized_op
 
@@ -204,7 +204,7 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
             right_peer_weight=bucket._right_peer_weight,
             hierarchical=self.hierarchical,
             compression="MinMaxUInt8",
-            group=inner_ddp.process_group,
+            group=self.process_group,
         )
 
 

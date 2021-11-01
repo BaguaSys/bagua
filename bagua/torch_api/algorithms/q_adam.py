@@ -183,7 +183,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
-                group=inner_ddp.process_group,
+                group=self.process_group,
             )
         else:
 
@@ -200,7 +200,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                 average=True,
                 scattergather=True,
                 compression="MinMaxUInt8",
-                group=inner_ddp.process_group,
+                group=self.process_group,
             )
 
     def init_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
