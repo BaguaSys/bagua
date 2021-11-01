@@ -37,11 +37,15 @@ class InnerDistributedDataParallel:
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
         process_group: BaguaProcessGroup,
+        bagua_module_name: Optional[str] = None,
     ) -> None:
         self.module = module
-        self.bagua_module_name = "{}_{}".format(
-            self.__class__.__name__, next(InnerDistributedDataParallel.__id_iter)
-        )
+        if bagua_module_name is None:
+            self.bagua_module_name = "{}_{}".format(
+                self.__class__.__name__, next(InnerDistributedDataParallel.__id_iter)
+            )
+        else:
+            self.bagua_module_name = bagua_module_name
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm.reify(process_group)
