@@ -99,6 +99,10 @@ class BaguaModule:
         if process_group is None:
             process_group = _get_default_group()
 
+        if _rank_not_in_group(self._bagua_process_group):
+            # return if not a participant
+            return self
+
         self.bagua_ddp = InnerDistributedDataParallel(
             self,
             optimizers,
