@@ -144,6 +144,32 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         finally:
             self.inner_ddp.require_backward_grad_sync = old_require_backward_grad_sync
 
+    @property
+    def bagua_optimizers(self):
+        return self.inner_ddp.bagua_optimizers
+
+    @property
+    def inner(self):
+        return self.inner_ddp
+
+    def switch_bagua_setting(
+        self,
+        process_group=None,
+        optimizers: List[torch.optim.Optimizer] = [],
+        algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm(),
+    ):
+        bagua_process_group = None
+        if bagua_process_group is None:
+            bagua_process_group = _get_default_group()
+        elif type(bagua_process_group) is TorchProcessGroup:
+            bagua_process_group = process_group.bagua_patch().bagua_pg
+        elif type(bagua_process_group) is BaguaProcessGroup:
+            bagua_process_group = process_group
+
+        self.inner_ddp = InnerDistributedDataParallel(
+            self.module, optimizers, algorithm, bagua_process_group
+        )
+
 
 def DistributedDataParallel(
     module,
