@@ -156,7 +156,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self,
         process_group=None,
         optimizers: List[torch.optim.Optimizer] = [],
-        algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm(),
+        algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
     ):
         bagua_process_group = None
         if bagua_process_group is None:
@@ -184,7 +184,7 @@ def DistributedDataParallel(
     gradient_as_bucket_view=False,
     # The following bagua parameters
     optimizers: List[torch.optim.Optimizer] = [],
-    algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm()
+    algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
 ):
     fallback_pass = [
         device_ids is not None,
