@@ -67,6 +67,9 @@ def run_model(rank, nprocs, nranks, hierarchical, communication_interval, result
     _init_bagua_env(rank, env)
     group = bagua.communication.new_group(ranks=list(range(nranks)))
 
+    if _rank_not_in_group(group):
+        return
+
     # construct model and optimizer, etc.
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -392,10 +395,10 @@ class TestLowPrecisionDecentralized(unittest.TestCase):
     def test_algorithm(self):
         nprocs = torch.cuda.device_count()
         self.run_test_locally(
-            nprocs, nprocs - 1, hierarchical=False, communication_interval=1
+            nprocs, nprocs, hierarchical=False, communication_interval=1
         )
         self.run_test_locally(
-            nprocs, nprocs - 1, hierarchical=True, communication_interval=1
+            nprocs, nprocs, hierarchical=True, communication_interval=1
         )
 
     @skip_if_cuda_not_available()

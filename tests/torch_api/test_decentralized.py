@@ -78,6 +78,9 @@ def run_model(
     _init_bagua_env(rank, env)
     group = bagua.communication.new_group(ranks=list(range(nranks)))
 
+    if _rank_not_in_group(group):
+        return
+
     # construct model and optimizer, etc.
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -399,24 +402,24 @@ class TestDecentralized(unittest.TestCase):
                 ).item()
             )
 
-    # @skip_if_cuda_not_available()
-    # def test_algorithm(self):
-    #     nprocs = torch.cuda.device_count()
-    #     self.run_test_locally(
-    #         nprocs,
-    #         nprocs,
-    #         hierarchical=False,
-    #         peer_selection_mode="all",
-    #         communication_interval=1,
-    #     )
+    @skip_if_cuda_not_available()
+    def test_algorithm(self):
+        nprocs = torch.cuda.device_count()
+        self.run_test_locally(
+            nprocs,
+            nprocs - 1,
+            hierarchical=False,
+            peer_selection_mode="all",
+            communication_interval=1,
+        )
 
-    #     self.run_test_locally(
-    #         nprocs,
-    #         (nprocs - 1) // 2 * 2,
-    #         hierarchical=False,
-    #         peer_selection_mode="shift_one",
-    #         communication_interval=1,
-    #     )
+        self.run_test_locally(
+            nprocs,
+            (nprocs - 1) // 2 * 2,
+            hierarchical=False,
+            peer_selection_mode="shift_one",
+            communication_interval=1,
+        )
 
     @skip_if_cuda_not_available()
     def test_compare(self):
