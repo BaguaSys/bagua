@@ -84,7 +84,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         # TODO: async algorithm conflict with fused optimizer, can only support flattened inplace bucket.
         assert (
             do_flatten
-        ), "Async algorithm can only support `do_flatten=True` at present."
+        ), "Async algorithm supports `do_flatten=True` only"
         if self.step_id < self.warmup_steps:
             return super().tensors_to_buckets(tensors, do_flatten)
 
