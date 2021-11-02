@@ -4,6 +4,7 @@ import copy
 import logging
 from functools import reduce
 from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
+from bagua.torch_api.algorithms.q_adam import QAdamOptimizer
 import gorilla
 
 
@@ -268,6 +269,9 @@ def fuse_optimizer(
         :meth:`step`.
     """
 
+    assert not isinstance(
+        optimizer, QAdamOptimizer
+    ), "Can not fuse QAdamOptimizer at present."
     if is_fused_optimizer(optimizer):
         raise RuntimeError("trying to fuse an optimizer twice!")
 

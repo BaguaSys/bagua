@@ -4,6 +4,7 @@ from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
+from bagua.torch_api.contrib.fuse.optimizer import is_fused_optimizer
 from typing import List
 import torch
 
@@ -169,6 +170,9 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         def hook(optimizer: torch.optim.Optimizer):
+            assert not is_fused_optimizer(
+                optimizer
+            ), "Low decentralized algorithm can not work with fused optimizer at present."
             if self._should_communicate(bagua_module):
                 for group in optimizer.param_groups:
                     for param in group["params"]:
