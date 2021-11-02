@@ -1,3 +1,4 @@
+from logging import warning
 import torch
 from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
 from torch.nn.modules import Module
@@ -15,7 +16,8 @@ from bagua.torch_api.model_parallel.moe import is_moe_param
 from typing import Callable, Optional
 from .inner_distributed import InnerDistributedDataParallel
 from torch.nn.parallel import DistributedDataParallel as TorchDistributedDataParallel
-from typing import List
+from typing import List, Union
+import warnings
 
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
@@ -59,6 +61,17 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
 
     def will_sync_module_buffers(self):
         raise NotImplementedError
+
+
+def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessGroup, None] = None):
+    if process_group is None:
+        return _get_default_group()
+    elif type(process_group) is TorchProcessGroup:
+        return process_group.bagua_patch().bagua_pg
+    elif type(process_group) is BaguaProcessGroup:
+        return process_group
+    else:
+        raise Exception("unexpect input {}".format(type(process_group)))
 
 
 class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
@@ -111,16 +124,8 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         assert find_unused_parameters is False, "Not yet supported"
         self.find_unused_parameters = find_unused_parameters
 
-        bagua_process_group = None
-        if bagua_process_group is None:
-            bagua_process_group = _get_default_group()
-        elif type(bagua_process_group) is TorchProcessGroup:
-            bagua_process_group = process_group.bagua_patch().bagua_pg
-        elif type(bagua_process_group) is BaguaProcessGroup:
-            bagua_process_group = process_group
-
         self.inner = InnerDistributedDataParallel(
-            self.module, optimizers, algorithm, bagua_process_group
+            self.module, optimizers, algorithm, to_bagua_process_group(process_group)
         )
 
     @property
@@ -150,19 +155,11 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
     ):
-        bagua_process_group = None
-        if bagua_process_group is None:
-            bagua_process_group = _get_default_group()
-        elif type(bagua_process_group) is TorchProcessGroup:
-            bagua_process_group = process_group.bagua_patch().bagua_pg
-        elif type(bagua_process_group) is BaguaProcessGroup:
-            bagua_process_group = process_group
-
         self.inner = InnerDistributedDataParallel(
             self.module,
             optimizers=optimizers,
             algorithm=algorithm,
-            process_group=bagua_process_group,
+            process_group=to_bagua_process_group(process_group),
             bagua_module_name=self.inner.bagua_module_name,
         )
 
@@ -212,6 +209,7 @@ def DistributedDataParallel(
         check_reduction is True,
     ]
     if any(fallback_pass):
+        warnings.warn("Input parameters are not supported yet, return torch native DistributedDataParallel.")
         return TorchDistributedDataParallel(
             module=module,
             device_ids=device_ids,

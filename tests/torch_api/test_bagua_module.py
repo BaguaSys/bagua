@@ -110,7 +110,6 @@ def run_model_switch_wrapper(rank, nranks, env, algorithms):
     for i in range(len(algorithms)):
         model, optimizer = bagua_init(model, optimizer, algorithms[i])
         train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
-        print('algorithm={} done'.format(algorithms[i]))
 
 
 class TestBaguaModule(unittest.TestCase):
