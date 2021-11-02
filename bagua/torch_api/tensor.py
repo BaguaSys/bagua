@@ -162,7 +162,7 @@ class BaguaTensor:
         Returns:
             The new Bagua tensor sharing the same storage with the original tensor.
         """
-        new_tensor = self.view(self.dtype)
+        new_tensor = self.view(self.size())
         return new_tensor.ensure_bagua_tensor(
             name, module_name, getter_closure, setter_closure
         )
