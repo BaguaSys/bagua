@@ -4,7 +4,6 @@ import io
 import pickle
 import collections
 import logging
-import itertools
 from torch.nn.modules import Module
 from typing import List, Tuple, Optional
 from bagua.torch_api import env
@@ -25,12 +24,14 @@ from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
 
 class BaguaPatches:
+    """
+    As an instance attribute patch in torch.Module, the bagua backend
+    mounts the required state of ddp on this class.
+    """
     pass
 
 
 class InnerDistributedDataParallel:
-    __id_iter = itertools.count()
-
     def __init__(
         self,
         module: Module,
@@ -42,7 +43,7 @@ class InnerDistributedDataParallel:
         self.module = module
         if bagua_module_name is None:
             self.bagua_module_name = "{}_{}".format(
-                self.__class__.__name__, next(InnerDistributedDataParallel.__id_iter)
+                self.__class__.__name__, id(module)
             )
         else:
             self.bagua_module_name = bagua_module_name
@@ -283,7 +284,7 @@ class InnerDistributedDataParallel:
                             param_id, param_name
                         )
         for key, param in params:
-            broadcast(param, src=0)
+            broadcast(param, src=0, comm=self.process_group.get_global_communicator())
         scalars = self._bagua_broadcast_scalars(scalars, src=0)
         for key, p in scalars.items():
             call_back_param[key](p)
@@ -293,7 +294,7 @@ class InnerDistributedDataParallel:
         b = io.BytesIO()
         pickle.dump(scalars, b)
         t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
-        broadcast(t, src=0)
+        broadcast(t, src=0, comm=self.process_group.get_global_communicator())
         if env.get_rank() != src:
             buf = io.BytesIO(t.cpu().numpy().tobytes())
             scalars = pickle.load(buf)
@@ -307,7 +308,7 @@ class InnerDistributedDataParallel:
 
         module_states = self.bagua_build_params()
         for name, state in module_states:
-            broadcast(state, src=0)
+            broadcast(state, src=0, comm=self.process_group.get_global_communicator())
         for optimizer in self.bagua_optimizers:
             self._bagua_broadcast_optimizer_state(optimizer)
 

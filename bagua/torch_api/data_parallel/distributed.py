@@ -119,17 +119,17 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         elif type(bagua_process_group) is BaguaProcessGroup:
             bagua_process_group = process_group
 
-        self.inner_ddp = InnerDistributedDataParallel(
+        self.inner = InnerDistributedDataParallel(
             self.module, optimizers, algorithm, bagua_process_group
         )
 
     @property
     def require_backward_grad_sync(self):
-        return self.inner_ddp.require_backward_grad_sync
+        return self.inner.require_backward_grad_sync
 
     @property
     def parameters_to_ignore(self):
-        return self.inner_ddp.parameters_to_ignore
+        return self.inner.parameters_to_ignore
 
     def forward(self, *inputs, **kwargs):
         output = self.module(*inputs, **kwargs)
@@ -138,19 +138,11 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     @contextmanager
     def no_sync(self):
         old_require_backward_grad_sync = self.require_backward_grad_sync
-        self.inner_ddp.require_backward_grad_sync = False
+        self.inner.require_backward_grad_sync = False
         try:
             yield
         finally:
-            self.inner_ddp.require_backward_grad_sync = old_require_backward_grad_sync
-
-    @property
-    def bagua_optimizers(self):
-        return self.inner_ddp.bagua_optimizers
-
-    @property
-    def inner(self):
-        return self.inner_ddp
+            self.inner.require_backward_grad_sync = old_require_backward_grad_sync
 
     def switch_bagua_setting(
         self,
@@ -166,17 +158,33 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         elif type(bagua_process_group) is BaguaProcessGroup:
             bagua_process_group = process_group
 
-        self.inner_ddp = InnerDistributedDataParallel(
+        self.inner = InnerDistributedDataParallel(
             self.module,
             optimizers=optimizers,
             algorithm=algorithm,
             process_group=bagua_process_group,
-            bagua_module_name=self.inner_ddp.bagua_module_name,
+            bagua_module_name=self.inner.bagua_module_name,
         )
 
     @property
     def bagua_algorithm(self):
-        return self.inner_ddp.bagua_algorithm
+        return self.inner.bagua_algorithm
+
+    @property
+    def bagua_module_name(self):
+        return self.inner.bagua_module_name
+
+    @property
+    def bagua_algorithm(self):
+        return self.inner.bagua_algorithm
+
+    @property
+    def bagua_optimizers(self):
+        return self.inner.bagua_optimizers
+
+    @property
+    def bagua_buckets(self):
+        return self.inner.bagua_buckets
 
 
 def DistributedDataParallel(

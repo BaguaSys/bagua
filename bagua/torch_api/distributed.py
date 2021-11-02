@@ -9,7 +9,7 @@ from bagua.torch_api.communication import (
 )
 import bagua
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
-from bagua.torch_api.env import get_autotune_level, get_rank
+from bagua.torch_api import env
 from bagua.torch_api.model_parallel.moe import is_moe_param
 import gorilla
 import torch
