@@ -134,6 +134,9 @@ def train(args, train_dataset, model, tokenizer):
         optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon
     )
 
+    if args.fuse_optimizer:
+        optimizer = bagua.contrib.fuse_optimizer(optimizer)
+
     if args.algorithm == "gradient_allreduce":
         from bagua.torch_api.algorithms import gradient_allreduce
 
@@ -204,7 +207,9 @@ def train(args, train_dataset, model, tokenizer):
 
     # Distributed training (should be after apex fp16 initialization)
     if args.distributed:
-        model = model.with_bagua([optimizer], algorithm)
+        model = model.with_bagua(
+            [optimizer], algorithm, do_flatten=not args.fuse_optimizer
+        )
 
     # Train!
     logger.info("***** Running training *****")
@@ -258,8 +263,6 @@ def train(args, train_dataset, model, tokenizer):
         desc="Epoch",
         disable=bagua.get_rank() != 0,
     )
-    # Added here for reproductibility
-    set_seed(args)
 
     for _ in train_iterator:
         epoch_iterator = tqdm(
@@ -335,7 +338,10 @@ def train(args, train_dataset, model, tokenizer):
                         model.parameters(), args.max_grad_norm
                     )
 
-                optimizer.step()
+                if args.fuse_optimizer:
+                    optimizer.fuse_step()
+                else:
+                    optimizer.step()
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
@@ -908,6 +914,12 @@ def main():
         help="multiple threads for converting example to features",
     )
     parser.add_argument(
+        "--set-deterministic",
+        action="store_true",
+        default=False,
+        help="set deterministic or not",
+    )
+    parser.add_argument(
         "--algorithm",
         type=str,
         default="gradient_allreduce",
@@ -925,6 +937,13 @@ def main():
         type=int,
         help="Warmup(allreduce) steps for async algorithm",
     )
+    parser.add_argument(
+        "--fuse-optimizer",
+        action="store_true",
+        default=False,
+        help="fuse optimizer or not",
+    )
+
     args = parser.parse_args()
 
     if args.doc_stride >= args.max_seq_length - args.max_query_length:
@@ -994,8 +1013,13 @@ def main():
         transformers.utils.logging.set_verbosity_info()
         transformers.utils.logging.enable_default_handler()
         transformers.utils.logging.enable_explicit_format()
-    # Set seed
-    set_seed(args)
+
+    # Added here for reproductibility
+    if args.set_deterministic:
+        # Set seed
+        set_seed(args)
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
 
     # Load pretrained model and tokenizer
     if args.distributed and bagua.get_rank() != 0:

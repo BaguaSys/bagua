@@ -140,7 +140,7 @@ class BaguaModule:
             for group in optimizer.param_groups:
                 for p in group["params"]:
                     if p.requires_grad and id(p) not in optimizer_state_dict["state"]:
-                        p.grad = p.data.new(p.size()).zero_()
+                        p.bagua_ensure_grad()
                         if isinstance(optimizer, torch.optim.SparseAdam):
                             p.grad = p.grad.to_sparse()
             optimizer_state_dict = optimizer.state_dict()
@@ -263,6 +263,7 @@ class BaguaModule:
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
         process_group: Optional[BaguaProcessGroup] = None,
+        do_flatten: bool = True,
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html?highlight=module#torch.nn.Module>`_.
@@ -274,6 +275,8 @@ class BaguaModule:
                 used to do the actual communication and update.
             process_group: The process group to be used for distributed data all-reduction. If ``None``, the default process group,
                 which is created by :func:`bagua.torch_api.init_process_group`, will be used. (default: ``None``)
+            do_flatten: Whether to flatten the Bagua buckets. The flatten operation will reset data pointer of bucket
+                tensors so that they can use faster code paths. Default: ``True``.
 
         Returns:
             The original module, with Bagua related environments initialized.
@@ -327,6 +330,8 @@ class BaguaModule:
             self, "_ddp_params_and_buffers_to_ignore"
         ):  # for compatibility with PyTorch DDP
             self.parameters_to_ignore.extend(self._ddp_params_and_buffers_to_ignore)
+
+        self._bagua_do_flatten = do_flatten
 
         self.bagua_train_step_counter = 0
 
@@ -476,7 +481,9 @@ class BaguaModule:
     def _bagua_reset_algorithm_buckets(self):
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
+        self.bagua_buckets.extend(
+            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self._bagua_do_flatten)
+        )
 
         for name, param in self.named_parameters():
 
@@ -514,6 +521,7 @@ class BaguaModule:
             if not hasattr(optimizer, "_bagua_original_step"):
                 optimizer._bagua_original_step = optimizer.step
 
+            # TODO: `fused_step` may miss `init_post_optimizer_step_hook`
             def new_step_factory(optimizer):
                 def new_step(self, *args, **kwargs):
                     result = self._bagua_original_step(*args, **kwargs)

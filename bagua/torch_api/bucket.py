@@ -8,7 +8,7 @@ import bagua_core as B
 import torch
 
 from bagua.torch_api.tensor import BaguaTensor
-from bagua.torch_api.utils import check_contiguous
+from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
 from bagua.torch_api.communication import (
     BaguaProcessGroup,
     _bagua_backend_comm,
@@ -87,25 +87,10 @@ class BaguaBucket:
         :attr:`self` tensors and padding tensor (if exists).
         """
 
-        all_registered_tensors = [
+        all_effective_tensors = [
             tensor.bagua_getter_closure() for tensor in self._all_tensors
         ]
-        total_size = 0
-        for tensor in all_registered_tensors:
-            total_size += tensor.numel()
-
-        flatten_tensor = torch.zeros(
-            total_size,
-            dtype=all_registered_tensors[0].dtype,
-            device=all_registered_tensors[0].device,
-        )
-
-        offset = 0
-        for tensor in all_registered_tensors:
-            # copy data
-            flatten_tensor[offset : offset + tensor.numel()] = tensor.reshape(-1)
-            offset += tensor.numel()
-        return flatten_tensor
+        return get_flattened_tensor(all_effective_tensors)
 
     def _flatten_(self):
         """
@@ -372,7 +357,7 @@ class BaguaBucket:
 
     def bytes(self) -> int:
         """Returns the total number of bytes occupied by the bucket."""
-        registered_tensors = [tensor.bagua_getter_closure() for tensor in self.tensors]
+        effective_tensors = [tensor.bagua_getter_closure() for tensor in self.tensors]
         return sum(
-            tensor.numel() * tensor.element_size() for tensor in registered_tensors
+            tensor.numel() * tensor.element_size() for tensor in effective_tensors
         )

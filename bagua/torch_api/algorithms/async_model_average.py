@@ -78,15 +78,19 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             process_ranks, stream=torch.cuda.Stream(priority=-1)
         )
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
+        # TODO: async algorithm conflict with fused optimizer, can only support flattened inplace bucket.
+        assert do_flatten, "async does not support `do_flatten=False` at present."
         if self.step_id < self.warmup_steps:
-            return super().tensors_to_buckets(tensors)
+            return super().tensors_to_buckets(tensors, do_flatten)
 
         all_tensors = []
         for idx, bucket in enumerate(tensors):
             all_tensors.extend(bucket)
 
-        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
+        bagua_bucket = BaguaBucket(all_tensors, flatten=do_flatten, name=str(0))
 
         return [bagua_bucket]
 
