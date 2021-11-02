@@ -41,7 +41,27 @@ def construct_model_and_optimizer(opt, flag_param, device):
     model.load_state_dict(pretrained_dict)
 
     model = model.to(device)
-    optimizer = opt(model.parameters(), **flag_param)
+    no_decay = ["bias"]
+    optimizer_grouped_parameters = [
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.1,
+        },
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
+    ]
+
+    optimizer = opt(optimizer_grouped_parameters, **flag_param)
 
     return model, optimizer
 
@@ -73,7 +93,9 @@ def train_model_fused(model, optimizer, device, num_epochs):
             optimizer.fuse_step()
         else:
             optimizer.step()
-        # logging.debug(f"#train model fused#{epoch} params: {optimizer._bagua_fused_optimizer.param_groups}")
+        # logging.debug(
+        #    f"#train model fused#{epoch} params: {optimizer._bagua_fused_optimizer.param_groups}"
+        # )
         # logging.debug(f"#train model fused#{epoch} state: {optimizer.state}")
 
 
@@ -282,6 +304,7 @@ class TestFusedOptimizer(unittest.TestCase):
             count += 1
             if count % 5 == 0:
                 logging.info(f"Tests Passed [{count}/{len(optimizer_list)}]")
+            # return
 
     def run_fused_with_bagua_wrapper(self, fn1, fn2, num_epochs, fused_count):
         self.run_all_optimizers_once(fn1, fn2, "cuda:0", num_epochs, fused_count)
@@ -289,7 +312,7 @@ class TestFusedOptimizer(unittest.TestCase):
     @skip_if_cuda_available()
     def test_fused_optimizer(self):
         self.run_all_optimizers_once(
-            fn1=run, fn2=run_fused, device="cpu", num_epochs=101, fused_count=51
+            fn1=run, fn2=run_fused, device="cpu", num_epochs=101, fused_count=102
         )
 
     @skip_if_cuda_not_available()
@@ -302,7 +325,7 @@ class TestFusedOptimizer(unittest.TestCase):
                 p1, p2, device, num_epochs, "gradient_allreduce", True, False
             ),
             num_epochs=101,
-            fused_count=51,
+            fused_count=102,
         )
         # check: both are falttened, should not fuse
         self.run_fused_with_bagua_wrapper(
@@ -335,7 +358,7 @@ class TestFusedOptimizer(unittest.TestCase):
                 p1, p2, device, num_epochs, "bytegrad", True, False
             ),
             num_epochs=101,
-            fused_count=51,
+            fused_count=102,
         )
 
     @skip_if_cuda_not_available()
@@ -348,7 +371,7 @@ class TestFusedOptimizer(unittest.TestCase):
                 p1, p2, device, num_epochs, "decentralized", True, False
             ),
             num_epochs=101,
-            fused_count=51,
+            fused_count=102,
         )
         self.run_fused_with_bagua_wrapper(
             fn1=run,
@@ -377,7 +400,7 @@ class TestFusedOptimizer(unittest.TestCase):
                 p1, p2, device, num_epochs, "async", True, False
             ),
             num_epochs=101,
-            fused_count=51,
+            fused_count=102,
         )
         self.run_fused_with_bagua_wrapper(
             fn1=run,
@@ -400,7 +423,7 @@ class TestFusedOptimizer(unittest.TestCase):
                 p1, p2, device, num_epochs, "low_prec_decentralized", True, False
             ),
             num_epochs=101,
-            fused_count=51,
+            fused_count=102,
         )
 
     @skip_if_cuda_not_available()
@@ -410,7 +433,7 @@ class TestFusedOptimizer(unittest.TestCase):
         self.run_qadam(
             device="cuda:0",
             num_epochs=101,
-            fused_count=51,
+            fused_count=102,
             optimizer_flatten=True,
             bagua_flatten=False,
         )
