@@ -12,43 +12,45 @@ __all__ = ["fuse_optimizer", "fuse_step", "is_fused_optimizer"]
 
 def flatten_params_and_states(optimizer: torch.optim.Optimizer):
     """
-    Flatten parameter tensors in the sampe group into contiguous ones.
+    Flatten parameter tensors in the same group into contiguous ones.
     """
 
-    type_params = {}
     for group in optimizer.param_groups:
+        type_params = {}
+        # flatten by param group
         for param in group["params"]:
 
             params_of_type = type_params.get(param.type(), [])
             params_of_type.append(param)
             type_params[param.type()] = params_of_type
 
-    for param_type, params in type_params.items():
-        grads = [p.bagua_ensure_grad().grad for p in params]
-        state_tensors, state_scalars = get_optimizer_param_states(optimizer, params)
+        for param_type, params in type_params.items():
+            grads = [p.bagua_ensure_grad().grad for p in params]
+            state_tensors, state_scalars = get_optimizer_param_states(optimizer, params)
 
-        if state_tensors is None:
-            continue
+            if state_tensors is None:
+                continue
 
-        flatten_tensors(params)
-        flatten_tensors_with_closure(
-            grads,
-            params,
-            getter_closure=lambda p: p.grad,
-            setter_closure=lambda p, new_grad: setattr(p, "grad", new_grad),
-        )
-
-        for name, tensors in state_tensors.items():
-
-            def set_state_fn(p, t):
-                optimizer.state[p][name] = t
-
+            flatten_tensors(params)
             flatten_tensors_with_closure(
-                tensors,
+                grads,
                 params,
-                getter_closure=lambda p: optimizer.state[p][name],
-                setter_closure=set_state_fn,
+                getter_closure=lambda p: p.grad,
+                setter_closure=lambda p, new_grad: setattr(p, "grad", new_grad),
             )
+
+            for name, tensors in state_tensors.items():
+
+                def set_state_fn(p, t):
+                    optimizer.state[p][name] = t
+
+                flatten_tensors_with_closure(
+                    tensors,
+                    params,
+                    getter_closure=lambda p: optimizer.state[p][name],
+                    setter_closure=set_state_fn,
+                )
+        torch.cuda.empty_cache()
 
 
 def flatten_tensors(tensors: List[torch.Tensor]):
@@ -422,6 +424,10 @@ def do_fuse(optimizer: torch.optim.Optimizer):
                 new_params.append(param)
 
         new_group = {"params": new_params}
+        for k, v in group.items():
+            if k != "params":
+                new_group[k] = v
+
         _fused_optimizer.add_param_group(new_group)
 
 
