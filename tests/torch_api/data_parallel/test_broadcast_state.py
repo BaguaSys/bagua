@@ -80,7 +80,7 @@ def get_optimizer_param_values(optimizer):
 def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param):
     _init_bagua_env(rank, envs)
 
-    bagua_model, bagua_optimizer = create_model_and_optimizer(
+    model, bagua_optimizer = create_model_and_optimizer(
         opt_class, opt_hyper_param
     )
 
@@ -91,7 +91,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
             target = torch.randn(4, 4).cuda()
 
             bagua_optimizer.zero_grad()
-            output = bagua_model(data)
+            output = model(data)
             loss = nn.MSELoss()(output, target)
 
             loss.backward()
@@ -100,11 +100,11 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
     from bagua.torch_api.algorithms import gradient_allreduce
 
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm(hierarchical=True)
-    bagua_model = DDP(bagua_model, optimiers=[bagua_optimizer], algorithm=algorithm)
+    ddp_model = DDP(model, optimizers=[bagua_optimizer], algorithm=algorithm)
 
     model_params = [
         (k, v.clone().detach().cpu().numpy())
-        for k, v in sorted(bagua_model.state_dict().items())
+        for k, v in sorted(ddp_model.state_dict().items())
     ]
     optimizer_params = get_optimizer_param_values(bagua_optimizer)
 

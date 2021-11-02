@@ -92,11 +92,11 @@ def run_model_wrapper(rank, nranks, env, algorithm):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     loss_fn = nn.MSELoss()
 
-    model, optimizer = bagua_init(
+    ddp_model, optimizer = bagua_init(
         model, optimizer, algorithm
     )
 
-    train(model, optimizer, loss_fn, is_async=(algorithm == "async"))
+    train(ddp_model, optimizer, loss_fn, is_async=(algorithm == "async"))
 
 
 def run_model_switch_wrapper(rank, nranks, env, algorithms):
@@ -109,8 +109,8 @@ def run_model_switch_wrapper(rank, nranks, env, algorithms):
     loss_fn = nn.MSELoss()
 
     for i in range(len(algorithms)):
-        model, optimizer = bagua_init(model, optimizer, algorithms[i])
-        train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
+        ddp_model, optimizer = bagua_init(model, optimizer, algorithms[i])
+        train(ddp_model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
         print('algorithm={} done'.format(algorithms[i]))
 
 

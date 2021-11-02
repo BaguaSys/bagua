@@ -88,7 +88,7 @@ def run_model(
     loss_fn = nn.MSELoss()
 
     # wrap model
-    model = DDP(
+    ddp_model = DDP(
         model,
         optimizers=[optimizer],
         algorithm=bagua.algorithms.decentralized.DecentralizedAlgorithm(
@@ -101,21 +101,21 @@ def run_model(
 
     ret = results[rank]
 
-    ret.init_weight.copy_(flatten([param.data for param in model.parameters()]))
+    ret.init_weight.copy_(flatten([param.data for param in ddp_model.parameters()]))
 
     for epoch in range(N_EPOCHS):
         data = torch.randn(4, 2).cuda()
         target = torch.randn(4, 4).cuda()
 
         optimizer.zero_grad()
-        output = model(data)
+        output = ddp_model(data)
         loss = loss_fn(output, target)
 
         loss.backward()
         optimizer.step()
 
     if not _rank_not_in_group(group):
-        ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
+        ret.bucket_weight.copy_(ddp_model.bagua_buckets[0]._peer_weight)
 
 
 def run_torch_model(
