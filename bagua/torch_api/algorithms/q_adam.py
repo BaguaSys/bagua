@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
-from bagua.torch_api import get_world_size
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
@@ -45,7 +44,7 @@ class QAdamOptimizer(Optimizer):
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         super(QAdamOptimizer, self).__init__(params, defaults)
-
+        # TODO: qadam optimizer maintain `step_id` in its state
         self.step_id = 0
         self.warmup_steps = warmup_steps
 
@@ -162,12 +161,14 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
         tensor_groups.sort(key=lambda x: x._q_adam_idx)
         return tensor_groups
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
             bagua_bucket = BaguaBucket(
                 bucket,
-                flatten=True,
+                flatten=do_flatten,
                 name=str(idx),
                 alignment=self.process_group.get_global_communicator().nranks(),
             )
