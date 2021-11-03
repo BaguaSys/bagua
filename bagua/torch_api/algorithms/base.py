@@ -73,7 +73,9 @@ class AlgorithmImpl:
         ), "tensor names should be unique"
         return tensors
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         """
         Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
         The default implementation follows the suggestion to do the bucketing.
@@ -82,6 +84,7 @@ class AlgorithmImpl:
             tensors: Bagua tensors grouped in different
                 lists, representing Bagua's suggestion on how to bucketing the
                 tensors.
+            do_flatten: Whether to flatten the Bagua buckets.
 
         Returns:
             A list of Bagua buckets.
@@ -89,7 +92,7 @@ class AlgorithmImpl:
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
             bagua_bucket = BaguaBucket(
-                bucket, flatten=True, name=str(idx)
+                bucket, flatten=do_flatten, name=str(idx)
             )  # TODO: check duplicated names
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets

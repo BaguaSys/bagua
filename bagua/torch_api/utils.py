@@ -48,10 +48,6 @@ def apply_flattened_call_all(tensors, call):
         apply_flattened_call(tensors, call)
 
 
-def align_size(size, align):
-    return int((size + align - 1) / align) * align
-
-
 def check_contiguous(tensors):
     data_ptr = None
     for t in tensors:
@@ -61,145 +57,25 @@ def check_contiguous(tensors):
     return True
 
 
-def _get_params_flattened_aligned_size(params, align_bytes):
-    assert align_bytes == 1 or (
-        align_bytes % params[0].element_size() == 0
-    ), "align bytes must be multiples of element size"
-
-    sizes = [p.numel() for p in params]
-
-    total_size = sum(sizes)
-    aligned_total_size = (
-        align_size(total_size * params[0].element_size(), align_bytes)
-        // params[0].element_size()
-    )
-
-    # padding to the last param
-    sizes[-1] += aligned_total_size - total_size
-
-    for p, sz in zip(params, sizes):
-        p.allocated_size = sz
-
-    return aligned_total_size
-
-
-def flatten_module_params(params_list, align_bytes: int):
-    if len(params_list) == 0:
+def get_flattened_tensor(tensors: List[torch.Tensor]) -> torch.Tensor:
+    if len(tensors) == 0:
         return
 
-    if not isinstance(params_list[0], list):
-        params_list = [params_list]
-
     total_size = 0
-    for params in params_list:
-        total_size += _get_params_flattened_aligned_size(params, align_bytes)
+    for tensor in tensors:
+        total_size += tensor.numel()
 
-    logging.debug(
-        f"flatten {str(params_list[0][0].dtype).partition('.')[-1]} params aligned to {align_bytes} bytes, total numels: {total_size}"
+    flatten_tensor = torch.zeros(
+        total_size, dtype=tensors[0].dtype, device=tensors[0].device
     )
-
-    flatten_weights_tensor = torch.zeros(total_size, dtype=params_list[0][0].dtype).to(
-        params_list[0][0].device
-    )
-    flatten_grads_tensor = torch.zeros(total_size, dtype=params_list[0][0].dtype).to(
-        params_list[0][0].device
-    )
-
-    flatten_weights_storage = flatten_weights_tensor.storage()
-    flatten_grads_storage = flatten_grads_tensor.storage()
-
-    def set_storage(param, weight_storage, grad_storage, storage_offset):
-        with torch.no_grad():
-            z = torch.zeros_like(param.data)
-            z.set_(weight_storage, storage_offset, param.shape)
-            param.data = z
-
-            t = torch.zeros_like(param.data)
-            t.set_(grad_storage, storage_offset, param.shape)
-            param.grad = t
 
     offset = 0
-    for params in params_list:
-        for p in params:
-            # copy data
-            flatten_weights_tensor[offset : offset + p.numel()] = p.data.reshape(-1)
+    for tensor in tensors:
+        # copy data
+        flatten_tensor[offset : offset + tensor.numel()] = tensor.reshape(-1)
+        offset += tensor.numel()
 
-            if p.grad is not None:
-                flatten_grads_tensor[offset : offset + p.numel()] = p.grad.data.reshape(
-                    -1
-                )
-            else:
-                logging.debug(f"grad is none, {offset}")
-
-            # flatten
-            set_storage(p, flatten_weights_storage, flatten_grads_storage, offset)
-            offset += p.allocated_size
-            logging.debug(f"flatten param done {offset}")
-
-    # # check
-    for params in params_list:
-        weight_tensors = [p.data for p in params]
-        grad_tensors = [p.grad.data for p in params]
-
-        assert check_contiguous(weight_tensors)
-        assert check_contiguous(grad_tensors)
-
-    return new_param(flatten_weights_tensor, flatten_grads_tensor)
-
-
-def collocate_params(params):
-    """
-    `tensors` share the same storage
-    """
-    if len(params) == 1:
-        return params[0]
-
-    logging.debug(f"fuse {len(params)} params")
-
-    sorted_params = sorted(params, key=lambda x: x.storage_offset())
-
-    start = None
-    offset = 0
-    for p in sorted_params:
-        weight = p.data
-        grad = p.grad.data
-
-        assert (
-            weight.storage_offset() == grad.storage_offset()
-        ), "collocated weights and grads must have consistent storage offset"
-
-        if start is None:
-            start = offset = weight.storage_offset()
-        else:
-            assert (
-                offset == weight.storage_offset()
-            ), "params collocated must be contiguous"
-
-        offset += (
-            p.bagua_tensor.num_elem_allocated()
-            if hasattr(p, "bagua_tensor")
-            else p.numel()
-        )
-
-    with torch.no_grad():
-        weight_tensor = torch.zeros(offset - start, dtype=params[0].dtype).to(
-            params[0].device
-        )
-        weight_tensor.set_(params[0].data.storage(), start, weight_tensor.shape)
-
-        grad_tensor = torch.zeros(offset - start, dtype=params[0].dtype).to(
-            params[0].device
-        )
-        grad_tensor.set_(params[0].grad.data.storage(), start, grad_tensor.shape)
-
-        return new_param(weight_tensor, grad_tensor)
-
-
-def new_param(weight, grad):
-    with torch.no_grad():
-        p = torch.nn.Parameter(weight, requires_grad=False)
-        p.grad = grad
-        return p
+    return flatten_tensor
 
 
 def to_bagua_datatype(datatype):

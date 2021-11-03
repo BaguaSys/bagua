@@ -252,7 +252,9 @@ class BaguaTensor:
         if self._bagua_setter_closure is None:
             # set directly
             with torch.no_grad():
-                self.bagua_getter_closure().set_(storage, storage_offset, self.shape)
+                self.bagua_getter_closure().set_(
+                    storage, storage_offset, self.bagua_getter_closure().shape
+                )
             return
 
         with torch.no_grad():

@@ -30,24 +30,14 @@ class ByteGradAlgorithmImpl(AlgorithmImpl):
         self.hierarchical = hierarchical
         self.average = average
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
-        """
-        Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
-        The default implementation follows the suggestion to do the bucketing.
-
-        Args:
-            tensors: Bagua tensors grouped in different
-                lists, representing Bagua's suggestion on how to bucketing the
-                tensors.
-
-        Returns:
-            A list of Bagua buckets.
-        """
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
             bagua_bucket = BaguaBucket(
                 bucket,
-                flatten=True,
+                flatten=do_flatten,
                 name=str(idx),
                 alignment=self.process_group.get_global_communicator().nranks(),
             )

@@ -56,6 +56,7 @@ class BaguaModule:
         optimizers: List[torch.optim.Optimizer],
         algorithm: "bagua.torch_api.algorithms.Algorithm",
         process_group: Optional[BaguaProcessGroup] = None,
+        do_flatten: bool = True,
     ) -> BaguaModule:
         r"""``with_bagua`` enables easy distributed data parallel training on a
         `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html?highlight=module#torch.nn.Module>`_.
@@ -67,6 +68,8 @@ class BaguaModule:
                 used to do the actual communication and update.
             process_group: The process group to be used for distributed data all-reduction. If ``None``, the default process group,
                 which is created by :func:`bagua.torch_api.init_process_group`, will be used. (default: ``None``)
+            do_flatten: Whether to flatten the Bagua buckets. The flatten operation will reset data pointer of bucket
+                tensors so that they can use faster code paths. Default: ``True``.
 
         Returns:
             The original module, with Bagua related environments initialized.
