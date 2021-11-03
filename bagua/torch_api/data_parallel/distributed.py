@@ -199,16 +199,16 @@ def DistributedDataParallel(
     optimizers: List[torch.optim.Optimizer] = [],
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
 ):
-    fallback_pass = [
-        device_ids is not None,
-        output_device is not None,
-        dim != 0,
+    check_list = [
+        device_ids is None,
+        output_device is None,
+        dim == 0,
         broadcast_buffers is True,
-        find_unused_parameters is True,
-        gradient_as_bucket_view is True,
-        check_reduction is True,
+        find_unused_parameters is False,
+        gradient_as_bucket_view is False,
+        check_reduction is False,
     ]
-    if any(fallback_pass):
+    if not all(check_list):
         warnings.warn("Input parameters are not supported yet, return torch native DistributedDataParallel.")
         return TorchDistributedDataParallel(
             module=module,
