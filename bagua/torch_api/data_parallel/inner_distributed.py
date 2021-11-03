@@ -1,3 +1,4 @@
+# pytype: disable=attribute-error
 import torch
 import time
 import io

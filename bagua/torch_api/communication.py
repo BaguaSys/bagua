@@ -68,9 +68,7 @@ class ReduceOp(IntEnum):
 @gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
 class BaguaProcessGroupPatch:
     def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
-        ranks = list(c10d._pg_group_ranks[self].keys())
-
-        self.bagua_pg = new_group(ranks, stream)
+        self.bagua_pg = from_torch_group(self, stream)
 
     def bagua_get_global_communicator(self):
         return get_communicator(self.bagua_pg.group_name, "global")

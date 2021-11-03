@@ -1,23 +1,18 @@
-from logging import warning
 import torch
-from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
 from torch.nn.modules import Module
+from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
+from torch.nn.parallel import DistributedDataParallel as TorchDistributedDataParallel
+from typing import Callable, List, Union
+import warnings
+
+import bagua
+from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
 from contextlib import contextmanager
 from bagua.torch_api.communication import (
-    get_backend,
-    get_hyperparameters_service_client,
-    broadcast,
     _get_default_group,
-    from_torch_group,
     BaguaProcessGroup,
 )
-from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
-from bagua.torch_api.model_parallel.moe import is_moe_param
-from typing import Callable, Optional
 from .inner_distributed import InnerDistributedDataParallel
-from torch.nn.parallel import DistributedDataParallel as TorchDistributedDataParallel
-from typing import List, Union
-import warnings
 
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
@@ -170,10 +165,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     @property
     def bagua_module_name(self):
         return self.inner.bagua_module_name
-
-    @property
-    def bagua_algorithm(self):
-        return self.inner.bagua_algorithm
 
     @property
     def bagua_optimizers(self):
