@@ -62,7 +62,7 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
     if process_group is None:
         return _get_default_group()
     elif type(process_group) in [TorchProcessGroup, torch._C._distributed_c10d.ProcessGroupNCCL]:
-        return process_group.bagua_patch().bagua_pg
+        return process_group.bagua_patch().bagua_pg  # pytype: disable=attribute-error
     elif type(process_group) is BaguaProcessGroup:
         return process_group
     else:
