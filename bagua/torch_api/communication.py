@@ -233,6 +233,9 @@ def new_group(
     return pg
 
 
+__torch_group_id = 0
+
+
 def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None) -> BaguaProcessGroup:
     """
     Convert a Pytorch process group to its equivalent Bagua process group.
@@ -246,9 +249,20 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None) -> Bagua
     Returns:
        A handle of the Bagua process group.
     """
-    import torch.distributed.distributed_c10d as c10d
+    global __torch_group_id
 
-    ranks = list(c10d._pg_group_ranks[group].keys())
+    torch_group_id = __torch_group_id
+    __torch_group_id += 1
+
+    ranks = None
+    if group in c10d._pg_group_ranks:
+        ranks = list(c10d._pg_group_ranks[group].keys())
+    else:
+        def rank_key(rank):
+            return "global rank of {}.{}".format(torch_group_id, rank)
+
+        _default_store.set(rank_key(group.rank()), env.get_rank())
+        ranks = [int(_default_store.get(rank_key(i))) for i in range(group.size())]
 
     return new_group(ranks, stream)
 

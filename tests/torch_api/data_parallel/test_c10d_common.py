@@ -25,7 +25,7 @@ import torch.nn.functional as F
 import torch.testing._internal.common_utils as common
 from torch import nn
 from torch._six import string_classes
-from torch.nn.parallel import DistributedDataParallel
+from bagua.torch_api.data_parallel import DistributedDataParallel
 from torch.testing._internal.common_distributed import (
     MultiProcessTestCase,
     skip_if_win32,
