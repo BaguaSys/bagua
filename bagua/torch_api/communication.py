@@ -255,12 +255,14 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None) -> Bagua
     ranks = None
     if group in c10d._pg_group_ranks:
         ranks = list(c10d._pg_group_ranks[group].keys())
-    else:
+    elif _default_store:
         def rank_key(rank):
             return "global rank of {}.{}".format(torch_group_id, rank)
 
         _default_store.set(rank_key(group.rank()), env.get_rank())
         ranks = [int(_default_store.get(rank_key(i))) for i in range(group.size())]
+    else:
+        ranks = list(range(group.size()))
 
     return new_group(ranks, stream)
 
