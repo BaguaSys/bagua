@@ -110,6 +110,7 @@ class BaguaModule:
             algorithm=algorithm,
             process_group=process_group,
             bagua_module_name=bagua_module_name,
+            gradient_as_bucket_view=do_flatten,
         )
 
         return self

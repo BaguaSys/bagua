@@ -205,7 +205,6 @@ def DistributedDataParallel(
         dim == 0,
         broadcast_buffers is True,
         find_unused_parameters is False,
-        gradient_as_bucket_view is False,
         check_reduction is False,
     ]
     if not all(check_list):

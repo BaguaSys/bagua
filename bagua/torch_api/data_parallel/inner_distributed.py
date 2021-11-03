@@ -4,15 +4,15 @@ import io
 import pickle
 import collections
 import logging
-from torch.nn.modules import Module
 from typing import List, Tuple, Optional
+from torch.nn.modules import Module
+
+import bagua
 from bagua.torch_api import env
 from bagua.torch_api.communication import (
     get_backend,
     get_hyperparameters_service_client,
     broadcast,
-    _get_default_group,
-    from_torch_group,
     BaguaProcessGroup,
 )
 from bagua.torch_api.model_parallel.moe import is_moe_param
@@ -39,6 +39,7 @@ class InnerDistributedDataParallel:
         algorithm: "bagua.torch_api.algorithms.Algorithm",
         process_group: BaguaProcessGroup,
         bagua_module_name: Optional[str] = None,
+        gradient_as_bucket_view: bool = True,
     ) -> None:
         self.module = module
         if bagua_module_name is None:
@@ -51,6 +52,7 @@ class InnerDistributedDataParallel:
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm.reify(process_group)
         self.process_group = process_group
+        self.gradient_as_bucket_view = gradient_as_bucket_view
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
@@ -229,7 +231,7 @@ class InnerDistributedDataParallel:
             for group in optimizer.param_groups:
                 for p in group["params"]:
                     if p.requires_grad and id(p) not in optimizer_state_dict["state"]:
-                        p.grad = p.data.new(p.size()).zero_()
+                        p.bagua_ensure_grad()
                         if isinstance(optimizer, torch.optim.SparseAdam):
                             p.grad = p.grad.to_sparse()
             optimizer_state_dict = optimizer.state_dict()
@@ -402,7 +404,9 @@ class InnerDistributedDataParallel:
         patch = self.module._bagua_patches
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
+        self.bagua_buckets.extend(
+            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.gradient_as_bucket_view)
+        )
 
         for name, param in self.module.named_parameters():
 
