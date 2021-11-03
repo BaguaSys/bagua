@@ -5,7 +5,6 @@ from tests.internal.common_utils import find_free_port
 from tests.internal.multi_process import setup_bagua_env
 import unittest
 import multiprocessing
-import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
 from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 

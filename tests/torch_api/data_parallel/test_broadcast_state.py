@@ -4,7 +4,6 @@ import multiprocessing
 import itertools
 import inspect
 from multiprocessing import Manager
-import time
 import logging
 import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
@@ -51,7 +50,7 @@ def _init_bagua_env(rank, env):
 
 
 def create_model_and_optimizer(opt_class, opt_param):
-    C_in, C_out = 3, 10
+    # C_in, C_out = 3, 10
     model = Net().cuda()
     hyper_param = {
         k: v
