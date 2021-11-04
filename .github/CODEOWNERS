@@ -1,0 +1,5 @@
+* @NOBLES5E
+rust/bagua-net @shjwudp
+bagua/torch_api/algorithms @wangraying
+bagua/torch_api/contrib/sync_batchnorm.py @Tengxu-Sun
+bagua/torch_api/model_parallel/moe @liuhatry
