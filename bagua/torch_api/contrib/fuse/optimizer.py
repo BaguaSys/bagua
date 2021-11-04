@@ -218,6 +218,7 @@ def fuse_optimizer(
     optimizer: torch.optim.Optimizer,
     do_flatten: bool = True,
     check_flatten: bool = True,
+    fallback: bool = False,
 ):
     """
     Convert any optimizer into a fused optimizer.
@@ -240,6 +241,8 @@ def fuse_optimizer(
         check_flatten (bool): When setting to ``True``, it enables fused optimizer to automatically check if
             parameter tensors are contiguous as they are flattened to. Can only work with :attr:`do_flatten=True`.
             Default: ``True``.
+        fallback (bool): If ``True``, fused optimizer will fuse parameters in fused parameter groups iteratively, otherwise,
+           it will always fuse parameters in the original parameter groups. Default: ``False``.
 
     Returns:
         A Fused optimizer.
@@ -268,6 +271,13 @@ def fuse_optimizer(
         A fuse optimizer does not change the original behaviors of :attr:`optimizer`, but enabling it to perform a
         fused parameter update through :meth:`fuse_step`. Users can still perform a normal parameter update through
         :meth:`step`.
+
+    .. note::
+        By default, fused optimizer will automatically check the contiguousness of parameters in original optimizer groups.
+        But it makes a strong assumption that parameter state and parameter should have the same data type and equal size,
+        which is also the case in Pytorch offical optimizers. However, if this assumption does not meet, users can use
+        a fallback parameter update, in which fused optimizer will keep its own fused parameter groups and fuse them
+        iteratively. If the storage of module parameter changed, the result will be corrupted.
     """
 
     if is_fused_optimizer(optimizer):
@@ -276,6 +286,7 @@ def fuse_optimizer(
     optimizer._bagua_check_flatten = do_flatten and check_flatten
     optimizer._bagua_fused_count = 0
     optimizer._bagua_cloned_attrs = {}
+    optimizer._bagua_fallback = fallback
     optimizer._bagua_fused_optimizer = make_optimizer_instance(optimizer)
 
     if do_flatten:
@@ -300,6 +311,7 @@ def make_optimizer_instance(optimizer: torch.optim.Optimizer):
         "_bagua_check_flatten",
         "_bagua_fused_count",
         "_bagua_cloned_attrs",
+        "_bagua_fallback",
     ]
     new_optimizer = copy.copy(optimizer)
 
@@ -311,10 +323,11 @@ def make_optimizer_instance(optimizer: torch.optim.Optimizer):
             setattr(new_optimizer, attr, getattr(optimizer, attr))
             optimizer._bagua_cloned_attrs[attr] = getattr(optimizer, attr)
 
-    # new_optimizer.param_groups = []
-    # for group in optimizer.param_groups:
-    #     new_group = {"params": list(group["params"])}
-    #     new_optimizer.add_param_group(new_group)
+    new_optimizer.param_groups = []
+    for group in optimizer.param_groups:
+        new_optimizer.add_param_group(
+            new_fused_param_group(group, list(group["params"]))
+        )
 
     return new_optimizer
 
@@ -342,15 +355,26 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
     do_fuse(optimizer)
     optimizer._bagua_fused_optimizer.step(closure)
     check_optimizer(optimizer)
-    sync_optimizer_state(optimizer)
+    if not optimizer._bagua_fallback:
+        sync_optimizer_state(optimizer)
 
 
 def do_fuse(optimizer: torch.optim.Optimizer):
     _fused_optimizer = optimizer._bagua_fused_optimizer
 
     # Note: optimizer and fused optimizer share the same state, but different param groups
-    _fused_optimizer.param_groups = []
-    for index, group in enumerate(optimizer.param_groups):
+    if optimizer._bagua_fallback:
+        # In fallback situation, we fuse parameters at the very beginning, if the underlying storage of parameters change
+        # during the training process, we may lose some parameter state. Useful when it is certain that the outer world
+        # will not change storage of parameter tensors
+        effective_param_groups = _fused_optimizer.param_groups
+    else:
+        # In non-fallback situation, create fused param group based on original param groups (the underlying storage may change)
+        # before `.fuse_step()`, and sync state for original params afterward
+        effective_param_groups = optimizer.param_groups
+        _fused_optimizer.param_groups = []
+
+    for index, group in enumerate(effective_param_groups):
         params = group["params"]
 
         weights = [p.data for p in params]
@@ -388,7 +412,8 @@ def do_fuse(optimizer: torch.optim.Optimizer):
         )
 
         if len(grouped_indices) == 0:
-            _fused_optimizer.add_param_group(group)
+            if not optimizer._bagua_fallback:
+                _fused_optimizer.add_param_group(group)
             continue
 
         optimizer._bagua_fused_count += 1
@@ -423,12 +448,19 @@ def do_fuse(optimizer: torch.optim.Optimizer):
             if idx not in grouped_indices_flat:
                 new_params.append(param)
 
-        new_group = {"params": new_params}
-        for k, v in group.items():
-            if k != "params":
-                new_group[k] = v
+        if optimizer._bagua_fallback:
+            group["params"] = new_params
+        else:
+            _fused_optimizer.add_param_group(new_fused_param_group(group, new_params))
 
-        _fused_optimizer.add_param_group(new_group)
+
+def new_fused_param_group(group, fused_params):
+    new_group = {"params": fused_params}
+    for k, v in group.items():
+        if k != "params":
+            new_group[k] = v
+
+    return new_group
 
 
 def check_optimizer(optimizer):

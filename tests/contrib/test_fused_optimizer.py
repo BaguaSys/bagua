@@ -99,6 +99,18 @@ def train_model_fused(model, optimizer, device, num_epochs):
         # logging.debug(f"#train model fused#{epoch} state: {optimizer.state}")
 
 
+def train_model_fused_fallback(model, optimizer, device, num_epochs):
+    input = torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6], device=device).reshape(3, 2)
+
+    for epoch in range(num_epochs):
+        optimizer.zero_grad()
+        output = model(input)
+        loss = output.sum()
+        loss.backward()
+
+        optimizer.fuse_step()
+
+
 def bagua_init(model, optimizer, algorithm, do_flatten):
     # wrap model
     if algorithm == "gradient_allreduce":
@@ -193,6 +205,25 @@ def run_fused_with_bagua(
     model, optimizer = bagua_init(model, optimizer, algorithm, bagua_flatten)
 
     train_model_fused(model, optimizer, device, num_epochs=num_epochs)
+    # torch.cuda.current_stream().synchronize()
+    if algorithm == "async":
+        model.bagua_algorithm.abort(model)
+    # torch.cuda.synchronize()
+    return model.parameters(), optimizer._bagua_fused_count
+
+
+def run_fused_with_bagua_fallback(
+    opt, flag_param, device, num_epochs, algorithm, optimizer_flatten, bagua_flatten
+):
+    model, optimizer = construct_model_and_optimizer(opt, flag_param, device)
+
+    # First fuse optimizer, then wrap module
+    optimizer = bagua.contrib.fuse_optimizer(
+        optimizer, do_flatten=optimizer_flatten, fallback=True
+    )
+    model, optimizer = bagua_init(model, optimizer, algorithm, bagua_flatten)
+
+    train_model_fused_fallback(model, optimizer, device, num_epochs=num_epochs)
     # torch.cuda.current_stream().synchronize()
     if algorithm == "async":
         model.bagua_algorithm.abort(model)
@@ -304,7 +335,6 @@ class TestFusedOptimizer(unittest.TestCase):
             count += 1
             if count % 5 == 0:
                 logging.info(f"Tests Passed [{count}/{len(optimizer_list)}]")
-            # return
 
     def run_fused_with_bagua_wrapper(self, fn1, fn2, num_epochs, fused_count):
         self.run_all_optimizers_once(fn1, fn2, "cuda:0", num_epochs, fused_count)
@@ -318,6 +348,15 @@ class TestFusedOptimizer(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_gradient_allreduce(self):
         setup_bagua_env()
+        # check: optimizer param groups is flattened, should fuse
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua_fallback(
+                p1, p2, device, num_epochs, "gradient_allreduce", True, False
+            ),
+            num_epochs=101,
+            fused_count=2,
+        )
         # check: optimizer param groups is flattened, should fuse
         self.run_fused_with_bagua_wrapper(
             fn1=run,
@@ -354,6 +393,17 @@ class TestFusedOptimizer(unittest.TestCase):
             fn1=lambda p1, p2, device, num_epochs: run_with_bagua(
                 p1, p2, device, num_epochs, "bytegrad"
             ),
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua_fallback(
+                p1, p2, device, num_epochs, "bytegrad", True, False
+            ),
+            num_epochs=101,
+            fused_count=2,
+        )
+        # check: optimizer param groups is flattened, should fuse
+        self.run_fused_with_bagua_wrapper(
+            fn1=lambda p1, p2, device, num_epochs: run_with_bagua(
+                p1, p2, device, num_epochs, "bytegrad"
+            ),
             fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua(
                 p1, p2, device, num_epochs, "bytegrad", True, False
             ),
@@ -364,6 +414,14 @@ class TestFusedOptimizer(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_decentralized(self):
         setup_bagua_env()
+        self.run_fused_with_bagua_wrapper(
+            fn1=run,
+            fn2=lambda p1, p2, device, num_epochs: run_fused_with_bagua_fallback(
+                p1, p2, device, num_epochs, "decentralized", True, False
+            ),
+            num_epochs=101,
+            fused_count=2,
+        )
         # check: optimizer param groups is flattened, should fuse
         self.run_fused_with_bagua_wrapper(
             fn1=run,
