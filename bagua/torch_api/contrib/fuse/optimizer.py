@@ -241,8 +241,8 @@ def fuse_optimizer(
         check_flatten (bool): When setting to ``True``, it enables fused optimizer to automatically check if
             parameter tensors are contiguous as they are flattened to. Can only work with :attr:`do_flatten=True`.
             Default: ``True``.
-        fallback (bool): If ``True``, fused optimizer will fuse parameters in fused parameter groups iteratively, otherwise,
-           it will always fuse parameters in the original parameter groups. Default: ``False``.
+        fallback (bool): If ``True``, fused optimizer will fuse parameters in its fused parameter groups iteratively, otherwise,
+           it will always fuse parameters from the original parameter groups. Default: ``False``.
 
     Returns:
         A Fused optimizer.
@@ -273,11 +273,14 @@ def fuse_optimizer(
         :meth:`step`.
 
     .. note::
-        By default, fused optimizer will automatically check the contiguousness of parameters in original optimizer groups.
-        But it makes a strong assumption that parameter state and parameter should have the same data type and equal size,
-        which is also the case in Pytorch offical optimizers. However, if this assumption does not meet, users can use
-        a fallback parameter update, in which fused optimizer will keep its own fused parameter groups and fuse them
-        iteratively. If the storage of module parameter changed, the result will be corrupted.
+        By default, fused optimizer will automatically check the contiguousness of parameters in original parameter groups.
+        It makes a strong assumption that parameter and its state must have the same data type and equal size,
+        which is also the case in Pytorch offical optimizers. However, if this assumption fails, users can use the
+        fallback parameter update, in which fused optimizer will keep its own fused parameter groups and fuse them
+        iteratively. If the storage of module parameter changed during training, the result will be corrupted.
+
+    .. note::
+        DONT perform a normal parameter update with a fallback fused optimizer.
     """
 
     if is_fused_optimizer(optimizer):
