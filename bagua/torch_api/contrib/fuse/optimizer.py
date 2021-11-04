@@ -195,7 +195,7 @@ def ungroup_tensor(
     for tensor in tensors:
         if tensor_view.dtype != tensor.dtype:
             logging.warning(
-                "Fused optimizer failed to recover parameter state from fused parameter state, due to dismatch of datatype between parameter and parameter state."
+                "Fused optimizer failed to recover parameter state from fused parameter state, due to mismatch between parameter datatype and parameter state datatype."
             )
             return
 
@@ -207,7 +207,7 @@ def ungroup_tensor(
 
     if offset != tensor_view.numel():
         logging.warning(
-            "Fused optimizer failed to recover parameter state from fused parameter state, due to dismatch of size between parameter and parameter state."
+            "Fused optimizer failed to recover parameter state from fused parameter state, due to mismatch between parameter size and parameter state size."
         )
         return
 
