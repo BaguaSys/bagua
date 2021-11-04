@@ -145,7 +145,7 @@ def main():
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
-    
+
     # alltoall_v
     send_tensors = torch.arange(5, dtype=torch.float32).cuda()
     recv_tensors = torch.zeros(5, dtype=torch.float32).cuda()
