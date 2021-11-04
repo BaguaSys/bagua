@@ -1097,6 +1097,82 @@ def alltoall_inplace(
     comm.cuda_stream.synchronize()
 
 
+def alltoall_v(
+    send_tensor: torch.Tensor,
+    send_counts,
+    send_displs,
+    recv_tensor: torch.Tensor,
+    recv_counts,
+    recv_displs,
+    comm: Optional[B.BaguaSingleCommunicatorPy] = None,
+):
+    """
+    Each process scatters :attr:`send_tensor` to all processes associated with the communicator and return the gathered
+    data in :attr:`recv_tensor`.
+
+    Args:
+        send_tensor (torch.Tensor): Input of the collective, the size must be divisible by ``comm.nranks``.
+        send_counts: integer array equal to the group size specifying the number of elements to send to each processor.
+        send_displs: integer array (of length group size). Entry j specifies the displacement (relative to sendbuf from which to take the outgoing data destined for process j.
+        recv_tensor (torch.Tensor): Output of the collective, must have equal size with :attr:`send_tensor`.
+        recv_counts: integer array equal to the group size specifying the maximum number of elements that can be received from each processor.
+        recv_displs: integer array (of length group size). Entry i specifies the displacement (relative to recvbuf at which to place the incoming data from process i.
+        comm: A handle of the Bagua communicator to work on. By default, the global
+             communicator of the default process group will be used.
+    """
+    if _rank_not_in_comm(comm):
+        return
+
+    assert send_tensor.device != torch.device(
+        "cpu"
+    ), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device(
+        "cpu"
+    ), "recv tensor must be CUDA and dense"
+
+    if comm is None or comm is CommMember.WORLD:
+        comm = _get_default_group().get_global_communicator()
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.alltoall_v(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_counts,
+            send_displs,
+            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            recv_counts,
+            recv_displs,
+        )
+
+    comm.cuda_stream.synchronize()
+
+
+def alltoall_v_inplace(
+    tensor: torch.Tensor,
+    counts,
+    displs,
+    comm: Optional[B.BaguaSingleCommunicatorPy] = None,
+):
+    """The in-place version of :func:`alltoall_v`."""
+    if _rank_not_in_comm(comm):
+        return
+
+    assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None or comm is CommMember.WORLD:
+        comm = _get_default_group().get_global_communicator()
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.alltoall_v_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), counts, displs)
+
+    comm.cuda_stream.synchronize()
+
+
 def barrier(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
     """
     Synchronizes all processes.

@@ -4,6 +4,7 @@ import torch
 import torch.distributed as dist
 import logging
 import bagua.torch_api as bagua
+import numpy as np
 
 
 def main():
@@ -144,7 +145,32 @@ def main():
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
-
+    
+    # alltoall_v
+    send_tensors = torch.arange(5, dtype=torch.float32).cuda()
+    recv_tensors = torch.zeros(5, dtype=torch.float32).cuda()
+    recv_tensor_bagua = torch.zeros(5, dtype=torch.float32).cuda()
+    in_splits = [1, 1, 1, 2]
+    out_splits = [1, 1, 1, 2]
+    send_counts = np.array([1, 1, 1, 2])
+    recv_counts = np.array([1, 1, 1, 2])
+    send_sdispls = np.array([0, 1, 2, 3, 5])
+    recv_sdispls = np.array([0, 1, 2, 3, 5])
+    dist.all_to_all_single(recv_tensors, send_tensors, out_splits, in_splits)
+    bagua.alltoall_v(
+        send_tensors,
+        send_counts,
+        send_sdispls,
+        recv_tensor_bagua,
+        recv_counts,
+        recv_sdispls,
+        comm=comm,
+    )
+    assert torch.equal(
+        recv_tensors, recv_tensor_bagua
+    ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
+        a=recv_tensors, b=recv_tensor_bagua
+    )
 
 if __name__ == "__main__":
     main()
