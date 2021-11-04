@@ -1,4 +1,4 @@
-* @NOBLES5E
+* @NOBLES5E # default fallback
 rust/bagua-net @shjwudp
 bagua/torch_api/algorithms @wangraying
 bagua/torch_api/contrib/sync_batchnorm.py @Tengxu-Sun
