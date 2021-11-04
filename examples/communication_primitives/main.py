@@ -173,9 +173,9 @@ def main():
         comm=comm,
     )
     assert torch.equal(
-        recv_tensors, recv_tensor_bagua
+        recv_tensors.int(), recv_tensor_bagua.int()
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
-        a=recv_tensors, b=recv_tensor_bagua
+        a=recv_tensors.int(), b=recv_tensor_bagua.int()
     )
 
 if __name__ == "__main__":
