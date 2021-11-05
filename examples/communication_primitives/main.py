@@ -172,5 +172,6 @@ def main():
         a=recv_tensors, b=recv_tensor_bagua
     )
 
+
 if __name__ == "__main__":
     main()
