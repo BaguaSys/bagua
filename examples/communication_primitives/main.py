@@ -149,7 +149,7 @@ def main():
     # alltoall_v
     send_tensors = torch.arange(8, dtype=torch.float32).cuda()
     recv_tensors = torch.zeros(8, dtype=torch.float32).cuda()
-    recv_tensor_bagua = torch.zeros(9, dtype=torch.float32).cuda()
+    recv_tensor_bagua = torch.zeros(8, dtype=torch.float32).cuda()
     in_splits = [1, 1, 1, 1, 1, 1, 1, 1]
     out_splits = [1, 1, 1, 1, 1, 1, 1, 1]
     send_counts = np.array([1, 1, 1, 1, 1, 1, 1, 1])
