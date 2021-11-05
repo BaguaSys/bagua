@@ -157,7 +157,6 @@ def main():
     send_sdispls = np.array([0, 1, 2, 3, 4, 5, 6, 7, 9])
     recv_sdispls = np.array([0, 1, 2, 3, 4, 5, 6, 7, 9])
     dist.all_to_all_single(recv_tensors, send_tensors, out_splits, in_splits)
-    print("Finished torch.alltoall...")
     bagua.alltoall_v(
         send_tensors,
         send_counts,
@@ -167,7 +166,6 @@ def main():
         recv_sdispls,
         comm=comm,
     )
-    print("Finished bagua.alltoall...")
     assert torch.equal(
         recv_tensors, recv_tensor_bagua
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
