@@ -2,7 +2,7 @@ import torch
 from torch.nn.modules import Module
 from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
 from torch.nn.parallel import DistributedDataParallel as TorchDistributedDataParallel
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union
 import warnings
 
 import bagua
@@ -12,7 +12,7 @@ from bagua.torch_api.communication import (
     _get_default_group,
     BaguaProcessGroup,
 )
-from .inner_distributed import InnerDistributedDataParallel
+from .bagua_distributed import BaguaDistributedDataParallel
 
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
@@ -72,6 +72,19 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
 class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     r"""
     PyTorch v1.9.0 DistributedDataParallel interface using bagua backend.
+
+    :ivar bagua_optimizers: The optimizers passed in.
+    :vartype bagua_optimizers: List[torch.optim.Optimizer]
+
+    :ivar bagua_algorithm: The algorithm implementation used by the module, reified by the algorithm passed in
+        by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`.
+    :vartype bagua_algorithm: bagua.torch_api.algorithms.AlgorithmImpl
+
+    :ivar bagua_module_name: The module's name. Bagua uses the module name to distinguish different modules.
+    :vartype bagua_module_name: str
+
+    :ivar bagua_buckets: All Bagua buckets in a list.
+    :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
     """
 
     def __init__(
@@ -119,7 +132,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         assert find_unused_parameters is False, "Not yet supported"
         self.find_unused_parameters = find_unused_parameters
 
-        self.inner = InnerDistributedDataParallel(
+        self.inner = BaguaDistributedDataParallel(
             self.module, optimizers, algorithm, to_bagua_process_group(process_group)
         )
 
@@ -150,7 +163,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
     ):
-        self.inner = InnerDistributedDataParallel(
+        self.inner = BaguaDistributedDataParallel(
             self.module,
             optimizers=optimizers,
             algorithm=algorithm,
@@ -176,20 +189,93 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
 
 def DistributedDataParallel(
-    module,
-    device_ids=None,
-    output_device=None,
-    dim=0,
-    broadcast_buffers=True,
-    process_group=None,
-    bucket_cap_mb=25,
-    find_unused_parameters=False,
-    check_reduction=False,
-    gradient_as_bucket_view=False,
+    module: Module,
+    device_ids: Optional[List[Union[int, torch.device]]] = None,
+    output_device: Union[int, torch.device] = None,
+    dim: int = 0,
+    broadcast_buffers: bool = True,
+    process_group: Union[None, TorchProcessGroup] = None,
+    bucket_cap_mb: int = 25,
+    find_unused_parameters: bool = False,
+    check_reduction: bool = False,
+    gradient_as_bucket_view: bool = False,
     # The following bagua parameters
     optimizers: List[torch.optim.Optimizer] = [],
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
-):
+) -> Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]:
+    r"""
+    Implements distributed data parallelism at the module level.
+    The fundamental appeal is to provide bagua with a fully compatible interface for pytorch.
+
+    Args:
+        module (Module): module to be parallelized
+        device_ids (Optional[List[Union[int, torch.device]]], optional): CUDA devices.
+                   1) For single-device modules, ``device_ids`` can
+                   contain exactly one device id, which represents the only
+                   CUDA device where the input module corresponding to this process resides.
+                   Alternatively, ``device_ids`` can also be ``None``.
+                   2) For multi-device modules and CPU modules,
+                   ``device_ids`` must be ``None``.
+
+                   When ``device_ids`` is ``None`` for both cases,
+                   both the input data for the forward pass and the actual module
+                   must be placed on the correct device.
+                   (default: ``None``)
+        output_device (Union[int, torch.device], optional): Device location of output for
+                      single-device CUDA modules. For multi-device modules and
+                      CPU modules, it must be ``None``, and the module itself
+                      dictates the output location. (default: ``device_ids[0]``
+                      for single-device modules)
+        dim (int, optional): Flag that enables syncing (broadcasting)
+                          buffers of the module at beginning of the ``forward``
+                          function. (default: ``True``)
+        broadcast_buffers (bool, optional): [description]. Defaults to True.
+        process_group (Union[None, TorchProcessGroup], optional): The process group to be used for distributed data
+                       all-reduction. If ``None``, the default process group, which
+                       is created by :func:`torch.distributed.init_process_group`,
+                       will be used. (default: ``None``)
+        bucket_cap_mb (int, optional): ``DistributedDataParallel`` will bucket parameters into
+                       multiple buckets so that gradient reduction of each
+                       bucket can potentially overlap with backward computation.
+                       :attr:`bucket_cap_mb` controls the bucket size in
+                       MegaBytes (MB). (default: 25)
+        find_unused_parameters (bool, optional): Traverse the autograd graph from all
+                               tensors contained in the return value of the
+                               wrapped module's ``forward`` function. Parameters
+                               that don't receive gradients as part of this
+                               graph are preemptively marked as being ready to
+                               be reduced. In addition, parameters that may have
+                               been used in the wrapped module's ``forward``
+                               function but were not part of loss computation and
+                               thus would also not receive gradients are
+                               preemptively marked as ready to be reduced.
+                               (default: ``False``)
+        check_reduction (bool, optional): This argument is deprecated.
+        gradient_as_bucket_view (bool, optional): When set to ``True``, gradients will be views
+                      pointing to different offsets of ``allreduce`` communication
+                      buckets. This can reduce peak memory usage, where the
+                      saved memory size will be equal to the total gradients
+                      size. Moreover, it avoids the overhead of copying between
+                      gradients and ``allreduce`` communication buckets. When
+                      gradients are views, ``detach_()`` cannot be called on the
+                      gradients. If hitting such errors, please fix it by
+                      referring to the :meth:`~torch.optim.Optimizer.zero_grad`
+                      function in ``torch/optim/optimizer.py`` as a solution.
+        optimizers (List[torch.optim.Optimizer], optional): Defaults to [].
+        algorithm (bagua.torch_api.algorithms.Algorithm, optional): Data
+                parallel distributed algorithm, decide how to communication mode
+                and the way the model is updated. Defaults to GradientAllReduceAlgorithm().
+
+    Returns:
+        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: parallelized module
+
+    Example::
+
+        >>> bagua.init_process_group()
+        >>> net = bagua.data_parallel.DistributedDataParallel(model, pg)
+
+    """
+
     check_list = [
         device_ids is None,
         output_device is None,

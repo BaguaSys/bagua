@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
-from bagua.torch_api.data_parallel.inner_distributed import InnerDistributedDataParallel
+from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import (
     new_group,
@@ -96,35 +96,35 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         return [bagua_bucket]
 
-    def init_tensors(self, inner_ddp: InnerDistributedDataParallel) -> List[BaguaTensor]:
-        parameters = inner_ddp.bagua_build_params()
+    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel) -> List[BaguaTensor]:
+        parameters = bagua_ddp.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
             if self.step_id < self.warmup_steps:
                 param = param.bagua_ensure_grad().ensure_bagua_tensor(
                     name,
-                    inner_ddp.bagua_module_name,
+                    bagua_ddp.bagua_module_name,
                     getter_closure=lambda param: param.grad,
                     setter_closure=lambda param, t: setattr(param, "grad", t),
                 )
                 tensors.append(param)
             else:
-                p = param.ensure_bagua_tensor(name, inner_ddp.bagua_module_name)
+                p = param.ensure_bagua_tensor(name, bagua_ddp.bagua_module_name)
                 tensors.append(p)
 
         return tensors
 
-    def init_forward_pre_hook(self, inner_ddp: InnerDistributedDataParallel):
+    def init_forward_pre_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook(input):
             if (
                 self.step_id > self.warmup_steps
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
-                self._lock_model(inner_ddp)
+                self._lock_model(bagua_ddp)
 
                 if not hasattr(self, "future"):
                     self.future = self.executor.submit(
-                        self._run_async_loop, inner_ddp
+                        self._run_async_loop, bagua_ddp
                     )
                     self.scheduled = True
                     logging.debug(
@@ -133,19 +133,19 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         return hook
 
-    def init_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
+    def init_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook(parameter_name, parameter):
             if self.step_id <= self.warmup_steps:
                 parameter.bagua_mark_communication_ready()
 
         return hook
 
-    def init_post_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
+    def init_post_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook():
             if self.step_id <= self.warmup_steps:
-                inner_ddp._bagua_backend.wait_pending_comm_ops()
+                bagua_ddp._bagua_backend.wait_pending_comm_ops()
             else:
-                self._unlock_model(inner_ddp)
+                self._unlock_model(bagua_ddp)
 
         return hook
 
@@ -160,10 +160,10 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        inner_ddp: InnerDistributedDataParallel,
+        bagua_ddp: BaguaDistributedDataParallel,
         bucket: BaguaBucket,
     ):
-        inner_ddp._bagua_backend.wait_pending_comm_ops()
+        bagua_ddp._bagua_backend.wait_pending_comm_ops()
         bucket.clear_ops()
 
         if self.step_id < self.warmup_steps:
@@ -178,18 +178,18 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             )
             bucket._async_op = async_op
 
-    def _lock_model(self, inner_ddp: InnerDistributedDataParallel):
+    def _lock_model(self, bagua_ddp: BaguaDistributedDataParallel):
         torch.cuda.current_stream().record_event(self.cuda_event)
         self.cuda_event.synchronize()
 
-        for bucket in inner_ddp.bagua_buckets:
+        for bucket in bagua_ddp.bagua_buckets:
             bucket._async_op.lock_weight()
 
-    def _unlock_model(self, inner_ddp: InnerDistributedDataParallel):
+    def _unlock_model(self, bagua_ddp: BaguaDistributedDataParallel):
         torch.cuda.current_stream().record_event(self.cuda_event)
         self.cuda_event.synchronize()
 
-        for bucket in inner_ddp.bagua_buckets:
+        for bucket in bagua_ddp.bagua_buckets:
             bucket._async_op.unlock_weight()
 
     def _negotiate(self):
@@ -206,7 +206,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         return self.dummy_tensor.item()
 
-    def _run_async_loop(self, inner_ddp: InnerDistributedDataParallel):
+    def _run_async_loop(self, bagua_ddp: BaguaDistributedDataParallel):
         comm_step = 0
         while True:
             state = self._negotiate()
@@ -214,11 +214,11 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 break
 
             start_time = time.time()
-            for bucket in inner_ddp.bagua_buckets:
+            for bucket in bagua_ddp.bagua_buckets:
                 for tensor in bucket.tensors:
                     tensor.bagua_mark_communication_ready_without_synchronization()
 
-            inner_ddp._bagua_backend.wait_pending_comm_ops()
+            bagua_ddp._bagua_backend.wait_pending_comm_ops()
             duration = (time.time() - start_time) * 1000
 
             logging.debug(
@@ -229,16 +229,16 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
 
-    def abort(self, bagua_ddp: Union[InnerDistributedDataParallel]):
+    def abort(self, bagua_ddp: Union[BaguaDistributedDataParallel]):
         """
         Stop background asynchronous communications. Should be called after
         training.
 
         Args:
-            inner_ddp (Union[InnerDistributedDataParallel]): Bagua distributed data parallel module.
+            bagua_ddp (Union[BaguaDistributedDataParallel]): Bagua distributed data parallel module.
         """
 
-        if type(bagua_ddp) is InnerDistributedDataParallel:
+        if type(bagua_ddp) is BaguaDistributedDataParallel:
             pass
         elif hasattr(bagua_ddp, "inner"):
             # Is bagua.torch_api.data_parallel.DistributedDataParallel
@@ -256,15 +256,15 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             self.scheduled = False
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
-    def resume(self, bagua_ddp: Union[InnerDistributedDataParallel]):
+    def resume(self, bagua_ddp: Union[BaguaDistributedDataParallel]):
         """
         Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
         Args:
-            inner_ddp (Union[InnerDistributedDataParallel]): Bagua distributed data parallel module.
+            bagua_ddp (Union[BaguaDistributedDataParallel]): Bagua distributed data parallel module.
         """
 
-        if type(bagua_ddp) is InnerDistributedDataParallel:
+        if type(bagua_ddp) is BaguaDistributedDataParallel:
             pass
         elif hasattr(bagua_ddp, "inner"):
             # Is bagua.torch_api.data_parallel.DistributedDataParallel

@@ -1,4 +1,4 @@
-from bagua.torch_api.data_parallel.inner_distributed import InnerDistributedDataParallel
+from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.communication import BaguaProcessGroup
@@ -43,25 +43,25 @@ class AlgorithmImpl:
         """
         return False
 
-    def init_tensors(self, inner_ddp: InnerDistributedDataParallel) -> List[BaguaTensor]:
+    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel) -> List[BaguaTensor]:
         """
-        Given a :class:`~bagua.torch_api.distributed.InnerDistributedDataParallel`, return Bagua tensors to be used in Bagua for later
+        Given a :class:`~bagua.torch_api.distributed.BaguaDistributedDataParallel`, return Bagua tensors to be used in Bagua for later
         operations.
 
         Args:
-            inner_ddp: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
+            bagua_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaDistributedDataParallel.with_bagua` method.
 
         Returns:
             A list of Bagua tensors for communication.
         """
 
-        parameters = inner_ddp.bagua_build_params()
+        parameters = bagua_ddp.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
             param = param.bagua_ensure_grad().ensure_bagua_tensor(
                 name,
-                inner_ddp.bagua_module_name,
+                bagua_ddp.bagua_module_name,
                 getter_closure=lambda param: param.grad,
                 setter_closure=lambda param, t: setattr(param, "grad", t),
             )
@@ -97,13 +97,13 @@ class AlgorithmImpl:
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
-    def init_forward_pre_hook(self, inner_ddp: InnerDistributedDataParallel):
-        """Given a :class:`~bagua.torch_api.distributed.InnerDistributedDataParallel`, return a hook function that will be executed before the
+    def init_forward_pre_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+        """Given a :class:`~bagua.torch_api.distributed.BaguaDistributedDataParallel`, return a hook function that will be executed before the
         forward process.
 
         Args:
-            inner_ddp: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
+            bagua_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaDistributedDataParallel.with_bagua` method.
 
         Returns:
             A function that takes the model's input.
@@ -114,13 +114,13 @@ class AlgorithmImpl:
 
         return hook
 
-    def init_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
-        """Given a :class:`~bagua.torch_api.distributed.InnerDistributedDataParallel`, return a hook function that will be executed on every
+    def init_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+        """Given a :class:`~bagua.torch_api.distributed.BaguaDistributedDataParallel`, return a hook function that will be executed on every
         parameter's gradient computation completion.
 
         Args:
-            inner_ddp: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
+            bagua_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaDistributedDataParallel.with_bagua` method.
 
         Returns:
             A function that takes the name of a parameter (as in ``torch.nn.Module.named_parameters``) and the parameter itself.
@@ -136,30 +136,30 @@ class AlgorithmImpl:
 
         return hook
 
-    def init_post_backward_hook(self, inner_ddp: InnerDistributedDataParallel):
-        """Given a :class:`~bagua.torch_api.distributed.InnerDistributedDataParallel`, return a hook function that will be executed when the
+    def init_post_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+        """Given a :class:`~bagua.torch_api.distributed.BaguaDistributedDataParallel`, return a hook function that will be executed when the
         backward pass is done.
 
         Args:
-            inner_ddp: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
+            bagua_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaDistributedDataParallel.with_bagua` method.
 
         Returns:
             A function that takes no argument.
         """
 
         def hook():
-            inner_ddp._bagua_backend.wait_pending_comm_ops()
+            bagua_ddp._bagua_backend.wait_pending_comm_ops()
 
         return hook
 
-    def init_post_optimizer_step_hook(self, inner_ddp: InnerDistributedDataParallel):
-        """Given a :class:`~bagua.torch_api.distributed.InnerDistributedDataParallel`, return a hook function that will be executed when the
+    def init_post_optimizer_step_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+        """Given a :class:`~bagua.torch_api.distributed.BaguaDistributedDataParallel`, return a hook function that will be executed when the
         ``optimizer.step()`` is done.
 
         Args:
-            inner_ddp: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
+            bagua_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaDistributedDataParallel.with_bagua` method.
 
         Returns:
             A function that gets called after an optimizer's ``step()`` method is called. The function takes the optimizer as its argument.
@@ -172,14 +172,14 @@ class AlgorithmImpl:
 
     def init_operations(
         self,
-        inner_ddp: InnerDistributedDataParallel,
+        bagua_ddp: BaguaDistributedDataParallel,
         bucket: BaguaBucket,
     ):
-        """Given a :class:`~bagua.torch_api.distributed.InnerDistributedDataParallel`, and a :class:`~bagua.torch_api.bucket.BaguaBucket`,
+        """Given a :class:`~bagua.torch_api.distributed.BaguaDistributedDataParallel`, and a :class:`~bagua.torch_api.bucket.BaguaBucket`,
         register operations to be executed on the bucket.
 
         Args:
-            inner_ddp: A PyTorch module initialized by
-                :meth:`~bagua.torch_api.distributed.InnerDistributedDataParallel.with_bagua` method.
+            bagua_ddp: A PyTorch module initialized by
+                :meth:`~bagua.torch_api.distributed.BaguaDistributedDataParallel.with_bagua` method.
             bucket: A single bucket to register operations.
         """

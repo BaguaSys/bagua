@@ -15,7 +15,7 @@ import torch
 import torch.nn
 import itertools
 from typing import List, Tuple, Optional
-from bagua.torch_api.data_parallel.inner_distributed import InnerDistributedDataParallel
+from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 
 
 @gorilla.patches(torch.nn.Module, filter=lambda name, obj: "bagua" in name)
@@ -103,7 +103,7 @@ class BaguaModule:
         if hasattr(self, "bagua_ddp"):
             bagua_module_name = self.bagua_ddp.bagua_module_name
 
-        self.bagua_ddp = InnerDistributedDataParallel(
+        self.bagua_ddp = BaguaDistributedDataParallel(
             self,
             optimizers=optimizers,
             algorithm=algorithm,
