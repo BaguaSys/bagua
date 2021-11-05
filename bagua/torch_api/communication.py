@@ -360,7 +360,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         >>> import torch
         >>> import bagua.torch_api as bagua
         >>>
-        >>> torch.cuda.set_device(bagua.get_local_rank())
+        >>> torch.cuda.set_device(bagua.get_local_rank()) # THIS LINE IS IMPORTANT. See the notes below.
         >>> bagua.init_process_group()
         >>>
         >>> model = torch.nn.Sequential(
@@ -376,8 +376,9 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         >>> model = model.with_bagua([optimizer], ...)
 
     .. note::
-        Each process is associated to the CUDA device with an index of ``bagua.get_local_rank()``,
-        which has to be set before calling :meth:`init_process_group`.
+        Each process should be associated to a CUDA device using `torch.cuda.set_device()`,
+        before calling :meth:`init_process_group`. Otherwise you may encounter the
+        `fatal runtime error: Rust cannot catch foreign exceptions` error.
     """
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server()
