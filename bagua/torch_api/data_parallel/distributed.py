@@ -1,3 +1,4 @@
+# pytype: disable=module-attr
 import torch
 from torch.nn.modules import Module
 from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
