@@ -74,11 +74,10 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     r"""
     PyTorch v1.9.0 DistributedDataParallel interface using bagua backend.
 
-    :ivar bagua_optimizers: The optimizers passed in.
+    :ivar bagua_optimizers: The optimizers constructor passed in.
     :vartype bagua_optimizers: List[torch.optim.Optimizer]
 
-    :ivar bagua_algorithm: The algorithm implementation used by the module, reified by the algorithm passed in
-        by :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`.
+    :ivar bagua_algorithm: The algorithm implementation used by the module, reified by the algorithm constructor passed in.
     :vartype bagua_algorithm: bagua.torch_api.algorithms.AlgorithmImpl
 
     :ivar bagua_module_name: The module's name. Bagua uses the module name to distinguish different modules.
@@ -86,6 +85,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
+
     """
 
     def __init__(

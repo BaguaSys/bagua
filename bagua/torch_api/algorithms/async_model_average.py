@@ -229,7 +229,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
 
-    def abort(self, bagua_ddp: Union[BaguaDistributedDataParallel]):
+    def abort(self, bagua_ddp: Union[BaguaDistributedDataParallel, "bagua.torch_api.distributed.BaguaModule"]):
         """
         Stop background asynchronous communications. Should be called after
         training.
@@ -238,6 +238,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             bagua_ddp (Union[BaguaDistributedDataParallel]): Bagua distributed data parallel module.
         """
 
+        # TODO: Remove the following code when BaguaModule is completely obsolete
         if type(bagua_ddp) is BaguaDistributedDataParallel:
             pass
         elif hasattr(bagua_ddp, "inner"):
@@ -247,7 +248,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
         else:
-            raise Exception("unexcept input bagua_ddp={}".format(type(bagua_ddp)))
+            raise Exception("Unexpect input bagua_ddp={}".format(type(bagua_ddp)))
 
         if self.scheduled:
             barrier(comm=self.process_group.get_global_communicator())
@@ -256,7 +257,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             self.scheduled = False
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
-    def resume(self, bagua_ddp: Union[BaguaDistributedDataParallel]):
+    def resume(self, bagua_ddp: Union[BaguaDistributedDataParallel, "bagua.torch_api.distributed.BaguaModule"]):
         """
         Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
@@ -264,6 +265,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             bagua_ddp (Union[BaguaDistributedDataParallel]): Bagua distributed data parallel module.
         """
 
+        # TODO: Remove the following code when BaguaModule is completely obsolete
         if type(bagua_ddp) is BaguaDistributedDataParallel:
             pass
         elif hasattr(bagua_ddp, "inner"):
@@ -273,7 +275,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
         else:
-            raise Exception("unexcept input bagua_ddp={}".format(type(bagua_ddp)))
+            raise Exception("Unexpect input bagua_ddp={}".format(type(bagua_ddp)))
 
         if not self.scheduled and hasattr(self, "future"):
             barrier(comm=self.process_group.get_global_communicator())
