@@ -229,7 +229,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
 
-    def abort(self, bagua_ddp: Union[BaguaDistributedDataParallel, "bagua.torch_api.distributed.BaguaModule"]):
+    def abort(self, bagua_ddp: "Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]"):
         """
         Stop background asynchronous communications. Should be called after
         training.
@@ -257,7 +257,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             self.scheduled = False
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
-    def resume(self, bagua_ddp: Union[BaguaDistributedDataParallel, "bagua.torch_api.distributed.BaguaModule"]):
+    def resume(self, bagua_ddp: "Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]"):
         """
         Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
