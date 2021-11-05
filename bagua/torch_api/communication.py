@@ -374,6 +374,10 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         ...    momentum=0.9
         ...    )
         >>> model = model.with_bagua([optimizer], ...)
+
+    .. note::
+        Each process is associated to the CUDA device with an index of ``bagua.get_local_rank()``,
+        which has to be set before calling :meth:`init_process_group`.
     """
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server()
