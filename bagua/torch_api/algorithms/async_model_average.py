@@ -13,6 +13,7 @@ from typing import Union, List
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.env import get_rank
 from enum import IntEnum
+import bagua
 import threading
 import time
 import torch
