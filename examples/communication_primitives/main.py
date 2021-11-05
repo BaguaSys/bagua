@@ -145,7 +145,7 @@ def main():
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
-
+    print("alltoall")
     # alltoall_v
     send_tensors = torch.tensor([1, 2, 3, 4, 5, 6, 7, 8, 9]).cuda()
     recv_tensors = torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0]).cuda()
@@ -171,6 +171,6 @@ def main():
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
-
+    print("alltoallv")
 if __name__ == "__main__":
     main()
