@@ -39,7 +39,7 @@ def main():
         ), "recv_tensor:{a}, recv_tensor_bagua:{b}".format(
             a=recv_tensor, b=recv_tensor_bagua
         )
-
+    print("send, recv successfully executed!")
     # broadcast
     if bagua.get_rank() == 0:
         tensor = torch.rand(4, dtype=torch.float32).cuda()
@@ -55,7 +55,7 @@ def main():
         ), "recv_tensor:{a}, recv_tensor_bagua:{b}".format(
             a=recv_tensor, b=recv_tensor_bagua
         )
-
+    print("broadcast successfully executed!")
     # allreduce
     send_tensor = torch.rand(4, dtype=torch.float32).cuda()
     send_tensor_bagua = torch.clone(send_tensor)
@@ -73,7 +73,7 @@ def main():
     ), "send_tensor_bagua:{a}, recv_tensor_bagua:{b}".format(
         a=send_tensor_bagua, b=recv_tensor_bagua
     )
-
+    print("allreduce successfully executed!")
     # reduce
     dst = 1
     send_tensor = torch.rand(4, dtype=torch.float32).cuda()
@@ -93,7 +93,7 @@ def main():
         ), "send_tensor_bagua:{a}, recv_tensor_bagua:{b}".format(
             a=send_tensor_bagua, b=recv_tensor_bagua
         )
-
+    print("reduce successfully executed!")
     # allgather
     send_tensor = torch.rand(4, dtype=torch.float32).cuda()
     recv_tensor_bagua = torch.zeros(
@@ -110,7 +110,7 @@ def main():
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
-
+    print("allgather successfully executed!")
     # gather, scatter: Pytorch ProcessGroupNCCL does not support gather/scatter
 
     # reduce_scatter
@@ -127,7 +127,7 @@ def main():
     ), "recv_tensor:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensor, b=recv_tensor_bagua
     )
-
+    print("reduce_scatter successfully executed!")
     # alltoall
     send_tensors = [
         torch.rand(4, dtype=torch.float32).cuda() for i in range(bagua.get_world_size())
@@ -146,7 +146,7 @@ def main():
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
-
+    print("alltoall successfully executed!")
     # alltoall_v
     send_tensors = torch.arange(9, dtype=torch.float32).cuda()
     recv_tensors = torch.zeros(9, dtype=torch.float32).cuda()
@@ -172,6 +172,7 @@ def main():
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
+    print("alltoall_v successfully executed!")
     sys.exit()
 
 if __name__ == "__main__":
