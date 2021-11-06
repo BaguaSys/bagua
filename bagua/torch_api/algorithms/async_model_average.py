@@ -249,7 +249,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
         else:
-            raise Exception("Unexpect input bagua_ddp={}".format(type(bagua_ddp)))
+            raise Exception("Unexpect input bagua_ddp({}), it should be BaguaDistributedDataParallel or bagua.torch_api.distributed.BaguaModule.".format(type(bagua_ddp)))
 
         if self.scheduled:
             barrier(comm=self.process_group.get_global_communicator())
@@ -263,7 +263,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
         Args:
-            bagua_ddp (Union[BaguaDistributedDataParallel]): Bagua distributed data parallel module.
+            bagua_ddp (Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]): Bagua distributed data parallel module.
         """
 
         # TODO: Remove the following code when BaguaModule is completely obsolete
@@ -276,7 +276,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
         else:
-            raise Exception("Unexpect input bagua_ddp={}".format(type(bagua_ddp)))
+            raise Exception("Unexpect input bagua_ddp({}), it should be BaguaDistributedDataParallel or bagua.torch_api.distributed.BaguaModule.".format(type(bagua_ddp)))
 
         if not self.scheduled and hasattr(self, "future"):
             barrier(comm=self.process_group.get_global_communicator())
