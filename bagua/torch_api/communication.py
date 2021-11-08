@@ -1099,11 +1099,11 @@ def alltoall_inplace(
 
 def alltoall_v(
     send_tensor: torch.Tensor,
-    send_counts,
-    send_displs,
+    send_counts: float,
+    send_displs: float,
     recv_tensor: torch.Tensor,
-    recv_counts,
-    recv_displs,
+    recv_counts: float,
+    recv_displs: float,
     comm: Optional[B.BaguaSingleCommunicatorPy] = None,
 ):
     """
@@ -1151,8 +1151,8 @@ def alltoall_v(
 
 def alltoall_v_inplace(
     tensor: torch.Tensor,
-    counts,
-    displs,
+    counts: float,
+    displs: float,
     comm: Optional[B.BaguaSingleCommunicatorPy] = None,
 ):
     """The in-place version of :func:`alltoall_v`."""
