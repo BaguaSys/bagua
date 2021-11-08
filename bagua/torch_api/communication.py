@@ -1108,7 +1108,7 @@ def alltoall_v(
 ):
     """
     Each process scatters :attr:`send_tensor` to all processes associated with the communicator and return the gathered
-    data in :attr:`recv_tensor`.
+    data in :attr:`recv_tensor`, each process may send a different amount of data and provide displacements for the input and output data.
 
     Args:
         send_tensor (torch.Tensor): Input of the collective, the size must be divisible by ``comm.nranks``.

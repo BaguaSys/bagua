@@ -4,7 +4,6 @@ import torch
 import torch.distributed as dist
 import logging
 import bagua.torch_api as bagua
-import numpy as np
 
 
 def main():
@@ -147,15 +146,15 @@ def main():
     )
 
     # alltoall_v
-    send_tensors = torch.arange(12, dtype=torch.float32).cuda()
-    recv_tensors = torch.zeros(12, dtype=torch.float32).cuda()
-    recv_tensor_bagua = torch.zeros(12, dtype=torch.float32).cuda()
-    in_splits = [1, 2, 1, 2, 1, 2, 1, 2]
-    out_splits = [1, 2, 1, 2, 1, 2, 1, 2]
-    send_counts = np.array([1, 2, 1, 2, 1, 2, 1, 2])
-    recv_counts = np.array([1, 2, 1, 2, 1, 2, 1, 2])
-    send_sdispls = np.array([0, 1, 3, 4, 6, 7, 9, 10, 12])
-    recv_sdispls = np.array([0, 1, 3, 4, 6, 7, 9, 10, 12])
+    send_tensors = torch.arange(16, dtype=torch.float32).cuda()
+    recv_tensors = torch.zeros(16, dtype=torch.float32).cuda()
+    recv_tensor_bagua = torch.zeros(16, dtype=torch.float32).cuda()
+    in_splits = [2, 2, 2, 2, 2, 2, 2, 2]
+    out_splits = [2, 2, 2, 2, 2, 2, 2, 2]
+    send_counts = [2, 2, 2, 2, 2, 2, 2, 2]
+    recv_counts = [2, 2, 2, 2, 2, 2, 2, 2]
+    send_sdispls = [0, 2, 4, 6, 8, 10, 12, 14, 16]
+    recv_sdispls = [0, 2, 4, 6, 8, 10, 12, 14, 16]
     dist.all_to_all_single(recv_tensors, send_tensors, out_splits, in_splits)
     bagua.alltoall_v(
         send_tensors,
