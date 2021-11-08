@@ -18,7 +18,7 @@ from .bagua_distributed import BaguaDistributedDataParallel
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
-    [PyTorch v1.9.0 DistributedDataParallel](https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
+    PyTorch v1.9.0 DistributedDataParallel(https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
     """
 
     def __init__(self) -> None:
@@ -86,21 +86,7 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
 
 class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     r"""
-    [PyTorch v1.9.0 DistributedDataParallel](https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
-
-    :ivar bagua_optimizers: The optimizers passed in from the constructor.
-    :vartype bagua_optimizers: List[torch.optim.Optimizer]
-
-    :ivar bagua_algorithm: The algorithm implementation used by the module,
-        reified by the algorithm passed in from the constructor.
-    :vartype bagua_algorithm: bagua.torch_api.algorithms.AlgorithmImpl
-
-    :ivar bagua_module_name: The module's name. Bagua uses the module name
-        to distinguish different modules.
-    :vartype bagua_module_name: str
-
-    :ivar bagua_buckets: All Bagua buckets in a list.
-    :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
+    PyTorch v1.9.0 DistributedDataParallel(https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
     """
 
     def __init__(
@@ -158,18 +144,12 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     def require_backward_grad_sync(self):
         """
         DDP gradient synchronizations switch, see :meth:`no_sync` for usage.
-
-        Returns:
-            bool: switch states.
         """
         return self.inner.require_backward_grad_sync
 
     @property
     def parameters_to_ignore(self):
         """Parameters that will be ignored in DDP.
-
-        Returns:
-            List[Parameter]: torch parameters.
         """
         return self.inner.parameters_to_ignore
 
@@ -202,18 +182,31 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
     @property
     def bagua_algorithm(self):
+        """
+        The algorithm implementation used by the module,
+        reified by the algorithm passed in from the constructor.
+        """
         return self.inner.bagua_algorithm
 
     @property
     def bagua_module_name(self):
+        """
+        The module's name. Bagua uses the module name to distinguish different modules.
+        """
         return self.inner.bagua_module_name
 
     @property
     def bagua_optimizers(self):
+        """
+        Optimizer(s) used by the module. It can contain one or more PyTorch optimizers.
+        """
         return self.inner.bagua_optimizers
 
     @property
     def bagua_buckets(self):
+        """
+        All Bagua buckets in a list.
+        """
         return self.inner.bagua_buckets
 
 
