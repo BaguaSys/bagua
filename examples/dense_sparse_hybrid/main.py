@@ -6,7 +6,7 @@ from mpi4py import MPI
 import os
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--master_addr", type=str, required=True)
     parser.add_argument("--master_port", type=int, required=True)
