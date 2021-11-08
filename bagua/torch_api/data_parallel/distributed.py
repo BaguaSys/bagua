@@ -60,14 +60,14 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
 
 
 def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessGroup, None] = None):
-    """Torch process group to bagua converter.
+    """Convert a PyTorch process group to a Bagua process group.
 
     Args:
-        process_group (Union[TorchProcessGroup, BaguaProcessGroup, None], optional): Map
-            torch process group to bagua process group, return default process group if get None.
+        process_group (Union[TorchProcessGroup, BaguaProcessGroup, None], optional): PyTorch
+            process group or Bagua process group. The default PyTorch process group is used if None is passed in.
 
     Raises:
-        Exception: raise unexpect input exception if input not in
+        Exception: raise unexpect input exception if input not is
             TorchProcessGroup, BaguaProcessGroup and None.
 
     Returns:
@@ -227,8 +227,6 @@ def DistributedDataParallel(
     r"""
     This function provides a PyTorch DDP (https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible
     interface plus several Bagua specific parameters.
-    The fundamental appeal is to provide bagua with a fully compatible
-    interface for pytorch.
 
     Args:
         module (Module): module to be parallelized
@@ -295,14 +293,14 @@ def DistributedDataParallel(
     Example::
 
         >>> bagua.init_process_group()
-        >>> net = bagua.data_parallel.DistributedDataParallel(model, pg)
+        >>> net = bagua.data_parallel.DistributedDataParallel(model)
 
     Example using faster algorithms in Bagua::
 
         >>> from bagua.torch_api.algorithms import bytegrad
         >>> bagua.init_process_group()
-        >>> net = bagua.data_parallel.DistributedDataParallel(model, pg, algorithm=bytegrad.ByteGradAlgorithm())
-        >>> # This is a simple application example, see https://tutorials.baguasys.com/algorithms/ for more algorithm usage.
+        >>> net = bagua.data_parallel.DistributedDataParallel(model, algorithm=bytegrad.ByteGradAlgorithm())
+        >>> # For more possible algorithms, see https://tutorials.baguasys.com/algorithms/.
 
     """
 

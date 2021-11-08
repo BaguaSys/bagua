@@ -81,9 +81,9 @@ class BaguaDistributedDataParallel:
             self._reset_algorithm_state()
 
         self.module._bagua_states = BaguaDistributedDataParallelStates()
-        patch = self.module._bagua_states
-        patch._bagua_algorithm_hooks = []
-        patch._bagua_framework_hooks = []
+        bagua_states = self.module._bagua_states
+        bagua_states._bagua_algorithm_hooks = []
+        bagua_states._bagua_framework_hooks = []
 
         self._bagua_backend = get_backend(self.bagua_module_name)
         self._bagua_hyperparameters = BaguaHyperparameter()
@@ -133,7 +133,7 @@ class BaguaDistributedDataParallel:
             torch.cuda.current_stream().record_event(start_event)
             ddp._last_event_pair = (start_event, ddp._speed_metrics_end_event)
 
-        patch._bagua_framework_hooks.extend([
+        bagua_states._bagua_framework_hooks.extend([
             self.module.register_forward_pre_hook(num_iteration_step_hook),
             self.module.register_forward_pre_hook(algorithm_reset_hook),
             self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
@@ -392,15 +392,15 @@ class BaguaDistributedDataParallel:
         self._bagua_reset_algorithm_buckets()
 
     def _bagua_cleanup_algorithm(self):
-        patch = self.module._bagua_states
-        for hook in patch._bagua_algorithm_hooks:
+        bagua_states = self.module._bagua_states
+        for hook in bagua_states._bagua_algorithm_hooks:
             hook.remove()
-        patch._bagua_algorithm_hooks.clear()
+        bagua_states._bagua_algorithm_hooks.clear()
 
         self.bagua_buckets.clear()
 
     def _bagua_reset_algorithm_buckets(self):
-        patch = self.module._bagua_states
+        bagua_states = self.module._bagua_states
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
         self.bagua_buckets.extend(
@@ -436,7 +436,7 @@ class BaguaDistributedDataParallel:
                 grad_acc = param_tmp.grad_fn.next_functions[0][0]
                 hook = grad_acc.register_hook(real_hook_factory(name, param))
                 hook.grad_acc = grad_acc
-                patch._bagua_algorithm_hooks.append(hook)
+                bagua_states._bagua_algorithm_hooks.append(hook)
 
         optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(self)
 
@@ -467,10 +467,10 @@ class BaguaDistributedDataParallel:
         )
 
     def _reset_algorithm_state(self):
-        patch = self.module._bagua_states
-        if hasattr(patch, "_bagua_framework_hooks"):
-            for hook in patch._bagua_framework_hooks:
+        bagua_states = self.module._bagua_states
+        if hasattr(bagua_states, "_bagua_framework_hooks"):
+            for hook in bagua_states._bagua_framework_hooks:
                 hook.remove()
 
-        if hasattr(patch, "_bagua_algorithm_hooks"):
+        if hasattr(bagua_states, "_bagua_algorithm_hooks"):
             self._bagua_cleanup_algorithm()
