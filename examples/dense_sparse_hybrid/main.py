@@ -26,7 +26,9 @@ if __name__ == "__main__":
     bagua_backend = bagua.get_backend("demo")
 
     dense_list = [
-        torch.ones([1024, 4], device="cuda:{}".format(bagua.get_local_rank())).ensure_bagua_tensor(
+        torch.ones(
+            [1024, 4], device="cuda:{}".format(bagua.get_local_rank())
+        ).ensure_bagua_tensor(
             name="tensor-{}".format(i),
             module_name="demo",
         )
