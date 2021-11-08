@@ -166,8 +166,6 @@ def main():
         recv_sdispls,
         comm=comm,
     )
-    print(recv_tensors)
-    print(recv_tensor_bagua)
     assert torch.equal(
         recv_tensors, recv_tensor_bagua
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
