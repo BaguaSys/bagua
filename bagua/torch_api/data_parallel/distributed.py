@@ -226,7 +226,7 @@ def DistributedDataParallel(
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
 ) -> Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]:
     r"""
-    This function provides a PyTorch DDP (put reference here) compatible
+    This function provides a PyTorch DDP (https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible
     interface plus several Bagua specific parameters.
     The fundamental appeal is to provide bagua with a fully compatible
     interface for pytorch.
@@ -291,12 +291,19 @@ def DistributedDataParallel(
                 and the way the model is updated. Defaults to GradientAllReduceAlgorithm().
 
     Returns:
-        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: BaguaDistributedDataParallel instance used for distributed training.
+        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua DistributedDataParallel instance used for distributed training.
 
     Example::
 
         >>> bagua.init_process_group()
         >>> net = bagua.data_parallel.DistributedDataParallel(model, pg)
+
+    Example using faster algorithms in Bagua::
+
+        >>> from bagua.torch_api.algorithms import bytegrad
+        >>> bagua.init_process_group()
+        >>> net = bagua.data_parallel.DistributedDataParallel(model, pg, algorithm=bytegrad.ByteGradAlgorithm())
+        >>> # This is a simple application example, see https://tutorials.baguasys.com/algorithms/ for more algorithm usage.
 
     """
 
