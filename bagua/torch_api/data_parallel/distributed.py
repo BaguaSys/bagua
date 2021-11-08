@@ -157,7 +157,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     @property
     def require_backward_grad_sync(self):
         """
-        DDP gradient synchronizations switch, see :meth:`no_sync` for usage. 
+        DDP gradient synchronizations switch, see :meth:`no_sync` for usage.
 
         Returns:
             bool: switch states.
@@ -316,9 +316,12 @@ def DistributedDataParallel(
         check_reduction is False,
     ]
     if not all(check_list):
-        warnings.warn("Some parameters passed into BaguaDistributedDataParallel have not been supported yet. "
-        "Bagua has automatically fallback to upstream PyTorch DistributedDataParallel implementation. "
-        "If this is unexpected, please submit an issue to https://github.com/BaguaSys/bagua. Thanks.")
+        warnings.warn(
+            "Some parameters passed into BaguaDistributedDataParallel"
+            " have not been supported yet. Bagua has automatically "
+            "fallback to upstream PyTorch DistributedDataParallel "
+            "implementation. If this is unexpected, please submit "
+            "an issue to https://github.com/BaguaSys/bagua. Thanks.")
         return TorchDistributedDataParallel(
             module=module,
             device_ids=device_ids,
