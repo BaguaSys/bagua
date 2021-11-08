@@ -4,6 +4,7 @@ from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.distributed import BaguaModule
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
+from bagua.torch_api.contrib.fuse.optimizer import is_fused_optimizer
 from typing import List
 import torch
 
@@ -48,12 +49,14 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         ]
         return self.tensors
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         all_tensors = []
         for idx, bucket in enumerate(tensors):
             all_tensors.extend(bucket)
 
-        bagua_bucket = BaguaBucket(all_tensors, flatten=True, name=str(0))
+        bagua_bucket = BaguaBucket(all_tensors, flatten=do_flatten, name=str(0))
 
         return [bagua_bucket]
 
@@ -87,7 +90,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
 
     def _init_states(self, bucket: BaguaBucket):
         weight_tensor = bucket.flattened_tensor()
-        bucket._peer_weight = weight_tensor.to_bagua_tensor("peer_weight")
+        bucket._peer_weight = weight_tensor.ensure_bagua_tensor("peer_weight")
 
     def init_operations(
         self,
@@ -167,6 +170,9 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
 
     def init_post_optimizer_step_hook(self, bagua_module: BaguaModule):
         def hook(optimizer: torch.optim.Optimizer):
+            assert not is_fused_optimizer(
+                optimizer
+            ), "Low decentralized algorithm can not work with fused optimizer at present."
             if self._should_communicate(bagua_module):
                 for group in optimizer.param_groups:
                     for param in group["params"]:
@@ -182,11 +188,11 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
         left_peer_weight_tensor = bucket.flattened_tensor()
         right_peer_weight_tensor = bucket.flattened_tensor()
 
-        bucket._weight = weight_tensor.to_bagua_tensor("weight")
-        bucket._left_peer_weight = left_peer_weight_tensor.to_bagua_tensor(
+        bucket._weight = weight_tensor.ensure_bagua_tensor("weight")
+        bucket._left_peer_weight = left_peer_weight_tensor.ensure_bagua_tensor(
             "left_peer_weight"
         )
-        bucket._right_peer_weight = right_peer_weight_tensor.to_bagua_tensor(
+        bucket._right_peer_weight = right_peer_weight_tensor.ensure_bagua_tensor(
             "right_peer_weight"
         )
 

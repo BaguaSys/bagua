@@ -71,9 +71,7 @@ impl BaguaTensorDtype {
 
 #[derive(Debug)]
 pub struct TorchTensorRaw {
-    pub torch_tensor_cdata: u64,
-    pub python_fallback: bool,
-    pub dtype: BaguaTensorDtype,
+    pub torch_tensor: pyo3::Py<pyo3::PyAny>,
 }
 
 #[derive(Debug)]
@@ -530,103 +528,67 @@ impl TorchTensorRaw {
         let tensor_class = torch.get("Tensor")?;
         tensor_class.call((), Some([("cdata", cdata)].into_py_dict(py.to_owned())))
     }
-
-    pub fn check_consistency_with_python(&self) -> pyo3::PyResult<bool> {
-        fn check_consistency(
-            py: pyo3::Python,
-            cdata: u64,
-            data_ptr: u64,
-            numel: usize,
-            device_id: usize,
-        ) -> pyo3::PyResult<bool> {
-            let py_tensor = TorchTensorRaw::get_pytensor(cdata, &py)?;
-            let py_data_ptr: u64 = py_tensor.call_method0("data_ptr")?.extract()?;
-            if py_data_ptr != data_ptr {
-                return Ok(false);
+    /*
+        pub fn check_consistency_with_python(&self) -> pyo3::PyResult<bool> {
+            fn check_consistency(
+                py: pyo3::Python,
+                cdata: u64,
+                data_ptr: u64,
+                numel: usize,
+                device_id: usize,
+            ) -> pyo3::PyResult<bool> {
+                let py_tensor = TorchTensorRaw::get_pytensor(cdata, &py)?;
+                let py_data_ptr: u64 = py_tensor.call_method0("data_ptr")?.extract()?;
+                if py_data_ptr != data_ptr {
+                    return Ok(false);
+                }
+                let py_numel: usize = py_tensor.call_method0("numel")?.extract()?;
+                if py_numel != numel {
+                    return Ok(false);
+                }
+                let py_device_id: usize = py_tensor.getattr("device")?.getattr("index")?.extract()?;
+                if py_device_id != device_id {
+                    return Ok(false);
+                }
+                return Ok(true);
             }
-            let py_numel: usize = py_tensor.call_method0("numel")?.extract()?;
-            if py_numel != numel {
-                return Ok(false);
-            }
-            let py_device_id: usize = py_tensor.getattr("device")?.getattr("index")?.extract()?;
-            if py_device_id != device_id {
-                return Ok(false);
-            }
-            return Ok(true);
-        }
 
-        pyo3::Python::with_gil(|py| {
-            check_consistency(
-                py,
-                self.torch_tensor_cdata,
-                self.data_ptr(),
-                self.num_elements(),
-                self.device_id(),
-            )
-        })
-    }
-
-    fn extract_torch_c_data(&self) -> &TensorImpl {
-        unsafe { (self.torch_tensor_cdata as *const TensorImpl).as_ref() }
-            .expect("torch c data pointer is null")
-    }
-
-    fn extract_storage(&self) -> &StorageImpl {
-        unsafe {
-            (self.extract_torch_c_data().storage_.storage_impl_.target_ as *const StorageImpl)
-                .as_ref()
-                .expect("torch c data has no storage")
-        }
-    }
-}
-
-impl RawBaguaTensor for TorchTensorRaw {
-    fn data_ptr(&self) -> u64 {
-        if self.python_fallback {
             pyo3::Python::with_gil(|py| {
-                let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
-                py_tensor
-                    .call_method0("data_ptr")
-                    .unwrap()
-                    .extract()
-                    .unwrap()
+                check_consistency(
+                    py,
+                    self.torch_tensor_cdata,
+                    self.extract_data_ptr(),
+                    self.extract_num_elements(),
+                    self.extract_device_id(),
+                )
             })
-        } else {
+        }
+
+        fn extract_torch_c_data(&self) -> &TensorImpl {
+            unsafe { (self.torch_tensor_cdata as *const TensorImpl).as_ref() }
+                .expect("torch c data pointer is null")
+        }
+
+        fn extract_storage(&self) -> &StorageImpl {
+            unsafe {
+                (self.extract_torch_c_data().storage_.storage_impl_.target_ as *const StorageImpl)
+                    .as_ref()
+                    .expect("torch c data has no storage")
+            }
+        }
+
+        fn extract_data_ptr(&self) -> u64 {
             let cdata = self.extract_torch_c_data();
             let storage = self.extract_storage();
             storage.data_ptr_.ptr_.data_ as u64
                 + cdata.storage_offset_ as u64 * self.dtype.bytes() as u64
         }
-    }
 
-    fn num_elements(&self) -> usize {
-        if self.python_fallback {
-            pyo3::Python::with_gil(|py| {
-                let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
-                py_tensor.call_method0("numel").unwrap().extract().unwrap()
-            })
-        } else {
+        fn extract_num_elements(&self) -> usize {
             self.extract_torch_c_data().numel_ as _
         }
-    }
 
-    fn num_elements_allocated(&self) -> usize {
-        self.num_elements()
-    }
-
-    fn device_id(&self) -> usize {
-        if self.python_fallback {
-            pyo3::Python::with_gil(|py| {
-                let py_tensor = TorchTensorRaw::get_pytensor(self.torch_tensor_cdata, &py).unwrap();
-                py_tensor
-                    .getattr("device")
-                    .unwrap()
-                    .getattr("index")
-                    .unwrap()
-                    .extract()
-                    .unwrap()
-            })
-        } else {
+        fn extract_device_id(&self) -> usize {
             let storage_data_ptr = &self.extract_storage().data_ptr_;
             assert_eq!(
                 storage_data_ptr.device_.type_,
@@ -635,10 +597,81 @@ impl RawBaguaTensor for TorchTensorRaw {
             );
             return storage_data_ptr.device_.index_ as _;
         }
+    */
+}
+
+impl RawBaguaTensor for TorchTensorRaw {
+    fn data_ptr(&self) -> u64 {
+        pyo3::Python::with_gil(|py| {
+            let py_tensor = self
+                .torch_tensor
+                .as_ref(py)
+                .call_method0("bagua_getter_closure")
+                .unwrap();
+            py_tensor
+                .call_method0("data_ptr")
+                .unwrap()
+                .extract()
+                .unwrap()
+        })
+    }
+
+    fn num_elements(&self) -> usize {
+        pyo3::Python::with_gil(|py| {
+            let py_tensor = self
+                .torch_tensor
+                .as_ref(py)
+                .call_method0("bagua_getter_closure")
+                .unwrap();
+            py_tensor.call_method0("numel").unwrap().extract().unwrap()
+        })
+    }
+
+    fn num_elements_allocated(&self) -> usize {
+        self.num_elements()
+    }
+
+    fn device_id(&self) -> usize {
+        pyo3::Python::with_gil(|py| {
+            let py_tensor = self
+                .torch_tensor
+                .as_ref(py)
+                .call_method0("bagua_getter_closure")
+                .unwrap();
+            py_tensor
+                .getattr("device")
+                .unwrap()
+                .getattr("index")
+                .unwrap()
+                .extract()
+                .unwrap()
+        })
     }
 
     fn dtype(&self) -> BaguaTensorDtype {
-        self.dtype
+        pyo3::Python::with_gil(|py| {
+            let py_tensor = self
+                .torch_tensor
+                .as_ref(py)
+                .call_method0("bagua_getter_closure")
+                .unwrap();
+            let dtype = py_tensor
+                .getattr("dtype")
+                .unwrap()
+                .call_method0("__reduce__")
+                .unwrap()
+                .extract::<String>()
+                .unwrap();
+            match dtype.as_str() {
+                "float32" => BaguaTensorDtype::F32,
+                "float16" => BaguaTensorDtype::F16,
+                "int64" => BaguaTensorDtype::I64,
+                "uint8" => BaguaTensorDtype::U8,
+                _ => {
+                    panic!("unsupported tensor dtype {}", dtype);
+                }
+            }
+        })
     }
 }
 
@@ -791,26 +824,14 @@ impl BaguaTensor {
 
     pub fn new_from_torch(
         name: String,
-        torch_cdata_ptr: u64,
-        dtype: BaguaTensorDtype,
+        torch_tensor: pyo3::Py<pyo3::PyAny>,
     ) -> pyo3::PyResult<Self> {
-        let mut torch_tensor = TorchTensorRaw {
-            torch_tensor_cdata: torch_cdata_ptr,
-            python_fallback: false,
-            dtype,
-        };
-        let consistency = torch_tensor.check_consistency_with_python()?;
-        if !consistency {
-            tracing::warn!(
-                r#"PyTorch tensor memory layout inconsistent with latest PyTorch. Bagua will fallback to Python interface. This will degrade system performance. We suggest upgrading to latest PyTorch."#
-            )
-        }
-        torch_tensor.python_fallback = !consistency;
+        let mut tensor_raw = TorchTensorRaw { torch_tensor };
 
         Ok(Self {
             inner: Arc::new(RwLock::new(BaguaTensorInner {
                 name,
-                raw: Box::new(torch_tensor),
+                raw: Box::new(tensor_raw),
                 ready_for_comm: false,
                 ready_cuda_event_ptr: 0,
             })),

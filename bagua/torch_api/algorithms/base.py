@@ -59,18 +59,23 @@ class AlgorithmImpl:
         parameters = bagua_module.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
-            grad = param.bagua_ensure_grad().ensure_bagua_tensor(
-                name, bagua_module.bagua_module_name
+            param = param.bagua_ensure_grad().ensure_bagua_tensor(
+                name,
+                bagua_module.bagua_module_name,
+                getter_closure=lambda param: param.grad,
+                setter_closure=lambda param, t: setattr(param, "grad", t),
             )
-            param._bagua_grad = grad
-            tensors.append(grad)
+            tensors.append(param)
+
         self._communication_tensor_names = set(name for name, _ in parameters)
         assert len(self._communication_tensor_names) == len(
             tensors
         ), "tensor names should be unique"
         return tensors
 
-    def tensors_to_buckets(self, tensors: List[List[BaguaTensor]]) -> List[BaguaBucket]:
+    def tensors_to_buckets(
+        self, tensors: List[List[BaguaTensor]], do_flatten: bool
+    ) -> List[BaguaBucket]:
         """
         Given the bucketing suggestion from Bagua, return the actual Bagua buckets.
         The default implementation follows the suggestion to do the bucketing.
@@ -79,6 +84,7 @@ class AlgorithmImpl:
             tensors: Bagua tensors grouped in different
                 lists, representing Bagua's suggestion on how to bucketing the
                 tensors.
+            do_flatten: Whether to flatten the Bagua buckets.
 
         Returns:
             A list of Bagua buckets.
@@ -86,7 +92,7 @@ class AlgorithmImpl:
         bagua_buckets = []
         for idx, bucket in enumerate(tensors):
             bagua_bucket = BaguaBucket(
-                bucket, flatten=True, name=str(idx)
+                bucket, flatten=do_flatten, name=str(idx)
             )  # TODO: check duplicated names
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
@@ -123,9 +129,10 @@ class AlgorithmImpl:
         def hook(parameter_name, parameter):
             if parameter_name in self._communication_tensor_names:
                 assert (
-                    parameter._bagua_grad.data_ptr() == parameter.grad.data_ptr()
-                ), "bagua grad data_ptr should match parameter grad"
-                parameter._bagua_grad.bagua_mark_communication_ready()
+                    parameter.bagua_backend_tensor().data_ptr()
+                    == parameter.grad.data_ptr()
+                ), "bagua backend tensor data_ptr should match parameter grad"
+                parameter.bagua_mark_communication_ready()
 
         return hook
 

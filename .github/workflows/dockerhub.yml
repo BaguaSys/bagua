@@ -17,6 +17,9 @@ jobs:
           - cuda-version: "cuda11.1"
             cudnn-version: "cudnn8"
             pytorch-version: "pytorch-1.9.0"
+          - cuda-version: "cuda11.3"
+            cudnn-version: "cudnn8"
+            pytorch-version: "pytorch-1.10.0"
     name: 'Build'
     runs-on: ubuntu-latest
     steps:
