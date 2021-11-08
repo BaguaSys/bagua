@@ -63,13 +63,12 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
     """Torch process group to bagua converter.
 
     Args:
-        process_group (Union[TorchProcessGroup, BaguaProcessGroup, None],
-        optional): Map torch process group to bagua process group, return
-        default process group if get None.
+        process_group (Union[TorchProcessGroup, BaguaProcessGroup, None], optional): Map
+            torch process group to bagua process group, return default process group if get None.
 
     Raises:
         Exception: raise unexpect input exception if input not in
-        TorchProcessGroup, BaguaProcessGroup and None.
+            TorchProcessGroup, BaguaProcessGroup and None.
 
     Returns:
         BaguaProcessGroup: process group for communication in bagua.
