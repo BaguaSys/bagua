@@ -166,12 +166,11 @@ def main():
         recv_sdispls,
         comm=comm,
     )
-    if bagua.get_rank() == 7:
-        assert torch.equal(
-            recv_tensors, recv_tensor_bagua
-        ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
-            a=recv_tensors, b=recv_tensor_bagua
-        )
+    assert torch.equal(
+        recv_tensors, recv_tensor_bagua
+    ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
+        a=recv_tensors, b=recv_tensor_bagua
+    )
 
 
 if __name__ == "__main__":
