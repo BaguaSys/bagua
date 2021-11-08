@@ -18,7 +18,7 @@ from .bagua_distributed import BaguaDistributedDataParallel
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
-    PyTorch v1.9.0 DistributedDataParallel interface.
+    [PyTorch v1.9.0 DistributedDataParallel](https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
     """
 
     def __init__(self) -> None:
@@ -60,6 +60,20 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
 
 
 def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessGroup, None] = None):
+    """Torch process group to bagua converter.
+
+    Args:
+        process_group (Union[TorchProcessGroup, BaguaProcessGroup, None],
+        optional): Map torch process group to bagua process group, return
+        default process group if get None.
+
+    Raises:
+        Exception: raise unexpect input exception if input not in
+        TorchProcessGroup, BaguaProcessGroup and None.
+
+    Returns:
+        BaguaProcessGroup: process group for communication in bagua.
+    """
     if process_group is None:
         return _get_default_group()
     elif type(process_group) in [TorchProcessGroup, torch._C._distributed_c10d.ProcessGroupNCCL]:
@@ -72,20 +86,21 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
 
 class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     r"""
-    PyTorch v1.9.0 DistributedDataParallel interface using bagua backend.
+    [PyTorch v1.9.0 DistributedDataParallel](https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
 
-    :ivar bagua_optimizers: The optimizers constructor passed in.
+    :ivar bagua_optimizers: The optimizers passed in from the constructor.
     :vartype bagua_optimizers: List[torch.optim.Optimizer]
 
-    :ivar bagua_algorithm: The algorithm implementation used by the module, reified by the algorithm constructor passed in.
+    :ivar bagua_algorithm: The algorithm implementation used by the module,
+        reified by the algorithm passed in from the constructor.
     :vartype bagua_algorithm: bagua.torch_api.algorithms.AlgorithmImpl
 
-    :ivar bagua_module_name: The module's name. Bagua uses the module name to distinguish different modules.
+    :ivar bagua_module_name: The module's name. Bagua uses the module name
+        to distinguish different modules.
     :vartype bagua_module_name: str
 
     :ivar bagua_buckets: All Bagua buckets in a list.
     :vartype bagua_buckets: List[bagua.torch_api.bucket.BaguaBucket]
-
     """
 
     def __init__(
@@ -104,6 +119,8 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
     ) -> None:
+        """Bagua internal use function. Construction use :class:`DistributedDataParallel`.
+        """
         super(DistributedDataParallel_V1_9_0, self).__init__()
         assert any((p.requires_grad for p in module.parameters())), (
             "DistributedDataParallel is not needed when a module "
@@ -139,10 +156,21 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
     @property
     def require_backward_grad_sync(self):
+        """
+        DDP gradient synchronizations switch, see :meth:`no_sync` for usage. 
+
+        Returns:
+            bool: switch states.
+        """
         return self.inner.require_backward_grad_sync
 
     @property
     def parameters_to_ignore(self):
+        """Parameters that will be ignored in DDP.
+
+        Returns:
+            List[Parameter]: torch parameters.
+        """
         return self.inner.parameters_to_ignore
 
     def forward(self, *inputs, **kwargs):
@@ -151,26 +179,26 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
     @contextmanager
     def no_sync(self):
+        r"""
+        A context manager to disable gradient synchronizations across DDP
+        processes. Within this context, gradients will be accumulated on module
+        variables, which will later be synchronized in the first
+        forward-backward pass exiting the context.
+
+        Example::
+
+            >>> ddp = bagua.torch_api.data_parallel.DistributedDataParallel(model, pg)
+            >>> with ddp.no_sync():
+            >>>   for input in inputs:
+            >>>     ddp(input).backward()  # no synchronization, accumulate grads
+            >>> ddp(another_input).backward()  # synchronize grads
+        """
         old_require_backward_grad_sync = self.require_backward_grad_sync
         self.inner.require_backward_grad_sync = False
         try:
             yield
         finally:
             self.inner.require_backward_grad_sync = old_require_backward_grad_sync
-
-    def switch_bagua_setting(
-        self,
-        process_group=None,
-        optimizers: List[torch.optim.Optimizer] = [],
-        algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
-    ):
-        self.inner = BaguaDistributedDataParallel(
-            self.module,
-            optimizers=optimizers,
-            algorithm=algorithm,
-            process_group=to_bagua_process_group(process_group),
-            bagua_module_name=self.inner.bagua_module_name,
-        )
 
     @property
     def bagua_algorithm(self):
@@ -200,13 +228,15 @@ def DistributedDataParallel(
     find_unused_parameters: bool = False,
     check_reduction: bool = False,
     gradient_as_bucket_view: bool = False,
-    # The following bagua parameters
+    # The followings are parameters for Bagua
     optimizers: List[torch.optim.Optimizer] = [],
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
 ) -> Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]:
     r"""
-    Implements distributed data parallelism at the module level.
-    The fundamental appeal is to provide bagua with a fully compatible interface for pytorch.
+    This function provides a PyTorch DDP (put reference here) compatible
+    interface plus several Bagua specific parameters.
+    The fundamental appeal is to provide bagua with a fully compatible
+    interface for pytorch.
 
     Args:
         module (Module): module to be parallelized
@@ -268,7 +298,7 @@ def DistributedDataParallel(
                 and the way the model is updated. Defaults to GradientAllReduceAlgorithm().
 
     Returns:
-        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: parallelized module
+        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: BaguaDistributedDataParallel instance used for distributed training.
 
     Example::
 
@@ -286,7 +316,9 @@ def DistributedDataParallel(
         check_reduction is False,
     ]
     if not all(check_list):
-        warnings.warn("Input parameters are not supported yet, return torch native DistributedDataParallel.")
+        warnings.warn("Some parameters passed into BaguaDistributedDataParallel have not been supported yet. "
+        "Bagua has automatically fallback to upstream PyTorch DistributedDataParallel implementation. "
+        "If this is unexpected, please submit an issue to https://github.com/BaguaSys/bagua. Thanks.")
         return TorchDistributedDataParallel(
             module=module,
             device_ids=device_ids,

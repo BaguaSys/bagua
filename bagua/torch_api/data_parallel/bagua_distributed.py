@@ -24,15 +24,8 @@ from bagua.bagua_define import (
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
 
-class BaguaPatches:
-    """
-    As an instance attribute patch in torch.Module, the bagua backend
-    mounts the required state of ddp on this class.
-    """
-    pass
-
-
 class BaguaDistributedDataParallel:
+
     def __init__(
         self,
         module: Module,
@@ -79,11 +72,16 @@ class BaguaDistributedDataParallel:
         self._bagua_autotune_last_report_time = time.time()
         self._bagua_autotune_completed = False
 
-        if hasattr(self.module, "_bagua_patches"):
+        class BaguaDistributedDataParallelStates:
+            """Empty class whose instances are used for keeping track of BaguaDistributedDataParallel's internal states.
+            """
+            pass
+
+        if hasattr(self.module, "_bagua_states"):
             self._reset_algorithm_state()
 
-        self.module._bagua_patches = BaguaPatches()
-        patch = self.module._bagua_patches
+        self.module._bagua_states = BaguaDistributedDataParallelStates()
+        patch = self.module._bagua_states
         patch._bagua_algorithm_hooks = []
         patch._bagua_framework_hooks = []
 
@@ -394,7 +392,7 @@ class BaguaDistributedDataParallel:
         self._bagua_reset_algorithm_buckets()
 
     def _bagua_cleanup_algorithm(self):
-        patch = self.module._bagua_patches
+        patch = self.module._bagua_states
         for hook in patch._bagua_algorithm_hooks:
             hook.remove()
         patch._bagua_algorithm_hooks.clear()
@@ -402,7 +400,7 @@ class BaguaDistributedDataParallel:
         self.bagua_buckets.clear()
 
     def _bagua_reset_algorithm_buckets(self):
-        patch = self.module._bagua_patches
+        patch = self.module._bagua_states
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
         self.bagua_buckets.extend(
@@ -469,7 +467,7 @@ class BaguaDistributedDataParallel:
         )
 
     def _reset_algorithm_state(self):
-        patch = self.module._bagua_patches
+        patch = self.module._bagua_states
         if hasattr(patch, "_bagua_framework_hooks"):
             for hook in patch._bagua_framework_hooks:
                 hook.remove()

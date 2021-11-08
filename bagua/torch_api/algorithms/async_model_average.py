@@ -236,7 +236,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         training.
 
         Args:
-            bagua_ddp (Union[BaguaDistributedDataParallel]): Bagua distributed data parallel module.
+            bagua_ddp (Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]): Bagua distributed data parallel module.
         """
 
         # TODO: Remove the following code when BaguaModule is completely obsolete
