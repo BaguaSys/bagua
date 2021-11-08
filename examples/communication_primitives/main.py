@@ -147,15 +147,15 @@ def main():
     )
 
     # alltoall_v
-    send_tensors = torch.arange(9, dtype=torch.float32).cuda()
-    recv_tensors = torch.zeros(9, dtype=torch.float32).cuda()
-    recv_tensor_bagua = torch.zeros(9, dtype=torch.float32).cuda()
-    in_splits = [1, 1, 1, 1, 1, 1, 1, 2]
-    out_splits = [1, 1, 1, 1, 1, 1, 1, 2]
-    send_counts = np.array([1, 1, 1, 1, 1, 1, 1, 2])
-    recv_counts = np.array([1, 1, 1, 1, 1, 1, 1, 2])
-    send_sdispls = np.array([0, 1, 2, 3, 4, 5, 6, 7, 9])
-    recv_sdispls = np.array([0, 1, 2, 3, 4, 5, 6, 7, 9])
+    send_tensors = torch.arange(12, dtype=torch.float32).cuda()
+    recv_tensors = torch.zeros(12, dtype=torch.float32).cuda()
+    recv_tensor_bagua = torch.zeros(12, dtype=torch.float32).cuda()
+    in_splits = [1, 2, 1, 2, 1, 2, 1, 2]
+    out_splits = [1, 2, 1, 2, 1, 2, 1, 2]
+    send_counts = np.array([1, 2, 1, 2, 1, 2, 1, 2])
+    recv_counts = np.array([1, 2, 1, 2, 1, 2, 1, 2])
+    send_sdispls = np.array([0, 1, 3, 4, 6, 7, 9, 10, 12])
+    recv_sdispls = np.array([0, 1, 3, 4, 6, 7, 9, 10, 12])
     dist.all_to_all_single(recv_tensors, send_tensors, out_splits, in_splits)
     bagua.alltoall_v(
         send_tensors,
