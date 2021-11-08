@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     benchmark_loop = 1000
     for i in range(benchmark_loop):
-        print('i={}'.format(i))
+        print("i={}".format(i))
         # timer
         for t in dense_list:
             t.bagua_mark_communication_ready()
