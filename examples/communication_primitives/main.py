@@ -165,8 +165,14 @@ def main():
         recv_sdispls,
         comm=comm,
     )
+    bagua.alltoall_v_inplace(send_tensors, send_counts, send_sdispls)
     assert torch.equal(
         recv_tensors, recv_tensor_bagua
+    ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
+        a=recv_tensors, b=recv_tensor_bagua
+    )
+    assert torch.equal(
+        send_tensors, recv_tensor_bagua
     ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
         a=recv_tensors, b=recv_tensor_bagua
     )
