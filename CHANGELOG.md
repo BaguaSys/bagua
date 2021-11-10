@@ -1,5 +1,35 @@
 # CHANGELOG
 
+## [0.8.2] - 2021-11-09
+
+### Bug Fixes
+
+#### Other
+
+- Fuse optimizer oom and make it stateless (#207)
+- To_bagua_tensor compatibility with torch 1.6.0 (#355)
+
+#### Python
+
+- Use separate process group for async communication thread to avoid potential hangs (#298)
+- Do not fail if checkpoints path exist (#305)
+- Fix is_moe_param (#306)
+- Change `to_bagua_tensor` API to support PyTorch 1.10 (#338)
+- Fix fused optimizer with multiple param groups (#356)
+
+### Features
+
+#### Python
+
+- Support switching between different algorithms (#299)
+- Separate algorithm declaration and implementation (#246)
+
+#### Python, core
+
+- Support process group in `with_bagua`, support hierarchical communication in bytegrad algorithm (#300)
+- Support mutable bucket tensors (#271)
+- Support all_to_all_single (#361)
+
 ## [0.8.1] - 2021-10-16
 
 ### Features
