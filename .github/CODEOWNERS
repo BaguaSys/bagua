@@ -3,6 +3,7 @@
 
 # individual code owners override
 rust/bagua-net @shjwudp
+rust/bagua-core/bagua-core-c @shjwudp
 bagua/distributed @shjwudp
 bagua/service @shjwudp
 bagua/script @shjwudp
