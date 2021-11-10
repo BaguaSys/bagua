@@ -185,9 +185,12 @@ def skip_methods(app, what, name, obj, skip, options):
                 skip = True
                 return skip
 
-    if what == "class" and name in _ignore_classes:
-        skip = True
-        return skip
+    if what == "class":
+        for to_ignore in _ignore_classes:
+            p = re.compile(to_ignore)
+            if p.match(name):
+                skip = True
+                return skip
 
     return skip
 
