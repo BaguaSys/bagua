@@ -288,7 +288,7 @@ def DistributedDataParallel(
                       gradients. If hitting such errors, please fix it by
                       referring to the :meth:`~torch.optim.Optimizer.zero_grad`
                       function in ``torch/optim/optimizer.py`` as a solution.
-        optimizers (List[torch.optim.Optimizer], optional): Optimizer(s) used by the module. It can contain one or more PyTorch optimizers. Defaults to [].
+        optimizers (List[torch.optim.Optimizer], optional): Optimizer(s) used by the module. It can contain one or more PyTorch optimizers. Defaults to ``[]``.
         algorithm (bagua.torch_api.algorithms.Algorithm, optional): Data
                 parallel distributed algorithm, decide how to communication mode
                 and the way the model is updated. Defaults to :class:`~bagua.torch_api.algorithms.gradient_allreduce.GradientAllReduceAlgorithm`.
