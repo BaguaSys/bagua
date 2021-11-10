@@ -65,15 +65,16 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
 
     Args:
         process_group (Union[TorchProcessGroup, BaguaProcessGroup, None], optional): PyTorch
-            process group or Bagua process group. The default PyTorch process group is used if None is passed in.
+            process group or Bagua process group. The default PyTorch process group is used if ``None`` is passed in.
 
     Raises:
         Exception: raise unexpect input exception if input is not
-            TorchProcessGroup, BaguaProcessGroup or None.
+            ``TorchProcessGroup``, ``BaguaProcessGroup`` or ``None``.
 
     Returns:
         BaguaProcessGroup: process group for communication in bagua.
     """
+
     if process_group is None:
         return _get_default_group()
     elif type(process_group) in [TorchProcessGroup, torch._C._distributed_c10d.ProcessGroupNCCL]:
@@ -293,7 +294,7 @@ def DistributedDataParallel(
                 and the way the model is updated. Defaults to :class:`~bagua.torch_api.algorithms.gradient_allreduce.GradientAllReduceAlgorithm`.
 
     Returns:
-        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua DistributedDataParallel instance used for distributed training.
+        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua ``DistributedDataParallel`` instance used for distributed training.
 
     Example::
 
