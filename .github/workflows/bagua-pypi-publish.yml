@@ -29,6 +29,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
       - name: Archive package artifacts
         uses: actions/upload-artifact@v2
         with:

@@ -3,7 +3,7 @@ FROM pytorch/manylinux-cuda111
 RUN yum install centos-release-scl-rh -y && yum install devtoolset-8-toolchain -y
 RUN yum remove okay-release -y && yum install http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-1.noarch.rpm -y
 RUN yum remove cmake3 -y && yum install cmake3 -y
-RUN yum install -y openmpi3-devel openmpi3 hwloc-devel
+RUN yum install -y openmpi3-devel openmpi3 hwloc-devel perl-IPC-Cmd
 RUN ln -sf /usr/bin/cmake3 /usr/bin/cmake
 
 RUN yum install -y python3-devel zlib-devel openssl-devel
