@@ -68,8 +68,8 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
             process group or Bagua process group. The default PyTorch process group is used if None is passed in.
 
     Raises:
-        Exception: raise unexpect input exception if input not is
-            TorchProcessGroup, BaguaProcessGroup and None.
+        Exception: raise unexpect input exception if input is not
+            TorchProcessGroup, BaguaProcessGroup or None.
 
     Returns:
         BaguaProcessGroup: process group for communication in bagua.
