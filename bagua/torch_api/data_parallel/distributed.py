@@ -294,7 +294,7 @@ def DistributedDataParallel(
                 and the way the model is updated. Defaults to :class:`~bagua.torch_api.algorithms.gradient_allreduce.GradientAllReduceAlgorithm`.
 
     Returns:
-        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua ``DistributedDataParallel`` instance used for distributed training.
+        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua distributed data parallel instance used for distributed training.
 
     Example::
 
