@@ -232,10 +232,12 @@ def DistributedDataParallel(
     Args:
         module (Module): module to be parallelized
         device_ids (Optional[List[Union[int, torch.device]]], optional): CUDA devices.
+
                    1) For single-device modules, ``device_ids`` can
                    contain exactly one device id, which represents the only
                    CUDA device where the input module corresponding to this process resides.
                    Alternatively, ``device_ids`` can also be ``None``.
+
                    2) For multi-device modules and CPU modules,
                    ``device_ids`` must be ``None``.
 
@@ -288,7 +290,7 @@ def DistributedDataParallel(
         optimizers (List[torch.optim.Optimizer], optional): Optimizer(s) used by the module. It can contain one or more PyTorch optimizers. Defaults to [].
         algorithm (bagua.torch_api.algorithms.Algorithm, optional): Data
                 parallel distributed algorithm, decide how to communication mode
-                and the way the model is updated. Defaults to :class:`GradientAllReduceAlgorithm`.
+                and the way the model is updated. Defaults to :class:`~bagua.torch_api.algorithms.gradient_allreduce.GradientAllReduceAlgorithm`.
 
     Returns:
         Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua DistributedDataParallel instance used for distributed training.
