@@ -797,6 +797,31 @@ pub struct BaguaTensor {
 }
 
 impl BaguaTensor {
+    pub fn new(
+        name: String,
+        device_id: usize,
+        data_ptr: u64,
+        num_elem: usize,
+        dtype: BaguaTensorDtype,
+        ready_cuda_event_ptr: u64,
+    ) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(BaguaTensorInner {
+                name,
+                raw: Box::new(BaguaTensorRaw {
+                    ptr: data_ptr,
+                    num_elem_allocated: num_elem,
+                    dtype: dtype,
+                    num_elem: num_elem,
+                    device_id: device_id,
+                    pool_allocations: vec![],
+                }),
+                ready_for_comm: false,
+                ready_cuda_event_ptr: ready_cuda_event_ptr,
+            })),
+        }
+    }
+
     pub fn new_from_torch(
         name: String,
         torch_tensor: pyo3::Py<pyo3::PyAny>,
