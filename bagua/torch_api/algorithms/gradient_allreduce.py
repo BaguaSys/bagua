@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 from bagua.torch_api.bucket import BaguaBucket
-from bagua.torch_api.distributed import BaguaModule
-from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
+from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
+from bagua.torch_api.algorithms.base import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
 
 
@@ -30,7 +30,7 @@ class GradientAllReduceAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_module: BaguaModule,
+        _: BaguaDistributedDataParallel,
         bucket: BaguaBucket,
     ):
         bucket.clear_ops()

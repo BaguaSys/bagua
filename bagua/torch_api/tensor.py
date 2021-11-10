@@ -99,10 +99,12 @@ class BaguaTensor:
                 assert (
                     self.bagua_tensor_name == name
                 ), "assigning a different name to existing bagua tensor is forbidden"
+                ", self.bagua_tensor_name={}, name={}".format(self.bagua_tensor_name, name)
 
                 assert (
                     self.bagua_module_name == module_name
                 ), "assigning a different module name to existing bagua tensor is forbidden"
+                ", self.bagua_module_name={}, module_name={}".format(self.bagua_module_name, module_name)
 
             if (
                 getter_closure == self._bagua_getter_closure

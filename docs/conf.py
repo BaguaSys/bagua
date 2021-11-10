@@ -159,11 +159,14 @@ _ignore_functions = [
     "bagua.torch_api.env.get_autotune_warmup_time_s",
     "bagua.torch_api.env.get_is_output_autotune_log",
     "bagua.torch_api.globals.is_initialized",
+    "bagua.torch_api.data_parallel.to_bagua_process_group",
 ]
 _ignore_classes = [
     "bagua.torch_api.algorithms.BaguaModule",
     "bagua.torch_api.algorithms.BaguaBucket",
     "bagua.torch_api.algorithms.BaguaTensor",
+    "bagua.torch_api.data_parallel.distributed.*",
+    "bagua.torch_api.data_parallel.bagua_distributed.*",
 ]
 
 
@@ -182,9 +185,12 @@ def skip_methods(app, what, name, obj, skip, options):
                 skip = True
                 return skip
 
-    if what == "class" and name in _ignore_classes:
-        skip = True
-        return skip
+    if what == "class":
+        for to_ignore in _ignore_classes:
+            p = re.compile(to_ignore)
+            if p.match(name):
+                skip = True
+                return skip
 
     return skip
 

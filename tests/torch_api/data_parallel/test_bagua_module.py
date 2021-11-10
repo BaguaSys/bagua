@@ -5,8 +5,8 @@ from tests.internal.common_utils import find_free_port
 from tests.internal.multi_process import setup_bagua_env
 import unittest
 import multiprocessing
-import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
+from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 
 
 class Net(nn.Module):
@@ -77,9 +77,9 @@ def bagua_init(model, optimizer, algorithm, process_group=None):
     else:
         raise ValueError("unsupported algorithm")
 
-    model = model.with_bagua([optimizer], bagua_algorithm, process_group=process_group)
+    ddp_model = DDP(model, optimizers=[optimizer], algorithm=bagua_algorithm, process_group=process_group)
 
-    return model, optimizer
+    return ddp_model, optimizer
 
 
 def run_model_wrapper(rank, nranks, env, algorithm):
@@ -91,11 +91,11 @@ def run_model_wrapper(rank, nranks, env, algorithm):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     loss_fn = nn.MSELoss()
 
-    model, optimizer = bagua_init(
+    ddp_model, optimizer = bagua_init(
         model, optimizer, algorithm
     )
 
-    train(model, optimizer, loss_fn, is_async=(algorithm == "async"))
+    train(ddp_model, optimizer, loss_fn, is_async=(algorithm == "async"))
 
 
 def run_model_switch_wrapper(rank, nranks, env, algorithms):
@@ -108,8 +108,9 @@ def run_model_switch_wrapper(rank, nranks, env, algorithms):
     loss_fn = nn.MSELoss()
 
     for i in range(len(algorithms)):
-        model, optimizer = bagua_init(model, optimizer, algorithms[i])
-        train(model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
+        ddp_model, optimizer = bagua_init(model, optimizer, algorithms[i])
+        train(ddp_model, optimizer, loss_fn, is_async=(algorithms[i] == "async"))
+        print('algorithm={} done'.format(algorithms[i]))
 
 
 class TestBaguaModule(unittest.TestCase):

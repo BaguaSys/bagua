@@ -78,6 +78,9 @@ def run_model(
     _init_bagua_env(rank, env)
     group = bagua.communication.new_group(ranks=list(range(nranks)))
 
+    if _rank_not_in_group(group):
+        return
+
     # construct model and optimizer, etc.
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -291,7 +294,7 @@ class TestDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
+            self.assertEqual(p.exitcode, 0)
 
         for rank in range(nranks):
             if peer_selection_mode == "all":

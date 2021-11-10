@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
-from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
 from torch.optim.optimizer import Optimizer
@@ -125,8 +125,8 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
         else:
             return False
 
-    def init_tensors(self, bagua_module: BaguaModule):
-        parameters = bagua_module.bagua_build_params()
+    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel):
+        parameters = bagua_ddp.bagua_build_params()
 
         for idx, (name, param) in enumerate(parameters.__reversed__()):
             param._q_adam_name = name
@@ -139,7 +139,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                     # register grad
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
-                        bagua_module.bagua_module_name,
+                        bagua_ddp.bagua_module_name,
                         getter_closure=lambda param: param.grad,
                         setter_closure=lambda param, t: setattr(param, "grad", t),
                     )
@@ -150,7 +150,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
 
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
-                        bagua_module.bagua_module_name,
+                        bagua_ddp.bagua_module_name,
                         getter_closure=lambda param: self.optimizer.state[param][
                             "exp_avg"
                         ],
@@ -177,7 +177,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_module: BaguaModule,
+        bagua_ddp: BaguaDistributedDataParallel,
         bucket: BaguaBucket,
     ):
         bucket.clear_ops()
@@ -205,7 +205,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                 group=self.process_group,
             )
 
-    def init_backward_hook(self, bagua_module: BaguaModule):
+    def init_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook_momentum(parameter_name, parameter):
             assert (
                 parameter.bagua_backend_tensor().data_ptr()

@@ -20,6 +20,9 @@ from bagua.service.autotune_service import AutotuneClient
 from functools import lru_cache
 from datetime import timedelta
 from typing import Optional, List
+import torch.distributed.distributed_c10d as c10d
+from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
+import gorilla
 
 # fmt: off
 __all__ = [
@@ -60,6 +63,27 @@ class ReduceOp(IntEnum):
     BAND = 8
     BXOR = 9
     AVG = 10
+
+
+@gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
+class BaguaProcessGroupPatch:
+    def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
+        self.bagua_pg = from_torch_group(self, stream)
+
+    def bagua_get_global_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "global")
+
+    def bagua_get_inter_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "inter")
+
+    def bagua_get_intra_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "intra")
+
+
+_base = gorilla._get_base(BaguaProcessGroupPatch)
+_decorator_data = gorilla.get_decorator_data(_base)
+for patch in _decorator_data.patches:
+    gorilla.apply(patch)
 
 
 class BaguaProcessGroup:
@@ -207,6 +231,9 @@ def new_group(
     return pg
 
 
+__torch_group_id = 0
+
+
 def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None) -> BaguaProcessGroup:
     """
     Convert a Pytorch process group to its equivalent Bagua process group.
@@ -220,9 +247,22 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None) -> Bagua
     Returns:
        A handle of the Bagua process group.
     """
-    import torch.distributed.distributed_c10d as c10d
+    global __torch_group_id
 
-    ranks = list(c10d._pg_group_ranks[group].keys())
+    torch_group_id = __torch_group_id
+    __torch_group_id += 1
+
+    ranks = None
+    if group in c10d._pg_group_ranks:
+        ranks = list(c10d._pg_group_ranks[group].keys())
+    elif _default_store:
+        def rank_key(rank):
+            return "global rank of {}.{}".format(torch_group_id, rank)
+
+        _default_store.set(rank_key(group.rank()), env.get_rank())
+        ranks = [int(_default_store.get(rank_key(i))) for i in range(group.size())]
+    else:
+        ranks = list(range(group.size()))
 
     return new_group(ranks, stream)
 

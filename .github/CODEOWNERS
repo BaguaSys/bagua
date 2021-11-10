@@ -6,6 +6,7 @@ rust/bagua-net @shjwudp
 bagua/distributed @shjwudp
 bagua/service @shjwudp
 bagua/script @shjwudp
+bagua/torch_api/data_parallel @shjwudp
 bagua/torch_api/algorithms @wangraying
 bagua/torch_api/contrib/sync_batchnorm.py @Tengxu-Sun
 bagua/torch_api/model_parallel/moe @liuhatry

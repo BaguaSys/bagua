@@ -2,7 +2,7 @@
 
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
-from bagua.torch_api.distributed import BaguaModule
+from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
 from typing import List
@@ -46,7 +46,7 @@ class ByteGradAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_module: BaguaModule,
+        bagua_ddp: BaguaDistributedDataParallel,
         bucket: BaguaBucket,
     ):
         bucket.clear_ops()
@@ -55,7 +55,7 @@ class ByteGradAlgorithmImpl(AlgorithmImpl):
             average=self.average,
             scattergather=True,
             compression="MinMaxUInt8",
-            group=bagua_module._bagua_process_group,
+            group=self.process_group,
         )
 
 
