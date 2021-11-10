@@ -18,7 +18,7 @@ from .bagua_distributed import BaguaDistributedDataParallel
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
-    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>` compatible interface.
+    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible interface.
     """
 
     def __init__(self) -> None:
@@ -86,7 +86,7 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
 
 class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     r"""
-    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>` compatible interface.
+    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible interface.
     """
 
     def __init__(
@@ -226,7 +226,7 @@ def DistributedDataParallel(
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
 ) -> Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]:
     r"""
-    This function provides a `PyTorch DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>` compatible
+    This function provides a `PyTorch DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible
     interface plus several Bagua specific parameters.
 
     Args:
@@ -285,7 +285,7 @@ def DistributedDataParallel(
                       gradients. If hitting such errors, please fix it by
                       referring to the :meth:`~torch.optim.Optimizer.zero_grad`
                       function in ``torch/optim/optimizer.py`` as a solution.
-        optimizers (List[torch.optim.Optimizer], optional): Defaults to [].
+        optimizers (List[torch.optim.Optimizer], optional): Optimizer(s) used by the module. It can contain one or more PyTorch optimizers. Defaults to [].
         algorithm (bagua.torch_api.algorithms.Algorithm, optional): Data
                 parallel distributed algorithm, decide how to communication mode
                 and the way the model is updated. Defaults to :class:`GradientAllReduceAlgorithm`.
