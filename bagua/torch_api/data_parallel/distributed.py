@@ -41,7 +41,8 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
         raise NotImplementedError
 
     def train(self, mode=True):
-        raise NotImplementedError
+        super(DistributedDataParallel_V1_9_0_Interface, self).train(mode)
+        return self
 
     @contextmanager
     def join(
