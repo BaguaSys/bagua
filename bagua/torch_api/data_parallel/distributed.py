@@ -18,7 +18,7 @@ from .bagua_distributed import BaguaDistributedDataParallel
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
-    PyTorch v1.9.0 DistributedDataParallel(https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
+    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>` compatible interface.
     """
 
     def __init__(self) -> None:
@@ -86,7 +86,7 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
 
 class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     r"""
-    PyTorch v1.9.0 DistributedDataParallel(https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible interface.
+    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>` compatible interface.
     """
 
     def __init__(
@@ -226,7 +226,7 @@ def DistributedDataParallel(
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
 ) -> Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]:
     r"""
-    This function provides a PyTorch DDP (https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125) compatible
+    This function provides a `PyTorch DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>` compatible
     interface plus several Bagua specific parameters.
 
     Args:
@@ -251,7 +251,9 @@ def DistributedDataParallel(
         dim (int, optional): Flag that enables syncing (broadcasting)
                           buffers of the module at beginning of the ``forward``
                           function. (default: ``True``)
-        broadcast_buffers (bool, optional): [description]. Defaults to True.
+        broadcast_buffers (bool, optional): Flag that enables syncing (broadcasting)
+                          buffers of the module at beginning of the ``forward``
+                          function. (default: ``True``)
         process_group (Union[None, TorchProcessGroup], optional): The process group to be used for distributed data
                        all-reduction. If ``None``, the default process group, which
                        is created by :func:`torch.distributed.init_process_group`,
@@ -286,7 +288,7 @@ def DistributedDataParallel(
         optimizers (List[torch.optim.Optimizer], optional): Defaults to [].
         algorithm (bagua.torch_api.algorithms.Algorithm, optional): Data
                 parallel distributed algorithm, decide how to communication mode
-                and the way the model is updated. Defaults to GradientAllReduceAlgorithm().
+                and the way the model is updated. Defaults to :class:`GradientAllReduceAlgorithm`.
 
     Returns:
         Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua DistributedDataParallel instance used for distributed training.
