@@ -17,14 +17,14 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3.1", features = ["env-filter"] }
 anyhow = "1.0"
 color-eyre = "0.5"
-numpy = "0.14.1"
+numpy = "0.15.0"
 parking_lot = { version = "0.11", features = ["deadlock_detection"] }
 openssl-sys = { version = "*", features = ["vendored"] }
 num-traits = "0.2"
 num-derive = "0.3"
 
 [dependencies.pyo3]
-version = "0.14.5"
+version = "0.15.0"
 features = ["extension-module"]
 
 [build-dependencies]
