@@ -1,36 +1,24 @@
+# pytype: disable=module-attr
 import torch
-import time
-import io
-import pickle
-import collections
-import logging
-import itertools
-from bagua.torch_api.algorithms import gradient_allreduce
 from torch.nn.modules import Module
+from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
+from torch.nn.parallel import DistributedDataParallel as TorchDistributedDataParallel
+from typing import Callable, List, Optional, Union
+import warnings
+
+import bagua
+from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
 from contextlib import contextmanager
-from typing import List, Tuple, Optional
-from bagua.torch_api import env
 from bagua.torch_api.communication import (
-    get_backend,
-    get_hyperparameters_service_client,
-    broadcast,
     _get_default_group,
-    from_torch_group,
     BaguaProcessGroup,
 )
-from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
-from bagua.torch_api.model_parallel.moe import is_moe_param
-from bagua.bagua_define import (
-    TensorDeclaration,
-    BaguaHyperparameter,
-)
-from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
-from typing import Callable
+from .bagua_distributed import BaguaDistributedDataParallel
 
 
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
-    PyTorch v1.9.0 DistributedDataParallel interface.
+    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible interface.
     """
 
     def __init__(self) -> None:
@@ -54,6 +42,7 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
 
     def train(self, mode=True):
         super(DistributedDataParallel_V1_9_0_Interface, self).train(mode)
+        return self
 
     @contextmanager
     def join(
@@ -71,9 +60,34 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
         raise NotImplementedError
 
 
+def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessGroup, None] = None):
+    """Convert a PyTorch process group to a Bagua process group.
+
+    Args:
+        process_group (Union[TorchProcessGroup, BaguaProcessGroup, None], optional): PyTorch
+            process group or Bagua process group. The default PyTorch process group is used if ``None`` is passed in.
+
+    Raises:
+        Exception: raise unexpect input exception if input is not
+            ``TorchProcessGroup``, ``BaguaProcessGroup`` or ``None``.
+
+    Returns:
+        BaguaProcessGroup: process group for communication in bagua.
+    """
+
+    if process_group is None:
+        return _get_default_group()
+    elif type(process_group) in [TorchProcessGroup, torch._C._distributed_c10d.ProcessGroupNCCL]:
+        return process_group.bagua_patch().bagua_pg  # pytype: disable=attribute-error
+    elif type(process_group) is BaguaProcessGroup:
+        return process_group
+    else:
+        raise Exception("unexpect input {}".format(type(process_group)))
+
+
 class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
     r"""
-    PyTorch v1.9.0 DistributedDataParallel interface using bagua backend.
+    `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible interface.
     """
 
     def __init__(
@@ -90,8 +104,10 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         gradient_as_bucket_view=False,
         # The following bagua parameters
         optimizers: List[torch.optim.Optimizer] = [],
-        algorithm: "bagua.torch_api.algorithms.Algorithm" = gradient_allreduce.GradientAllReduceAlgorithm(),
+        algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
     ) -> None:
+        """Bagua internal use function. Construction use :class:`DistributedDataParallel`.
+        """
         super(DistributedDataParallel_V1_9_0, self).__init__()
         assert any((p.requires_grad for p in module.parameters())), (
             "DistributedDataParallel is not needed when a module "
@@ -112,12 +128,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
             )
         self.device_type = list(distinct_device_types)[0]
 
-        bagua_process_group = None
-        if type(process_group) is BaguaProcessGroup:
-            bagua_process_group = process_group
-        elif type(process_group) is TorchProcessGroup:
-            bagua_process_group = from_torch_group(process_group)
-
         self.static_graph = False
         self.dim = dim
         self.module = module
@@ -126,470 +136,219 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.broadcast_buffers = broadcast_buffers
         assert find_unused_parameters is False, "Not yet supported"
         self.find_unused_parameters = find_unused_parameters
-        self._module_copies = [self.module]
 
-        self.inner_ddp = InnerDistributedDataParallel(
-            self.module, optimizers, algorithm, bagua_process_group
+        self.inner = BaguaDistributedDataParallel(
+            self.module, optimizers, algorithm, to_bagua_process_group(process_group)
         )
 
     @property
     def require_backward_grad_sync(self):
-        return self.inner_ddp.require_backward_grad_sync
+        """
+        DDP gradient synchronizations switch, see :meth:`no_sync` for usage.
+        """
+        return self.inner.require_backward_grad_sync
 
     @property
     def parameters_to_ignore(self):
-        return self.inner_ddp.parameters_to_ignore
-
-    def train(self, mode=True):
-        super(DistributedDataParallel_V1_9_0, self).train(mode)
-        for module in self._module_copies[1:]:
-            module.train(mode)
-        return self
+        """Parameters that will be ignored in DDP.
+        """
+        return self.inner.parameters_to_ignore
 
     def forward(self, *inputs, **kwargs):
-        output = self.inner_ddp.forward(*inputs, **kwargs)
-        return output
-
-    @contextmanager
-    def no_sync(self):
-        old_require_backward_grad_sync = self.require_backward_grad_sync
-        self.inner_ddp.require_backward_grad_sync = False
-        try:
-            yield
-        finally:
-            self.inner_ddp.require_backward_grad_sync = old_require_backward_grad_sync
-
-
-class BaguaPatches:
-    pass
-
-
-class InnerDistributedDataParallel:
-    __id_iter = itertools.count()
-
-    def __init__(
-        self,
-        module: Module,
-        optimizers: List[torch.optim.Optimizer],
-        algorithm: "bagua.torch_api.algorithms.Algorithm",
-        process_group: Optional[BaguaProcessGroup] = None,
-    ) -> None:
-        self.module = module
-        self.bagua_module_name = "{}_{}".format(
-            self.__class__.__name__, next(InnerDistributedDataParallel.__id_iter)
-        )
-
-        self.bagua_optimizers = optimizers
-        self.bagua_algorithm = algorithm.reify()
-        self.parameters_to_ignore = (
-            []
-        )  #: the parameter names to ignore during communication
-        if hasattr(self.module, "_bagua_params_and_buffers_to_ignore"):
-            self.parameters_to_ignore.extend(
-                self.module._bagua_params_and_buffers_to_ignore
-            )
-        if hasattr(
-            self.module, "_ddp_params_and_buffers_to_ignore"
-        ):  # for compatibility with PyTorch DDP
-            self.parameters_to_ignore.extend(
-                self.module._ddp_params_and_buffers_to_ignore
-            )
-
-        self.bagua_train_step_counter = 0
-        """
-        Number of iterations in training mode.
-        """
-        self.bagua_buckets = []
-        """
-        All Bagua buckets in a list.
-        """
-        self._bagua_autotune_last_report_time = time.time()
-        self._bagua_autotune_completed = False
-
-        assert (
-            hasattr(self.module, "_bagua_patches") is False
-        ), "Duplicate DistributedDataParallel wrap! Each pytorch model can only be wrapped once."
-        self.module._bagua_patches = BaguaPatches()
-        self.module._bagua_patches._bagua_algorithm_hooks = []
-
-        self._bagua_algorithm_hooks = self.module._bagua_patches._bagua_algorithm_hooks
-        self._bagua_backend = get_backend(self.bagua_module_name)
-        self._bagua_hyperparameters = BaguaHyperparameter()
-        self._speed_metrics_switch_on = env.get_autotune_level() >= 1
-        self._speed_metrics = StatisticalAverage()
-        self.require_backward_grad_sync = True
-
-        # set bucket process group
-        if process_group is None:
-            self._bagua_process_group = _get_default_group()
-        else:
-            self._bagua_process_group = process_group
-
-        # autotune service
-        self._bagua_autotune_client = get_hyperparameters_service_client()
-
-        self._bagua_init_algorithm()
-
-    def forward(self, *inputs, **kwargs):
-        if self.module.training:
-            # num_iteration_step_hook
-            self.bagua_train_step_counter += 1
-
-            # algorithm_reset_hook
-            if self.bagua_algorithm.need_reset():
-                self._bagua_init_algorithm()
-
-            # algorithm_forward_pre_hook
-            self.bagua_algorithm.init_forward_pre_hook(self)(input)
-
-            # record_speed_metrics_event
-            if self._speed_metrics_switch_on:
-                if hasattr(self, "_last_event_pair"):
-                    (start, stop) = self._last_event_pair
-                    try:
-                        elapsed_time_s = start.elapsed_time(stop) / 1000.0
-                        total_bytes = sum(
-                            bucket.bytes() for bucket in self.bagua_buckets
-                        )
-                        total_gbytes = total_bytes / 1024.0 ** 3
-                        speed = total_gbytes / elapsed_time_s
-                        self._speed_metrics.record(speed)
-                    except RuntimeError as err:
-                        logging.debug("Ignore cuda err={}".format(err))
-
-                start_event = torch.cuda.Event(enable_timing=True)
-                self._speed_metrics_end_event = torch.cuda.Event(enable_timing=True)
-                torch.cuda.current_stream().record_event(start_event)
-                self._last_event_pair = (start_event, self._speed_metrics_end_event)
-
-            # autotune_hook
-            if env.get_autotune_level() >= 1 and not self._bagua_autotune_completed:
-                self._bagua_autotune_step()
-
-            # clear_post_backward_callback_queued_hook
-            self._is_post_backward_callback_queued = False
-
         output = self.module(*inputs, **kwargs)
         return output
 
-    def bagua_build_params(self) -> List[Tuple[str, torch.nn.Parameter]]:
-        """
-        Build tuple of ``(parameter_name, parameter)`` for all parameters that
-        require grads and not in the ``_bagua_params_and_buffers_to_ignore`` attribute.
-        """
-        modules_and_parameters = [
-            (module, parameter)
-            for module_name, module in self.module.named_modules()
-            for parameter in [
-                (f"{module_name}.{param_name}", param)
-                # Note that we access module.named_parameters instead of
-                # parameters(module). parameters(module) is only needed in the
-                # single-process multi device case, where it accesses replicated
-                # parameters through _former_parameters.
-                for param_name, param in module.named_parameters(recurse=False)
-                if param.requires_grad
-                and f"{module_name}.{param_name}" not in self.parameters_to_ignore
-                and (not is_moe_param(param))
-            ]
-        ]
-
-        # Deduplicate any parameters that might be shared across child modules.
-        memo = set()
-        # "p not in memo" is the deduplication check.
-        # "not memo.add(p)" is always True, and it's only there to cause "add(p)" if needed.
-        modules_and_parameters = [
-            (m, p)
-            for m, p in modules_and_parameters
-            if p[1] not in memo and not memo.add(p[1])
-        ]
-
-        # Build list of parameters.
-        parameters = [parameter for _, parameter in modules_and_parameters]
-
-        # Checks if a module will produce a sparse gradient.
-        def produces_sparse_gradient(module):
-            if isinstance(module, torch.nn.Embedding) or isinstance(
-                module, torch.nn.EmbeddingBag
-            ):
-                return module.sparse
-            return False
-
-        # Build list of booleans indicating whether or not to expect sparse
-        # gradients for the corresponding parameters.
-        expect_sparse_gradient = [
-            produces_sparse_gradient(module) for module, _ in modules_and_parameters
-        ]
-
-        if any(expect_sparse_gradient):
-            raise NotImplementedError("sparse gradient not supported yet")
-
-        return parameters
-
     @contextmanager
     def no_sync(self):
+        r"""
+        A context manager to disable gradient synchronizations across DDP
+        processes. Within this context, gradients will be accumulated on module
+        variables, which will later be synchronized in the first
+        forward-backward pass exiting the context.
+
+        Example::
+
+            >>> ddp = bagua.torch_api.data_parallel.DistributedDataParallel(model, pg)
+            >>> with ddp.no_sync():
+            >>>   for input in inputs:
+            >>>     ddp(input).backward()  # no synchronization, accumulate grads
+            >>> ddp(another_input).backward()  # synchronize grads
+        """
         old_require_backward_grad_sync = self.require_backward_grad_sync
-        self.require_backward_grad_sync = False
+        self.inner.require_backward_grad_sync = False
         try:
             yield
         finally:
-            self.require_backward_grad_sync = old_require_backward_grad_sync
+            self.inner.require_backward_grad_sync = old_require_backward_grad_sync
 
-    # Copyright 2020 Uber Technologies, Inc. All Rights Reserved.
-    # Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
-    #
-    # Licensed under the Apache License, Version 2.0 (the "License");
-    # you may not use this file except in compliance with the License.
-    # You may obtain a copy of the License at
-    #
-    #     http://www.apache.org/licenses/LICENSE-2.0
-    #
-    # Unless required by applicable law or agreed to in writing, software
-    # distributed under the License is distributed on an "AS IS" BASIS,
-    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    # See the License for the specific language governing permissions and
-    # limitations under the License.
-    # ==============================================================================
-    def _bagua_broadcast_optimizer_state(self, optimizer):
-        # L-BFGS cannot be easily supported without serializing
-        # the entire state_dict, as its structure is deeply nested and contains
-        # None type parameter values.
-        if isinstance(optimizer, torch.optim.LBFGS):
-            raise ValueError("cannot broadcast torch.optim.LBFGS state")
-        optimizer_state_dict = optimizer.state_dict()
-
-        # Initialize newly created optimizers.
-        if len(optimizer_state_dict["state"]) == 0:
-            for group in optimizer.param_groups:
-                for p in group["params"]:
-                    if p.requires_grad and id(p) not in optimizer_state_dict["state"]:
-                        p.grad = p.data.new(p.size()).zero_()
-                        if isinstance(optimizer, torch.optim.SparseAdam):
-                            p.grad = p.grad.to_sparse()
-            optimizer_state_dict = optimizer.state_dict()
-        if len(optimizer_state_dict["state"]) == 0:
-            return
-
-        def _state_param_callback(param_id, param_name):
-            def _assign_state(v):
-                optimizer_state_dict["state"][param_id][param_name] = v
-
-            return _assign_state
-
-        def _hyper_param_callback(index, group_key):
-            def _assign_hyper(v):
-                optimizer.param_groups[index][group_key] = v
-
-            return _assign_hyper
-
-        params = []
-        scalars = collections.OrderedDict()
-        call_back_param = {}
-        repeat_param_count = collections.defaultdict(int)
-
-        # All "sorted()" operations in this module are used to
-        # guarteen the scalar's record order samely in differet ranks.
-        for index, param_group in enumerate(optimizer_state_dict["param_groups"]):
-            for group_key, group_value in sorted(
-                param_group.items(), key=lambda item: item[0]
-            ):
-                # Hyper-parameters like learning rate are scalars, we need to broadcast them separately.
-                if group_key != "params":
-                    key = "%s_%d" % (group_key, index)
-                    scalars[key] = group_value
-                    call_back_param[key] = _hyper_param_callback(index, group_key)
-            for param_id in sorted(param_group["params"]):
-                if param_id not in optimizer_state_dict["state"]:
-                    continue
-                param_state = optimizer_state_dict["state"][param_id]
-                for param_name, inner_state in sorted(
-                    param_state.items(), key=lambda item: item[0]
-                ):
-                    # Some parameter names, e.g., step, may appear more than once, in which
-                    # case we ensure they have a unique identifier defined by
-                    # their order.
-                    repeat_param_count[param_name] += 1
-                    key = "%s_%d" % (str(param_name), repeat_param_count[param_name])
-                    if isinstance(inner_state, torch.Tensor):
-                        params.append((key, inner_state))
-                    else:
-                        scalars[key] = inner_state
-                        call_back_param[key] = _state_param_callback(
-                            param_id, param_name
-                        )
-        for key, param in params:
-            broadcast(param, src=0)
-        scalars = self._bagua_broadcast_scalars(scalars, src=0)
-        for key, p in scalars.items():
-            call_back_param[key](p)
-
-    def _bagua_broadcast_scalars(self, scalars, src):
-        # Serializes and broadcast scalars by converting them to "ByteTensor".
-        b = io.BytesIO()
-        pickle.dump(scalars, b)
-        t = torch.ByteTensor(bytearray(b.getvalue())).cuda()
-        broadcast(t, src=0)
-        if env.get_rank() != src:
-            buf = io.BytesIO(t.cpu().numpy().tobytes())
-            scalars = pickle.load(buf)
-
-        return scalars
-
-    def _bagua_broadcast_parameters(self):
+    @property
+    def bagua_algorithm(self):
         """
-        Broadcast model and optimizer states.
+        The algorithm implementation used by the module,
+        reified by the algorithm passed in from the constructor.
         """
+        return self.inner.bagua_algorithm
 
-        module_states = self.bagua_build_params()
-        for name, state in module_states:
-            broadcast(state, src=0)
-        for optimizer in self.bagua_optimizers:
-            self._bagua_broadcast_optimizer_state(optimizer)
-
-    def _bagua_autotune_step(self):
-        CYCLE_STEP = 100
-        start_time = time.time()
-
-        if (
-            self.bagua_train_step_counter != 0
-            and self.bagua_train_step_counter % CYCLE_STEP == 0
-        ):
-            # get speed metrics
-            time_since_last_update = time.time() - self._bagua_autotune_last_report_time
-            speed = self._speed_metrics.get(time_since_last_update)
-
-            # report metrics
-            rsp = self._bagua_autotune_client.report_metrics(
-                model_name=self.bagua_module_name,
-                rank=env.get_rank(),
-                train_iter=self.bagua_train_step_counter,
-                hyperparameters=self._bagua_hyperparameters.dict(),
-                speed=speed,
-            )
-            assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
-
-            # update parameters
-            self._bagua_reset_algorithm_buckets()
-            self._bagua_autotune_last_report_time = time.time()
-
-        logging.debug("autotune overhead=%s", time.time() - start_time)
-
-    def _bagua_autotune_register_tensors(self):
+    @property
+    def bagua_module_name(self):
         """
-        Register tensors on autotune server, and return first bucketing suggestions
+        The module's name. Bagua uses the module name to distinguish different modules.
         """
-        autotune_tensor_list = [
-            TensorDeclaration(
-                {
-                    "name": tensor.bagua_tensor_name,
-                    "num_elements": tensor.numel(),
-                    "dtype": to_bagua_datatype(tensor.dtype),
-                }
-            )
-            for tensor in self._bagua_tensors
-        ]
+        return self.inner.bagua_module_name
 
-        rsp = self._bagua_autotune_client.register_tensors(
-            model_name=self.bagua_module_name,
-            tensor_list=autotune_tensor_list,
+    @property
+    def bagua_optimizers(self):
+        """
+        Optimizer(s) used by the module. It can contain one or more PyTorch optimizers.
+        """
+        return self.inner.bagua_optimizers
+
+    @property
+    def bagua_buckets(self):
+        """
+        All Bagua buckets in a list.
+        """
+        return self.inner.bagua_buckets
+
+
+def DistributedDataParallel(
+    module: Module,
+    device_ids: Optional[List[Union[int, torch.device]]] = None,
+    output_device: Union[int, torch.device] = None,
+    dim: int = 0,
+    broadcast_buffers: bool = True,
+    process_group: Union[None, TorchProcessGroup] = None,
+    bucket_cap_mb: int = 25,
+    find_unused_parameters: bool = False,
+    check_reduction: bool = False,
+    gradient_as_bucket_view: bool = False,
+    # The followings are parameters for Bagua
+    optimizers: List[torch.optim.Optimizer] = [],
+    algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
+) -> Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]:
+    r"""
+    This function provides a `PyTorch DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible
+    interface plus several Bagua specific parameters.
+
+    Args:
+        module (Module): module to be parallelized
+        device_ids (Optional[List[Union[int, torch.device]]], optional): CUDA devices.
+
+                   1) For single-device modules, ``device_ids`` can
+                   contain exactly one device id, which represents the only
+                   CUDA device where the input module corresponding to this process resides.
+                   Alternatively, ``device_ids`` can also be ``None``.
+
+                   2) For multi-device modules and CPU modules,
+                   ``device_ids`` must be ``None``.
+
+                   When ``device_ids`` is ``None`` for both cases,
+                   both the input data for the forward pass and the actual module
+                   must be placed on the correct device.
+                   (default: ``None``)
+        output_device (Union[int, torch.device], optional): Device location of output for
+                      single-device CUDA modules. For multi-device modules and
+                      CPU modules, it must be ``None``, and the module itself
+                      dictates the output location. (default: ``device_ids[0]``
+                      for single-device modules)
+        dim (int, optional): Flag that enables syncing (broadcasting)
+                          buffers of the module at beginning of the ``forward``
+                          function. (default: ``True``)
+        broadcast_buffers (bool, optional): Flag that enables syncing (broadcasting)
+                          buffers of the module at beginning of the ``forward``
+                          function. (default: ``True``)
+        process_group (Union[None, TorchProcessGroup], optional): The process group to be used for distributed data
+                       all-reduction. If ``None``, the default process group, which
+                       is created by :func:`torch.distributed.init_process_group`,
+                       will be used. (default: ``None``)
+        bucket_cap_mb (int, optional): ``DistributedDataParallel`` will bucket parameters into
+                       multiple buckets so that gradient reduction of each
+                       bucket can potentially overlap with backward computation.
+                       :attr:`bucket_cap_mb` controls the bucket size in
+                       MegaBytes (MB). (default: 25)
+        find_unused_parameters (bool, optional): Traverse the autograd graph from all
+                               tensors contained in the return value of the
+                               wrapped module's ``forward`` function. Parameters
+                               that don't receive gradients as part of this
+                               graph are preemptively marked as being ready to
+                               be reduced. In addition, parameters that may have
+                               been used in the wrapped module's ``forward``
+                               function but were not part of loss computation and
+                               thus would also not receive gradients are
+                               preemptively marked as ready to be reduced.
+                               (default: ``False``)
+        check_reduction (bool, optional): This argument is deprecated.
+        gradient_as_bucket_view (bool, optional): When set to ``True``, gradients will be views
+                      pointing to different offsets of ``allreduce`` communication
+                      buckets. This can reduce peak memory usage, where the
+                      saved memory size will be equal to the total gradients
+                      size. Moreover, it avoids the overhead of copying between
+                      gradients and ``allreduce`` communication buckets. When
+                      gradients are views, ``detach_()`` cannot be called on the
+                      gradients. If hitting such errors, please fix it by
+                      referring to the :meth:`~torch.optim.Optimizer.zero_grad`
+                      function in ``torch/optim/optimizer.py`` as a solution.
+        optimizers (List[torch.optim.Optimizer], optional): Optimizer(s) used by the module. It can contain one or more PyTorch optimizers. Defaults to ``[]``.
+        algorithm (bagua.torch_api.algorithms.Algorithm, optional): Data
+                parallel distributed algorithm, decide how to communication mode
+                and the way the model is updated. Defaults to :class:`~bagua.torch_api.algorithms.gradient_allreduce.GradientAllReduceAlgorithm`.
+
+    Returns:
+        Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]: Bagua distributed data parallel instance used for distributed training.
+
+    Example::
+
+        >>> bagua.init_process_group()
+        >>> net = bagua.data_parallel.DistributedDataParallel(model)
+
+    Example using faster algorithms in Bagua::
+
+        >>> from bagua.torch_api.algorithms import bytegrad
+        >>> bagua.init_process_group()
+        >>> net = bagua.data_parallel.DistributedDataParallel(model, algorithm=bytegrad.ByteGradAlgorithm())
+        >>> # For more possible algorithms, see https://tutorials.baguasys.com/algorithms/.
+
+    """
+
+    check_list = [
+        device_ids is None,
+        output_device is None,
+        dim == 0,
+        broadcast_buffers is True,
+        find_unused_parameters is False,
+        check_reduction is False,
+    ]
+    if not all(check_list):
+        warnings.warn(
+            "Some parameters passed into BaguaDistributedDataParallel"
+            " have not been supported yet. Bagua has automatically "
+            "fallback to upstream PyTorch DistributedDataParallel "
+            "implementation. If this is unexpected, please submit "
+            "an issue to https://github.com/BaguaSys/bagua. Thanks.")
+        return TorchDistributedDataParallel(
+            module=module,
+            device_ids=device_ids,
+            output_device=output_device,
+            dim=dim,
+            broadcast_buffers=broadcast_buffers,
+            process_group=process_group,
+            bucket_cap_mb=bucket_cap_mb,
+            find_unused_parameters=find_unused_parameters,
+            check_reduction=check_reduction,
+            gradient_as_bucket_view=gradient_as_bucket_view,
         )
-        assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
-    def _bagua_autotune_get_buckets(self):
-        rsp = self._bagua_autotune_client.ask_hyperparameters(
-            model_name=self.bagua_module_name,
-            rank=env.get_rank(),
-            train_iter=self.bagua_train_step_counter,
-        )
-        assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
-        recommended_hyperparameters = rsp.json()["recommended_hyperparameters"]
-        is_autotune_completed = rsp.json()["is_autotune_completed"]
-
-        self._bagua_hyperparameters.update(recommended_hyperparameters)
-
-        self._bagua_autotune_completed = is_autotune_completed
-        recommended_buckets = map(
-            lambda x: list(map(lambda y: self._bagua_tensor_map[y["name"]], x)),
-            recommended_hyperparameters["buckets"],
-        )
-        return list(recommended_buckets)
-
-    def _bagua_init_algorithm(self):
-        self._bagua_cleanup_algorithm()
-        self._bagua_broadcast_parameters()
-        self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
-        self._bagua_tensor_map = dict(
-            [(tensor.bagua_tensor_name, tensor) for tensor in self._bagua_tensors]
-        )
-        self._bagua_autotune_register_tensors()
-        self._bagua_reset_algorithm_buckets()
-
-    def _bagua_cleanup_algorithm(self):
-        if self._bagua_algorithm_hooks is not None:
-            for hook in self._bagua_algorithm_hooks:
-                hook.remove()
-            self._bagua_algorithm_hooks.clear()
-        self.bagua_buckets.clear()
-
-    def _bagua_reset_algorithm_buckets(self):
-        self._bagua_cleanup_algorithm()
-        raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(self.bagua_algorithm.tensors_to_buckets(raw_buckets))
-
-        for name, param in self.module.named_parameters():
-
-            def real_hook_factory(param_name, parameter):
-                def real_hook(*unused):
-                    if not self.require_backward_grad_sync:
-                        return
-
-                    self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
-
-                    def real_post_backward_hook(*unused):
-                        self.bagua_algorithm.init_post_backward_hook(self)()
-                        if self._speed_metrics_switch_on:
-                            torch.cuda.current_stream().record_event(
-                                self._speed_metrics_end_event
-                            )
-
-                    if not self._is_post_backward_callback_queued:
-                        torch.autograd.Variable._execution_engine.queue_callback(
-                            real_post_backward_hook
-                        )
-                        self._is_post_backward_callback_queued = True
-
-                return real_hook
-
-            if param.requires_grad:
-                param_tmp = param.expand_as(param)
-                grad_acc = param_tmp.grad_fn.next_functions[0][0]
-                hook = grad_acc.register_hook(real_hook_factory(name, param))
-                hook.grad_acc = grad_acc
-                self._bagua_algorithm_hooks.append(hook)
-
-        optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(self)
-
-        from types import MethodType
-
-        for optimizer in self.bagua_optimizers:
-            if not hasattr(optimizer, "_bagua_original_step"):
-                optimizer._bagua_original_step = optimizer.step
-
-            def new_step_factory(optimizer):
-                def new_step(self, *args, **kwargs):
-                    result = self._bagua_original_step(*args, **kwargs)
-
-                    optimizer_hook(self)
-                    return result
-
-                return MethodType(new_step, optimizer)
-
-            optimizer.step = new_step_factory(optimizer)
-
-        for bucket in self.bagua_buckets:
-            self.bagua_algorithm.init_operations(
-                self,
-                bucket,
-            )
-        self._bagua_backend.register_ordered_buckets(
-            [bucket.backend_bucket for bucket in self.bagua_buckets]
-        )
+    return DistributedDataParallel_V1_9_0(
+        module=module,
+        device_ids=device_ids,
+        output_device=output_device,
+        dim=dim,
+        broadcast_buffers=broadcast_buffers,
+        process_group=process_group,
+        bucket_cap_mb=bucket_cap_mb,
+        find_unused_parameters=find_unused_parameters,
+        check_reduction=check_reduction,
+        gradient_as_bucket_view=gradient_as_bucket_view,
+        optimizers=optimizers,
+        algorithm=algorithm,
+    )

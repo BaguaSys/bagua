@@ -4,7 +4,6 @@ import multiprocessing
 import itertools
 import inspect
 from multiprocessing import Manager
-import time
 import logging
 import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
@@ -12,6 +11,7 @@ from tests import skip_if_cuda_not_available
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 
 
 class Net(nn.Module):
@@ -50,7 +50,7 @@ def _init_bagua_env(rank, env):
 
 
 def create_model_and_optimizer(opt_class, opt_param):
-    C_in, C_out = 3, 10
+    # C_in, C_out = 3, 10
     model = Net().cuda()
     hyper_param = {
         k: v
@@ -79,7 +79,7 @@ def get_optimizer_param_values(optimizer):
 def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param):
     _init_bagua_env(rank, envs)
 
-    bagua_model, bagua_optimizer = create_model_and_optimizer(
+    model, bagua_optimizer = create_model_and_optimizer(
         opt_class, opt_hyper_param
     )
 
@@ -90,7 +90,7 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
             target = torch.randn(4, 4).cuda()
 
             bagua_optimizer.zero_grad()
-            output = bagua_model(data)
+            output = model(data)
             loss = nn.MSELoss()(output, target)
 
             loss.backward()
@@ -99,11 +99,11 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
     from bagua.torch_api.algorithms import gradient_allreduce
 
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm(hierarchical=True)
-    bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
+    ddp_model = DDP(model, optimizers=[bagua_optimizer], algorithm=algorithm)
 
     model_params = [
         (k, v.clone().detach().cpu().numpy())
-        for k, v in sorted(bagua_model.state_dict().items())
+        for k, v in sorted(ddp_model.state_dict().items())
     ]
     optimizer_params = get_optimizer_param_values(bagua_optimizer)
 

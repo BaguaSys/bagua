@@ -145,6 +145,38 @@ def main():
         a=recv_tensors, b=recv_tensor_bagua
     )
 
+    # alltoall_v
+    send_tensors = torch.arange(16, dtype=torch.float32).cuda()
+    recv_tensors = torch.zeros(16, dtype=torch.float32).cuda()
+    recv_tensor_bagua = torch.zeros(16, dtype=torch.float32).cuda()
+    in_splits = [2, 2, 2, 2, 2, 2, 2, 2]
+    out_splits = [2, 2, 2, 2, 2, 2, 2, 2]
+    send_counts = [2, 2, 2, 2, 2, 2, 2, 2]
+    recv_counts = [2, 2, 2, 2, 2, 2, 2, 2]
+    send_sdispls = [0, 2, 4, 6, 8, 10, 12, 14, 16]
+    recv_sdispls = [0, 2, 4, 6, 8, 10, 12, 14, 16]
+    dist.all_to_all_single(recv_tensors, send_tensors, out_splits, in_splits)
+    bagua.alltoall_v(
+        send_tensors,
+        send_counts,
+        send_sdispls,
+        recv_tensor_bagua,
+        recv_counts,
+        recv_sdispls,
+        comm=comm,
+    )
+    bagua.alltoall_v_inplace(send_tensors, send_counts, send_sdispls)
+    assert torch.equal(
+        recv_tensors, recv_tensor_bagua
+    ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
+        a=recv_tensors, b=recv_tensor_bagua
+    )
+    assert torch.equal(
+        send_tensors, recv_tensor_bagua
+    ), "recv_tensors:{a}, recv_tensor_bagua:{b}".format(
+        a=recv_tensors, b=recv_tensor_bagua
+    )
+
 
 if __name__ == "__main__":
     main()

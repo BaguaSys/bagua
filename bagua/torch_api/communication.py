@@ -20,6 +20,9 @@ from bagua.service.autotune_service import AutotuneClient
 from functools import lru_cache
 from datetime import timedelta
 from typing import Optional, List
+import torch.distributed.distributed_c10d as c10d
+from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
+import gorilla
 
 # fmt: off
 __all__ = [
@@ -28,7 +31,7 @@ __all__ = [
     "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
     "gather", "gather_inplace", "scatter", "scatter_inplace",
     "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace",
-    "barrier"
+    "barrier", "BaguaProcessGroup"
 ]
 
 # Process group's global rank to local rank mapping
@@ -62,6 +65,62 @@ class ReduceOp(IntEnum):
     AVG = 10
 
 
+@gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
+class BaguaProcessGroupPatch:
+    def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
+        self.bagua_pg = from_torch_group(self, stream)
+
+    def bagua_get_global_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "global")
+
+    def bagua_get_inter_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "inter")
+
+    def bagua_get_intra_node_communicator(self):
+        return get_communicator(self.bagua_pg.group_name, "intra")
+
+
+_base = gorilla._get_base(BaguaProcessGroupPatch)
+_decorator_data = gorilla.get_decorator_data(_base)
+for patch in _decorator_data.patches:
+    gorilla.apply(patch)
+
+
+class BaguaProcessGroup:
+    """Definition of Bagua process group."""
+    def __init__(self, ranks, stream, group_name):
+        self.ranks = ranks
+        self.stream = stream
+        self.group_name = group_name
+
+        self.intra_ranks = list(
+            filter(
+                lambda rank: rank // get_local_size() == get_rank() // get_local_size(),
+                ranks,
+            )
+        )
+        self.inter_ranks = list(
+            filter(
+                lambda rank: rank % get_local_size() == ranks[0] % get_local_size(),
+                ranks,
+            )
+        )
+
+        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
+
+    def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the global communicator of current process group."""
+        return get_communicator(self.group_name, "global")
+
+    def get_inter_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the inter-node communicator of current process group."""
+        return get_communicator(self.group_name, "inter")
+
+    def get_intra_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
+        """Returns the intra-node communicator of current process group."""
+        return get_communicator(self.group_name, "intra")
+
+
 def _check_default_pg():
     """
     Helper that checks if the default process group has been initialized, with
@@ -92,16 +151,6 @@ def _get_default_group():
     return _default_pg
 
 
-def _rank_not_in_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
-    """
-    Return ``True`` if the current process's rank is not in a given communicator.
-
-    """
-    if comm is None:
-        return False
-    return comm == CommMember.NON_COMM_MEMBER
-
-
 def _bagua_backend_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
     """
     Return ``None`` if the current process's rank is not in a given communicator.
@@ -114,7 +163,7 @@ def _bagua_backend_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
 
 def new_group(
     ranks: Optional[List[int]] = None, stream: Optional[torch.cuda.Stream] = None
-):
+) -> BaguaProcessGroup:
     """
     Creates a new process group.
 
@@ -182,7 +231,10 @@ def new_group(
     return pg
 
 
-def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None):
+__torch_group_id = 0
+
+
+def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None) -> BaguaProcessGroup:
     """
     Convert a Pytorch process group to its equivalent Bagua process group.
 
@@ -195,42 +247,24 @@ def from_torch_group(group, stream: Optional[torch.cuda.Stream] = None):
     Returns:
        A handle of the Bagua process group.
     """
-    import torch.distributed.distributed_c10d as c10d
+    global __torch_group_id
 
-    ranks = list(c10d._pg_group_ranks[group].keys())
+    torch_group_id = __torch_group_id
+    __torch_group_id += 1
+
+    ranks = None
+    if group in c10d._pg_group_ranks:
+        ranks = list(c10d._pg_group_ranks[group].keys())
+    elif _default_store:
+        def rank_key(rank):
+            return "global rank of {}.{}".format(torch_group_id, rank)
+
+        _default_store.set(rank_key(group.rank()), env.get_rank())
+        ranks = [int(_default_store.get(rank_key(i))) for i in range(group.size())]
+    else:
+        ranks = list(range(group.size()))
 
     return new_group(ranks, stream)
-
-
-class BaguaProcessGroup:
-    def __init__(self, ranks, stream, group_name):
-        self.ranks = ranks
-        self.stream = stream
-        self.group_name = group_name
-
-        self.intra_ranks = list(
-            filter(
-                lambda rank: rank // get_local_size() == get_rank() // get_local_size(),
-                ranks,
-            )
-        )
-        self.inter_ranks = list(
-            filter(
-                lambda rank: rank % get_local_size() == ranks[0] % get_local_size(),
-                ranks,
-            )
-        )
-
-        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
-
-    def get_global_communicator(self):
-        return get_communicator(self.group_name, "global")
-
-    def get_inter_node_communicator(self):
-        return get_communicator(self.group_name, "inter")
-
-    def get_intra_node_communicator(self):
-        return get_communicator(self.group_name, "intra")
 
 
 @lru_cache(maxsize=None)
@@ -274,6 +308,26 @@ def get_communicator(group_name: str, comm_name: str):
     )
     comm.cuda_stream = pg.stream
     return comm
+
+
+def _rank_not_in_comm(comm: Optional[B.BaguaSingleCommunicatorPy] = None):
+    """
+    Return ``True`` if the current process's rank is not in a given communicator.
+
+    """
+    if comm is None:
+        return False
+    return comm == CommMember.NON_COMM_MEMBER
+
+
+def _rank_not_in_group(group: Optional[BaguaProcessGroup] = None):
+    """
+    Return ``True`` if the current process is not in a given process group.
+
+    """
+    if group is None:
+        return False
+    return _rank_not_in_comm(group.get_global_communicator())
 
 
 @lru_cache(maxsize=None)
@@ -346,7 +400,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         >>> import torch
         >>> import bagua.torch_api as bagua
         >>>
-        >>> torch.cuda.set_device(bagua.get_local_rank())
+        >>> torch.cuda.set_device(bagua.get_local_rank()) # THIS LINE IS IMPORTANT. See the notes below.
         >>> bagua.init_process_group()
         >>>
         >>> model = torch.nn.Sequential(
@@ -360,6 +414,11 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         ...    momentum=0.9
         ...    )
         >>> model = model.with_bagua([optimizer], ...)
+
+    .. note::
+        Each process should be associated to a CUDA device using `torch.cuda.set_device()`,
+        before calling :meth:`init_process_group`. Otherwise you may encounter the
+        `fatal runtime error: Rust cannot catch foreign exceptions` error.
     """
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server()
@@ -1079,6 +1138,82 @@ def alltoall_inplace(
 
     with torch.cuda.stream(comm.cuda_stream):
         comm.alltoall_inplace(tensor.to_bagua_tensor().bagua_backend_tensor())
+
+    comm.cuda_stream.synchronize()
+
+
+def alltoall_v(
+    send_tensor: torch.Tensor,
+    send_counts: int,
+    send_displs: int,
+    recv_tensor: torch.Tensor,
+    recv_counts: int,
+    recv_displs: int,
+    comm: Optional[B.BaguaSingleCommunicatorPy] = None,
+):
+    """
+    Each process scatters :attr:`send_tensor` to all processes associated with the communicator and return the gathered
+    data in :attr:`recv_tensor`, each process may send a different amount of data and provide displacements for the input and output data.
+
+    Args:
+        send_tensor (torch.Tensor): Input of the collective, the size must be divisible by ``comm.nranks``.
+        send_counts: integer array equal to the group size specifying the number of elements to send to each processor.
+        send_displs: integer array (of length group size). Entry j specifies the displacement (relative to sendbuf from which to take the outgoing data destined for process j.
+        recv_tensor (torch.Tensor): Output of the collective, must have equal size with :attr:`send_tensor`.
+        recv_counts: integer array equal to the group size specifying the maximum number of elements that can be received from each processor.
+        recv_displs: integer array (of length group size). Entry i specifies the displacement (relative to recvbuf at which to place the incoming data from process i.
+        comm: A handle of the Bagua communicator to work on. By default, the global
+             communicator of the default process group will be used.
+    """
+    if _rank_not_in_comm(comm):
+        return
+
+    assert send_tensor.device != torch.device(
+        "cpu"
+    ), "send tensor must be CUDA and dense"
+    assert recv_tensor.device != torch.device(
+        "cpu"
+    ), "recv tensor must be CUDA and dense"
+
+    if comm is None or comm is CommMember.WORLD:
+        comm = _get_default_group().get_global_communicator()
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.alltoall_v(
+            send_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            send_counts,
+            send_displs,
+            recv_tensor.to_bagua_tensor().bagua_backend_tensor(),
+            recv_counts,
+            recv_displs,
+        )
+
+    comm.cuda_stream.synchronize()
+
+
+def alltoall_v_inplace(
+    tensor: torch.Tensor,
+    counts: int,
+    displs: int,
+    comm: Optional[B.BaguaSingleCommunicatorPy] = None,
+):
+    """The in-place version of :func:`alltoall_v`."""
+    if _rank_not_in_comm(comm):
+        return
+
+    assert tensor.device != torch.device("cpu"), "recv tensor must be CUDA and dense"
+
+    if comm is None or comm is CommMember.WORLD:
+        comm = _get_default_group().get_global_communicator()
+
+    event = torch.cuda.current_stream().record_event()
+    comm.cuda_stream.wait_event(event)
+
+    with torch.cuda.stream(comm.cuda_stream):
+        comm.alltoall_v_inplace(tensor.to_bagua_tensor().bagua_backend_tensor(), counts, displs)
 
     comm.cuda_stream.synchronize()
 

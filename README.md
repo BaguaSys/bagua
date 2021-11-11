@@ -12,16 +12,17 @@
 
 <br/>
 
-Bagua is a deep learning training acceleration framework for PyTorch developed by [AI platform@Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH](https://ds3lab.inf.ethz.ch/). Bagua currently supports:
+Bagua is a deep learning training acceleration framework for PyTorch developed by [AI platform@Kuaishou Technology](https://www.kuaishou.com/en) and [DS3 Lab@ETH Zürich](https://ds3lab.inf.ethz.ch/). Bagua currently supports:
 
 - **Advanced Distributed Training Algorithms**: Users can extend the training on a single GPU to multi-GPUs (may across multiple machines) by simply adding a few lines of code (optionally in [elastic mode](https://tutorials.baguasys.com/elastic-training/)). One prominent feature of Bagua is to provide a flexible system abstraction that supports state-of-the-art system relaxation techniques of distributed training. So far, Bagua has integrated communication primitives including
   - Centralized Synchronous Communication (e.g. [Gradient AllReduce](https://tutorials.baguasys.com/algorithms/gradient-allreduce))
   - Decentralized Synchronous Communication (e.g. [Decentralized SGD](https://tutorials.baguasys.com/algorithms/decentralized))
   - Low Precision Communication (e.g. [ByteGrad](https://tutorials.baguasys.com/algorithms/bytegrad))
   - Asynchronous Communication (e.g. [Async Model Average](https://tutorials.baguasys.com/algorithms/async-model-average))
+- [**Cached Dataset**](https://tutorials.baguasys.com/more-optimizations/cached-dataset): When data loading is slow or data preprocessing is tedious, they could become a major bottleneck of the whole training process. Bagua provides cached dataset to speedup this process by caching data samples in memory, so that reading these samples after the first time becomes much faster.
 - [**TCP Communication Acceleration (Bagua-Net)**](https://tutorials.baguasys.com/more-optimizations/bagua-net): Bagua-Net is a low level communication acceleration feature provided by Bagua. It can greatly improve the throughput of AllReduce on TCP network. You can enable Bagua-Net optimization on any distributed training job that uses NCCL to do GPU communication (this includes PyTorch-DDP, Horovod, DeepSpeed, and more).
 - [**Performance Autotuning**](https://tutorials.baguasys.com/performance-autotuning/): Bagua can automatically tune system parameters to achieve the highest throughput.
-- [**Generic Fused Optimizer**](https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/contrib/fused_optimizer/index.html): Bagua provides generic fused optimizer which improve the performance of optimizers by fusing the optimizer `.step()` operation on multiple layers. It can be applied to arbitrary PyTorch optimizer, in contrast to [NVIDIA Apex](https://nvidia.github.io/apex/optimizers.html)'s approach, where only some specific optimizers are implemented.
+- [**Generic Fused Optimizer**](https://tutorials.baguasys.com/more-optimizations/generic-fused-optimizer): Bagua provides generic fused optimizer which improve the performance of optimizers by fusing the optimizer `.step()` operation on multiple layers. It can be applied to arbitrary PyTorch optimizer, in contrast to [NVIDIA Apex](https://nvidia.github.io/apex/optimizers.html)'s approach, where only some specific optimizers are implemented.
 - [**Load Balanced Data Loader**](https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/contrib/load_balancing_data_loader/index.html): When the computation complexity of samples in training data are different, for example in NLP and speech tasks, where each sample have different lengths, distributed training throughput can be greatly improved by using Bagua's load balanced data loader, which distributes samples in a way that each worker's workload are similar.
 
 Its effectiveness has been evaluated in various scenarios, including VGG and ResNet on ImageNet, BERT Large and many industrial applications at Kuaishou.
@@ -58,11 +59,11 @@ For more comprehensive and up to date results, refer to [Bagua benchmark page](h
 
 Wheels (precompiled binary packages) are available for Linux (x86_64). Package names are different depending on your CUDA Toolkit version (CUDA Toolkit version is shown in `nvcc --version`).
 
-| CUDA Toolkit version | Installation command      |
-|----------------------|---------------------------|
-| >= v10.2             | pip install bagua-cuda102 |
-| >= v11.1             | pip install bagua-cuda111 |
-| >= v11.3             | pip install bagua-cuda113 |
+| CUDA Toolkit version | Installation command        |
+|----------------------|-----------------------------|
+| >= v10.2             | `pip install bagua-cuda102` |
+| >= v11.1             | `pip install bagua-cuda111` |
+| >= v11.3             | `pip install bagua-cuda113` |
 
 Add `--pre` to `pip install` commands to install pre-release (development) versions. See [Bagua tutorials](https://tutorials.baguasys.com/getting-started/) for quick start guide and more installation options.
 
@@ -127,4 +128,4 @@ Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
 
 You can also scan the following QR code to join our WeChat group :)
 
-<img src="https://user-images.githubusercontent.com/18649508/137583270-b344f88e-1f1f-4990-8015-8d833e9c1d0c.png" width="300"/>
+<img src="https://f000.backblazeb2.com/file/nozomi-public/bagua-wechat-qrcode.png" width="300"/>

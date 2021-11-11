@@ -9,7 +9,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    container: baguasys/bagua:latest
+    container: baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8
     steps:
       - uses: actions/checkout@v2
         with:
@@ -29,6 +29,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
       - name: Archive package artifacts
         uses: actions/upload-artifact@v2
         with:
@@ -38,7 +39,7 @@ jobs:
 
   check_source_install:
     runs-on: ubuntu-latest
-    container: baguasys/bagua:latest
+    container: baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8
     needs:
       - publish
     steps:
@@ -115,7 +116,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-
       - name: setup python
         uses: actions/setup-python@v2
         with:

@@ -42,6 +42,8 @@ from .communication import (  # noqa: F401
     allgather_inplace,
     alltoall,
     alltoall_inplace,
+    alltoall_v,
+    alltoall_v_inplace,
     reduce_scatter,
     reduce_scatter_inplace,
     ReduceOp,

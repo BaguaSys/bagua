@@ -8,6 +8,7 @@ import multiprocessing
 from bagua.torch_api.utils import flatten
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
+from bagua.torch_api.data_parallel import DistributedDataParallel as DDP
 
 
 class Net(nn.Module):
@@ -63,9 +64,10 @@ def run_model(
     run_epochs(1)
 
     # wrap model
-    model = model.with_bagua(
-        [optimizer],
-        bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(
+    model = DDP(
+        model,
+        optimizers=[optimizer],
+        algorithm=bagua.algorithms.gradient_allreduce.GradientAllReduceAlgorithm(
             hierarchical=hierarchical,
         ),
     )

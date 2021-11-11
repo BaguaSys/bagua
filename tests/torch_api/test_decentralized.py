@@ -7,6 +7,7 @@ import multiprocessing
 import os
 from bagua.torch_api.utils import flatten, unflatten
 import bagua.torch_api as bagua
+from bagua.torch_api.communication import _rank_not_in_group
 from tests import skip_if_cuda_not_available
 
 
@@ -67,6 +68,7 @@ def _init_torch_env(rank, nprocs, backend):
 def run_model(
     rank,
     nprocs,
+    nranks,
     hierarchical,
     peer_selection_mode,
     communication_interval,
@@ -74,6 +76,10 @@ def run_model(
     env,
 ):
     _init_bagua_env(rank, env)
+    group = bagua.communication.new_group(ranks=list(range(nranks)))
+
+    if _rank_not_in_group(group):
+        return
 
     # construct model and optimizer, etc.
     model = Net().cuda()
@@ -88,6 +94,7 @@ def run_model(
             peer_selection_mode=peer_selection_mode,
             communication_interval=communication_interval,
         ),
+        process_group=group,
     )
 
     ret = results[rank]
@@ -105,7 +112,8 @@ def run_model(
         loss.backward()
         optimizer.step()
 
-    ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
+    if not _rank_not_in_group(group):
+        ret.bucket_weight.copy_(model.bagua_buckets[0]._peer_weight)
 
 
 def run_torch_model(
@@ -253,9 +261,9 @@ def get_peer_rank(peer_selection_mode, rank, nranks, step, communication_interva
 
 class TestDecentralized(unittest.TestCase):
     def run_test_locally(
-        self, nprocs, hierarchical, peer_selection_mode, communication_interval
+        self, nprocs, nranks, hierarchical, peer_selection_mode, communication_interval
     ):
-        nprocs = torch.cuda.device_count()
+        assert nranks >= 0
         env = {
             "WORLD_SIZE": str(nprocs),
             "LOCAL_WORLD_SIZE": str(nprocs),
@@ -273,6 +281,7 @@ class TestDecentralized(unittest.TestCase):
                 args=(
                     i,
                     nprocs,
+                    nranks,
                     hierarchical,
                     peer_selection_mode,
                     communication_interval,
@@ -285,11 +294,11 @@ class TestDecentralized(unittest.TestCase):
 
         for p in processes:
             p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
+            self.assertEqual(p.exitcode, 0)
 
-        for rank in range(nprocs):
+        for rank in range(nranks):
             if peer_selection_mode == "all":
-                peer_rank = (rank + 1) % nprocs
+                peer_rank = (rank + 1) % nranks
                 # all workers have equal weights
                 self.assertTrue(
                     torch.equal(
@@ -301,7 +310,7 @@ class TestDecentralized(unittest.TestCase):
                 peer_rank = get_peer_rank(
                     peer_selection_mode,
                     rank,
-                    nprocs,
+                    nranks,
                     N_EPOCHS - 1,
                     communication_interval,
                 )
@@ -359,6 +368,7 @@ class TestDecentralized(unittest.TestCase):
                 args=(
                     i,
                     nprocs,
+                    nprocs,
                     hierarchical,
                     peer_selection_mode,
                     communication_interval,
@@ -396,14 +406,16 @@ class TestDecentralized(unittest.TestCase):
     def test_algorithm(self):
         nprocs = torch.cuda.device_count()
         self.run_test_locally(
-            nprocs=nprocs,
+            nprocs,
+            nprocs - 1,
             hierarchical=False,
             peer_selection_mode="all",
             communication_interval=1,
         )
 
         self.run_test_locally(
-            nprocs=nprocs,
+            nprocs,
+            (nprocs - 1) // 2 * 2,
             hierarchical=False,
             peer_selection_mode="shift_one",
             communication_interval=1,

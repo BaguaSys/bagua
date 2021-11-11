@@ -1,0 +1,20 @@
+# default fallback
+* @NOBLES5E
+
+# individual code owners override
+rust/bagua-net @shjwudp
+rust/bagua-core/bagua-core-c @shjwudp
+bagua/distributed @shjwudp
+bagua/service @shjwudp
+bagua/script @shjwudp
+bagua/torch_api/data_parallel @shjwudp
+bagua/torch_api/algorithms @wangraying
+bagua/torch_api/contrib/sync_batchnorm.py @Tengxu-Sun
+bagua/torch_api/model_parallel/moe @liuhatry
+bagua/torch_api/checkpoint @liuhatry
+bagua/bagua_core/bagua_install_deps.py @liuhatry
+rust/bagua-core/bagua-core-internal/src/communicators/mod.rs @liuhatry
+bagua/torch_api/contrib/fuse @wangraying
+bagua/torch_api/contrib/cached_loader.py @wangraying
+bagua/torch_api/contrib/cached_dataset.py @wangraying
+bagua/torch_api/contrib/load_balancing_data_loader.py @wangraying
