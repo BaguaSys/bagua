@@ -269,35 +269,6 @@ impl BaguaTensorPy {
         })
     }
 
-    pub fn reset(&self, torch_tensor: &PyAny) -> PyResult<()> {
-        // TODO: sanity check
-        let dtype = torch_tensor
-            .getattr("dtype")
-            .expect("must pass valid torch tensor")
-            .repr()?
-            .to_string();
-        let bagua_dtype = match dtype.as_str() {
-            "torch.float32" => BaguaTensorDtype::F32,
-            "torch.float16" => BaguaTensorDtype::F16,
-            "torch.int64" => BaguaTensorDtype::I64,
-            "torch.uint8" => BaguaTensorDtype::U8,
-            _ => {
-                return Err(PyRuntimeError::new_err(format!(
-                    "unsupported tensor dtype {}",
-                    dtype
-                )))
-            }
-        };
-
-        self.inner.reset_from_torch(
-            torch_tensor
-                .getattr("_cdata")
-                .expect("must pass valid torch tensor")
-                .extract()?,
-            bagua_dtype,
-        )
-    }
-
     pub fn compress(&self, method: &str, n_chunks: usize, target_chunk: i32) -> Self {
         Self {
             inner: self.inner.compress(method, n_chunks, target_chunk),
