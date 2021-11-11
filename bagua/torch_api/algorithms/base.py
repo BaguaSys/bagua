@@ -125,7 +125,6 @@ class AlgorithmImpl:
 
         def hook(parameter_name, parameter):
             if parameter_name in self._communication_tensor_names:
-                parameter.bagua_reset_(parameter.grad)
                 assert (
                     parameter.bagua_backend_tensor().data_ptr()
                     == parameter.grad.data_ptr()
