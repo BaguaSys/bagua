@@ -49,6 +49,9 @@ _default_store = None
 # Process group count for default naming
 _group_count = 0
 
+# Torch process group to bagua process group map
+_torch_pg_to_bagua_pg = {}
+
 
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 class ReduceOp(IntEnum):
@@ -68,16 +71,25 @@ class ReduceOp(IntEnum):
 @gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
 class BaguaProcessGroupPatch:
     def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
-        self.bagua_pg = from_torch_group(self, stream)
+        global _torch_pg_to_bagua_pg
+        _torch_pg_to_bagua_pg[self] = from_torch_group(self, stream)
+        return self
+
+    @property
+    def bagua_pg(self):
+        return _torch_pg_to_bagua_pg[self]
 
     def bagua_get_global_communicator(self):
-        return get_communicator(self.bagua_pg.group_name, "global")
+        global _torch_pg_to_bagua_pg
+        return get_communicator(_torch_pg_to_bagua_pg[self].group_name, "global")
 
     def bagua_get_inter_node_communicator(self):
-        return get_communicator(self.bagua_pg.group_name, "inter")
+        global _torch_pg_to_bagua_pg
+        return get_communicator(_torch_pg_to_bagua_pg[self].group_name, "inter")
 
     def bagua_get_intra_node_communicator(self):
-        return get_communicator(self.bagua_pg.group_name, "intra")
+        global _torch_pg_to_bagua_pg
+        return get_communicator(_torch_pg_to_bagua_pg[self].group_name, "intra")
 
 
 _base = gorilla._get_base(BaguaProcessGroupPatch)
