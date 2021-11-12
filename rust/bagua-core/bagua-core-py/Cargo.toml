@@ -28,7 +28,7 @@ version = "0.15.0"
 features = ["extension-module"]
 
 [build-dependencies]
-shadow-rs = "0.7"
+shadow-rs = "0.8"
 cpp_build = "0.5"
 cc = "1.0"
 cmd_lib = "1.3"

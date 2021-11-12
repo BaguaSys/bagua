@@ -259,7 +259,7 @@ dependencies = [
  "openssl-sys",
  "parking_lot",
  "pyo3 0.13.2",
- "shadow-rs 0.6.13",
+ "shadow-rs",
  "tracing",
  "tracing-subscriber 0.3.1",
  "which",
@@ -294,7 +294,7 @@ dependencies = [
  "scheduled-thread-pool",
  "serde",
  "serde_json",
- "shadow-rs 0.7.2",
+ "shadow-rs",
  "sized-object-pool",
  "thiserror",
  "tracing",
@@ -320,7 +320,7 @@ dependencies = [
  "openssl-sys",
  "parking_lot",
  "pyo3 0.15.0",
- "shadow-rs 0.7.2",
+ "shadow-rs",
  "tracing",
  "tracing-subscriber 0.3.1",
  "which",
@@ -1165,6 +1165,12 @@ name = "ipnet"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f2d64f2edebec4ce84ad108148e67e1064789bee435edc5b60ad398714a3a9"
+
+[[package]]
+name = "is_debug"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06d198e9919d9822d5f7083ba8530e04de87841eaf21ead9af8f2304efd57c89"
 
 [[package]]
 name = "itertools"
@@ -2124,22 +2130,13 @@ dependencies = [
 
 [[package]]
 name = "shadow-rs"
-version = "0.6.13"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34aa4acee547e80ee27be89308f61409058e0b4e9396f59461ed2de11c71e5b6"
+checksum = "790bb44e86d1699729a2868a829b9cf0f9ff09d5ba30544143db5372b6bc7565"
 dependencies = [
  "chrono",
  "git2",
-]
-
-[[package]]
-name = "shadow-rs"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7900a3c58381cac8ec6f4f4a44bec7c4e6d221c19851034d7251ec185afbb32"
-dependencies = [
- "chrono",
- "git2",
+ "is_debug",
 ]
 
 [[package]]
