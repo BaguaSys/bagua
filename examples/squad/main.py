@@ -269,6 +269,12 @@ def train(args, train_dataset, model, tokenizer):
             train_dataloader, desc="Iteration", disable=bagua.get_rank() != 0
         )
         for step, batch in enumerate(epoch_iterator):
+            if args.prof >= 0 and step == args.prof:
+                print("Profiling begun at iteration {}".format(step))
+                torch.cuda.cudart().cudaProfilerStart()
+
+            if args.prof >= 0:
+                torch.cuda.nvtx.range_push("Body of iteration {}".format(step))
 
             # Skip past any already trained steps if resuming training
             if steps_trained_in_current_epoch > 0:
@@ -310,7 +316,17 @@ def train(args, train_dataset, model, tokenizer):
                         }
                     )
 
+            if args.prof >= 0:
+                torch.cuda.nvtx.range_push("forward")
+
             outputs = model(**inputs)
+
+            if args.prof >= 0:
+                torch.cuda.nvtx.range_pop()
+
+            if args.prof >= 0:
+                torch.cuda.nvtx.range_push("backward")
+
             # model outputs are always tuple in transformers (see doc)
             loss = outputs[0]
 
@@ -326,9 +342,15 @@ def train(args, train_dataset, model, tokenizer):
                     scaled_loss.backward()
             else:
                 loss.backward()
+            if args.prof >= 0:
+                torch.cuda.nvtx.range_pop()
 
             tr_loss += loss.item()
+
             if (step + 1) % args.gradient_accumulation_steps == 0:
+                if args.prof >= 0:
+                    torch.cuda.nvtx.range_push("optimizer.step()")
+
                 if args.fp16:
                     torch.nn.utils.clip_grad_norm_(
                         amp.master_params(optimizer), args.max_grad_norm
@@ -342,6 +364,10 @@ def train(args, train_dataset, model, tokenizer):
                     optimizer.fuse_step()
                 else:
                     optimizer.step()
+
+                if args.prof >= 0:
+                    torch.cuda.nvtx.range_pop()
+
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
@@ -393,6 +419,18 @@ def train(args, train_dataset, model, tokenizer):
                     logger.info(
                         "Saving optimizer and scheduler states to %s", output_dir
                     )
+
+            # Pop range "Body of iteration {}".format(i)
+            if args.prof >= 0:
+                torch.cuda.nvtx.range_pop()
+
+            if args.prof >= 0 and step == args.prof + 10:
+                print("Profiling ended at iteration {}".format(step))
+                torch.cuda.cudart().cudaProfilerStop()
+
+                if args.algorithm == "async":
+                    model.bagua_algorithm.abort(model)
+                quit()
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
@@ -579,7 +617,7 @@ def evaluate(args, model, tokenizer, prefix=""):
 
 
 def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=False):
-    if bagua.get_rank() != 0 and not evaluate:
+    if args.distributed and bagua.get_rank() != 0 and not evaluate:
         # Make sure only the first process in distributed training process the dataset, and the others will use the cache
         torch.distributed.barrier()
 
@@ -659,7 +697,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
                 cached_features_file,
             )
 
-    if bagua.get_rank() == 0 and not evaluate:
+    if args.distributed and bagua.get_rank() == 0 and not evaluate:
         # Make sure only the first process in distributed training process the dataset, and the others will use the cache
         torch.distributed.barrier()
 
@@ -918,6 +956,9 @@ def main():
         action="store_true",
         default=False,
         help="set deterministic or not",
+    )
+    parser.add_argument(
+        "--prof", default=-1, type=int, help="Only run 10 iterations for profiling."
     )
     parser.add_argument(
         "--algorithm",
