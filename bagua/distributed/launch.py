@@ -249,11 +249,10 @@ def main():
                 )
 
         cmd.append(args.training_script)
+        cmd.extend(args.training_script_args)
 
         if args.set_additional_flag:
             cmd.append("--local_rank={}".format(local_rank))
-
-        cmd.extend(args.training_script_args)
 
         stdout_handle: Optional[IO]
         stderr_handle: Optional[IO]
