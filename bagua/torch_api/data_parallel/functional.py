@@ -66,7 +66,7 @@ class _AllReduce(Function):
                 int(torch_reduce_op_to_bagua(op)),
             )
 
-        comm.cuda_stream.synchronize()
+        # comm.cuda_stream.synchronize()
 
         return tensor
 
