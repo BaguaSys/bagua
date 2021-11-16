@@ -160,6 +160,7 @@ _ignore_functions = [
     "bagua.torch_api.env.get_is_output_autotune_log",
     "bagua.torch_api.globals.is_initialized",
     "bagua.torch_api.data_parallel.to_bagua_process_group",
+    "bagua.torch_api.data_parallel.functional.torch_reduce_op_to_bagua",
 ]
 _ignore_classes = [
     "bagua.torch_api.algorithms.BaguaModule",
