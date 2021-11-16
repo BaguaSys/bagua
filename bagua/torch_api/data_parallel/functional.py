@@ -47,6 +47,9 @@ def all_reduce(tensor, op=dist.ReduceOp.SUM, group=dist.group.WORLD):
         Tensor: Output of the collective
 
     """
+    if group is None:
+        group = dist.group.WORLD
+
     return _AllReduce.apply(op, group, tensor)
 
 

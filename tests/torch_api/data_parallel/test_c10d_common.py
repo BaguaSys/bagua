@@ -43,6 +43,8 @@ from torch.testing._internal.common_utils import (
     IS_WINDOWS,
 )
 
+import bagua.torch_api.data_parallel.functional as bagua_dist
+
 # load_tests from common_utils is used to automatically filter tests for
 # sharding on sandcastle. This line silences flake warnings
 load_tests = load_tests
@@ -921,7 +923,7 @@ class AbstractCommTest(object):
         # Verify sequence numbers are appropriately incremented
         for i in range(10):
             t = torch.ones(1, device=torch.cuda.current_device())
-            dist.all_reduce(t, group=process_group)
+            bagua_dist.all_reduce(t, group=process_group)
             if not c10d.distributed_c10d._rank_not_in_group(process_group):
                 seq_num = self._verify_sequence_number_across_pg(
                     pg=process_group,
@@ -932,7 +934,7 @@ class AbstractCommTest(object):
         if dist.get_world_size(process_group) > 2:
             # Test when certain ranks don't call collectives
             if dist.get_rank(process_group) not in [0, 2]:
-                dist.all_reduce(t, group=process_group, async_op=True)
+                bagua_dist.all_reduce(t, group=process_group, async_op=True)
             # Now ranks 0 and 2 should be lagging by 1.
             if not c10d.distributed_c10d._rank_not_in_group(process_group):
                 seq_num = process_group._get_sequence_number_for_group()
