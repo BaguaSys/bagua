@@ -72,7 +72,8 @@ class ReduceOp(IntEnum):
 class BaguaProcessGroupPatch:
     def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
         global _torch_pg_to_bagua_pg
-        _torch_pg_to_bagua_pg[self] = from_torch_group(self, stream)
+        if self not in _torch_pg_to_bagua_pg:
+            _torch_pg_to_bagua_pg[self] = from_torch_group(self, stream)
         return self
 
     @property
