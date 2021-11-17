@@ -194,7 +194,7 @@ impl BaguaCommBackend {
                     bagua_opentelemetry::init_tracer(&server_addr);
                 }
                 Err(_) => {
-                    tracing::warn!(
+                    tracing::info!(
                         "Parameter autotuning service not detected. Enabling it may further improve the performance. See https://tutorials.baguasys.com/performance-autotuning/ for more details."
                     );
                 }
