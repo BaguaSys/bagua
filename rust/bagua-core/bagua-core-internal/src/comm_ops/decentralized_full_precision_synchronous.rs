@@ -71,7 +71,9 @@ impl CommOpTrait for DecentralizedFullPrecisionSynchronous {
                         assert_eq!(
                             c.nranks % 2,
                             0,
-                            "you cannot use decentralized algorithm with average_all off when there are odd number of ranks, current n_ranks {}",
+                            "You cannot use decentralized algorithm with average_all off when there are odd number of ranks, current n_ranks {}. \
+                            Note that by default hierarchical communication is enabled, where n_ranks will become the number of machines instead of number of GPUs. \
+                            See https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/algorithms/decentralized/index.html for details.",
                             c.nranks
                         );
                         let rank = c.rank as i64;
