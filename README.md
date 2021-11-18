@@ -124,7 +124,7 @@ With above setup, we created two identical clusters to benchmark a synthesized i
 
 ## Discussion
 
-Feel free to join our [Zulip chat](https://bagua.zulipchat.com) for discussion!
+Feel free to join our [Telegram Group](https://t.me/joinchat/eaYGJyutFYVjMzVh) for discussion!
 
 You can also scan the following QR code to join our WeChat group :)
 
