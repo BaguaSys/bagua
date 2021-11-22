@@ -16,7 +16,7 @@ def is_moe_param(param: torch.Tensor) -> bool:
     else:
         dp_comm = "dp"
 
-    if dp_comm is None:
+    if dp_comm == "none":
         return True
 
     if hasattr(param, "expert") and param.expert:
