@@ -21,29 +21,29 @@
 namespace multihead_attn {
 namespace self_multihead_attention {
 
-torch::Tensor fwd_cuda(
+std::vector<torch::Tensor> fwd_cuda(
     int                  heads,
     torch::Tensor const& inputs
     );
 
-torch::Tensor bwd_cuda(
+std::vector<torch::Tensor> bwd_cuda(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs
     );
 
-torch::Tensor fwd(
+std::vector<torch::Tensor> fwd(
     int                  heads,
     torch::Tensor const& inputs) {
 
-  AT_ASSERTM(inputs.dim()         == 3, "expected 3D tensor");
+  AT_ASSERTM(inputs.dim()          == 3, "expected 3D tensor");
 
   AT_ASSERTM(inputs.type().scalarType()         == at::ScalarType::Half, "Only HALF is supported");
 
   return fwd_cuda(heads, inputs);
 }
 
-torch::Tensor bwd(
+std::vector<torch::Tensor> bwd(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs) {

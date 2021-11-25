@@ -24,7 +24,8 @@ std::vector<torch::Tensor> fwd_cuda(
                                torch::Tensor const& inputs
                              )
 {
-  const int   embed_dim      = inputs.size(2);
+  
+  const int   embed_dim      = inputs.size(2) / 3;
   const int   sequences      = inputs.size(1);
   const int   q_seq_len      = inputs.size(0);
   const int   k_seq_len      = q_seq_len;
@@ -51,7 +52,7 @@ std::vector<torch::Tensor> fwd_cuda(
   // Input Linear Results Pointers to Q, K, and V of interviewed activations
   void* inputs_q_ptr   = static_cast<void*>(inputs.data_ptr());
   void* inputs_k_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + head_dim);
-  void* inputs_v_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + 2*head_dim);
+  void* inputs_v_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + 2 * head_dim);
 
   void* outputs_ptr = static_cast<void*>(outputs.data_ptr());
 
@@ -81,6 +82,7 @@ std::vector<torch::Tensor> fwd_cuda(
                              k_seq_len*q_seq_len,
                              attn_batches);
 
+
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_DEFAULT_MATH));
 
   return {
@@ -94,7 +96,7 @@ std::vector<torch::Tensor> bwd_cuda(
                                torch::Tensor const& inputs
                                    )
 {
-  const int   embed_dim      = inputs.size(2);
+  const int   embed_dim      = inputs.size(2) / 3;
   const int   sequences      = inputs.size(1);
   const int   q_seq_len      = inputs.size(0);
   const int   k_seq_len      = q_seq_len;

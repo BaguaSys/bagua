@@ -21,20 +21,20 @@
 namespace multihead_attn {
 namespace multihead_attention {
 
-torch::Tensor fwd_cuda(
+std::vector<torch::Tensor> fwd_cuda(
     int                  heads,
     torch::Tensor const& inputs_q,
     torch::Tensor const& inputs_kv
     );
 
-torch::Tensor bwd_cuda(
+std::vector<torch::Tensor> bwd_cuda(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs_q,
     torch::Tensor const& inputs_kv
     );
 
-torch::Tensor fwd(
+std::vector<torch::Tensor> fwd(
     int                  heads,
     torch::Tensor const& inputs_q,
     torch::Tensor const& inputs_kv) {
@@ -48,7 +48,7 @@ torch::Tensor fwd(
   return fwd_cuda(heads, inputs_q, inputs_kv);
 }
 
-torch::Tensor bwd(
+std::vector<torch::Tensor> bwd(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs_q,

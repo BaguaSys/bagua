@@ -7,7 +7,6 @@ import os
 
 
 ext_modules = []
-this_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_cuda_bare_metal_version(cuda_dir):
@@ -50,66 +49,74 @@ def check_cuda_torch_binary_vs_bare_metal(cuda_dir):
 
 check_cuda_torch_binary_vs_bare_metal(cpp_extension.CUDA_HOME)
 
-cc_flag = []
-_, bare_metal_major, _ = get_cuda_bare_metal_version(cpp_extension.CUDA_HOME)
-if int(bare_metal_major) >= 11:
-    cc_flag.append('-gencode')
-    cc_flag.append('arch=compute_80,code=sm_80')
 
-ext_modules.append(
-    cpp_extension.CUDAExtension(
-        name="bagua_self_multihead_attn_cuda",
-        sources=[
-            "self_multihead_attention.cpp",
-            "self_multihead_attention_kernel.cu",
-        ],
-        extra_compile_args={
-            "cxx": [
-                "-O3",
-            ], 
-            "nvcc": [
-                "-O3",
-                "-gencode=arch=compute_70,code=sm_70",
-                "-gencode=arch=compute_75,code=sm_75",
-                "-gencode=arch=compute_75,code=compute_75",
-                "-U__CUDA_NO_HALF_OPERATORS__",
-                "-U__CUDA_NO_HALF_CONVERSIONS__",
-                "--expt-relaxed-constexpr",
-                "--expt-extended-lambda",
-                "--use_fast_math",
-            ] + cc_flag
-        },
-        include_dirs=[os.path.join(this_dir, "cutlass")],
+def build_ext_modules():
+
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    cc_flag = []
+    _, bare_metal_major, _ = get_cuda_bare_metal_version(cpp_extension.CUDA_HOME)
+    if int(bare_metal_major) >= 11:
+        cc_flag.append("-gencode")
+        cc_flag.append("arch=compute_80,code=sm_80")
+
+    ext_modules.append(
+        cpp_extension.CUDAExtension(
+            name="bagua_self_multihead_attn_cuda",
+            sources=[
+                "self_multihead_attention.cpp",
+                "self_multihead_attention_kernel.cu",
+            ],
+            extra_compile_args={
+                "cxx": [
+                    "-O3",
+                ],
+                "nvcc": [
+                    "-O3",
+                    "-gencode=arch=compute_70,code=sm_70",
+                    "-gencode=arch=compute_75,code=sm_75",
+                    "-gencode=arch=compute_75,code=compute_75",
+                    "-U__CUDA_NO_HALF_OPERATORS__",
+                    "-U__CUDA_NO_HALF_CONVERSIONS__",
+                    "--expt-relaxed-constexpr",
+                    "--expt-extended-lambda",
+                    "--use_fast_math",
+                ]
+                + cc_flag,
+            },
+            include_dirs=[os.path.join(this_dir, "cutlass")],
+        )
     )
-)
-ext_modules.append(
-    cpp_extension.CUDAExtension(
-        name="bagua_multihead_attn_cuda",
-        sources=[
-            "multihead_attention.cpp",
-            "multihead_attention_kernel.cu",
-        ],
-        extra_compile_args={
-            "cxx": [
-                "-O3",
-            ], 
-            "nvcc": [
-                "-O3",
-                "-gencode=arch=compute_70,code=sm_70",
-                "-gencode=arch=compute_75,code=sm_75",
-                "-gencode=arch=compute_75,code=compute_75",
-                "-U__CUDA_NO_HALF_OPERATORS__",
-                "-U__CUDA_NO_HALF_CONVERSIONS__",
-                "--expt-relaxed-constexpr",
-                "--expt-extended-lambda",
-                "--use_fast_math",
-            ] + cc_flag
-        },
-        include_dirs=[os.path.join(this_dir, "cutlass")],
+    ext_modules.append(
+        cpp_extension.CUDAExtension(
+            name="bagua_multihead_attn_cuda",
+            sources=[
+                "multihead_attention.cpp",
+                "multihead_attention_kernel.cu",
+            ],
+            extra_compile_args={
+                "cxx": [
+                    "-O3",
+                ],
+                "nvcc": [
+                    "-O3",
+                    "-gencode=arch=compute_70,code=sm_70",
+                    "-gencode=arch=compute_75,code=sm_75",
+                    "-gencode=arch=compute_75,code=compute_75",
+                    "-U__CUDA_NO_HALF_OPERATORS__",
+                    "-U__CUDA_NO_HALF_CONVERSIONS__",
+                    "--expt-relaxed-constexpr",
+                    "--expt-extended-lambda",
+                    "--use_fast_math",
+                ]
+                + cc_flag,
+            },
+            include_dirs=[os.path.join(this_dir, "cutlass")],
+        )
     )
-)
+
 
 if __name__ == "__main__":
+    build_ext_modules()
     setup(
         name="bagua_kernels",
         ext_modules=ext_modules,
