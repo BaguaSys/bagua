@@ -61,10 +61,10 @@ def build_ext_modules():
 
     ext_modules.append(
         cpp_extension.CUDAExtension(
-            name="bagua_self_multihead_attn_cuda",
+            name="bagua_self_multihead_attn_raw_cuda",
             sources=[
-                "self_multihead_attention.cpp",
-                "self_multihead_attention_kernel.cu",
+                "self_multihead_attention_raw.cpp",
+                "self_multihead_attention_raw_kernel.cu",
             ],
             extra_compile_args={
                 "cxx": [
@@ -88,10 +88,10 @@ def build_ext_modules():
     )
     ext_modules.append(
         cpp_extension.CUDAExtension(
-            name="bagua_multihead_attn_cuda",
+            name="bagua_multihead_attn_raw_cuda",
             sources=[
-                "multihead_attention.cpp",
-                "multihead_attention_kernel.cu",
+                "multihead_attention_raw.cpp",
+                "multihead_attention_raw_kernel.cu",
             ],
             extra_compile_args={
                 "cxx": [

@@ -19,7 +19,8 @@
 #include <vector>
 
 namespace multihead_attn {
-namespace self_multihead_attention {
+namespace self {
+namespace raw_attention_score {
 
 std::vector<torch::Tensor> fwd_cuda(
     int                  heads,
@@ -57,21 +58,22 @@ std::vector<torch::Tensor> bwd(
   AT_ASSERTM(output_grads.dim() == 3, "expected 3D tensor");
   AT_ASSERTM(inputs.dim()       == 3, "expected 3D tensor");
 
-  AT_ASSERTM(output_grads.scalar_type() == at::ScalarType::Half, 
+  AT_ASSERTM(output_grads.scalar_type() == at::ScalarType::Half,
       "Only HALF is supported");
   AT_ASSERTM(inputs.type().scalarType()  == at::ScalarType::Half, "Only HALF is supported");
 
   return bwd_cuda(heads, output_grads, inputs, scale);
 }
 
-} // end namespace self_multihead_attention
+} // end namespace raw_attention_score
+} // end namespace self
 } // end namespace multihead_attn
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("forward", 
-        &multihead_attn::self_multihead_attention::fwd,
-	"Self Multihead Attention Forward");
+        &multihead_attn::self::raw_attention_score::fwd,
+	"Self Multihead Attention Raw (Scaled Dot-Product) Attention Score Forward");
   m.def("backward", 
-        &multihead_attn::self_multihead_attention::bwd,
-	"Self Multihead Attention Backward");
+        &multihead_attn::self::raw_attention_score::bwd,
+	"Self Multihead Attention Raw (Scaled Dot-Product) Attention Score Backward");
 }

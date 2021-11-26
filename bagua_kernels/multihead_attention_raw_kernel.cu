@@ -17,28 +17,31 @@
 extern THCState *state;
 
 namespace multihead_attn {
-namespace self_multihead_attention {
+namespace cross {
+namespace raw_attention_score {
 
 std::vector<torch::Tensor> fwd_cuda(
                                int                  heads,
-                               torch::Tensor const& inputs,
-                               float                scale
+                               torch::Tensor const& inputs_q,
+                               torch::Tensor const& inputs_kv
                              )
 {
-  
-  const int   embed_dim      = inputs.size(2) / 3;
-  const int   sequences      = inputs.size(1);
-  const int   q_seq_len      = inputs.size(0);
-  const int   k_seq_len      = q_seq_len;
+  const int   embed_dim      = inputs_q.size(2);
+  const int   sequences      = inputs_q.size(1);
+  const int   q_seq_len      = inputs_q.size(0);
+  const int   k_seq_len      = inputs_kv.size(0);
   const int   head_dim       = embed_dim / heads;
 
   const int   attn_batches   = heads * sequences;
-  const int   lead_dim       = attn_batches * 3 * head_dim;
-  const int   batch_stride   = 3 * head_dim;
+  const int   lead_dim_q        = attn_batches * head_dim;
+  const int   lead_dim_kv       = attn_batches * 2 *head_dim;
+  const int   batch_stride_q    = head_dim;
+  const int   batch_stride_kv   = 2 * head_dim;
 
   const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
   const float alpha          = 1.0;
   const float beta           = 0.0;
+  const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
 
   // There is no reason to use more than one stream as every kernel is
   // sequentially dependent
@@ -46,14 +49,10 @@ std::vector<torch::Tensor> fwd_cuda(
   cudaStream_t   stream = at::cuda::getCurrentCUDAStream().stream();
   cublasSetStream(handle, stream);
 
-  auto act_options  = inputs.options().requires_grad(false);
+  auto act_options  = inputs_q.options().requires_grad(false);
   torch::Tensor outputs   = torch::empty({attn_batches, q_seq_len, k_seq_len},   act_options);
 
-  // Input Linear Results Pointers to Q, K, and V of interviewed activations
-  void* inputs_q_ptr   = static_cast<void*>(inputs.data_ptr());
-  void* inputs_k_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + head_dim);
-  void* inputs_v_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + 2 * head_dim);
-
+  void* inputs_v_ptr   = static_cast<void*>(static_cast<half*>(inputs_kv.data_ptr()) + head_dim);
   void* outputs_ptr = static_cast<void*>(outputs.data_ptr());
 
   char a_layout_t{'t'};
@@ -62,6 +61,7 @@ std::vector<torch::Tensor> fwd_cuda(
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH));
 
+  // MatMul1 of Dot-Product Attention Plus scaling by 1/Sqrt(head size)
   gemm_switch_fp32accum(     state,
                              a_layout_t,
                              b_layout_n,
@@ -69,18 +69,17 @@ std::vector<torch::Tensor> fwd_cuda(
                              q_seq_len,
                              head_dim,
                              scale,
-                             static_cast<const half*>(inputs_k_ptr),
-                             lead_dim,
-                             batch_stride,
-                             static_cast<const half*>(inputs_q_ptr),
-                             lead_dim,
-                             batch_stride,
+                             static_cast<const half*>(inputs_kv.data_ptr()),
+                             lead_dim_kv,
+                             batch_stride_kv,
+                             static_cast<const half*>(inputs_q.data_ptr()),
+                             lead_dim_q,
+                             batch_stride_q,
                              beta,
                              static_cast<half*>(outputs_ptr),
                              k_seq_len,
                              k_seq_len*q_seq_len,
                              attn_batches);
-
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_DEFAULT_MATH));
 
@@ -92,23 +91,26 @@ std::vector<torch::Tensor> fwd_cuda(
 std::vector<torch::Tensor> bwd_cuda(
                                int                  heads,
                                torch::Tensor const& output_grads,
-                               torch::Tensor const& inputs,
-                               float                scale
+                               torch::Tensor const& inputs_q,
+                               torch::Tensor const& inputs_kv
                                    )
 {
-  const int   embed_dim      = inputs.size(2) / 3;
-  const int   sequences      = inputs.size(1);
-  const int   q_seq_len      = inputs.size(0);
-  const int   k_seq_len      = q_seq_len;
-  const int   head_dim       = embed_dim / heads;
+  const int   embed_dim         = inputs_q.size(2);
+  const int   sequences         = inputs_q.size(1);
+  const int   q_seq_len         = inputs_q.size(0);
+  const int   k_seq_len         = inputs_kv.size(0);
+  const int   head_dim          = embed_dim / heads;
 
-  const int   attn_batches   = heads * sequences;
-  const int   lead_dim       = attn_batches * 3 * head_dim;
-  const int   batch_stride   = 3 * head_dim;
+  const int   attn_batches      = heads * sequences;
+  const int   lead_dim_q        = attn_batches * head_dim;
+  const int   lead_dim_kv       = attn_batches * 2 * head_dim;
+  const int   batch_stride_q    = head_dim;
+  const int   batch_stride_kv   = 2 * head_dim;
 
   const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
   const float alpha          = 1.0;
   const float beta           = 0.0;
+  const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
 
   // TODO: Streams can be used in Backprop but I haven't added more than one
   // in my first attempt to create the code
@@ -117,15 +119,16 @@ std::vector<torch::Tensor> bwd_cuda(
   cublasSetStream(handle, stream);
 
   // Output Tensor Allocations
-  torch::Tensor inputs_grads   = torch::empty_like(inputs);
+  torch::Tensor inputs_q_grads   = torch::empty_like(inputs_q);
+  torch::Tensor inputs_kv_grads  = torch::empty_like(inputs_kv);
 
-  auto inputs_q_ptr = static_cast<half*>(inputs.data_ptr());
-  auto inputs_k_ptr = static_cast<half*>(inputs.data_ptr()) + head_dim;
-  auto inputs_v_ptr = static_cast<half*>(inputs.data_ptr()) + 2 * head_dim;
+  auto inputs_q_ptr = static_cast<half*>(inputs_q.data_ptr());
+  auto inputs_k_ptr = static_cast<half*>(inputs_kv.data_ptr());
+  auto inputs_v_ptr = static_cast<half*>(inputs_kv.data_ptr()) + head_dim;
 
-  auto inputs_q_grads_ptr = static_cast<half*>(inputs_grads.data_ptr());
-  auto inputs_k_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + head_dim;
-  auto inputs_v_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + 2 * head_dim;
+  auto inputs_q_grads_ptr = static_cast<half*>(inputs_q_grads.data_ptr());
+  auto inputs_k_grads_ptr = static_cast<half*>(inputs_kv_grads.data_ptr());
+  auto inputs_v_grads_ptr = static_cast<half*>(inputs_kv_grads.data_ptr()) + head_dim;
 
   char a_layout_n{'n'};
   char a_layout_t{'t'};
@@ -143,15 +146,15 @@ std::vector<torch::Tensor> bwd_cuda(
                              k_seq_len,
                              scale,
                              inputs_k_ptr,
-                             lead_dim,
-                             batch_stride,
+                             lead_dim_kv,
+                             batch_stride_kv,
                              static_cast<half*>(output_grads.data_ptr()),
                              k_seq_len,
                              k_seq_len*q_seq_len,
                              beta,
                              inputs_q_grads_ptr,
-                             lead_dim,
-                             batch_stride,
+                             lead_dim_q,
+                             batch_stride_q,
                              attn_batches);
 
   // Matmul1 Dgrad2
@@ -163,23 +166,25 @@ std::vector<torch::Tensor> bwd_cuda(
                              q_seq_len,
                              scale,
                              inputs_q_ptr,
-                             lead_dim,
-                             batch_stride,
+                             lead_dim_q,
+                             batch_stride_q,
                              static_cast<half*>(output_grads.data_ptr()),
                              k_seq_len,
                              k_seq_len*q_seq_len,
                              beta,
                              inputs_k_grads_ptr,
-                             lead_dim,
-                             batch_stride,
+                             lead_dim_kv,
+                             batch_stride_kv,
                              attn_batches);
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_DEFAULT_MATH));
 
   return {
-           inputs_grads,
+           inputs_q_grads,
+           inputs_kv_grads
          };
 }
 
-} // end namespace self_multihead_attention
+} // end namespace raw_attention_score
+} // end cross
 } // end namespace multihead_attn

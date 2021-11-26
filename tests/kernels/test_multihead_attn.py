@@ -1,7 +1,7 @@
 import torch
 import unittest
 import math
-from bagua.torch_api.contrib.fuse.multihead_attn import FusedMultiheadAttnFunc
+from bagua.torch_api.contrib.fuse.multihead_attn import MultiheadAttnRawScoreFunc
 
 
 class NaiveAttnFunc(torch.autograd.Function):
@@ -141,7 +141,7 @@ class TestSelfMultiheadAttn(unittest.TestCase):
         grads = torch.randn_like(tst_inputs_q)
 
         ref_outputs = NaiveAttnFunc.apply(16, ref_inputs_q, ref_inputs_kv)
-        tst_outputs = FusedMultiheadAttnFunc.apply(16, tst_inputs_q, tst_inputs_kv)
+        tst_outputs = MultiheadAttnRawScoreFunc.apply(16, tst_inputs_q, tst_inputs_kv)
 
         ref_inputs_q.backward(grads)
         tst_inputs_q.backward(grads)
