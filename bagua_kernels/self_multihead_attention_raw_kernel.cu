@@ -23,7 +23,7 @@ namespace raw_attention_score {
 std::vector<torch::Tensor> fwd_cuda(
                                int                  heads,
                                torch::Tensor const& inputs,
-                               float                scale
+                               float                coeff
                              )
 {
   
@@ -37,9 +37,9 @@ std::vector<torch::Tensor> fwd_cuda(
   const int   lead_dim       = attn_batches * 3 * head_dim;
   const int   batch_stride   = 3 * head_dim;
 
-  const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
   const float alpha          = 1.0;
   const float beta           = 0.0;
+  const float scale          = 1.0 / (sqrt(static_cast<float>(head_dim)) * coeff);
 
   // There is no reason to use more than one stream as every kernel is
   // sequentially dependent
@@ -53,12 +53,10 @@ std::vector<torch::Tensor> fwd_cuda(
   // Input Linear Results Pointers to Q, K, and V of interviewed activations
   void* inputs_q_ptr   = static_cast<void*>(inputs.data_ptr());
   void* inputs_k_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + head_dim);
-  void* inputs_v_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + 2 * head_dim);
 
   void* outputs_ptr = static_cast<void*>(outputs.data_ptr());
 
   char a_layout_t{'t'};
-  char a_layout_n{'n'};
   char b_layout_n{'n'};
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH));
@@ -94,7 +92,7 @@ std::vector<torch::Tensor> bwd_cuda(
                                int                  heads,
                                torch::Tensor const& output_grads,
                                torch::Tensor const& inputs,
-                               float                scale
+                               float                coeff
                                    )
 {
   const int   embed_dim      = inputs.size(2) / 3;
@@ -107,9 +105,9 @@ std::vector<torch::Tensor> bwd_cuda(
   const int   lead_dim       = attn_batches * 3 * head_dim;
   const int   batch_stride   = 3 * head_dim;
 
-  const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
   const float alpha          = 1.0;
   const float beta           = 0.0;
+  const float scale          = 1.0 / (sqrt(static_cast<float>(head_dim)) * coeff);
 
   // TODO: Streams can be used in Backprop but I haven't added more than one
   // in my first attempt to create the code
@@ -122,14 +120,11 @@ std::vector<torch::Tensor> bwd_cuda(
 
   auto inputs_q_ptr = static_cast<half*>(inputs.data_ptr());
   auto inputs_k_ptr = static_cast<half*>(inputs.data_ptr()) + head_dim;
-  auto inputs_v_ptr = static_cast<half*>(inputs.data_ptr()) + 2 * head_dim;
 
   auto inputs_q_grads_ptr = static_cast<half*>(inputs_grads.data_ptr());
   auto inputs_k_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + head_dim;
-  auto inputs_v_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + 2 * head_dim;
 
   char a_layout_n{'n'};
-  char a_layout_t{'t'};
   char b_layout_n{'n'};
   char b_layout_t{'t'};
 

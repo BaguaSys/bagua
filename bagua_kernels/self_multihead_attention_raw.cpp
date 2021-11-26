@@ -25,34 +25,34 @@ namespace raw_attention_score {
 std::vector<torch::Tensor> fwd_cuda(
     int                  heads,
     torch::Tensor const& inputs,
-    float                scale
+    float                coeff
     );
 
 std::vector<torch::Tensor> bwd_cuda(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs,
-    float                scale
+    float                coeff
     );
 
 std::vector<torch::Tensor> fwd(
     int                  heads,
     torch::Tensor const& inputs,
-    float                scale
+    float                coeff
     ) {
 
   AT_ASSERTM(inputs.dim()          == 3, "expected 3D tensor");
 
   AT_ASSERTM(inputs.type().scalarType()         == at::ScalarType::Half, "Only HALF is supported");
 
-  return fwd_cuda(heads, inputs, scale);
+  return fwd_cuda(heads, inputs, coeff);
 }
 
 std::vector<torch::Tensor> bwd(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs,
-    float                scale
+    float                coeff
     ) {
 
   AT_ASSERTM(output_grads.dim() == 3, "expected 3D tensor");
@@ -62,7 +62,7 @@ std::vector<torch::Tensor> bwd(
       "Only HALF is supported");
   AT_ASSERTM(inputs.type().scalarType()  == at::ScalarType::Half, "Only HALF is supported");
 
-  return bwd_cuda(heads, output_grads, inputs, scale);
+  return bwd_cuda(heads, output_grads, inputs, coeff);
 }
 
 } // end namespace raw_attention_score

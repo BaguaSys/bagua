@@ -128,7 +128,7 @@ class TestSelfMultiheadAttn(unittest.TestCase):
 
         ref_outputs = NaiveSelfAttnFunc.apply(16, ref_inputs)
         tst_outputs = SelfMultiheadAttnRawScoreFunc.apply(
-            16, tst_inputs, 1.0 / math.sqrt(1024 / 16)
+            16, tst_inputs, 1.0
         )
 
         ref_inputs.backward(grads)
