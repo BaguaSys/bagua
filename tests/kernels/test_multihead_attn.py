@@ -1,22 +1,24 @@
 import torch
 import unittest
 import math
-from bagua.torch_api.contrib.fuse.multihead_attn import FusedSelfMultiheadAttnFunc
+from bagua.torch_api.contrib.fuse.multihead_attn import FusedMultiheadAttnFunc
 
 
-class NaiveSelfAttnFunc(torch.autograd.Function):
+class NaiveAttnFunc(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, heads, inputs):
+    def forward(ctx, heads, inputs_q, inputs_kv):
 
-        embedding_dim = inputs.size(2) // 3
+        embedding_dim = inputs_q.size(2)
         head_dim = embedding_dim // heads
         scale = 1.0 / math.sqrt(head_dim)
 
         # inputs: [seql_q, batches=seqs*heads, 3, head_dim]
-        inputs = inputs.view(inputs.size(0), inputs.size(1) * heads, 3, head_dim)
-        queries = inputs[:, :, 0, :]
-        keys = inputs[:, :, 1, :]
-        values = inputs[:, :, 2, :]
+        inputs_kv = inputs_kv.view(
+            inputs_kv.size(0), inputs_kv.size(1) * heads, 2, head_dim
+        )
+        queries = inputs_q.view(inputs_q.size(0), inputs_q.size(1) * heads, head_dim)
+        keys = inputs_kv[:, :, 0, :]
+        values = inputs_kv[:, :, 1, :]
 
         # Matmul Batched GEMMs
         # The output tensor is specified prior to the Batch GEMM because baddbmm requires its specification
@@ -26,6 +28,7 @@ class NaiveSelfAttnFunc(torch.autograd.Function):
         # Input2: (Keys)    [seql_k, seqs*heads, head_dim] transpose(0,1)
         # output:           [seqs*heads, seql_q, seql_k]
         # GEMM: Per batch: ( seql_q x head_dim ) x ( head_dim x seql_k ) = ( seql_q x seql_k )
+
         matmul_results = torch.empty(
             (queries.size(1), queries.size(0), keys.size(0)),
             dtype=queries.dtype,
@@ -41,33 +44,38 @@ class NaiveSelfAttnFunc(torch.autograd.Function):
         )
 
         heads_t = torch.tensor([heads])
-        ctx.save_for_backward(heads_t, inputs)
+        ctx.save_for_backward(heads_t, inputs_q, inputs_kv)
 
         return matmul_results
 
     @staticmethod
     def backward(ctx, output_grads):
-        heads_t, inputs = ctx.saved_tensors
+        heads_t, inputs_q, inputs_kv = ctx.saved_tensors
 
-        embedding_dim = inputs.size(2) // 3
+        embedding_dim = inputs_q.size(2)
         head_dim = embedding_dim // heads_t[0]
         scale = 1.0 / math.sqrt(head_dim)
 
         # Slice out q,k,v from one big Input Linear outuput (should only impact meta data, no copies!)
         # Sequences and heads are combined to make the batch of the Batched GEMM
-        # inputs: [seql_q, batches=seqs*heads, 3, head_dim]
-        inputs = inputs.view(inputs.size(0), inputs.size(1) * heads_t[0], 3, head_dim)
-        queries = inputs[:, :, 0, :]
-        keys = inputs[:, :, 1, :]
-        values = inputs[:, :, 2, :]
+        # input_lin_results: [seql_q, seqs, heads(16), 3, head_dim(64)]
+        # input_lin_results: [seql_q, batches=seqs*heads, 3, head_dim]
+        inputs_kv = inputs_kv.view(
+            inputs_kv.size(0), inputs_kv.size(1) * heads, 2, head_dim
+        )
+        queries = inputs_q.view(inputs_q.size(0), inputs_q.size(1) * heads, head_dim)
+        keys = inputs_kv[:, :, 0, :]
+        values = inputs_kv[:, :, 1, :]
 
         # Slice out q,k,v from one big set of gradients entering the input linear's bprop  (should only impact meta data, no copies!)
         # The gradients are identical in size to the Input Linear outputs.
         # The tensor is declared before hand to properly slice out query, key, and value grads.
-        inputs_grads = torch.empty_like(inputs)
-        queries_grads = inputs_grads[:, :, 0, :]
-        keys_grads = inputs_grads[:, :, 1, :]
-        values_grads = inputs_grads[:, :, 2, :]
+        inputs_q_grads = torch.empty_like(inputs_q)
+        inputs_kv_grads = torch.empty_like(inputs_kv)
+
+        queries_grads = inputs_q_grads
+        keys_grads = inputs_kv_grads[:, :, 0, :]
+        values_grads = inputs_kv_grads[:, :, 1, :]
 
         # Matmul - DGRAD1
         # Input1: (data grads)  [seqs*heads, seql_q, seql_k]
@@ -96,7 +104,7 @@ class NaiveSelfAttnFunc(torch.autograd.Function):
             alpha=scale,
         )
 
-        return None, inputs_grads
+        return None, inputs_q_grads, inputs_kv_grads
 
 
 def construct_inputs(seed=47):
@@ -108,36 +116,41 @@ def construct_inputs(seed=47):
     hidden_dim = 1024
     heads = 16
 
-    inputs = torch.randn(
+    inputs_q = torch.randn(
         seq_length,
         sequences,
-        hidden_dim * 3,
+        hidden_dim,
         dtype=torch.float16,
         device=torch.device("cuda"),
     ).requires_grad_(True)
-    return inputs
+    inputs_kv = torch.randn(
+        seq_length,
+        sequences,
+        hidden_dim * 2,
+        dtype=torch.float16,
+        device=torch.device("cuda"),
+    ).requires_grad_(True)
+    return inputs_q, inputs_kv
 
 
 class TestSelfMultiheadAttn(unittest.TestCase):
     def test_self_multihead_attn(self):
 
-        ref_inputs = construct_inputs()
-        tst_inputs = construct_inputs()
+        ref_inputs_q, ref_inputs_kv = construct_inputs()
+        tst_inputs_q, tst_inputs_kv = construct_inputs()
+        grads = torch.randn_like(tst_inputs_q)
 
-        grads = torch.randn_like(tst_inputs)
+        ref_outputs = NaiveAttnFunc.apply(16, ref_inputs_q, ref_inputs_kv)
+        tst_outputs = FusedMultiheadAttnFunc.apply(16, tst_inputs_q, tst_inputs_kv)
 
-        ref_outputs = NaiveSelfAttnFunc.apply(16, ref_inputs)
-        tst_outputs = FusedSelfMultiheadAttnFunc.apply(
-            16, tst_inputs, 1.0 / math.sqrt(1024 / 16)
-        )
+        ref_inputs_q.backward(grads)
+        tst_inputs_q.backward(grads)
 
-        ref_inputs.backward(grads)
-        tst_inputs.backward(grads)
-
-        self.assertTrue(torch.equal(ref_inputs, tst_inputs))
+        self.assertTrue(torch.equal(ref_inputs_q, tst_inputs_q))
+        self.assertTrue(torch.equal(ref_inputs_kv, tst_inputs_kv))
         self.assertTrue(torch.allclose(ref_outputs, tst_outputs, atol=1e-3, rtol=1e-3))
         self.assertTrue(
-            torch.allclose(ref_inputs.grad, tst_inputs.grad, atol=1e-3, rtol=1e-3)
+            torch.allclose(ref_inputs_q.grad, tst_inputs_q.grad, atol=1e-3, rtol=1e-3)
         )
 
 

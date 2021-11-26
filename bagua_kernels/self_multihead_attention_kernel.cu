@@ -21,7 +21,8 @@ namespace self_multihead_attention {
 
 std::vector<torch::Tensor> fwd_cuda(
                                int                  heads,
-                               torch::Tensor const& inputs
+                               torch::Tensor const& inputs,
+                               float                scale
                              )
 {
   
@@ -38,7 +39,6 @@ std::vector<torch::Tensor> fwd_cuda(
   const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
   const float alpha          = 1.0;
   const float beta           = 0.0;
-  const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
 
   // There is no reason to use more than one stream as every kernel is
   // sequentially dependent
@@ -62,7 +62,6 @@ std::vector<torch::Tensor> fwd_cuda(
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH));
 
-  // MatMul1 of Dot-Product Attention Plus scaling by 1/Sqrt(head size)
   gemm_switch_fp32accum(     state,
                              a_layout_t,
                              b_layout_n,
@@ -93,7 +92,8 @@ std::vector<torch::Tensor> fwd_cuda(
 std::vector<torch::Tensor> bwd_cuda(
                                int                  heads,
                                torch::Tensor const& output_grads,
-                               torch::Tensor const& inputs
+                               torch::Tensor const& inputs,
+                               float                scale
                                    )
 {
   const int   embed_dim      = inputs.size(2) / 3;
@@ -109,7 +109,6 @@ std::vector<torch::Tensor> bwd_cuda(
   const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
   const float alpha          = 1.0;
   const float beta           = 0.0;
-  const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
 
   // TODO: Streams can be used in Backprop but I haven't added more than one
   // in my first attempt to create the code
@@ -122,11 +121,11 @@ std::vector<torch::Tensor> bwd_cuda(
 
   auto inputs_q_ptr = static_cast<half*>(inputs.data_ptr());
   auto inputs_k_ptr = static_cast<half*>(inputs.data_ptr()) + head_dim;
-  auto inputs_v_ptr = static_cast<half*>(inputs.data_ptr()) + 2*head_dim;
+  auto inputs_v_ptr = static_cast<half*>(inputs.data_ptr()) + 2 * head_dim;
 
   auto inputs_q_grads_ptr = static_cast<half*>(inputs_grads.data_ptr());
   auto inputs_k_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + head_dim;
-  auto inputs_v_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + 2*head_dim;
+  auto inputs_v_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + 2 * head_dim;
 
   char a_layout_n{'n'};
   char a_layout_t{'t'};

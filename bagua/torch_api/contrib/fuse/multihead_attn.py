@@ -25,19 +25,20 @@ class FusedMultiheadAttnFunc(torch.autograd.Function):
 
 class FusedSelfMultiheadAttnFunc(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, heads, inputs):
+    def forward(ctx, heads, inputs, scale):
         heads_t = torch.tensor([heads])
+        scale_t = torch.tensor([scale])
 
-        (outputs,) = bagua_self_multihead_attn_cuda.forward(heads, inputs)
-        ctx.save_for_backward(heads_t, inputs)
+        (outputs,) = bagua_self_multihead_attn_cuda.forward(heads, inputs, scale)
+        ctx.save_for_backward(heads_t, inputs, scale_t)
         return outputs
 
     @staticmethod
     def backward(ctx, output_grads):
-        heads_t, inputs = ctx.saved_tensors
+        heads_t, inputs, scale_t = ctx.saved_tensors
 
         (inputs_grads,) = bagua_self_multihead_attn_cuda.backward(
-            heads_t[0], output_grads, inputs
+            heads_t[0], output_grads, inputs, scale_t[0]
         )
 
         return None, inputs_grads
