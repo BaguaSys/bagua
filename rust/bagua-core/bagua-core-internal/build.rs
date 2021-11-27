@@ -24,7 +24,9 @@ fn main() {
         .include("third_party/cub-1.8.0")
         .include(nccl_dir.join("include").as_path())
         .flag("-std=c++14")
-        .flag("-cudart=shared");
+        .flag("-cudart=shared")
+        .flag("-g")
+        .flag("-G");
 
     if std::env::var("PROFILE").unwrap() == "release" {
         for sm in supported_sms {
@@ -49,6 +51,7 @@ fn main() {
         .define("NCCL_LIBRARY", nccl_dir.join("lib/libnccl.so"))
         .define("NCCL_INCLUDE_PATH", nccl_dir.join("include"))
         .define("BUILD_SHARED_LIBS", "off")
+        .define("ALUMINUM_DEBUG_HANG_CHECK", "on")
         .out_dir(bagua_data_path.as_path().to_str().unwrap())
         .always_configure(true)
         .build();
