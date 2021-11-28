@@ -100,6 +100,7 @@ if __name__ == "__main__":
                 path="rust/bagua-core/bagua-core-py/Cargo.toml",
                 binding=Binding.PyO3,
                 native=False,
+		debug=True,
             ),
         ],
         author="Kuaishou AI Platform & DS3 Lab",
