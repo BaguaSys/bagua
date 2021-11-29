@@ -4,12 +4,18 @@ from distutils.errors import (
     DistutilsPlatformError,
 )
 from setuptools_rust import Binding, RustExtension
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 import shutil
 import sys
 from typing import List
 from pathlib import Path
 
 library_records = {}
+
+try:
+    from torch.utils.cpp_extension import IS_HIP_EXTENSION
+except:
+    IS_HIP_EXTENSION = False
 
 
 def check_torch_version():
@@ -102,6 +108,19 @@ if __name__ == "__main__":
                 native=False,
             ),
         ],
+        ext_modules=[
+            CUDAExtension('tutel_custom_kernel', [
+                './bagua/torch_api/model_parallel/tutel/tutel/custom/custom_kernel.cpp',
+                './bagua/torch_api/model_parallel/tutel/tutel/custom/bagua_kernels.cu',
+            ],
+            library_dirs=['/usr/local/cuda/lib64/stubs'],
+            libraries=['dl', 'cuda', 'nvrtc', 'nccl'] if not IS_HIP_EXTENSION else [],
+            extra_compile_args={'cxx': ['-Wno-sign-compare', '-Wno-unused-but-set-variable']})
+        ],
+        cmdclass={
+            'build_ext': BuildExtension
+        },
+
         author="Kuaishou AI Platform & DS3 Lab",
         author_email="admin@mail.xrlian.com",
         install_requires=[

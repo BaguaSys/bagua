@@ -2,3 +2,8 @@
 	path = rust/bagua-core/bagua-core-internal/third_party/Aluminum
 	url = https://github.com/BaguaSys/Aluminum.git
 	branch = bagua
+
+[submodule "bagua/torch_api/model_parallel/tutel/tutel"]
+	path = bagua/torch_api/model_parallel/tutel/tutel
+	url = https://github.com/liuhatry/tutel.git
+	branch = compress_alltoall
