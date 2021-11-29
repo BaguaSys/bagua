@@ -74,7 +74,12 @@ class BaguaProcessGroupPatch:
         if self not in _torch_to_bagua_pg_map:
             _torch_to_bagua_pg_map[self] = from_torch_group(self, stream)
 
-        self.bagua_pg = _torch_to_bagua_pg_map[self]
+        return self
+
+    @property
+    def bagua_pg(self):
+        assert self in _torch_to_bagua_pg_map, "The torch process group not in cache, you should execute class method `bagua_patch` first"
+        return _torch_to_bagua_pg_map[self]
 
     def bagua_get_global_communicator(self):
         return get_communicator(self.bagua_pg.group_name, "global")
