@@ -23,6 +23,7 @@ from typing import Optional, List
 import torch.distributed.distributed_c10d as c10d
 from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
 import gorilla
+import weakref
 
 # fmt: off
 __all__ = [
@@ -50,7 +51,8 @@ _default_store = None
 _group_count = 0
 
 # Torch process group to bagua process group
-_torch_to_bagua_pg_map = {}
+_torch_to_bagua_pg_map = weakref.WeakKeyDictionary({})
+
 
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 class ReduceOp(IntEnum):
