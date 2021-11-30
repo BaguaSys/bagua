@@ -90,11 +90,13 @@ class ProcessGroupNCCLTest(MultiProcessTestCase):
         # NCCL_BLOCKING_WAIT overrides NCCL_ASYNC_ERROR_HANDLING hence tests
         # that use NCCL_BLOCKING_WAIT will test it as expected.
         os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "1"
-        os.environ.update({
-            "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port(8000, 8100)),
-            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
-        })
+        os.environ.update(
+            {
+                "MASTER_ADDR": "127.0.0.1",
+                "MASTER_PORT": str(find_free_port(8000, 8100)),
+                "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
+            }
+        )
         self._spawn_processes()
 
     @skip_if_lt_x_gpu(2)
@@ -103,12 +105,14 @@ class ProcessGroupNCCLTest(MultiProcessTestCase):
         # otherwise process will be taken down and we can't check for errors.
         os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "0"
         os.environ["NCCL_BLOCKING_WAIT"] = "1"
-        os.environ.update({
-            "WORLD_SIZE": str(self.world_size),
-            "LOCAL_WORLD_SIZE": str(self.world_size),
-            "RANK": str(self.rank),
-            "LOCAL_RANK": str(self.rank),
-        })
+        os.environ.update(
+            {
+                "WORLD_SIZE": str(self.world_size),
+                "LOCAL_WORLD_SIZE": str(self.world_size),
+                "RANK": str(self.rank),
+                "LOCAL_RANK": str(self.rank),
+            }
+        )
 
         bagua.init_process_group()
         pg = c10d.new_group(ranks=list(range(0, self.world_size)))
