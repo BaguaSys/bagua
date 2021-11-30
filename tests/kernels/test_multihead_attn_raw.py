@@ -61,9 +61,11 @@ class NaiveAttnFunc(torch.autograd.Function):
         # input_lin_results: [seql_q, seqs, heads(16), 3, head_dim(64)]
         # input_lin_results: [seql_q, batches=seqs*heads, 3, head_dim]
         inputs_kv = inputs_kv.view(
-            inputs_kv.size(0), inputs_kv.size(1) * heads, 2, head_dim
+            inputs_kv.size(0), inputs_kv.size(1) * heads_t[0], 2, head_dim
         )
-        queries = inputs_q.view(inputs_q.size(0), inputs_q.size(1) * heads, head_dim)
+        queries = inputs_q.view(
+            inputs_q.size(0), inputs_q.size(1) * heads_t[0], head_dim
+        )
         keys = inputs_kv[:, :, 0, :]
         values = inputs_kv[:, :, 1, :]
 

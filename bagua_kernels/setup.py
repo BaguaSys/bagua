@@ -89,10 +89,37 @@ def build_ext_modules():
 
     ext_modules.append(
         cpp_extension.CUDAExtension(
-            name="bagua_self_multihead_attn_raw_cuda",
+            name="bagua_self_multihead_attn_matmul1_cuda",
             sources=[
-                "self_multihead_attention_raw.cpp",
-                "self_multihead_attention_raw_kernel.cu",
+                "self_multihead_attention_matmul1.cpp",
+                "self_multihead_attention_matmul1_kernel.cu",
+            ],
+            extra_compile_args={
+                "cxx": [
+                    "-O3",
+                ],
+                "nvcc": [
+                    "-O3",
+                    "-gencode=arch=compute_70,code=sm_70",
+                    "-gencode=arch=compute_75,code=sm_75",
+                    "-gencode=arch=compute_75,code=compute_75",
+                    "-U__CUDA_NO_HALF_OPERATORS__",
+                    "-U__CUDA_NO_HALF_CONVERSIONS__",
+                    "--expt-relaxed-constexpr",
+                    "--expt-extended-lambda",
+                    "--use_fast_math",
+                ]
+                + cc_flag,
+            },
+            include_dirs=[os.path.join(this_dir, "cutlass")],
+        )
+    )
+    ext_modules.append(
+        cpp_extension.CUDAExtension(
+            name="bagua_self_multihead_attn_matmul2_cuda",
+            sources=[
+                "self_multihead_attention_matmul2.cpp",
+                "self_multihead_attention_matmul2_kernel.cu",
             ],
             extra_compile_args={
                 "cxx": [

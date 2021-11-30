@@ -1,6 +1,7 @@
 import torch
 import bagua_multihead_attn_raw_cuda
-import bagua_self_multihead_attn_raw_cuda
+import bagua_self_multihead_attn_matmul1_cuda
+import bagua_self_multihead_attn_matmul2_cuda
 import bagua_self_multihead_attn_cuda
 
 
@@ -24,13 +25,15 @@ class MultiheadAttnRawScoreFunc(torch.autograd.Function):
         return None, inputs_q_grads, inputs_kv_grads
 
 
-class SelfMultiheadAttnRawScoreFunc(torch.autograd.Function):
+class SelfMultiheadAttnMatmul1Func(torch.autograd.Function):
     @staticmethod
     def forward(ctx, heads, inputs, coeff):
         heads_t = torch.tensor([heads])
         coeff_t = torch.tensor([coeff])
 
-        (outputs,) = bagua_self_multihead_attn_raw_cuda.forward(heads, inputs, coeff)
+        (outputs,) = bagua_self_multihead_attn_matmul1_cuda.forward(
+            heads, inputs, coeff
+        )
         ctx.save_for_backward(heads_t, inputs, coeff_t)
         return outputs
 
@@ -38,11 +41,36 @@ class SelfMultiheadAttnRawScoreFunc(torch.autograd.Function):
     def backward(ctx, output_grads):
         heads_t, inputs, coeff_t = ctx.saved_tensors
 
-        (inputs_grads,) = bagua_self_multihead_attn_raw_cuda.backward(
+        (inputs_grads,) = bagua_self_multihead_attn_matmul1_cuda.backward(
             heads_t[0], output_grads, inputs, coeff_t[0]
         )
 
         return None, inputs_grads
+
+
+class SelfMultiheadAttnMatmul2Func(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, heads, inputs, attention_probs):
+        heads_t = torch.tensor([heads])
+
+        (outputs,) = bagua_self_multihead_attn_matmul2_cuda.forward(
+            heads, inputs, attention_probs
+        )
+        ctx.save_for_backward(heads_t, inputs, attention_probs)
+        return outputs
+
+    @staticmethod
+    def backward(ctx, output_grads):
+        heads_t, inputs, attention_probs = ctx.saved_tensors
+
+        (
+            inputs_grads,
+            attention_probs_grads,
+        ) = bagua_self_multihead_attn_matmul2_cuda.backward(
+            heads_t[0], output_grads, inputs, attention_probs
+        )
+
+        return None, inputs_grads, attention_probs_grads
 
 
 class SelfMultiheadAttnScoreFunc(torch.autograd.Function):
