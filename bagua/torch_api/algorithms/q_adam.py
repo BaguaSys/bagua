@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+import bagua
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
-from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
 from torch.optim.optimizer import Optimizer
@@ -125,7 +125,10 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
         else:
             return False
 
-    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel):
+    def init_tensors(
+        self,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
+    ):
         parameters = bagua_ddp.bagua_build_params()
 
         for idx, (name, param) in enumerate(parameters.__reversed__()):
@@ -177,7 +180,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_ddp: BaguaDistributedDataParallel,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel",
         bucket: BaguaBucket,
     ):
         bucket.clear_ops()
@@ -205,7 +208,10 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                 group=self.process_group,
             )
 
-    def init_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+    def init_backward_hook(
+        self,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
+    ):
         def hook_momentum(parameter_name, parameter):
             assert (
                 parameter.bagua_backend_tensor().data_ptr()

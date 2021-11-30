@@ -1,4 +1,5 @@
 # pytype: disable=attribute-error
+from operator import not_
 import torch
 import time
 import io
@@ -23,6 +24,8 @@ from bagua.bagua_define import (
 )
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
+from bagua.torch_api.algorithms import gradient_allreduce
+
 
 class BaguaDistributedDataParallel:
 
@@ -34,6 +37,7 @@ class BaguaDistributedDataParallel:
         process_group: BaguaProcessGroup,
         bagua_module_name: Optional[str] = None,
         gradient_as_bucket_view: bool = True,
+        find_unused_parameters: bool = False,
     ) -> None:
         self.module = module
         if bagua_module_name is None:
@@ -47,6 +51,7 @@ class BaguaDistributedDataParallel:
         self.bagua_algorithm = algorithm.reify(process_group)
         self.process_group = process_group
         self.gradient_as_bucket_view = gradient_as_bucket_view
+        self.find_unused_parameters = find_unused_parameters
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
@@ -90,6 +95,7 @@ class BaguaDistributedDataParallel:
         self._speed_metrics_switch_on = env.get_autotune_level() >= 1
         self._speed_metrics = StatisticalAverage()
         self.require_backward_grad_sync = True
+        self.autograd_graph_params: List[Tuple[str, torch.nn.Parameter]] = []
 
         ddp = self
 
@@ -414,6 +420,9 @@ class BaguaDistributedDataParallel:
                     if not self.require_backward_grad_sync:
                         return
 
+                    if self.find_unused_parameters:
+                        self.autograd_graph_params.append([param_name, parameter])
+
                     self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
 
                     def real_post_backward_hook(*unused):
@@ -422,6 +431,11 @@ class BaguaDistributedDataParallel:
                             torch.cuda.current_stream().record_event(
                                 self._speed_metrics_end_event
                             )
+
+                        if self.find_unused_parameters and type(self.bagua_algorithm) is gradient_allreduce.GradientAllReduceAlgorithmImpl:
+                            print([name for name, _ in self.autograd_graph_params])
+                            print([name for name, _ in self.bagua_build_params()])
+                            assert self.autograd_graph_params == self.bagua_build_params()
 
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(
