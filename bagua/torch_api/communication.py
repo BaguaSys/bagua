@@ -78,7 +78,7 @@ class BaguaProcessGroupPatch:
 
     @property
     def bagua_pg(self):
-        assert self in _torch_to_bagua_pg_map, "The torch process group not in cache, you should execute class method `bagua_patch` first"
+        assert self in _torch_to_bagua_pg_map, "cannot find associated Bagua process group in cache, BaguaProcessGroupPatch.bagua_patch(...) needs to be run first to initialize Bagua process group in cache."
         return _torch_to_bagua_pg_map[self]
 
     def bagua_get_global_communicator(self):
