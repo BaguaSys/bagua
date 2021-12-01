@@ -19,61 +19,69 @@
 #include <vector>
 
 namespace multihead_attn {
-namespace self {
-namespace matmul1 {
+namespace cross {
+namespace matmul2 {
 
 std::vector<torch::Tensor> fwd_cuda(
     int                  heads,
     torch::Tensor const& inputs,
-    float                coeff
+    torch::Tensor const& attention_probs
     );
 
 std::vector<torch::Tensor> bwd_cuda(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs,
-    float                coeff
+    torch::Tensor const& attention_probs
     );
 
 std::vector<torch::Tensor> fwd(
     int                  heads,
     torch::Tensor const& inputs,
-    float                coeff
+    torch::Tensor const& attention_probs
     ) {
 
   AT_ASSERTM(inputs.dim()          == 3, "expected 3D tensor");
+  AT_ASSERTM(attention_probs.dim()  == 3, "expected 3D tensor");
 
   AT_ASSERTM(inputs.type().scalarType()         == at::ScalarType::Half, "Only HALF is supported");
+  AT_ASSERTM(attention_probs.type().scalarType() == at::ScalarType::Half, "Only HALF is supported");
 
-  return fwd_cuda(heads, inputs, coeff);
+  return fwd_cuda(heads,
+          inputs,
+          attention_probs);
 }
 
 std::vector<torch::Tensor> bwd(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs,
-    float                coeff
+    torch::Tensor const& attention_probs
     ) {
 
-  AT_ASSERTM(output_grads.dim() == 3, "expected 3D tensor");
-  AT_ASSERTM(inputs.dim()       == 3, "expected 3D tensor");
+  AT_ASSERTM(output_grads.dim()    == 3, "expected 3D tensor");
+  AT_ASSERTM(inputs.dim()          == 3, "expected 3D tensor");
+  AT_ASSERTM(attention_probs.dim()  == 3, "expected 3D tensor");
 
-  AT_ASSERTM(output_grads.scalar_type() == at::ScalarType::Half,
-      "Only HALF is supported");
-  AT_ASSERTM(inputs.type().scalarType()  == at::ScalarType::Half, "Only HALF is supported");
+  AT_ASSERTM(output_grads.scalar_type()            == at::ScalarType::Half, "Only HALF is supported");
+  AT_ASSERTM(inputs.type().scalarType()            == at::ScalarType::Half, "Only HALF is supported");
+  AT_ASSERTM(attention_probs.type().scalarType()    == at::ScalarType::Half, "Only HALF is supported");
 
-  return bwd_cuda(heads, output_grads, inputs, coeff);
+  return bwd_cuda(heads,
+          output_grads,
+          inputs,
+          attention_probs);
 }
 
-} // end namespace matmul1
-} // end namespace self
+} // end namespace matmul2
+} // end namespace cross
 } // end namespace multihead_attn
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("forward", 
-        &multihead_attn::self::matmul1::fwd,
-	"Self Multihead Attention Matmul1 (Q * K_T) Forward");
+        &multihead_attn::cross::matmul2::fwd,
+	"Multihead Attention Matmul2 (Softmax(·) * V) Forward");
   m.def("backward", 
-        &multihead_attn::self::matmul1::bwd,
-	"Self Multihead Attention Matmul1 (Q * K_T) Backward");
+        &multihead_attn::cross::matmul2::bwd,
+	"Multihead Attention Matmul2 (Softmax(·) * V) Backward");
 }

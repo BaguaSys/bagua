@@ -18,7 +18,7 @@ extern THCState *state;
 
 namespace multihead_attn {
 namespace cross {
-namespace raw_attention_score {
+namespace matmul1 {
 
 std::vector<torch::Tensor> fwd_cuda(
                                int                  heads,
@@ -185,6 +185,6 @@ std::vector<torch::Tensor> bwd_cuda(
          };
 }
 
-} // end namespace raw_attention_score
+} // end namespace matmul1
 } // end cross
 } // end namespace multihead_attn

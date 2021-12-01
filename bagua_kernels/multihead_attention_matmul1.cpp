@@ -20,7 +20,7 @@
 
 namespace multihead_attn {
 namespace cross {
-namespace raw_attention_score {
+namespace matmul1 {
 
 std::vector<torch::Tensor> fwd_cuda(
     int                  heads,
@@ -67,15 +67,15 @@ std::vector<torch::Tensor> bwd(
   return bwd_cuda(heads, output_grads, inputs_q, inputs_kv);
 }
 
-} // end namespace raw_attention_score
+} // end namespace matmul1
 } // end namespace cross
 } // end namespace multihead_attn
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("forward", 
         &multihead_attn::cross::raw_attention_score::fwd,
-	"Multihead Attention Raw (Scaled Dot-Product) Attention Score Forward.");
+	"Multihead Attention Matmul1 (Q * K_T) Forward");
   m.def("backward", 
         &multihead_attn::cross::raw_attention_score::bwd,
-	"Multihead Attention Raw (Scaled Dot-Product) Attention Score Backward.");
+	"Multihead Attention Matmul1 (Q * K_T) Backward.");
 }
