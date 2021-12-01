@@ -73,9 +73,9 @@ std::vector<torch::Tensor> bwd(
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("forward", 
-        &multihead_attn::cross::raw_attention_score::fwd,
+        &multihead_attn::cross::matmul1::fwd,
 	"Multihead Attention Matmul1 (Q * K_T) Forward");
   m.def("backward", 
-        &multihead_attn::cross::raw_attention_score::bwd,
+        &multihead_attn::cross::matmul1::bwd,
 	"Multihead Attention Matmul1 (Q * K_T) Backward.");
 }

@@ -134,9 +134,7 @@ class TestSelfMultiheadAttn(unittest.TestCase):
 
         grads = torch.randn_like(tst_inputs)
 
-        ref_outputs = NaiveAttnMatMul2Func.apply(
-            16, ref_inputs, ref_attention_probs
-        )
+        ref_outputs = NaiveAttnMatMul2Func.apply(16, ref_inputs, ref_attention_probs)
         tst_outputs = MultiheadAttnMatmul2Func.apply(
             16, tst_inputs, tst_attention_probs
         )
