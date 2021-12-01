@@ -31,73 +31,53 @@ def flatten_params_and_states(optimizer: torch.optim.Optimizer):
             if state_tensors is None:
                 continue
 
-            flatten_tensors(params)
             flatten_tensors_with_closure(
-                grads,
                 params,
-                getter_closure=lambda p: p.grad,
-                setter_closure=lambda p, new_grad: setattr(p, "grad", new_grad),
+                getter_closure=lambda p: p.data,
+                setter_closure=lambda p, new_data: setattr(p, "data", new_data),
+            )
+
+            flatten_tensors_with_closure(
+                params,
+                getter_closure=lambda p: p.grad.data,
+                setter_closure=lambda p, new_grad: setattr(p.grad, "data", new_grad),
             )
 
             for name, tensors in state_tensors.items():
-
-                def set_state_fn(p, t):
-                    optimizer.state[p][name] = t
-
                 flatten_tensors_with_closure(
-                    tensors,
                     params,
-                    getter_closure=lambda p: optimizer.state[p][name],
-                    setter_closure=set_state_fn,
+                    getter_closure=lambda p: optimizer.state[p][name].data,
+                    setter_closure=lambda p, new_state: setattr(
+                        optimizer.state[p][name], "data", new_state
+                    ),
                 )
-        torch.cuda.empty_cache()
+
+            torch.cuda.empty_cache()
 
 
-def flatten_tensors(tensors: List[torch.Tensor]):
-    """
-    Flatten :attr:`tensors` into contiguous one.
-    """
+def flatten_tensors_with_closure(tensors, getter_closure, setter_closure):
     if len(tensors) == 0:
         return
 
-    if check_contiguous(tensors):
+    eff_tensors = [getter_closure(t) for t in tensors]
+    if check_contiguous(eff_tensors):
         return
 
-    flatten_tensor = get_flattened_tensor(tensors)
+    flatten_tensor = get_flattened_tensor(eff_tensors)
     flatten_storage = flatten_tensor.storage()
 
     offset = 0
     for tensor in tensors:
         with torch.no_grad():
-            tensor.set_(flatten_storage, offset, tensor.shape)
-
-        offset += tensor.numel()
-        logging.debug(f"flatten done {offset}")
-
-    check_contiguous(tensors)
-
-
-def flatten_tensors_with_closure(tensors, params, getter_closure, setter_closure):
-    if len(tensors) == 0:
-        return
-
-    if check_contiguous(tensors):
-        return
-
-    flatten_tensor = get_flattened_tensor(tensors)
-    flatten_storage = flatten_tensor.storage()
-
-    offset = 0
-    for tensor, param in zip(tensors, params):
-        with torch.no_grad():
-            z = torch.zeros_like(getter_closure(param))
+            z = torch.zeros_like(getter_closure(tensor))
             z.set_(flatten_storage, offset, z.shape)
-            setter_closure(param, z)
+            z._bagua_flattened_tensor = flatten_tensor
+            setter_closure(tensor, z)
 
-        offset += tensor.numel()
-        logging.debug(f"flatten with closure done {offset}")
+        offset += z.numel()
+        logging.debug(f"flatten done {offset}, dtype: {z.dtype}")
 
-    check_contiguous([getter_closure(p) for p in params])
+    check_contiguous([getter_closure(t) for t in tensors])
 
 
 def _is_contiguous_tensor(a: torch.Tensor, b: torch.Tensor):
@@ -179,7 +159,6 @@ def group_tensors(tensors: List[torch.Tensor], indices: List[int]) -> torch.Tens
             total_size, dtype=to_group[0].dtype, device=to_group[0].device
         )
         tensor_view.set_(to_group[0].storage(), 0, tensor_view.shape)
-
         return tensor_view
 
 
@@ -198,9 +177,9 @@ def ungroup_tensor(
                 "Fused optimizer failed to recover parameter state from fused parameter state, due to mismatch between parameter datatype and parameter state datatype."
             )
             return
-
-        z = torch.zeros_like(tensor)
-        z.set_(tensor_view.storage(), offset, tensor.shape)
+        with torch.no_grad():
+            z = tensor_view.narrow(0, offset, tensor.numel())
+            z = z.view(tensor.shape)
 
         offset += tensor.numel()
         ungrouped.append(z)
