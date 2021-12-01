@@ -13,24 +13,29 @@ class NaiveSelfAttnMatMul2Func(torch.autograd.Function):
 
         # inputs: [seql_q, batches=seqs*heads, 3, head_dim]
         # attention_probs: [batches=seqs*heads, seql_q, seql_k]
-        inputs = inputs.view(inputs.size(0), inputs.size(1) * heads, 3, head_dim)
-        queries = inputs[:, :, 0, :]
-        keys = inputs[:, :, 1, :]
-        values = inputs[:, :, 2, :]
+        inputs_view = inputs.view(inputs.size(0), inputs.size(1) * heads, 3, head_dim)
+        queries = inputs_view[:, :, 0, :]
+        keys = inputs_view[:, :, 1, :]
+        values = inputs_view[:, :, 2, :]
 
+        # allocate memory: [seql_q, batches=seqs*heads, head_dim]
         matmul2_results = torch.empty(
             (attention_probs.size(1), attention_probs.size(0), values.size(2)),
             dtype=attention_probs.dtype,
             device=torch.device("cuda"),
         ).transpose(1, 0)
+
+        # Matmul2
+        # Input1: (activation)  [seqs*heads, seql_q, seql_k]
+        # Input2: (values)      [seql_k, seqs*heads, head_dim] transpose(0,1)
+        # Output:               [seqs*heads, seql_k, head_dim]
         matmul2_results = torch.bmm(
             attention_probs, values.transpose(0, 1), out=matmul2_results
         )
-        matmul2_results = (
-            matmul2_results.transpose(0, 1)
-            .contiguous()
-            .view(inputs.size(0), inputs.size(1), inputs.size(2))
-        )
+
+        matmul2_results = matmul2_results.transpose(0, 1).contiguous()
+        # view: [seql_q, seqs, heads* head_dim]
+        matmul2_results = matmul2_results.view(inputs.size(0), inputs.size(1), -1)
 
         heads_t = torch.tensor([heads])
         ctx.save_for_backward(heads_t, inputs, attention_probs)
@@ -43,41 +48,51 @@ class NaiveSelfAttnMatMul2Func(torch.autograd.Function):
 
         embedding_dim = inputs.size(2) // 3
         head_dim = embedding_dim // heads_t[0]
-        scale = 1.0 / math.sqrt(head_dim)
 
         # Slice out q,k,v from one big Input Linear outuput (should only impact meta data, no copies!)
         # Sequences and heads are combined to make the batch of the Batched GEMM
         # inputs: [seql_q, batches=seqs*heads, 3, head_dim]
-        inputs = inputs.view(inputs.size(0), inputs.size(1) * heads_t[0], 3, head_dim)
-        queries = inputs[:, :, 0, :]
-        keys = inputs[:, :, 1, :]
-        values = inputs[:, :, 2, :]
+        inputs_view = inputs.view(
+            inputs.size(0), inputs.size(1) * heads_t[0], 3, head_dim
+        )
+        queries = inputs_view[:, :, 0, :]
+        keys = inputs_view[:, :, 1, :]
+        values = inputs_view[:, :, 2, :]
 
         # Slice out q,k,v from one big set of gradients entering the input linear's bprop  (should only impact meta data, no copies!)
         # The gradients are identical in size to the Input Linear outputs.
         # The tensor is declared before hand to properly slice out query, key, and value grads.
         inputs_grads = torch.empty_like(inputs)
-        queries_grads = inputs_grads[:, :, 0, :]
-        keys_grads = inputs_grads[:, :, 1, :]
-        values_grads = inputs_grads[:, :, 2, :]
+        inputs_grads_view = inputs_grads.view(
+            inputs.size(0), inputs.size(1) * heads_t[0], 3, head_dim
+        )
+        queries_grads = inputs_grads_view[:, :, 0, :]
+        keys_grads = inputs_grads_view[:, :, 1, :]
+        values_grads = inputs_grads_view[:, :, 2, :]
 
+        # attention_probs: [batches=seqs*heads, seql_q, seql_k]
         attention_probs_grads = torch.empty_like(attention_probs)
 
+        # output_grads: [seql_q, seqs, heads* head_dim] -> [seql_q, batches=seqs*heads, head_dim]
+        output_grads = output_grads.view(
+            output_grads.size(0),
+            output_grads.size(1) * heads_t[0],
+            -1,
+        ).transpose(0, 1)
+
         # Matmul2 - DGRAD1
-        # Input1: (data grads)  [seql_q, seqs*heads, head_dim] transpose(0,1)
-        # Input2: (activations) [seql_k, seqs*heads, head_dim] transpose(0,1).transpose(1,2)
+        # Input1: (data grads)  [seqs*heads, seql_q, head_dim]
+        # Input2: (values)      [seql_k, seqs*heads, head_dim] transpose(0,1).transpose(1,2)
         # Output:               [seqs*heads, seql_q, seql_k]
-        # GEMM: Per batch: ( seql_q x head_dim ) x ( head_dim x seql_k ) = ( seql_q x seql_k )
         attention_probs_grads = torch.bmm(
             output_grads,
             values.transpose(0, 1).transpose(1, 2),
             out=attention_probs_grads,
         )
         # Matmul2 - DGRAD2
-        # Input1: (data grads)  [seql_q, seqs*heads, head_dim] transpose(0,1)
-        # Input2: (activations) [seql_k, seqs*heads, head_dim] transpose(0,1).transpose(1,2)
-        # Output:               [seqs*heads, seql_q, seql_k]
-        # GEMM: Per batch: ( seql_q x head_dim ) x ( head_dim x seql_k ) = ( seql_q x seql_k )
+        # Input1: (data grads)  [seqs*heads, seql_q, head_dim]
+        # Input2: (activations) [batches=seqs*heads, seql_q, seql_k] transpose(1,2)
+        # Output:               [seqs*heads, seql_k, head_dim]
         values_grads = torch.bmm(
             attention_probs.transpose(1, 2),
             output_grads,

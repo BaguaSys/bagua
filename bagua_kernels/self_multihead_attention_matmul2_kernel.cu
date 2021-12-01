@@ -51,7 +51,7 @@ std::vector<torch::Tensor> fwd_cuda(
 
   auto act_options  = inputs.options().requires_grad(false);
 
-  torch::Tensor outputs           = torch::empty({q_seq_len, attn_batches, head_dim},    act_options);
+  torch::Tensor outputs           = torch::empty({q_seq_len, sequences, heads * head_dim},    act_options);
 
   // Input Linear Results Pointers to Q, K, and V of interviewed activations
   void* inputs_q_ptr   = static_cast<void*>(inputs.data_ptr());

@@ -13,29 +13,28 @@ class NaiveSelfAttnFunc(torch.autograd.Function):
         scale = 1.0 / math.sqrt(head_dim)
 
         # inputs: [seql_q, batches=seqs*heads, 3, head_dim]
-        inputs = inputs.view(inputs.size(0), inputs.size(1) * heads, 3, head_dim)
-        queries = inputs[:, :, 0, :]
-        keys = inputs[:, :, 1, :]
-        values = inputs[:, :, 2, :]
+        inputs_view = inputs.view(inputs.size(0), inputs.size(1) * heads, 3, head_dim)
+        queries = inputs_view[:, :, 0, :]
+        keys = inputs_view[:, :, 1, :]
+        values = inputs_view[:, :, 2, :]
 
-        # Matmul Batched GEMMs
+        # Matmul1
         # The output tensor is specified prior to the Batch GEMM because baddbmm requires its specification
         # baddbmm is used to apply the scale parameter via the Batched GEMM's alpha parameter instead of
         # a separate elementwise operation.
-        # Input1: (Queries) [seql_q, seqs*heads, head_dim] tranpose(0,1)
-        # Input2: (Keys)    [seql_k, seqs*heads, head_dim] transpose(0,1)
+        # Input1: (Queries) [seql_q, seqs*heads, head_dim] transpose(0,1)
+        # Input2: (Keys)    [seql_k, seqs*heads, head_dim] transpose(0,1) transpose(1,2)
         # output:           [seqs*heads, seql_q, seql_k]
-        # GEMM: Per batch: ( seql_q x head_dim ) x ( head_dim x seql_k ) = ( seql_q x seql_k )
-        matmul_results = torch.empty(
+        matmul1_results = torch.empty(
             (queries.size(1), queries.size(0), keys.size(0)),
             dtype=queries.dtype,
             device=torch.device("cuda"),
         )
-        matmul_results = torch.baddbmm(
-            matmul_results,
+        matmul1_results = torch.baddbmm(
+            matmul1_results,
             queries.transpose(0, 1),
             keys.transpose(0, 1).transpose(1, 2),
-            out=matmul_results,
+            out=matmul1_results,
             beta=0.0,
             alpha=scale,
         )
@@ -43,7 +42,7 @@ class NaiveSelfAttnFunc(torch.autograd.Function):
         heads_t = torch.tensor([heads])
         ctx.save_for_backward(heads_t, inputs)
 
-        return matmul_results
+        return matmul1_results
 
     @staticmethod
     def backward(ctx, output_grads):
@@ -56,24 +55,28 @@ class NaiveSelfAttnFunc(torch.autograd.Function):
         # Slice out q,k,v from one big Input Linear outuput (should only impact meta data, no copies!)
         # Sequences and heads are combined to make the batch of the Batched GEMM
         # inputs: [seql_q, batches=seqs*heads, 3, head_dim]
-        inputs = inputs.view(inputs.size(0), inputs.size(1) * heads_t[0], 3, head_dim)
-        queries = inputs[:, :, 0, :]
-        keys = inputs[:, :, 1, :]
-        values = inputs[:, :, 2, :]
+        inputs_view = inputs.view(
+            inputs.size(0), inputs.size(1) * heads_t[0], 3, head_dim
+        )
+        queries = inputs_view[:, :, 0, :]
+        keys = inputs_view[:, :, 1, :]
+        values = inputs_view[:, :, 2, :]
 
         # Slice out q,k,v from one big set of gradients entering the input linear's bprop  (should only impact meta data, no copies!)
         # The gradients are identical in size to the Input Linear outputs.
         # The tensor is declared before hand to properly slice out query, key, and value grads.
         inputs_grads = torch.empty_like(inputs)
-        queries_grads = inputs_grads[:, :, 0, :]
-        keys_grads = inputs_grads[:, :, 1, :]
-        values_grads = inputs_grads[:, :, 2, :]
+        inputs_grads_view = inputs_grads.view(
+            inputs_grads.size(0), inputs_grads.size(1) * heads_t[0], -1
+        )
+        queries_grads = inputs_grads_view[:, :, 0, :]
+        keys_grads = inputs_grads_view[:, :, 1, :]
+        values_grads = inputs_grads_view[:, :, 2, :]
 
         # Matmul - DGRAD1
         # Input1: (data grads)  [seqs*heads, seql_q, seql_k]
-        # Input2: (activations) [seql_k, seqs*heads, head_dim] transpose(0,1)
+        # Input2: (keys)        [seql_k, seqs*heads, head_dim] transpose(0,1)
         # Output:               [seqs*heads, seql_q, head_dim] transpose(0,1)
-        # GEMM: Per batch: ( seql_q x seql_k ) x ( seql_k x head_dim ) = ( seql_q x head_dim )
         queries_grads = torch.baddbmm(
             queries_grads.transpose(0, 1),
             output_grads,
@@ -84,9 +87,8 @@ class NaiveSelfAttnFunc(torch.autograd.Function):
         )
         # Matmul - DGRAD2
         # Input1: (data grads)  [seqs*heads, seql_q, seql_k] transpose(1,2)
-        # Input2: (activations) [seql_q, seqs*heads, head_dim] transpose(0,1)
+        # Input2: (queries)     [seql_q, seqs*heads, head_dim] transpose(0,1)
         # Output:               [seqs*heads, seql_k, head_dim] transpose(0,1)
-        # GEMM: Per batch: ( seql_k x seql_q ) x ( seql_q x head_dim ) = ( seql_k x head_dim )
         keys_grads = torch.baddbmm(
             keys_grads.transpose(0, 1),
             output_grads.transpose(1, 2),
