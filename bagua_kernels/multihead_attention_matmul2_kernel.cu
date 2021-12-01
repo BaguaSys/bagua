@@ -12,8 +12,6 @@
 #include <torch/extension.h>
 
 #include "strided_batched_gemm.h"
-#include "softmax.h"
-#include "dropout.h"
 
 // symbol to be automatically resolved by PyTorch libs
 extern THCState *state;
@@ -38,7 +36,7 @@ std::vector<torch::Tensor> fwd_cuda(
 
   const int   attn_batches   = heads * sequences;
   const int   lead_dim       = attn_batches * 2 * head_dim;
-  const int   batch_stride   = 3 * head_dim;
+  const int   batch_stride   = 2 * head_dim;
 
   const float alpha          = 1.0;
   const float beta           = 0.0;
@@ -107,7 +105,7 @@ std::vector<torch::Tensor> bwd_cuda(
 
   const int   attn_batches   = heads * sequences;
   const int   lead_dim       = attn_batches * 2 * head_dim;
-  const int   batch_stride   = 3 * head_dim;
+  const int   batch_stride   = 2 * head_dim;
 
   const float alpha          = 1.0;
   const float beta           = 0.0;

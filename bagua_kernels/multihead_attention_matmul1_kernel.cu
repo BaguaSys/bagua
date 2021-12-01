@@ -38,8 +38,6 @@ std::vector<torch::Tensor> fwd_cuda(
   const int   batch_stride_q    = head_dim;
   const int   batch_stride_kv   = 2 * head_dim;
 
-  const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
-  const float alpha          = 1.0;
   const float beta           = 0.0;
   const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
 
@@ -56,7 +54,6 @@ std::vector<torch::Tensor> fwd_cuda(
   void* outputs_ptr = static_cast<void*>(outputs.data_ptr());
 
   char a_layout_t{'t'};
-  char a_layout_n{'n'};
   char b_layout_n{'n'};
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH));
@@ -107,8 +104,6 @@ std::vector<torch::Tensor> bwd_cuda(
   const int   batch_stride_q    = head_dim;
   const int   batch_stride_kv   = 2 * head_dim;
 
-  const int   dropout_elems  = attn_batches * q_seq_len * k_seq_len;
-  const float alpha          = 1.0;
   const float beta           = 0.0;
   const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
 
@@ -131,7 +126,6 @@ std::vector<torch::Tensor> bwd_cuda(
   auto inputs_v_grads_ptr = static_cast<half*>(inputs_kv_grads.data_ptr()) + head_dim;
 
   char a_layout_n{'n'};
-  char a_layout_t{'t'};
   char b_layout_n{'n'};
   char b_layout_t{'t'};
 

@@ -12,8 +12,6 @@
 #include <torch/extension.h>
 
 #include "strided_batched_gemm.h"
-#include "softmax.h"
-#include "dropout.h"
 
 // symbol to be automatically resolved by PyTorch libs
 extern THCState *state;

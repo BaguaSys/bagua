@@ -37,7 +37,6 @@ std::vector<torch::Tensor> fwd_cuda(
   const int   lead_dim       = attn_batches * 3 * head_dim;
   const int   batch_stride   = 3 * head_dim;
 
-  const float alpha          = 1.0;
   const float beta           = 0.0;
   const float scale          = 1.0 / (sqrt(static_cast<float>(head_dim)) * coeff);
 
@@ -105,7 +104,6 @@ std::vector<torch::Tensor> bwd_cuda(
   const int   lead_dim       = attn_batches * 3 * head_dim;
   const int   batch_stride   = 3 * head_dim;
 
-  const float alpha          = 1.0;
   const float beta           = 0.0;
   const float scale          = 1.0 / (sqrt(static_cast<float>(head_dim)) * coeff);
 
