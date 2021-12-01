@@ -71,7 +71,7 @@ class SelfMultiheadAttnMatmul1Func(torch.autograd.Function):
             heads_t[0], output_grads, inputs, coeff_t[0]
         )
 
-        return None, inputs_grads
+        return None, inputs_grads, None
 
 
 class SelfMultiheadAttnMatmul2Func(torch.autograd.Function):
