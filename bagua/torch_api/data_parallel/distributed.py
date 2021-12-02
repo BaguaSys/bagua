@@ -156,7 +156,10 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.find_unused_parameters = find_unused_parameters
 
         self.inner = BaguaDistributedDataParallel(
-            self.module, optimizers, algorithm, to_bagua_process_group(process_group)
+            self.module, optimizers, algorithm,
+            process_group=to_bagua_process_group(process_group),
+            gradient_as_bucket_view=gradient_as_bucket_view,
+            find_unused_parameters=find_unused_parameters,
         )
 
     @property
@@ -174,10 +177,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
     def forward(self, *inputs, **kwargs):
         output = self.module(*inputs, **kwargs)
-
-        if self.find_unused_parameters:
-            self.inner.prepare_for_backward(list(_find_tensors(output)))
-
         return output
 
     @contextmanager

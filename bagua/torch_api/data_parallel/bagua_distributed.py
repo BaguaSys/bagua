@@ -139,7 +139,11 @@ class BaguaDistributedDataParallel:
             torch.cuda.current_stream().record_event(start_event)
             ddp._last_event_pair = (start_event, ddp._speed_metrics_end_event)
 
+        def clear_autograd_graph_params(self, _):
+            ddp.autograd_graph_params.clear()
+
         bagua_states._bagua_framework_hooks.extend([
+            self.module.register_forward_pre_hook(clear_autograd_graph_params),
             self.module.register_forward_pre_hook(num_iteration_step_hook),
             self.module.register_forward_pre_hook(algorithm_reset_hook),
             self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
@@ -396,6 +400,7 @@ class BaguaDistributedDataParallel:
         )
         self._bagua_autotune_register_tensors()
         self._bagua_reset_algorithm_buckets()
+        self.params_in_use = set([name for name, _ in self.bagua_build_params()])
 
     def _bagua_init_algorithm(self):
         self._bagua_cleanup_algorithm()
@@ -443,8 +448,7 @@ class BaguaDistributedDataParallel:
                             )
 
                         if self.find_unused_parameters and type(self.bagua_algorithm) is gradient_allreduce.GradientAllReduceAlgorithmImpl:
-                            bagua_build_params = set([name for name, _ in self.bagua_build_params()])
-                            if set(self.autograd_graph_params.keys()) != bagua_build_params:
+                            if set(self.autograd_graph_params.keys()) != self.params_in_use:
                                 self.rebuild_buckets()
                                 self.delay_allreduce()
 
