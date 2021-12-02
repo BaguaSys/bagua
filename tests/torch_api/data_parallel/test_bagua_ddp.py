@@ -12,7 +12,6 @@ if not c10d.is_available():
 
 import torch.nn.functional as F
 from torch import nn
-from torch.nn.parallel import DistributedDataParallel
 from torch.testing._internal.common_distributed import (
     MultiProcessTestCase,
     skip_if_lt_x_gpu,
