@@ -101,7 +101,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         bucket_cap_mb=25,
         find_unused_parameters=False,
         check_reduction=False,
-        gradient_as_bucket_view=False,
+        gradient_as_bucket_view=True,
         # The following bagua parameters
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
@@ -223,7 +223,7 @@ def DistributedDataParallel(
     bucket_cap_mb: int = 25,
     find_unused_parameters: bool = False,
     check_reduction: bool = False,
-    gradient_as_bucket_view: bool = False,
+    gradient_as_bucket_view: bool = True,
     # The followings are parameters for Bagua
     optimizers: List[torch.optim.Optimizer] = [],
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
