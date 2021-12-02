@@ -21,7 +21,7 @@ from functools import lru_cache
 from datetime import timedelta
 from typing import Optional, List
 import torch.distributed.distributed_c10d as c10d
-from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
+from torch.distributed import ProcessGroup as TorchProcessGroup
 import gorilla
 import weakref
 
