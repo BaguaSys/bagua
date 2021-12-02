@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import bagua
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
+from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import BaguaProcessGroup
 from bagua.torch_api.contrib.fuse.optimizer import is_fused_optimizer
@@ -37,17 +37,11 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
         self.communication_interval = communication_interval
         self.cuda_event = torch.cuda.Event()
 
-    def _should_communicate(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ) -> bool:
+    def _should_communicate(self, bagua_ddp: BaguaDistributedDataParallel) -> bool:
         cur_step = bagua_ddp.bagua_train_step_counter - 1
         return cur_step % self.communication_interval == 0
 
-    def init_tensors(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ) -> List[BaguaTensor]:
+    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel) -> List[BaguaTensor]:
         parameters = bagua_ddp.bagua_build_params()
         self.tensors = [
             param.ensure_bagua_tensor(name, bagua_ddp.bagua_module_name)
@@ -66,10 +60,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
 
         return [bagua_bucket]
 
-    def init_forward_pre_hook(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ):
+    def init_forward_pre_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook(input):
             if self._should_communicate(bagua_ddp):
                 for tensor in self.tensors:
@@ -77,19 +68,13 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
 
         return hook
 
-    def init_backward_hook(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ):
+    def init_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook(parameter_name, parameter):
             return
 
         return hook
 
-    def init_post_backward_hook(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ):
+    def init_post_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook():
             if self._should_communicate(bagua_ddp):
                 bagua_ddp._bagua_backend.wait_pending_comm_ops()
@@ -109,7 +94,7 @@ class DecentralizedAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel",
+        bagua_ddp: BaguaDistributedDataParallel,
         bucket: BaguaBucket,
     ):
         self._init_states(bucket)
@@ -145,17 +130,11 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
         self.hierarchical = hierarchical
         self.communication_interval = communication_interval
 
-    def _should_communicate(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ) -> bool:
+    def _should_communicate(self, bagua_ddp: BaguaDistributedDataParallel) -> bool:
         cur_step = bagua_ddp.bagua_train_step_counter - 1
         return cur_step % self.communication_interval == 0
 
-    def init_tensors(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ) -> List[BaguaTensor]:
+    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel) -> List[BaguaTensor]:
         parameters = bagua_ddp.bagua_build_params()
         self.tensors = [
             param.ensure_bagua_tensor(name, bagua_ddp.bagua_module_name)
@@ -177,28 +156,19 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
                 )
         return self.tensors
 
-    def init_backward_hook(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ):
+    def init_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook(parameter_name, parameter):
             pass
 
         return hook
 
-    def init_post_backward_hook(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ):
+    def init_post_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook():
             pass
 
         return hook
 
-    def init_post_optimizer_step_hook(
-        self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
-    ):
+    def init_post_optimizer_step_hook(self, bagua_ddp: BaguaDistributedDataParallel):
         def hook(optimizer: torch.optim.Optimizer):
             assert not is_fused_optimizer(
                 optimizer
@@ -228,7 +198,7 @@ class LowPrecisionDecentralizedAlgorithmImpl(AlgorithmImpl):
 
     def init_operations(
         self,
-        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel",
+        bagua_ddp: BaguaDistributedDataParallel,
         bucket: BaguaBucket,
     ):
         self._init_states(bucket)

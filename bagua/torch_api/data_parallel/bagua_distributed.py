@@ -22,7 +22,6 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
 )
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
-from bagua.torch_api.algorithms import gradient_allreduce
 
 
 class BaguaDistributedDataParallel:
@@ -445,7 +444,7 @@ class BaguaDistributedDataParallel:
                                 self._speed_metrics_end_event
                             )
 
-                        if self.find_unused_parameters and type(self.bagua_algorithm) is gradient_allreduce.GradientAllReduceAlgorithmImpl:
+                        if self.find_unused_parameters:
                             if set(self.autograd_graph_params.keys()) != self.params_in_use:
                                 self.rebuild_buckets()
                                 self.delay_allreduce()
