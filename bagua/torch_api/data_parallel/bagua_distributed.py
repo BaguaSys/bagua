@@ -5,7 +5,7 @@ import io
 import pickle
 import collections
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from torch.nn.modules import Module
 
 import bagua
@@ -34,6 +34,7 @@ class BaguaDistributedDataParallel:
         process_group: BaguaProcessGroup,
         bagua_module_name: Optional[str] = None,
         gradient_as_bucket_view: bool = True,
+        find_unused_parameters: bool = False,
     ) -> None:
         self.module = module
         if bagua_module_name is None:
@@ -47,6 +48,7 @@ class BaguaDistributedDataParallel:
         self.bagua_algorithm = algorithm.reify(process_group)
         self.process_group = process_group
         self.gradient_as_bucket_view = gradient_as_bucket_view
+        self.find_unused_parameters = find_unused_parameters
         self.parameters_to_ignore = (
             []
         )  #: the parameter names to ignore during communication
@@ -90,6 +92,7 @@ class BaguaDistributedDataParallel:
         self._speed_metrics_switch_on = env.get_autotune_level() >= 1
         self._speed_metrics = StatisticalAverage()
         self.require_backward_grad_sync = True
+        self.autograd_graph_params: Dict[str, torch.nn.Parameter] = {}
 
         ddp = self
 
@@ -133,16 +136,22 @@ class BaguaDistributedDataParallel:
             torch.cuda.current_stream().record_event(start_event)
             ddp._last_event_pair = (start_event, ddp._speed_metrics_end_event)
 
-        bagua_states._bagua_framework_hooks.extend([
-            self.module.register_forward_pre_hook(num_iteration_step_hook),
-            self.module.register_forward_pre_hook(algorithm_reset_hook),
-            self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
-            self.module.register_forward_pre_hook(record_speed_metrics_event),
-            self.module.register_forward_pre_hook(autotune_hook),
-            self.module.register_forward_pre_hook(
-                clear_post_backward_callback_queued_hook
-            ),
-        ])
+        def clear_autograd_graph_params(self, _):
+            ddp.autograd_graph_params.clear()
+
+        bagua_states._bagua_framework_hooks.extend(
+            [
+                self.module.register_forward_pre_hook(clear_autograd_graph_params),
+                self.module.register_forward_pre_hook(num_iteration_step_hook),
+                self.module.register_forward_pre_hook(algorithm_reset_hook),
+                self.module.register_forward_pre_hook(algorithm_forward_pre_hook),
+                self.module.register_forward_pre_hook(record_speed_metrics_event),
+                self.module.register_forward_pre_hook(autotune_hook),
+                self.module.register_forward_pre_hook(
+                    clear_post_backward_callback_queued_hook
+                ),
+            ]
+        )
 
         # autotune service
         self._bagua_autotune_client = get_hyperparameters_service_client()
@@ -169,6 +178,9 @@ class BaguaDistributedDataParallel:
                 and (not is_moe_param(param))
             ]
         ]
+
+        if self.find_unused_parameters and len(self.autograd_graph_params) != 0:
+            modules_and_parameters = filter(lambda it: it[1][0] in self.autograd_graph_params, modules_and_parameters)
 
         # Deduplicate any parameters that might be shared across child modules.
         memo = set()
@@ -381,15 +393,19 @@ class BaguaDistributedDataParallel:
         )
         return list(recommended_buckets)
 
-    def _bagua_init_algorithm(self):
-        self._bagua_cleanup_algorithm()
-        self._bagua_broadcast_parameters()
+    def rebuild_buckets(self):
         self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
             [(tensor.bagua_tensor_name, tensor) for tensor in self._bagua_tensors]
         )
         self._bagua_autotune_register_tensors()
         self._bagua_reset_algorithm_buckets()
+        self.params_in_use = set([name for name, _ in self.bagua_build_params()])
+
+    def _bagua_init_algorithm(self):
+        self._bagua_cleanup_algorithm()
+        self._bagua_broadcast_parameters()
+        self.rebuild_buckets()
 
     def _bagua_cleanup_algorithm(self):
         bagua_states = self.module._bagua_states
@@ -398,6 +414,11 @@ class BaguaDistributedDataParallel:
         bagua_states._bagua_algorithm_hooks.clear()
 
         self.bagua_buckets.clear()
+
+    def delay_allreduce(self):
+        for param_name, parameter in self.bagua_build_params():
+            self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
+            self.bagua_algorithm.init_post_backward_hook(self)()
 
     def _bagua_reset_algorithm_buckets(self):
         bagua_states = self.module._bagua_states
@@ -414,6 +435,9 @@ class BaguaDistributedDataParallel:
                     if not self.require_backward_grad_sync:
                         return
 
+                    if self.find_unused_parameters:
+                        self.autograd_graph_params[param_name] = parameter
+
                     self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
 
                     def real_post_backward_hook(*unused):
@@ -422,6 +446,11 @@ class BaguaDistributedDataParallel:
                             torch.cuda.current_stream().record_event(
                                 self._speed_metrics_end_event
                             )
+
+                        if self.find_unused_parameters:
+                            if set(self.autograd_graph_params.keys()) != self.params_in_use:
+                                self.rebuild_buckets()
+                                self.delay_allreduce()
 
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(

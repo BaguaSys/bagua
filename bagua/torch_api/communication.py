@@ -23,6 +23,7 @@ from typing import Optional, List
 import torch.distributed.distributed_c10d as c10d
 from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
 import gorilla
+import weakref
 
 # fmt: off
 __all__ = [
@@ -49,6 +50,9 @@ _default_store = None
 # Process group count for default naming
 _group_count = 0
 
+# Torch process group to bagua process group
+_torch_to_bagua_pg_map = weakref.WeakKeyDictionary({})
+
 
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 class ReduceOp(IntEnum):
@@ -68,7 +72,16 @@ class ReduceOp(IntEnum):
 @gorilla.patches(TorchProcessGroup, filter=lambda name, obj: "bagua" in name)
 class BaguaProcessGroupPatch:
     def bagua_patch(self, stream: Optional[torch.cuda.Stream] = None):
-        self.bagua_pg = from_torch_group(self, stream)
+        global _torch_to_bagua_pg_map
+        if self not in _torch_to_bagua_pg_map:
+            _torch_to_bagua_pg_map[self] = from_torch_group(self, stream)
+
+        return self
+
+    @property
+    def bagua_pg(self):
+        assert self in _torch_to_bagua_pg_map, "cannot find associated Bagua process group in cache, BaguaProcessGroupPatch.bagua_patch(...) needs to be run first to initialize Bagua process group in cache."
+        return _torch_to_bagua_pg_map[self]
 
     def bagua_get_global_communicator(self):
         return get_communicator(self.bagua_pg.group_name, "global")
