@@ -1,4 +1,4 @@
-from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
+import bagua
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.communication import BaguaProcessGroup
@@ -43,7 +43,10 @@ class AlgorithmImpl:
         """
         return False
 
-    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel) -> List[BaguaTensor]:
+    def init_tensors(
+        self,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
+    ) -> List[BaguaTensor]:
         """
         Given a :class:`~bagua.torch_api.data_parallel.BaguaDistributedDataParallel`, return Bagua tensors to be used in Bagua for later
         operations.
@@ -96,7 +99,10 @@ class AlgorithmImpl:
             bagua_buckets.append(bagua_bucket)
         return bagua_buckets
 
-    def init_forward_pre_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+    def init_forward_pre_hook(
+        self,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
+    ):
         """Given a :class:`~bagua.torch_api.data_parallel.BaguaDistributedDataParallel`, return a hook function that will be executed before the
         forward process.
 
@@ -112,7 +118,10 @@ class AlgorithmImpl:
 
         return hook
 
-    def init_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+    def init_backward_hook(
+        self,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
+    ):
         """Given a :class:`~bagua.torch_api.data_parallel.BaguaDistributedDataParallel`, return a hook function that will be executed on every
         parameter's gradient computation completion.
 
@@ -133,7 +142,10 @@ class AlgorithmImpl:
 
         return hook
 
-    def init_post_backward_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+    def init_post_backward_hook(
+        self,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
+    ):
         """Given a :class:`~bagua.torch_api.data_parallel.BaguaDistributedDataParallel`, return a hook function that will be executed when the
         backward pass is done.
 
@@ -149,7 +161,10 @@ class AlgorithmImpl:
 
         return hook
 
-    def init_post_optimizer_step_hook(self, bagua_ddp: BaguaDistributedDataParallel):
+    def init_post_optimizer_step_hook(
+        self,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel"
+    ):
         """Given a :class:`~bagua.torch_api.data_parallel.BaguaDistributedDataParallel`, return a hook function that will be executed when the
         ``optimizer.step()`` is done.
 
@@ -167,7 +182,7 @@ class AlgorithmImpl:
 
     def init_operations(
         self,
-        bagua_ddp: BaguaDistributedDataParallel,
+        bagua_ddp: "bagua.torch_api.data_parallel.bagua_distributed.BaguaDistributedDataParallel",
         bucket: BaguaBucket,
     ):
         """Given a :class:`~bagua.torch_api.data_parallel.BaguaDistributedDataParallel`, and a :class:`~bagua.torch_api.bucket.BaguaBucket`,
