@@ -1,5 +1,4 @@
 # pytype: disable=attribute-error
-from operator import not_
 import torch
 import time
 import io
@@ -23,8 +22,6 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
 )
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
-
-from bagua.torch_api.algorithms import gradient_allreduce
 
 
 class BaguaDistributedDataParallel:

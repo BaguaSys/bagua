@@ -16,25 +16,6 @@ from bagua.torch_api.communication import (
 from .bagua_distributed import BaguaDistributedDataParallel
 
 
-def _find_tensors(obj):
-    r"""
-    Recursively find all tensors contained in the specified object.
-    """
-    if RPC_AVAILABLE and isinstance(obj, RRef):
-        # If the current node is the owner of the RRef, unwrap it and try to
-        # find Tensors.
-        # TODO: Expand to remote RRefs.
-        if obj.is_owner():
-            return _find_tensors(obj.local_value())
-    if isinstance(obj, torch.Tensor):
-        return [obj]
-    if isinstance(obj, (list, tuple)):
-        return itertools.chain(*map(_find_tensors, obj))
-    if isinstance(obj, dict):
-        return itertools.chain(*map(_find_tensors, obj.values()))
-    return []
-
-
 class DistributedDataParallel_V1_9_0_Interface(Module):
     r"""
     `PyTorch v1.9.0 DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible interface.
