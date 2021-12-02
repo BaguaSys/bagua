@@ -101,7 +101,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         bucket_cap_mb=25,
         find_unused_parameters=False,
         check_reduction=False,
-        gradient_as_bucket_view=False,
+        gradient_as_bucket_view=True,
         # The following bagua parameters
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
@@ -134,11 +134,13 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.device = list(self.module.parameters())[0].device
         assert broadcast_buffers is True, "Not yet supported"
         self.broadcast_buffers = broadcast_buffers
-        assert find_unused_parameters is False, "Not yet supported"
         self.find_unused_parameters = find_unused_parameters
 
         self.inner = BaguaDistributedDataParallel(
-            self.module, optimizers, algorithm, to_bagua_process_group(process_group)
+            self.module, optimizers, algorithm,
+            process_group=to_bagua_process_group(process_group),
+            gradient_as_bucket_view=gradient_as_bucket_view,
+            find_unused_parameters=find_unused_parameters,
         )
 
     @property
@@ -221,7 +223,7 @@ def DistributedDataParallel(
     bucket_cap_mb: int = 25,
     find_unused_parameters: bool = False,
     check_reduction: bool = False,
-    gradient_as_bucket_view: bool = False,
+    gradient_as_bucket_view: bool = True,
     # The followings are parameters for Bagua
     optimizers: List[torch.optim.Optimizer] = [],
     algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
