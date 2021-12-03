@@ -135,9 +135,6 @@ def calculate_mutual_groups(tensors_list: List[List[torch.Tensor]]):
     for i in range(1, len(constraints)):
         grouped_indices = _intersect(grouped_indices, constraints[i])
 
-    #    logging.debug(
-    #        f"calculate mutual groups: {grouped_indices}, constraints: {constraints}"
-    #    )
     return grouped_indices
 
 
@@ -154,12 +151,6 @@ def group_tensors(tensors: List[torch.Tensor], indices: List[int]):
     assert check_contiguous(to_group), "tensors grouped must be contiguous"
 
     total_size = sum([t.numel() for t in to_group])
-    # with torch.no_grad():
-    #     tensor_view = torch.zeros(
-    #         total_size, dtype=to_group[0].dtype, device=to_group[0].device
-    #     )
-    #     tensor_view.set_(to_group[0].storage(), 0, tensor_view.shape)
-    #     return tensor_view
     return to_group[0].storage(), total_size, to_group[0].dtype, to_group[0].device
 
 
