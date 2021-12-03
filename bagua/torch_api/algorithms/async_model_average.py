@@ -48,7 +48,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         synchronize between each other.
 
         Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
-        For example, for a model wrapped with `.with_bagua(...)`, you can abort with `model.bagua_algorithm.abort(model)`,
+        For example, for a model wrapped with `data_parallel.DistributedDataParallel`, you can abort with `model.bagua_algorithm.abort(model)`,
         and resume with `model.bagua_algorithm.resume(model)`.
 
         Args:
@@ -304,7 +304,7 @@ class AsyncModelAverageAlgorithm(Algorithm):
         synchronize between each other.
 
         Users should call :meth:`abort` to manually stop the algorithm's continuous synchronization process.
-        For example, for a model wrapped with `.with_bagua(...)`, you can abort with `model.bagua_algorithm.abort(model)`,
+        For example, for a model wrapped with `data_parallel.DistributedDataParallel`, you can abort with `model.bagua_algorithm.abort(model)`,
         and resume with `model.bagua_algorithm.resume(model)`.
 
         Args:

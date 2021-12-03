@@ -120,9 +120,11 @@ class SyncBatchNorm(_BatchNorm):
             a new :class:`torch.nn.SyncBatchNorm` layer object will be returned
             instead.
 
-        .. note:: This function must be called before :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method.
+        .. note:: This function must be called before :meth:`~bagua.torch_api.data_parallel.DistributedDataParallel` method.
 
         Example::
+            >>> from bagua.torch_api.data_parallel import DistributedDataParallel
+            >>> from bagua.torch_api.contrib.sync_batchnorm import SyncBatchNorm
             >>> # Network with nn.BatchNorm layer
             >>> model = torch.nn.Sequential(
             ...      torch.nn.Linear(D_in, H),
@@ -134,8 +136,8 @@ class SyncBatchNorm(_BatchNorm):
             ...      lr=0.01,
             ...      momentum=0.9
             ...    )
-            >>> sync_bn_model = bagua.torch_api.contrib.sync_batchnorm.SyncBatchNorm.convert_sync_batchnorm(model)
-            >>> bagua_model = sync_bn_model.with_bagua([optimizer], GradientAllReduce())
+            >>> sync_bn_model = SyncBatchNorm.convert_sync_batchnorm(model)
+            >>> bagua_model = DistributedDataParallel(model)
         """
         module_output = module
 

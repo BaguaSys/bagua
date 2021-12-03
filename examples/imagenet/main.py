@@ -18,6 +18,7 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 import bagua.torch_api as bagua
 from bisect import bisect_right
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 
 model_names = sorted(
@@ -278,10 +279,7 @@ def main_worker(args):
             print("=> no checkpoint found at '{}'".format(args.resume))
 
     if args.distributed:
-        model = model.with_bagua(
-            [optimizer],
-            algorithm,
-        )
+        model = DistributedDataParallel(model, optimizers=[optimizer], algorithm=algorithm)
 
     cudnn.benchmark = True
 

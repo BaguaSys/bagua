@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from deprecated import deprecated
 from bagua.torch_api.communication import (
     get_backend,
     broadcast,
@@ -50,6 +51,12 @@ class BaguaModule:
 
     __id_iter = itertools.count()
 
+    @deprecated(
+        reason="""
+        This is deprecated, really. So you need to use `bagua.torch_api.data_parallel.DistributedDataParallel`.
+        Which is compatible with PyTorch DDP and is suitable for more scenarios.
+        """,
+    )
     def with_bagua(  # pytype: disable=module-attr
         self,
         optimizers: List[torch.optim.Optimizer],

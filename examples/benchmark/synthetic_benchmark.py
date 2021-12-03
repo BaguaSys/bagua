@@ -12,6 +12,7 @@ import torch.utils.data.distributed
 from torchvision import models
 import numpy as np
 import bagua.torch_api as bagua
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 import logging
 
 
@@ -151,7 +152,7 @@ elif args.algorithm == "async":
 else:
     raise NotImplementedError
 
-model = model.with_bagua([optimizer], algorithm)
+model = DistributedDataParallel(model, optimizers=[optimizer], algorithm=algorithm)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)

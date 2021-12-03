@@ -7,6 +7,7 @@ from multiprocessing import Manager
 import time
 import logging
 import bagua.torch_api as bagua
+from playground.baguaddp_deliver.bagua.bagua.torch_api.data_parallel.distributed import DistributedDataParallel
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_not_available
 import torch
@@ -99,7 +100,11 @@ def run_bagua_broad(rank, nprocs, bagua_params, envs, opt_class, opt_hyper_param
     from bagua.torch_api.algorithms import gradient_allreduce
 
     algorithm = gradient_allreduce.GradientAllReduceAlgorithm(hierarchical=True)
-    bagua_model = bagua_model.with_bagua([bagua_optimizer], algorithm)
+    bagua_model = DistributedDataParallel(
+        bagua_model,
+        optimizers=[bagua_optimizer],
+        algorithm=algorithm,
+    )
 
     model_params = [
         (k, v.clone().detach().cpu().numpy())

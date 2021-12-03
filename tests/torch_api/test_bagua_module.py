@@ -7,6 +7,7 @@ import unittest
 import multiprocessing
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 
 class Net(nn.Module):
@@ -77,7 +78,12 @@ def bagua_init(model, optimizer, algorithm, process_group=None):
     else:
         raise ValueError("unsupported algorithm")
 
-    model = model.with_bagua([optimizer], bagua_algorithm, process_group=process_group)
+    model = DistributedDataParallel(
+        model,
+        optimizers=[optimizer],
+        algorithm=bagua_algorithm,
+        process_group=process_group,
+    )
 
     return model, optimizer
 
