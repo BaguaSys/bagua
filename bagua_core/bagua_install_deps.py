@@ -47,7 +47,7 @@ def _make_nccl_record(cuda_version, full_version, public_version, filename_linux
 
 
 _nccl_records.append(
-    _make_nccl_record("11.5", "2.11.4", "2.11", "nccl_2.11.4-1+cuda11.5_x86_64.txz")
+    _make_nccl_record("11.5", "2.11.4", "2.11", "nccl_2.11.4-1+cuda11.4_x86_64.txz")
 )
 _nccl_records.append(
     _make_nccl_record("11.4", "2.11.4", "2.11", "nccl_2.11.4-1+cuda11.4_x86_64.txz")
