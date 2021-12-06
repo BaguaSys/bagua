@@ -21,7 +21,7 @@ class MultiheadAttnMatmul1Func(torch.autograd.Function):
         heads_t, inputs_q, inputs_kv = ctx.saved_tensors
 
         inputs_q_grads, inputs_kv_grads = bagua_multihead_attn_matmul1_cuda.backward(
-            heads_t[0], output_grads, inputs_q, inputs_kv
+            heads_t[0], output_grads.contiguous(), inputs_q, inputs_kv
         )
 
         return None, inputs_q_grads, inputs_kv_grads
@@ -46,7 +46,7 @@ class MultiheadAttnMatmul2Func(torch.autograd.Function):
             inputs_kv_grads,
             attention_probs_grads,
         ) = bagua_multihead_attn_matmul2_cuda.backward(
-            heads_t[0], output_grads, inputs_kv, attention_probs
+            heads_t[0], output_grads.contiguous(), inputs_kv, attention_probs
         )
 
         return None, inputs_kv_grads, attention_probs_grads
@@ -69,7 +69,7 @@ class SelfMultiheadAttnMatmul1Func(torch.autograd.Function):
         heads_t, inputs, coeff_t = ctx.saved_tensors
 
         (inputs_grads,) = bagua_self_multihead_attn_matmul1_cuda.backward(
-            heads_t[0], output_grads, inputs, coeff_t[0]
+            heads_t[0], output_grads.contiguous(), inputs, coeff_t[0]
         )
 
         return None, inputs_grads, None
@@ -84,6 +84,7 @@ class SelfMultiheadAttnMatmul2Func(torch.autograd.Function):
             heads, inputs, attention_probs
         )
         ctx.save_for_backward(heads_t, inputs, attention_probs)
+
         return outputs
 
     @staticmethod
@@ -94,7 +95,7 @@ class SelfMultiheadAttnMatmul2Func(torch.autograd.Function):
             inputs_grads,
             attention_probs_grads,
         ) = bagua_self_multihead_attn_matmul2_cuda.backward(
-            heads_t[0], output_grads, inputs, attention_probs
+            heads_t[0], output_grads.contiguous(), inputs, attention_probs
         )
 
         return None, inputs_grads, attention_probs_grads

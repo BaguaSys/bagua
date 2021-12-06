@@ -114,8 +114,8 @@ std::vector<torch::Tensor> bwd_cuda(
   cublasSetStream(handle, stream);
 
   // Output Tensor Allocations
-  torch::Tensor inputs_q_grads   = torch::empty_like(inputs_q);
-  torch::Tensor inputs_kv_grads  = torch::empty_like(inputs_kv);
+  torch::Tensor inputs_q_grads   = torch::zeros_like(inputs_q);
+  torch::Tensor inputs_kv_grads  = torch::zeros_like(inputs_kv);
 
   auto inputs_q_ptr = static_cast<half*>(inputs_q.data_ptr());
   auto inputs_k_ptr = static_cast<half*>(inputs_kv.data_ptr());

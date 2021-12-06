@@ -1,7 +1,10 @@
 import torch
 import unittest
 import math
-from bagua.torch_api.contrib.fuse.multihead_attn import MultiheadAttnMatmul1Func
+from bagua.torch_api.contrib.fuse.multihead_attn import (
+    MultiheadAttnMatmul1Func,
+    MultiheadAttnMatmul2Func,
+)
 
 
 class NaiveAttnFunc(torch.autograd.Function):
@@ -41,14 +44,32 @@ class NaiveAttnFunc(torch.autograd.Function):
             alpha=scale,
         )
 
-        heads_t = torch.tensor([heads])
-        ctx.save_for_backward(heads_t, inputs_q, inputs_kv)
+        # Matmul2
+        # Input1: (activation)  [seqs*heads, seql_q, seql_k]
+        # Input2: (values)      [seql_k, seqs*heads, head_dim] transpose(0,1)
+        # Output:               [seqs*heads, seql_k, head_dim]
+        # allocate memory: [seql_q, batches=seqs*heads, head_dim]
+        matmul2_results = torch.empty(
+            (matmul1_results.size(1), matmul1_results.size(0), values.size(2)),
+            dtype=matmul1_results.dtype,
+            device=torch.device("cuda"),
+        ).transpose(1, 0)
+        matmul2_results = torch.bmm(
+            matmul1_results, values.transpose(0, 1), out=matmul2_results
+        )
 
-        return matmul1_results
+        matmul2_results = matmul2_results.transpose(0, 1).contiguous()
+        # view: [seql_q, seqs, heads* head_dim]
+        matmul2_results = matmul2_results.view(inputs_kv.size(0), inputs_kv.size(1), -1)
+
+        heads_t = torch.tensor([heads])
+        ctx.save_for_backward(heads_t, inputs_q, inputs_kv, matmul1_results)
+
+        return matmul2_results
 
     @staticmethod
     def backward(ctx, output_grads):
-        heads_t, inputs_q, inputs_kv = ctx.saved_tensors
+        heads_t, inputs_q, inputs_kv, matmul1_results = ctx.saved_tensors
 
         embedding_dim = inputs_q.size(2)
         head_dim = embedding_dim // heads_t[0]
@@ -73,20 +94,52 @@ class NaiveAttnFunc(torch.autograd.Function):
         inputs_q_grads = torch.empty_like(inputs_q)
         inputs_kv_grads = torch.empty_like(inputs_kv)
         inputs_kv_grads_view = inputs_kv_grads.view(
-            inputs_kv_grads.size(0), inputs_kv_grads.size(1) * heads_t[0], -1
+            inputs_kv_grads.size(0), inputs_kv_grads.size(1) * heads_t[0], 2, -1
         )
 
-        queries_grads = inputs_q_grads
+        queries_grads = inputs_q_grads.view(
+            inputs_q_grads.size(0), inputs_q_grads.size(1) * heads_t[0], -1
+        )
         keys_grads = inputs_kv_grads_view[:, :, 0, :]
         values_grads = inputs_kv_grads_view[:, :, 1, :]
+
+        # attention_probs: [batches=seqs*heads, seql_q, seql_k]
+        matmul1_results_grads = torch.empty_like(matmul1_results)
+
+        # output_grads: [seql_q, seqs, heads* head_dim] -> [seql_q, batches=seqs*heads, head_dim]
+        output_grads = output_grads.view(
+            output_grads.size(0),
+            output_grads.size(1) * heads_t[0],
+            -1,
+        ).transpose(0, 1)
+
+        # Matmul2 - DGRAD1
+        # Input1: (data grads)  [seqs*heads, seql_q, head_dim]
+        # Input2: (values)      [seql_k, seqs*heads, head_dim] transpose(0,1).transpose(1,2)
+        # Output:               [seqs*heads, seql_q, seql_k]
+        matmul1_results_grads = torch.bmm(
+            output_grads,
+            values.transpose(0, 1).transpose(1, 2),
+            out=matmul1_results_grads,
+        )
+        # Matmul2 - DGRAD2
+        # Input1: (data grads)  [seqs*heads, seql_q, head_dim]
+        # Input2: (activations) [batches=seqs*heads, seql_q, seql_k] transpose(1,2)
+        # Output:               [seqs*heads, seql_k, head_dim]
+        values_grads = torch.bmm(
+            matmul1_results.transpose(1, 2),
+            output_grads,
+            out=values_grads.transpose(0, 1),
+        )
 
         # Matmul - DGRAD1
         # Input1: (data grads)  [seqs*heads, seql_q, seql_k]
         # Input2: (keys)        [seql_k, seqs*heads, head_dim] transpose(0,1)
         # Output:               [seqs*heads, seql_q, head_dim] transpose(0,1)
+
         queries_grads = torch.baddbmm(
             queries_grads.transpose(0, 1),
-            output_grads,
+            matmul1_results_grads,
             keys.transpose(0, 1),
             out=queries_grads.transpose(0, 1),
             beta=0.0,
@@ -98,7 +151,7 @@ class NaiveAttnFunc(torch.autograd.Function):
         # Output:               [seqs*heads, seql_k, head_dim] transpose(0,1)
         keys_grads = torch.baddbmm(
             keys_grads.transpose(0, 1),
-            output_grads.transpose(1, 2),
+            matmul1_results_grads.transpose(1, 2),
             queries.transpose(0, 1),
             out=keys_grads.transpose(0, 1),
             beta=0.0,
@@ -139,13 +192,14 @@ class TestSelfMultiheadAttn(unittest.TestCase):
 
         ref_inputs_q, ref_inputs_kv = construct_inputs()
         tst_inputs_q, tst_inputs_kv = construct_inputs()
-        grads = torch.randn_like(tst_inputs_q)
 
         ref_outputs = NaiveAttnFunc.apply(16, ref_inputs_q, ref_inputs_kv)
-        tst_outputs = MultiheadAttnMatmul1Func.apply(16, tst_inputs_q, tst_inputs_kv)
 
-        ref_inputs_q.backward(grads)
-        tst_inputs_q.backward(grads)
+        tst_matmul1 = MultiheadAttnMatmul1Func.apply(16, tst_inputs_q, tst_inputs_kv)
+        tst_outputs = MultiheadAttnMatmul2Func.apply(16, tst_inputs_kv, tst_matmul1)
+
+        ref_outputs.sum().backward()
+        tst_outputs.sum().backward()
 
         self.assertTrue(torch.equal(ref_inputs_q, tst_inputs_q))
         self.assertTrue(torch.equal(ref_inputs_kv, tst_inputs_kv))
