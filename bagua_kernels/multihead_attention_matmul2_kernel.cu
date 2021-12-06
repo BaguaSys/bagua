@@ -30,8 +30,8 @@ std::vector<torch::Tensor> fwd_cuda(
   // Embedding of V
   const int   embed_dim      = inputs.size(2);
   const int   sequences      = inputs.size(1);
-  const int   q_seq_len      = inputs.size(0);
-  const int   k_seq_len      = q_seq_len;
+  const int   k_seq_len      = inputs.size(0);
+  const int   q_seq_len      = attention_probs.size(1);
   const int   head_dim       = embed_dim / heads;
 
   const int   attn_batches   = heads * sequences;
@@ -51,9 +51,7 @@ std::vector<torch::Tensor> fwd_cuda(
 
   torch::Tensor outputs           = torch::empty({q_seq_len, sequences, heads * head_dim},    act_options);
 
-  // Input Linear Results Pointers to Q, K, and V of interviewed activations
-  void* inputs_k_ptr   = static_cast<void*>(inputs.data_ptr());
-  void* inputs_v_ptr   = static_cast<void*>(static_cast<half*>(inputs.data_ptr()) + head_dim);
+  void* inputs_v_ptr   = static_cast<void*>(inputs.data_ptr());
 
   char a_layout_t{'t'};
   char a_layout_n{'n'};
@@ -99,8 +97,8 @@ std::vector<torch::Tensor> bwd_cuda(
 {
   const int   embed_dim      = inputs.size(2);
   const int   sequences      = inputs.size(1);
-  const int   q_seq_len      = inputs.size(0);
-  const int   k_seq_len      = q_seq_len;
+  const int   k_seq_len      = inputs.size(0);
+  const int   q_seq_len      = attention_probs.size(1);
   const int   head_dim       = embed_dim / heads;
 
   const int   attn_batches   = heads * sequences;
@@ -117,7 +115,7 @@ std::vector<torch::Tensor> bwd_cuda(
   cublasSetStream(handle, stream);
 
   // Output Tensor Allocations
-  torch::Tensor inputs_grads   = torch::zeros_like(inputs);
+  torch::Tensor inputs_grads   = torch::empty_like(inputs);
   torch::Tensor attention_probs_grads   = torch::empty_like(attention_probs);
 
   auto inputs_v_ptr = static_cast<half*>(inputs.data_ptr());

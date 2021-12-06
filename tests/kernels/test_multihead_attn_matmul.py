@@ -80,7 +80,9 @@ class NaiveAttnFunc(torch.autograd.Function):
             inputs_q.size(0), inputs_q.size(1) * heads_t[0], head_dim
         )
         keys = inputs_k.view(inputs_k.size(0), inputs_k.size(1) * heads_t[0], head_dim)
-        values = inputs_v.view(inputs_v.size(0), inputs_v.size(1) * heads_t[0], head_dim)
+        values = inputs_v.view(
+            inputs_v.size(0), inputs_v.size(1) * heads_t[0], head_dim
+        )
 
         # Slice out q,k,v from one big set of gradients entering the input linear's bprop  (should only impact meta data, no copies!)
         # The gradients are identical in size to the Input Linear outputs.
@@ -161,27 +163,29 @@ def construct_inputs(seed=47):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-    seq_length = 80
+    seq_length_q = 80
+    seq_length_k = 100
+    seq_length_v = 100
     sequences = 10
     hidden_dim = 1024
     heads = 16
 
     inputs_q = torch.randn(
-        seq_length,
+        seq_length_q,
         sequences,
         hidden_dim,
         dtype=torch.float16,
         device=torch.device("cuda"),
     ).requires_grad_(True)
     inputs_k = torch.randn(
-        seq_length,
+        seq_length_k,
         sequences,
         hidden_dim,
         dtype=torch.float16,
         device=torch.device("cuda"),
     ).requires_grad_(True)
     inputs_v = torch.randn(
-        seq_length,
+        seq_length_v,
         sequences,
         hidden_dim,
         dtype=torch.float16,
@@ -207,6 +211,7 @@ class TestSelfMultiheadAttn(unittest.TestCase):
         self.assertTrue(torch.equal(ref_inputs_q, tst_inputs_q))
         self.assertTrue(torch.equal(ref_inputs_k, tst_inputs_k))
         self.assertTrue(torch.equal(ref_inputs_v, tst_inputs_v))
+
         self.assertTrue(torch.allclose(ref_outputs, tst_outputs, atol=1e-3, rtol=1e-3))
         self.assertTrue(
             torch.allclose(ref_inputs_q.grad, tst_inputs_q.grad, atol=1e-3, rtol=1e-3)

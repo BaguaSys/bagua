@@ -7,49 +7,49 @@ import bagua_self_multihead_attn_matmul2_cuda
 
 class MultiheadAttnMatmul1Func(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, heads, inputs_q, inputs_kv):
+    def forward(ctx, heads, inputs_q, inputs_k):
         heads_t = torch.tensor([heads])
 
         (outputs,) = bagua_multihead_attn_matmul1_cuda.forward(
-            heads, inputs_q, inputs_kv
+            heads, inputs_q, inputs_k
         )
-        ctx.save_for_backward(heads_t, inputs_q, inputs_kv)
+        ctx.save_for_backward(heads_t, inputs_q, inputs_k)
         return outputs
 
     @staticmethod
     def backward(ctx, output_grads):
-        heads_t, inputs_q, inputs_kv = ctx.saved_tensors
+        heads_t, inputs_q, inputs_k = ctx.saved_tensors
 
-        inputs_q_grads, inputs_kv_grads = bagua_multihead_attn_matmul1_cuda.backward(
-            heads_t[0], output_grads.contiguous(), inputs_q, inputs_kv
+        inputs_q_grads, inputs_k_grads = bagua_multihead_attn_matmul1_cuda.backward(
+            heads_t[0], output_grads.contiguous(), inputs_q, inputs_k
         )
 
-        return None, inputs_q_grads, inputs_kv_grads
+        return None, inputs_q_grads, inputs_k_grads
 
 
 class MultiheadAttnMatmul2Func(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, heads, inputs_kv, attention_probs):
+    def forward(ctx, heads, inputs_v, attention_probs):
         heads_t = torch.tensor([heads])
 
         (outputs,) = bagua_multihead_attn_matmul2_cuda.forward(
-            heads, inputs_kv, attention_probs
+            heads, inputs_v, attention_probs
         )
-        ctx.save_for_backward(heads_t, inputs_kv, attention_probs)
+        ctx.save_for_backward(heads_t, inputs_v, attention_probs)
         return outputs
 
     @staticmethod
     def backward(ctx, output_grads):
-        heads_t, inputs_kv, attention_probs = ctx.saved_tensors
+        heads_t, inputs_v, attention_probs = ctx.saved_tensors
 
         (
-            inputs_kv_grads,
+            inputs_v_grads,
             attention_probs_grads,
         ) = bagua_multihead_attn_matmul2_cuda.backward(
-            heads_t[0], output_grads.contiguous(), inputs_kv, attention_probs
+            heads_t[0], output_grads.contiguous(), inputs_v, attention_probs
         )
 
-        return None, inputs_kv_grads, attention_probs_grads
+        return None, inputs_v_grads, attention_probs_grads
 
 
 class SelfMultiheadAttnMatmul1Func(torch.autograd.Function):
