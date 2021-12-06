@@ -25,46 +25,46 @@ namespace matmul1 {
 std::vector<torch::Tensor> fwd_cuda(
     int                  heads,
     torch::Tensor const& inputs_q,
-    torch::Tensor const& inputs_kv
+    torch::Tensor const& inputs_k
     );
 
 std::vector<torch::Tensor> bwd_cuda(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs_q,
-    torch::Tensor const& inputs_kv
+    torch::Tensor const& inputs_k
     );
 
 std::vector<torch::Tensor> fwd(
     int                  heads,
     torch::Tensor const& inputs_q,
-    torch::Tensor const& inputs_kv) {
+    torch::Tensor const& inputs_k) {
 
   AT_ASSERTM(inputs_q.dim()         == 3, "expected 3D tensor");
-  AT_ASSERTM(inputs_kv.dim()        == 3, "expected 3D tensor");
+  AT_ASSERTM(inputs_k.dim()         == 3, "expected 3D tensor");
 
   AT_ASSERTM(inputs_q.type().scalarType()         == at::ScalarType::Half, "Only HALF is supported");
-  AT_ASSERTM(inputs_kv.type().scalarType()        == at::ScalarType::Half, "Only HALF is supported");
+  AT_ASSERTM(inputs_k.type().scalarType()         == at::ScalarType::Half, "Only HALF is supported");
 
-  return fwd_cuda(heads, inputs_q, inputs_kv);
+  return fwd_cuda(heads, inputs_q, inputs_k);
 }
 
 std::vector<torch::Tensor> bwd(
     int                  heads,
     torch::Tensor const& output_grads,
     torch::Tensor const& inputs_q,
-    torch::Tensor const& inputs_kv) {
+    torch::Tensor const& inputs_k) {
 
   AT_ASSERTM(output_grads.dim() == 3, "expected 3D tensor");
   AT_ASSERTM(inputs_q.dim()     == 3, "expected 3D tensor");
-  AT_ASSERTM(inputs_kv.dim()    == 3, "expected 3D tensor");
+  AT_ASSERTM(inputs_k.dim()     == 3, "expected 3D tensor");
 
   AT_ASSERTM(output_grads.scalar_type() == at::ScalarType::Half,
       "Only HALF is supported");
   AT_ASSERTM(inputs_q.type().scalarType()  == at::ScalarType::Half, "Only HALF is supported");
-  AT_ASSERTM(inputs_kv.type().scalarType() == at::ScalarType::Half, "Only HALF is supported");
+  AT_ASSERTM(inputs_k.type().scalarType()  == at::ScalarType::Half, "Only HALF is supported");
 
-  return bwd_cuda(heads, output_grads, inputs_q, inputs_kv);
+  return bwd_cuda(heads, output_grads, inputs_q, inputs_k);
 }
 
 } // end namespace matmul1

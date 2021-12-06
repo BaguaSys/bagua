@@ -9,19 +9,16 @@ from bagua.torch_api.contrib.fuse.multihead_attn import (
 
 class NaiveAttnFunc(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, heads, inputs_q, inputs_kv):
+    def forward(ctx, heads, inputs_q, inputs_k, inputs_v):
 
         embedding_dim = inputs_q.size(2)
         head_dim = embedding_dim // heads
         scale = 1.0 / math.sqrt(head_dim)
 
-        # inputs: [seql_q, batches=seqs*heads, 3, head_dim]
-        inputs_kv_view = inputs_kv.view(
-            inputs_kv.size(0), inputs_kv.size(1) * heads, 2, head_dim
-        )
+        # inputs: [seql_q, batches=seqs*heads, head_dim]
         queries = inputs_q.view(inputs_q.size(0), inputs_q.size(1) * heads, head_dim)
-        keys = inputs_kv_view[:, :, 0, :]
-        values = inputs_kv_view[:, :, 1, :]
+        keys = inputs_k.view(inputs_k.size(0), inputs_k.size(1) * heads, head_dim)
+        values = inputs_v.view(inputs_v.size(0), inputs_v.size(1) * heads, head_dim)
 
         # Matmul1 Batched GEMMs
         # The output tensor is specified prior to the Batch GEMM because baddbmm requires its specification
@@ -60,16 +57,16 @@ class NaiveAttnFunc(torch.autograd.Function):
 
         matmul2_results = matmul2_results.transpose(0, 1).contiguous()
         # view: [seql_q, seqs, heads* head_dim]
-        matmul2_results = matmul2_results.view(inputs_kv.size(0), inputs_kv.size(1), -1)
+        matmul2_results = matmul2_results.view(inputs_q.size(0), inputs_q.size(1), -1)
 
         heads_t = torch.tensor([heads])
-        ctx.save_for_backward(heads_t, inputs_q, inputs_kv, matmul1_results)
+        ctx.save_for_backward(heads_t, inputs_q, inputs_k, inputs_v, matmul1_results)
 
         return matmul2_results
 
     @staticmethod
     def backward(ctx, output_grads):
-        heads_t, inputs_q, inputs_kv, matmul1_results = ctx.saved_tensors
+        heads_t, inputs_q, inputs_k, inputs_v, matmul1_results = ctx.saved_tensors
 
         embedding_dim = inputs_q.size(2)
         head_dim = embedding_dim // heads_t[0]
@@ -79,29 +76,28 @@ class NaiveAttnFunc(torch.autograd.Function):
         # Sequences and heads are combined to make the batch of the Batched GEMM
         # input_lin_results: [seql_q, seqs, heads(16), 3, head_dim(64)]
         # input_lin_results: [seql_q, batches=seqs*heads, 3, head_dim]
-        inputs_kv_view = inputs_kv.view(
-            inputs_kv.size(0), inputs_kv.size(1) * heads_t[0], 2, head_dim
-        )
         queries = inputs_q.view(
             inputs_q.size(0), inputs_q.size(1) * heads_t[0], head_dim
         )
-        keys = inputs_kv_view[:, :, 0, :]
-        values = inputs_kv_view[:, :, 1, :]
+        keys = inputs_k.view(inputs_k.size(0), inputs_k.size(1) * heads_t[0], head_dim)
+        values = inputs_v.view(inputs_v.size(0), inputs_v.size(1) * heads_t[0], head_dim)
 
         # Slice out q,k,v from one big set of gradients entering the input linear's bprop  (should only impact meta data, no copies!)
         # The gradients are identical in size to the Input Linear outputs.
         # The tensor is declared before hand to properly slice out query, key, and value grads.
         inputs_q_grads = torch.empty_like(inputs_q)
-        inputs_kv_grads = torch.empty_like(inputs_kv)
-        inputs_kv_grads_view = inputs_kv_grads.view(
-            inputs_kv_grads.size(0), inputs_kv_grads.size(1) * heads_t[0], 2, -1
-        )
+        inputs_k_grads = torch.empty_like(inputs_k)
+        inputs_v_grads = torch.empty_like(inputs_v)
 
         queries_grads = inputs_q_grads.view(
             inputs_q_grads.size(0), inputs_q_grads.size(1) * heads_t[0], -1
         )
-        keys_grads = inputs_kv_grads_view[:, :, 0, :]
-        values_grads = inputs_kv_grads_view[:, :, 1, :]
+        keys_grads = inputs_k_grads.view(
+            inputs_k_grads.size(0), inputs_k_grads.size(1) * heads_t[0], -1
+        )
+        values_grads = inputs_v_grads.view(
+            inputs_v_grads.size(0), inputs_v_grads.size(1) * heads_t[0], -1
+        )
 
         # attention_probs: [batches=seqs*heads, seql_q, seql_k]
         matmul1_results_grads = torch.empty_like(matmul1_results)
@@ -158,7 +154,7 @@ class NaiveAttnFunc(torch.autograd.Function):
             alpha=scale,
         )
 
-        return None, inputs_q_grads, inputs_kv_grads
+        return None, inputs_q_grads, inputs_k_grads, inputs_v_grads
 
 
 def construct_inputs(seed=47):
@@ -177,35 +173,49 @@ def construct_inputs(seed=47):
         dtype=torch.float16,
         device=torch.device("cuda"),
     ).requires_grad_(True)
-    inputs_kv = torch.randn(
+    inputs_k = torch.randn(
         seq_length,
         sequences,
-        hidden_dim * 2,
+        hidden_dim,
         dtype=torch.float16,
         device=torch.device("cuda"),
     ).requires_grad_(True)
-    return inputs_q, inputs_kv
+    inputs_v = torch.randn(
+        seq_length,
+        sequences,
+        hidden_dim,
+        dtype=torch.float16,
+        device=torch.device("cuda"),
+    ).requires_grad_(True)
+    return inputs_q, inputs_k, inputs_v
 
 
 class TestSelfMultiheadAttn(unittest.TestCase):
     def test_self_multihead_attn(self):
 
-        ref_inputs_q, ref_inputs_kv = construct_inputs()
-        tst_inputs_q, tst_inputs_kv = construct_inputs()
+        ref_inputs_q, ref_inputs_k, ref_inputs_v = construct_inputs()
+        tst_inputs_q, tst_inputs_k, tst_inputs_v = construct_inputs()
 
-        ref_outputs = NaiveAttnFunc.apply(16, ref_inputs_q, ref_inputs_kv)
+        ref_outputs = NaiveAttnFunc.apply(16, ref_inputs_q, ref_inputs_k, ref_inputs_v)
 
-        tst_matmul1 = MultiheadAttnMatmul1Func.apply(16, tst_inputs_q, tst_inputs_kv)
-        tst_outputs = MultiheadAttnMatmul2Func.apply(16, tst_inputs_kv, tst_matmul1)
+        tst_matmul1 = MultiheadAttnMatmul1Func.apply(16, tst_inputs_q, tst_inputs_k)
+        tst_outputs = MultiheadAttnMatmul2Func.apply(16, tst_inputs_v, tst_matmul1)
 
         ref_outputs.sum().backward()
         tst_outputs.sum().backward()
 
         self.assertTrue(torch.equal(ref_inputs_q, tst_inputs_q))
-        self.assertTrue(torch.equal(ref_inputs_kv, tst_inputs_kv))
+        self.assertTrue(torch.equal(ref_inputs_k, tst_inputs_k))
+        self.assertTrue(torch.equal(ref_inputs_v, tst_inputs_v))
         self.assertTrue(torch.allclose(ref_outputs, tst_outputs, atol=1e-3, rtol=1e-3))
         self.assertTrue(
             torch.allclose(ref_inputs_q.grad, tst_inputs_q.grad, atol=1e-3, rtol=1e-3)
+        )
+        self.assertTrue(
+            torch.allclose(ref_inputs_k.grad, tst_inputs_k.grad, atol=1e-3, rtol=1e-3)
+        )
+        self.assertTrue(
+            torch.allclose(ref_inputs_v.grad, tst_inputs_v.grad, atol=1e-3, rtol=1e-3)
         )
 
 

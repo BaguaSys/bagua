@@ -27,16 +27,16 @@ std::vector<torch::Tensor> fwd_cuda(
                              )
 {
 
-  // Embedding of K and V
-  const int   embed_dim      = inputs.size(2) / 2;
+  // Embedding of V
+  const int   embed_dim      = inputs.size(2);
   const int   sequences      = inputs.size(1);
   const int   q_seq_len      = inputs.size(0);
   const int   k_seq_len      = q_seq_len;
   const int   head_dim       = embed_dim / heads;
 
   const int   attn_batches   = heads * sequences;
-  const int   lead_dim       = attn_batches * 2 * head_dim;
-  const int   batch_stride   = 2 * head_dim;
+  const int   lead_dim       = attn_batches * head_dim;
+  const int   batch_stride   = head_dim;
 
   const float alpha          = 1.0;
   const float beta           = 0.0;
@@ -97,15 +97,15 @@ std::vector<torch::Tensor> bwd_cuda(
                                torch::Tensor const& attention_probs
                                    )
 {
-  const int   embed_dim      = inputs.size(2) / 2;
+  const int   embed_dim      = inputs.size(2);
   const int   sequences      = inputs.size(1);
   const int   q_seq_len      = inputs.size(0);
   const int   k_seq_len      = q_seq_len;
   const int   head_dim       = embed_dim / heads;
 
   const int   attn_batches   = heads * sequences;
-  const int   lead_dim       = attn_batches * 2 * head_dim;
-  const int   batch_stride   = 2 * head_dim;
+  const int   lead_dim       = attn_batches * head_dim;
+  const int   batch_stride   = head_dim;
 
   const float alpha          = 1.0;
   const float beta           = 0.0;
@@ -120,11 +120,9 @@ std::vector<torch::Tensor> bwd_cuda(
   torch::Tensor inputs_grads   = torch::zeros_like(inputs);
   torch::Tensor attention_probs_grads   = torch::empty_like(attention_probs);
 
-  auto inputs_k_ptr = static_cast<half*>(inputs.data_ptr());
-  auto inputs_v_ptr = static_cast<half*>(inputs.data_ptr()) + head_dim;
+  auto inputs_v_ptr = static_cast<half*>(inputs.data_ptr());
 
-  auto inputs_k_grads_ptr = static_cast<half*>(inputs_grads.data_ptr());
-  auto inputs_v_grads_ptr = static_cast<half*>(inputs_grads.data_ptr()) + head_dim;
+  auto inputs_v_grads_ptr = static_cast<half*>(inputs_grads.data_ptr());
 
   char a_layout_n{'n'};
   char a_layout_t{'t'};

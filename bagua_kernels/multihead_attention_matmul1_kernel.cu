@@ -23,20 +23,20 @@ namespace matmul1 {
 std::vector<torch::Tensor> fwd_cuda(
                                int                  heads,
                                torch::Tensor const& inputs_q,
-                               torch::Tensor const& inputs_kv
+                               torch::Tensor const& inputs_k
                              )
 {
   const int   embed_dim      = inputs_q.size(2);
   const int   sequences      = inputs_q.size(1);
   const int   q_seq_len      = inputs_q.size(0);
-  const int   k_seq_len      = inputs_kv.size(0);
+  const int   k_seq_len      = inputs_k.size(0);
   const int   head_dim       = embed_dim / heads;
 
-  const int   attn_batches   = heads * sequences;
+  const int   attn_batches      = heads * sequences;
   const int   lead_dim_q        = attn_batches * head_dim;
-  const int   lead_dim_kv       = attn_batches * 2 *head_dim;
+  const int   lead_dim_k        = attn_batches * head_dim;
   const int   batch_stride_q    = head_dim;
-  const int   batch_stride_kv   = 2 * head_dim;
+  const int   batch_stride_k    = head_dim;
 
   const float beta           = 0.0;
   const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
@@ -50,7 +50,6 @@ std::vector<torch::Tensor> fwd_cuda(
   auto act_options  = inputs_q.options().requires_grad(false);
   torch::Tensor outputs   = torch::empty({attn_batches, q_seq_len, k_seq_len},   act_options);
 
-  void* inputs_v_ptr   = static_cast<void*>(static_cast<half*>(inputs_kv.data_ptr()) + head_dim);
   void* outputs_ptr = static_cast<void*>(outputs.data_ptr());
 
   char a_layout_t{'t'};
@@ -66,16 +65,16 @@ std::vector<torch::Tensor> fwd_cuda(
                              q_seq_len,
                              head_dim,
                              scale,
-                             static_cast<const half*>(inputs_kv.data_ptr()),
-                             lead_dim_kv,
-                             batch_stride_kv,
+                             static_cast<const half*>(inputs_k.data_ptr()),
+                             lead_dim_k,
+                             batch_stride_k,
                              static_cast<const half*>(inputs_q.data_ptr()),
                              lead_dim_q,
                              batch_stride_q,
                              beta,
                              static_cast<half*>(outputs_ptr),
                              k_seq_len,
-                             k_seq_len*q_seq_len,
+                             k_seq_len * q_seq_len,
                              attn_batches);
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_DEFAULT_MATH));
@@ -89,20 +88,20 @@ std::vector<torch::Tensor> bwd_cuda(
                                int                  heads,
                                torch::Tensor const& output_grads,
                                torch::Tensor const& inputs_q,
-                               torch::Tensor const& inputs_kv
+                               torch::Tensor const& inputs_k
                                    )
 {
   const int   embed_dim         = inputs_q.size(2);
   const int   sequences         = inputs_q.size(1);
   const int   q_seq_len         = inputs_q.size(0);
-  const int   k_seq_len         = inputs_kv.size(0);
+  const int   k_seq_len         = inputs_k.size(0);
   const int   head_dim          = embed_dim / heads;
 
   const int   attn_batches      = heads * sequences;
   const int   lead_dim_q        = attn_batches * head_dim;
-  const int   lead_dim_kv       = attn_batches * 2 * head_dim;
+  const int   lead_dim_k        = attn_batches * head_dim;
   const int   batch_stride_q    = head_dim;
-  const int   batch_stride_kv   = 2 * head_dim;
+  const int   batch_stride_k    = head_dim;
 
   const float beta           = 0.0;
   const float scale          = 1.0 / sqrt(static_cast<float>(head_dim));
@@ -115,15 +114,13 @@ std::vector<torch::Tensor> bwd_cuda(
 
   // Output Tensor Allocations
   torch::Tensor inputs_q_grads   = torch::zeros_like(inputs_q);
-  torch::Tensor inputs_kv_grads  = torch::zeros_like(inputs_kv);
+  torch::Tensor inputs_k_grads   = torch::zeros_like(inputs_k);
 
   auto inputs_q_ptr = static_cast<half*>(inputs_q.data_ptr());
-  auto inputs_k_ptr = static_cast<half*>(inputs_kv.data_ptr());
-  auto inputs_v_ptr = static_cast<half*>(inputs_kv.data_ptr()) + head_dim;
+  auto inputs_k_ptr = static_cast<half*>(inputs_k.data_ptr());
 
   auto inputs_q_grads_ptr = static_cast<half*>(inputs_q_grads.data_ptr());
-  auto inputs_k_grads_ptr = static_cast<half*>(inputs_kv_grads.data_ptr());
-  auto inputs_v_grads_ptr = static_cast<half*>(inputs_kv_grads.data_ptr()) + head_dim;
+  auto inputs_k_grads_ptr = static_cast<half*>(inputs_k_grads.data_ptr());
 
   char a_layout_n{'n'};
   char b_layout_n{'n'};
@@ -140,8 +137,8 @@ std::vector<torch::Tensor> bwd_cuda(
                              k_seq_len,
                              scale,
                              inputs_k_ptr,
-                             lead_dim_kv,
-                             batch_stride_kv,
+                             lead_dim_k,
+                             batch_stride_k,
                              static_cast<half*>(output_grads.data_ptr()),
                              k_seq_len,
                              k_seq_len*q_seq_len,
@@ -167,15 +164,15 @@ std::vector<torch::Tensor> bwd_cuda(
                              k_seq_len*q_seq_len,
                              beta,
                              inputs_k_grads_ptr,
-                             lead_dim_kv,
-                             batch_stride_kv,
+                             lead_dim_k,
+                             batch_stride_k,
                              attn_batches);
 
   BAGUA_CUDABLAS_CHECK(cublasSetMathMode(handle, CUBLAS_DEFAULT_MATH));
 
   return {
            inputs_q_grads,
-           inputs_kv_grads
+           inputs_k_grads
          };
 }
 
