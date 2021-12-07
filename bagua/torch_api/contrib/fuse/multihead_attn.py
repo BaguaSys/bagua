@@ -1,8 +1,10 @@
 import torch
+
 import bagua_multihead_attn_matmul1_cuda
 import bagua_multihead_attn_matmul2_cuda
 import bagua_self_multihead_attn_matmul1_cuda
 import bagua_self_multihead_attn_matmul2_cuda
+import bagua_self_multihead_attn_score_cuda
 
 
 class MultiheadAttnMatmul1Func(torch.autograd.Function):
@@ -50,6 +52,65 @@ class MultiheadAttnMatmul2Func(torch.autograd.Function):
         )
 
         return None, inputs_v_grads, attention_probs_grads
+
+
+class SelfMultiheadAttnScoreFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, is_training, heads, inputs, attention_mask, coeff, dropout):
+        heads_t = torch.tensor([heads])
+        coeff_t = torch.tensor([coeff])
+        dropout_t = torch.tensor([dropout])
+
+        use_mask = attention_mask is not None
+        if not use_mask:
+            attention_mask = torch.tensor([])
+
+        (
+            softmax_results,
+            dropout_results,
+            dropout_mask,
+            outputs,
+        ) = bagua_self_multihead_attn_score_cuda.forward(
+            use_mask, is_training, heads, inputs, attention_mask, coeff, dropout
+        )
+        ctx.save_for_backward(
+            heads_t,
+            inputs,
+            attention_mask,
+            coeff_t,
+            dropout_t,
+            softmax_results,
+            dropout_results,
+            dropout_mask,
+        )
+        return outputs
+
+    @staticmethod
+    def backward(ctx, output_grads):
+        (
+            heads_t,
+            inputs,
+            attention_mask,
+            coeff_t,
+            dropout_t,
+            softmax_results,
+            dropout_results,
+            dropout_mask,
+        ) = ctx.saved_tensors
+
+        (inputs_grads,) = bagua_self_multihead_attn_score_cuda.backward(
+            attention_mask is not None,
+            heads_t[0],
+            output_grads.contiguous(),
+            dropout_results,
+            softmax_results,
+            inputs,
+            coeff_t[0],
+            dropout_mask,
+            dropout_t[0],
+        )
+
+        return None, None, inputs_grads, None, None, None
 
 
 class SelfMultiheadAttnMatmul1Func(torch.autograd.Function):
