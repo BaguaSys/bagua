@@ -1,7 +1,7 @@
 import torch
 import unittest
 import math
-from bagua.torch_api.contrib.fuse.multihead_attn import (
+from bagua.torch_api.contrib.fuse.multihead_attn_func import (
     MultiheadAttnMatmul1Func,
     MultiheadAttnMatmul2Func,
 )

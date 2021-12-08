@@ -2,7 +2,7 @@ import torch
 import unittest
 import math
 import torch.nn.functional as F
-from bagua.torch_api.contrib.fuse.multihead_attn import SelfMultiheadAttnScoreFunc
+from bagua.torch_api.contrib.fuse.multihead_attn_func import SelfMultiheadAttnScoreFunc
 
 
 def bert_attention_mask_func(attention_scores, attention_mask):
