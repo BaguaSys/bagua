@@ -67,12 +67,11 @@ class NaiveSelfAttnScoreFunc(torch.autograd.Function):
 
         # Softmax & Dropout
         if mask is not None:
-            extended_mask = bert_extended_attention_mask(mask)
             # [seqs, heads, seql_q, seql_k]
             matmul1_results = matmul1_results.view(
                 -1, heads, matmul1_results.size(1), matmul1_results.size(2)
             )
-            matmul1_results = bert_attention_mask_func(matmul1_results, extended_mask)
+            matmul1_results = bert_attention_mask_func(matmul1_results, mask)
             matmul1_results = matmul1_results.view(
                 matmul1_results.size(0) * matmul1_results.size(1),
                 matmul1_results.size(2),
@@ -240,7 +239,6 @@ class TestSelfMultiheadAttn(unittest.TestCase):
         ref_inputs = construct_inputs()
         tst_inputs = construct_inputs()
 
-        #        mask = torch.ones(ref_inputs.size(1), ref_inputs.size(0), dtype=torch.uint8, device=torch.device("cuda"))
         mask = None
         ref_outputs = NaiveSelfAttnScoreFunc.apply(True, 16, ref_inputs, mask, 0.0)
         tst_outputs = SelfMultiheadAttnScoreFunc.apply(
@@ -250,37 +248,43 @@ class TestSelfMultiheadAttn(unittest.TestCase):
         ref_outputs.sum().backward()
         tst_outputs.sum().backward()
 
-        print(ref_outputs - tst_outputs)
-        print(ref_inputs.grad - tst_inputs.grad)
         self.assertTrue(torch.equal(ref_inputs, tst_inputs))
         self.assertTrue(torch.allclose(ref_outputs, tst_outputs, atol=1e-3, rtol=1e-3))
         self.assertTrue(
             torch.allclose(ref_inputs.grad, tst_inputs.grad, atol=1e-3, rtol=1e-3)
         )
 
-        return
-        (
-            _,
-            _,
-            ref_softmax_results,
-            ref_dropout_results,
-            ref_dropout_mask,
-            _,
-        ) = ref_outputs.grad_fn.saved_tensors
-        (
-            _,
-            _,
-            _,
-            _,
-            _,
-            tst_softmax_results,
-            tst_dropout_results,
-            tst_dropout_mask,
-        ) = tst_outputs.grad_fn.saved_tensors
+    def test_self_masked_multihead_attn(self):
 
-        print("softmax: ", ref_softmax_results, tst_softmax_results)
-        print("dropout: ", ref_dropout_results, tst_dropout_results)
-        print("dropout mask: ", ref_dropout_mask, tst_dropout_mask)
+        ref_inputs = construct_inputs()
+        tst_inputs = construct_inputs()
+
+        mask = torch.ones(
+            ref_inputs.size(1),
+            ref_inputs.size(0),
+            dtype=torch.uint8,
+            device=torch.device("cuda"),
+        )
+        extended_mask = bert_extended_attention_mask(mask)
+        ref_outputs = NaiveSelfAttnScoreFunc.apply(
+            True, 16, ref_inputs, extended_mask, 0.0
+        )
+
+        extended_mask = extended_mask.view(
+            -1, extended_mask.size(2), extended_mask.size(3)
+        ).byte()
+        tst_outputs = SelfMultiheadAttnScoreFunc.apply(
+            True, 16, tst_inputs, extended_mask, 1.0, 0.0
+        )
+
+        ref_outputs.sum().backward()
+        tst_outputs.sum().backward()
+
+        self.assertTrue(torch.equal(ref_inputs, tst_inputs))
+        self.assertTrue(torch.allclose(ref_outputs, tst_outputs, atol=1e-3, rtol=1e-3))
+        self.assertTrue(
+            torch.allclose(ref_inputs.grad, tst_inputs.grad, atol=1e-3, rtol=1e-3)
+        )
 
 
 if __name__ == "__main__":

@@ -107,6 +107,8 @@ std::vector<torch::Tensor> fwd_cuda(
                              attn_batches * q_seq_len);
 
   } else {
+    // matmul1_results: [sequences * heads, q_seq_len, k_seq_len]
+    // attention_mask: [sequences * 1, q_seq_len, k_seq_len]
     softmax_success = dispatch_masked_softmax<half, half, float>(
                              reinterpret_cast<half*>(softmax_results.data_ptr()),
                              reinterpret_cast<const half*>(matmul1_results_ptr),
