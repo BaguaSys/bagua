@@ -87,6 +87,12 @@ parser.add_argument(
     metavar="N",
     help="how many batches to wait before logging training status",
 )
+parser.add_argument(
+    "--fuse-optimizer",
+    action="store_true",
+    default=False,
+    help="fuse optimizer or not",
+)
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -117,6 +123,8 @@ if args.cuda:
     model.cuda()
 
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
+if args.fuse_optimizer:
+    optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
 if args.algorithm == "gradient_allreduce":
     from bagua.torch_api.algorithms import gradient_allreduce
@@ -151,7 +159,7 @@ elif args.algorithm == "async":
 else:
     raise NotImplementedError
 
-model = model.with_bagua([optimizer], algorithm)
+model = model.with_bagua([optimizer], algorithm, do_flatten=not args.fuse_optimizer)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
