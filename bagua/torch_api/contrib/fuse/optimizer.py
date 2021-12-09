@@ -273,9 +273,14 @@ def fuse_optimizer(
     if do_flatten:
         flatten_params_and_states(optimizer)
 
-    if not hasattr(optimizer, "fuse_step"):
-        patch = gorilla.Patch(optimizer.__class__, "fuse_step", fuse_step)
-        gorilla.apply(patch)
+    def patch_func(name, func):
+        if not hasattr(optimizer, name):
+            patch = gorilla.Patch(optimizer.__class__, name, func)
+            gorilla.apply(patch)
+
+    patch_func("fuse_step", fuse_step)
+    patch_func("_pre_fuse_step", _pre_fuse_step)
+    patch_func("_post_fuse_step", _pre_fuse_step)
 
     return optimizer
 
