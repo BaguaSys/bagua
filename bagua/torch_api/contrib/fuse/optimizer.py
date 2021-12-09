@@ -332,13 +332,12 @@ def fuse_step(optimizer: torch.optim.Optimizer, closure=None):
         optimizer
     ), "Should init fused optimizer by calling `fuse_optimizer`."
 
-    do_fuse(optimizer)
+    _pre_fuse_step(optimizer)
     optimizer._bagua_fused_optimizer.step(closure)
-    check_optimizer(optimizer)
-    sync_optimizer_state(optimizer)
+    _post_fuse_step(optimizer)
 
 
-def do_fuse(optimizer: torch.optim.Optimizer):
+def _pre_fuse_step(optimizer: torch.optim.Optimizer):
     _fused_optimizer = optimizer._bagua_fused_optimizer
 
     for group, fused_group in zip(
@@ -454,6 +453,11 @@ def check_optimizer(optimizer):
             logging.error(
                 f"Should not change attribute {attr} in `optimizer.step(), maintain it in optimizer state.`"
             )
+
+
+def _post_fuse_step(optimizer: torch.optim.Optimizer):
+    check_optimizer(optimizer)
+    sync_optimizer_state(optimizer)
 
 
 def sync_param_group_scalars(src_group, dst_group):

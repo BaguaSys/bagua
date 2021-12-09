@@ -38,19 +38,27 @@ class Net(nn.Module):
         return output
 
 
-def train(args, model, train_loader, optimizer, epoch):
+def train(args, model, train_loader, optimizer, epoch, scaler):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
 
         data, target = data.cuda(), target.cuda()
         optimizer.zero_grad()
-        output = model(data)
-        loss = F.nll_loss(output, target)
-        loss.backward()
+
+        with torch.cuda.amp.autocast(enabled=args.amp):
+            output = model(data)
+            loss = F.nll_loss(output, target)
+
+        scaler.scale(loss).backward()
+
         if args.fuse_optimizer:
-            optimizer.fuse_step()
+            optimizer._pre_fuse_step()
+            scaler.step(optimizer._bagua_fused_optimizer)
+            optimizer._post_fuse_step()
         else:
-            optimizer.step()
+            scaler.step(optimizer)
+        scaler.update()
+
         if batch_idx % args.log_interval == 0:
             logging.info(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
@@ -141,6 +149,12 @@ def main():
         action="store_true",
         default=False,
         help="For Saving the current Model",
+    )
+    parser.add_argument(
+        "--amp",
+        action="store_true",
+        default=False,
+        help="use amp",
     )
     parser.add_argument(
         "--algorithm",
@@ -265,11 +279,12 @@ def main():
     )
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
+    scaler = torch.cuda.amp.GradScaler(enabled=args.amp)
     for epoch in range(1, args.epochs + 1):
         if args.algorithm == "async":
             model.bagua_algorithm.resume(model)
 
-        train(args, model, train_loader, optimizer, epoch)
+        train(args, model, train_loader, optimizer, epoch, scaler)
 
         if args.algorithm == "async":
             model.bagua_algorithm.abort(model)
