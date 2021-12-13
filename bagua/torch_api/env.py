@@ -48,6 +48,10 @@ def get_local_size() -> int:
     return int(os.environ.get("LOCAL_WORLD_SIZE", 1))
 
 
+def get_node_rank() -> int:
+    return int(os.environ.get("NODE_RANK", 0))
+
+
 def get_default_bucket_size() -> int:
     """Get default communication bucket byte size.
 

@@ -8,6 +8,7 @@ from .env import (
     get_world_size,
     get_rank,
     get_local_rank,
+    get_node_rank,
     get_local_size,
     get_default_bucket_size,
     get_bagua_service_port,
@@ -52,6 +53,8 @@ _group_count = 0
 
 # Torch process group to bagua process group
 _torch_to_bagua_pg_map = weakref.WeakKeyDictionary({})
+
+_rank_mappings = {}
 
 
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
@@ -106,20 +109,28 @@ class BaguaProcessGroup:
         self.stream = stream
         self.group_name = group_name
 
-        self.intra_ranks = list(
-            filter(
-                lambda rank: rank // get_local_size() == get_rank() // get_local_size(),
-                ranks,
-            )
-        )
-        self.inter_ranks = list(
-            filter(
-                lambda rank: rank % get_local_size() == ranks[0] % get_local_size(),
-                ranks,
-            )
-        )
-
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
+
+    def _get_intra_ranks(self):
+        rank_mappings = build_rank_mappings()
+        
+        intra_ranks = list(
+            filter(
+                lambda rank: rank_mappings[rank][0] == get_node_rank(),
+                self.ranks,
+            )
+        )
+        return intra_ranks
+
+    def _get_inter_ranks(self):
+        rank_mappings = build_rank_mappings()
+        inter_ranks = list(
+            filter(
+                lambda rank: rank_mappings[rank][1] == rank_mappings[self.ranks[0]][1],
+                self.ranks,
+            )
+        )
+        return inter_ranks
 
     def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
         """Returns the global communicator of current process group."""
@@ -133,6 +144,23 @@ class BaguaProcessGroup:
         """Returns the intra-node communicator of current process group."""
         return get_communicator(self.group_name, "intra")
 
+
+def build_rank_mappings():
+    global _rank_mappings
+
+    if len(_rank_mappings) == get_world_size():
+        return _rank_mappings
+
+    rank_tensors = [torch.cuda.IntTensor(2) for _ in range(get_world_size())]
+    rank_tensors[get_rank()][0] = get_node_rank()
+    rank_tensors[get_rank()][1] = get_local_rank()
+
+    torch.distributed.all_gather(rank_tensors, rank_tensors[get_rank()]) 
+
+    for i in range(get_world_size()):
+        _rank_mappings[i] = rank_tensors[i][0].item(), rank_tensors[i][1].item()
+
+    return _rank_mappings
 
 def _check_default_pg():
     """
@@ -288,9 +316,9 @@ def get_communicator(group_name: str, comm_name: str):
     if comm_name == "global":
         ranks = pg.ranks
     elif comm_name == "inter":
-        ranks = pg.inter_ranks
+        ranks = pg._get_inter_ranks()
     elif comm_name == "intra":
-        ranks = pg.intra_ranks
+        ranks = pg._get_intra_ranks()
     else:
         raise ValueError("comm_name should be one of ['global', 'inter', 'intra']")
 
