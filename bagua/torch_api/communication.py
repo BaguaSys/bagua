@@ -112,24 +112,27 @@ class BaguaProcessGroup:
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
     def _get_intra_ranks(self):
-        rank_mappings = build_rank_mappings()
+        global _rank_mappings
         
         intra_ranks = list(
             filter(
-                lambda rank: rank_mappings[rank][0] == get_node_rank(),
+                lambda rank: _rank_mappings[rank][0] == get_node_rank(),
                 self.ranks,
             )
         )
+ 
         return intra_ranks
 
     def _get_inter_ranks(self):
-        rank_mappings = build_rank_mappings()
+        global _rank_mappings
+        
         inter_ranks = list(
             filter(
-                lambda rank: rank_mappings[rank][1] == rank_mappings[self.ranks[0]][1],
+                lambda rank: _rank_mappings[rank][1] == _rank_mappings[self.ranks[0]][1],
                 self.ranks,
             )
         )
+        
         return inter_ranks
 
     def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
@@ -148,19 +151,17 @@ class BaguaProcessGroup:
 def build_rank_mappings():
     global _rank_mappings
 
-    if len(_rank_mappings) == get_world_size():
-        return _rank_mappings
-
-    rank_tensors = [torch.cuda.IntTensor(2) for _ in range(get_world_size())]
+    rank_tensors = torch.cuda.LongTensor(get_world_size(), 2)
     rank_tensors[get_rank()][0] = get_node_rank()
     rank_tensors[get_rank()][1] = get_local_rank()
-
-    torch.distributed.all_gather(rank_tensors, rank_tensors[get_rank()]) 
+    
+    allgather_inplace(rank_tensors)
 
     for i in range(get_world_size()):
         _rank_mappings[i] = rank_tensors[i][0].item(), rank_tensors[i][1].item()
 
     return _rank_mappings
+
 
 def _check_default_pg():
     """
@@ -491,6 +492,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         )  # fmt: off
 
     _default_pg = new_group(stream=torch.cuda.Stream(priority=-1))
+    build_rank_mappings()
 
 
 def broadcast_nccl_unique_id(comm_key: str, root):
