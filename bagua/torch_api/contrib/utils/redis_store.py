@@ -1,7 +1,7 @@
 import socket
 import subprocess
 import time
-from bagua.torch_api.env import get_rank, get_local_rank, get_world_size, get_node_rank
+from bagua.torch_api.env import get_local_rank, get_world_size, get_node_rank
 from bagua.torch_api.communication import build_ranks_mappings
 
 try:
