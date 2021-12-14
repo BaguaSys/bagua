@@ -49,6 +49,12 @@ def get_local_size() -> int:
 
 
 def get_node_rank() -> int:
+    """
+    Get the node rank of current node.
+
+    Returns:
+        The node rank of the node.
+    """
     return int(os.environ.get("NODE_RANK", 0))
 
 

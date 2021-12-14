@@ -148,6 +148,9 @@ class BaguaProcessGroup:
 def init_rank_mappings():
     global _rank_mappings
 
+    if len(_rank_mappings) > 0:
+        return _rank_mappings
+
     rank_tensors = torch.cuda.LongTensor(get_world_size(), 2)
     rank_tensors[get_rank()][0] = get_node_rank()
     rank_tensors[get_rank()][1] = get_local_rank()
