@@ -109,31 +109,22 @@ class BaguaProcessGroup:
         self.stream = stream
         self.group_name = group_name
 
-        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
-
-    def _get_intra_ranks(self):
         global _rank_mappings
         
-        intra_ranks = list(
+        self.intra_ranks = list(
             filter(
                 lambda rank: _rank_mappings[rank][0] == get_node_rank(),
-                self.ranks,
+                ranks,
             )
         )
- 
-        return intra_ranks
-
-    def _get_inter_ranks(self):
-        global _rank_mappings
-        
-        inter_ranks = list(
+        self.inter_ranks = list(
             filter(
                 lambda rank: _rank_mappings[rank][1] == _rank_mappings[self.ranks[0]][1],
-                self.ranks,
+                ranks,
             )
         )
-        
-        return inter_ranks
+
+        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
     def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
         """Returns the global communicator of current process group."""
@@ -148,7 +139,7 @@ class BaguaProcessGroup:
         return get_communicator(self.group_name, "intra")
 
 
-def build_rank_mappings():
+def init_rank_mappings():
     global _rank_mappings
 
     rank_tensors = torch.cuda.LongTensor(get_world_size(), 2)
@@ -492,7 +483,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         )  # fmt: off
 
     _default_pg = new_group(stream=torch.cuda.Stream(priority=-1))
-    build_rank_mappings()
+    init_rank_mappings()
 
 
 def broadcast_nccl_unique_id(comm_key: str, root):
