@@ -108,23 +108,31 @@ class BaguaProcessGroup:
         self.ranks = ranks
         self.stream = stream
         self.group_name = group_name
+        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
+    def _get_intra_ranks(self):
         global _rank_mappings
 
-        self.intra_ranks = list(
+        intra_ranks = list(
             filter(
                 lambda rank: _rank_mappings[rank][0] == get_node_rank(),
-                ranks,
-            )
-        )
-        self.inter_ranks = list(
-            filter(
-                lambda rank: _rank_mappings[rank][1] == _rank_mappings[self.ranks[0]][1],
-                ranks,
+                self.ranks,
             )
         )
 
-        logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
+        return intra_ranks
+
+
+    def _get_inter_ranks(self):
+        global _rank_mappings
+
+        inter_ranks = list(
+            filter(
+                lambda rank: _rank_mappings[rank][1] == _rank_mappings[self.ranks[0]][1],
+                self.ranks,
+            )
+        )
+        return inter_ranks
 
     def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
         """Returns the global communicator of current process group."""
