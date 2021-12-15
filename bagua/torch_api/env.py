@@ -1,4 +1,5 @@
 import os
+import socket
 
 
 def get_world_size() -> int:
@@ -108,3 +109,13 @@ def get_autotune_warmup_time_s() -> float:
 
 def get_is_output_autotune_log() -> bool:
     return bool(os.environ.get("BAGUA_IS_OUTPUT_AUTOTUNE_LOG", 0))
+
+
+def find_free_network_port() -> int:
+    """Finds a free port on localhost."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    s.close()
+    return port

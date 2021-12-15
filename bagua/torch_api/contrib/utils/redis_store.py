@@ -1,7 +1,12 @@
 import socket
 import subprocess
 import time
-from bagua.torch_api.env import get_local_rank, get_world_size, get_node_rank
+from bagua.torch_api.env import (
+    get_local_rank,
+    get_world_size,
+    get_node_rank,
+    find_free_network_port,
+)
 from bagua.torch_api.communication import init_rank_mappings
 
 try:
@@ -107,7 +112,7 @@ def bootstrap_redis_server(capacity_per_node):
         logging.debug("Local redis server has already bootstrapped.")
         return _global_redis_servers
 
-    host, port = get_host_ip(), find_free_port()
+    host, port = get_host_ip(), find_free_network_port()
     hostinfo = {"host": host, "port": port}
     if get_local_rank() == 0:
         start_redis_server_cli(port, capacity_per_node)
@@ -206,15 +211,6 @@ def start_redis_server_cli(port, capacity, *args):
     cmd.extend(list(args))
     logging.debug(f"Start redis server, command: {cmd}")
     subprocess.run(cmd)
-
-
-def find_free_port():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("localhost", 0))
-    sockname = sock.getsockname()
-    sock.close()
-    return sockname[1]
 
 
 def get_host_ip():
