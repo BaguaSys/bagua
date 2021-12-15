@@ -427,7 +427,7 @@ def get_hyperparameters_service_client():
     return hyperparameters_service_client
 
 
-def find_free_bagua_service_port(store) -> int:
+def _find_free_bagua_service_port(store) -> int:
     service_port = get_bagua_service_port()
     if service_port > 0:
         return service_port
@@ -495,7 +495,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     else:
         _default_store = store
 
-    _autotune_service_port = find_free_bagua_service_port(_default_store)
+    _autotune_service_port = _find_free_bagua_service_port(_default_store)
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server(_autotune_service_port)
 
