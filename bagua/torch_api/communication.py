@@ -9,7 +9,6 @@ from .env import (
     get_rank,
     get_local_rank,
     get_node_rank,
-    get_local_size,
     get_default_bucket_size,
     get_bagua_service_port,
 )
@@ -109,7 +108,7 @@ class BaguaProcessGroup:
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
     def _get_intra_ranks(self):
-        rank_mappings = init_rank_mappings()
+        rank_mappings = get_rank_mappings()
 
         intra_ranks = list(
             filter(
@@ -120,7 +119,7 @@ class BaguaProcessGroup:
         return intra_ranks
 
     def _get_inter_ranks(self):
-        rank_mappings = init_rank_mappings()
+        rank_mappings = get_rank_mappings()
 
         inter_ranks = list(
             filter(
@@ -144,7 +143,7 @@ class BaguaProcessGroup:
 
 
 @lru_cache(maxsize=None)
-def init_rank_mappings():
+def get_rank_mappings():
     rank_mappings = {}
 
     rank_tensors = torch.cuda.LongTensor(get_world_size(), 2)
