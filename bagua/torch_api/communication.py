@@ -54,8 +54,6 @@ _group_count = 0
 # Torch process group to bagua process group
 _torch_to_bagua_pg_map = weakref.WeakKeyDictionary({})
 
-_rank_mappings = {}
-
 
 # must be consistent with Aluminum ReductionOperator: https://github.com/BaguaSys/Aluminum/blob/master/include/aluminum/base.hpp
 class ReduceOp(IntEnum):
@@ -111,22 +109,22 @@ class BaguaProcessGroup:
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
 
     def _get_intra_ranks(self):
-        global _rank_mappings
+        rank_mappings = init_rank_mappings()
 
         intra_ranks = list(
             filter(
-                lambda rank: _rank_mappings[rank][0] == get_node_rank(),
+                lambda rank: rank_mappings[rank][0] == get_node_rank(),
                 self.ranks,
             )
         )
         return intra_ranks
 
     def _get_inter_ranks(self):
-        global _rank_mappings
+        rank_mappings = init_rank_mappings()
 
         inter_ranks = list(
             filter(
-                lambda rank: _rank_mappings[rank][1] == _rank_mappings[self.ranks[0]][1],
+                lambda rank: rank_mappings[rank][1] == rank_mappings[self.ranks[0]][1],
                 self.ranks,
             )
         )
@@ -145,11 +143,9 @@ class BaguaProcessGroup:
         return get_communicator(self.group_name, "intra")
 
 
+@lru_cache(maxsize=None)
 def init_rank_mappings():
-    global _rank_mappings
-
-    if len(_rank_mappings) > 0:
-        return _rank_mappings
+    rank_mappings = {}
 
     rank_tensors = torch.cuda.LongTensor(get_world_size(), 2)
     rank_tensors[get_rank()][0] = get_node_rank()
@@ -157,9 +153,9 @@ def init_rank_mappings():
     allgather_inplace(rank_tensors)
 
     for i in range(get_world_size()):
-        _rank_mappings[i] = rank_tensors[i][0].item(), rank_tensors[i][1].item()
+        rank_mappings[i] = rank_tensors[i][0].item(), rank_tensors[i][1].item()
 
-    return _rank_mappings
+    return rank_mappings
 
 
 def _check_default_pg():
@@ -491,7 +487,6 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         )  # fmt: off
 
     _default_pg = new_group(stream=torch.cuda.Stream(priority=-1))
-    init_rank_mappings()
 
 
 def broadcast_nccl_unique_id(comm_key: str, root):
