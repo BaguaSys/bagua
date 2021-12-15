@@ -55,7 +55,16 @@ def get_node_rank() -> int:
     Returns:
         The node rank of the node.
     """
-    return int(os.environ.get("NODE_RANK", 0))
+    if _is_elastic_launched():
+        return int(os.environ.get("GROUP_RANK", 0))
+    else:
+        return int(os.environ.get("NODE_RANK", 0))
+
+
+def _is_elastic_launched():
+    """Returns ``True`` if the current process was launched using the bagua.distributed.run command."""
+    required_env_vars = {"RANK", "GROUP_RANK", "LOCAL_RANK", "LOCAL_WORLD_SIZE"}
+    return required_env_vars.issubset(os.environ.keys())
 
 
 def get_default_bucket_size() -> int:

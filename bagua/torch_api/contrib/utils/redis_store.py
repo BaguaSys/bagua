@@ -2,7 +2,7 @@ import socket
 import subprocess
 import time
 from bagua.torch_api.env import get_local_rank, get_world_size, get_node_rank
-from bagua.torch_api.communication import get_rank_mappings
+from bagua.torch_api.communication import _get_rank_mappings
 
 try:
     from redis import Redis
@@ -120,7 +120,7 @@ def bootstrap_redis_server(capacity_per_node):
         if get_local_rank() == 0:
             default_store.set(key_pattern.format(get_node_rank()), json.dumps(hostinfo))
 
-        rank_mappings = get_rank_mappings()
+        rank_mappings = _get_rank_mappings()
         for k, v in rank_mappings.items():
             if v[1] == 0:  # local rank is 0
                 ret = json.loads(default_store.get(key_pattern.format(v[0])))
