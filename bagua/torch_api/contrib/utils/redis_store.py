@@ -7,7 +7,7 @@ from bagua.torch_api.env import (
     get_node_rank,
     find_free_network_port,
 )
-from bagua.torch_api.communication import init_rank_mappings
+from bagua.torch_api.communication import _get_rank_mappings
 
 try:
     from redis import Redis
@@ -125,7 +125,7 @@ def bootstrap_redis_server(capacity_per_node):
         if get_local_rank() == 0:
             default_store.set(key_pattern.format(get_node_rank()), json.dumps(hostinfo))
 
-        rank_mappings = init_rank_mappings()
+        rank_mappings = _get_rank_mappings()
         for k, v in rank_mappings.items():
             if v[1] == 0:  # local rank is 0
                 ret = json.loads(default_store.get(key_pattern.format(v[0])))

@@ -4,24 +4,24 @@ import socket
 
 def get_world_size() -> int:
     """
-    Get the number of processes in the current process group.
+    Get the number of processes in the default process group.
 
     Returns:
-        The world size of the process group.
+        The world size of the default process group.
     """
     return int(os.environ.get("WORLD_SIZE", 1))
 
 
 def get_rank() -> int:
     """
-    Get the rank of current process group.
+    Get the rank of the default process group.
 
-    Rank is a unique identifier assigned to each process within a distributed
+    Rank is a unique identifier assigned to each process within the default
     process group. They are always consecutive integers ranging from 0 to
     ``world_size``.
 
     Returns:
-        The rank of the process group.
+        The rank of the default process group.
     """
     return int(os.environ.get("RANK", 0))
 
@@ -51,12 +51,21 @@ def get_local_size() -> int:
 
 def get_node_rank() -> int:
     """
-    Get the node rank of current node.
+    Get the rank among all nodes.
 
     Returns:
         The node rank of the node.
     """
-    return int(os.environ.get("NODE_RANK", 0))
+    if _is_elastic_launched():
+        return int(os.environ.get("GROUP_RANK", 0))
+    else:
+        return int(os.environ.get("NODE_RANK", 0))
+
+
+def _is_elastic_launched():
+    """Returns ``True`` if the current process was launched using the bagua.distributed.run command."""
+    required_env_vars = {"RANK", "GROUP_RANK", "LOCAL_RANK", "LOCAL_WORLD_SIZE"}
+    return required_env_vars.issubset(os.environ.keys())
 
 
 def get_default_bucket_size() -> int:
