@@ -19,7 +19,7 @@ GlobalAlgorithmRegistry.register(
     description="Decentralized SGD Algorithm",
 )
 GlobalAlgorithmRegistry.register(
-    "low_prec_decentralized",
+    "low_precision_decentralized",
     decentralized.LowPrecisionDecentralizedAlgorithm,
     description="Low Precision Decentralized SGD Algorithm",
 )
