@@ -2,8 +2,8 @@ import unittest
 from bagua.torch_api.contrib.utils.redis_store import (
     RedisStore,
     start_redis_server_cli,
-    find_free_port,
 )
+from bagua.torch_api.env import find_free_network_port
 import redis
 import multiprocessing as mp
 import logging
@@ -57,7 +57,7 @@ class TestRedisStore(unittest.TestCase):
         ports = []
         processes = []
         for i in range(n):
-            port = find_free_port()
+            port = find_free_network_port()
             p = mp.Process(
                 target=start_redis_server_cli,
                 args=(port, 10000000, f"--cluster-config-file nodes{port}.conf"),

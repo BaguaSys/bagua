@@ -11,6 +11,7 @@ from .env import (
     get_node_rank,
     get_default_bucket_size,
     get_bagua_service_port,
+    find_free_network_port,
 )
 from enum import IntEnum
 from .utils import flatten, unflatten
@@ -366,12 +367,6 @@ def _rank_not_in_group(group: Optional[BaguaProcessGroup] = None):
     return _rank_not_in_comm(group.get_global_communicator())
 
 
-@lru_cache(maxsize=None)
-def get_hyperparameters_service_client():
-    hyperparameters_service_client = AutotuneClient(
-        get_master_addr(), get_bagua_service_port()
-    )
-    return hyperparameters_service_client
 
 
 @lru_cache(maxsize=None)
@@ -381,7 +376,7 @@ def get_backend(model_name: str):
     return backend
 
 
-def run_flask_app():
+def run_flask_app(port):
     from flask import Flask
     import os
 
@@ -403,7 +398,7 @@ def run_flask_app():
 
     app.run(
         host="0.0.0.0",
-        port=get_bagua_service_port(),
+        port=port,
         debug=False,
         use_debugger=False,
         use_reloader=False,
@@ -411,15 +406,39 @@ def run_flask_app():
 
 
 _autotune_server = None
+_autotune_service_port = None
 
 
-def start_autotune_server():
+def start_autotune_server(service_port: int):
     """Starts autotune server in background."""
     global _autotune_server
 
-    _autotune_server = multiprocessing.Process(target=run_flask_app)
+    _autotune_server = multiprocessing.Process(target=run_flask_app, args=(service_port, ))
     _autotune_server.daemon = True
     _autotune_server.start()
+
+
+@lru_cache(maxsize=None)
+def get_hyperparameters_service_client():
+    global _autotune_service_port
+    hyperparameters_service_client = AutotuneClient(
+        get_master_addr(), _autotune_service_port
+    )
+    return hyperparameters_service_client
+
+
+def _find_free_bagua_service_port(store) -> int:
+    service_port = get_bagua_service_port()
+    if service_port > 0:
+        return service_port
+
+    if get_rank() == 0:
+        service_port = find_free_network_port()
+        store.set("bagua_service_port", str(service_port))
+    else:
+        service_port = int(store.get("bagua_service_port"))
+
+    return service_port
 
 
 def init_process_group(store: Optional[torch.distributed.Store] = None):
@@ -456,11 +475,11 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         before calling :meth:`init_process_group`. Otherwise you may encounter the
         `fatal runtime error: Rust cannot catch foreign exceptions` error.
     """
-    if get_rank() == 0 and _autotune_server is None:
-        start_autotune_server()
+
 
     global _default_pg
     global _default_store
+    global _autotune_service_port
 
     if _default_pg is not None:
         raise RuntimeError("trying to initialize the default process group twice!")
@@ -475,6 +494,10 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         _default_store = store
     else:
         _default_store = store
+
+    _autotune_service_port = _find_free_bagua_service_port(_default_store)
+    if get_rank() == 0 and _autotune_server is None:
+        start_autotune_server(_autotune_service_port)
 
     # TODO remove the dependency on torch process group
     if not dist.is_initialized():
