@@ -38,9 +38,11 @@ class Algorithm:
             An instance of a registered Bagua algorithm.
 
         Example::
-
             >>> from bagua.torch_api.algorithms import Algorithm
             >>> Algorithm.init("gradient_allreduce", hierarchical=True)
+
+        .. note::
+            Call ``str(bagua.torch_api.algorithms.GlobalAlgorithmRegistry)`` to see all registered Bagua algorithms.
         """
         return GlobalAlgorithmRegistry.get(name)(**kwargs)
 
