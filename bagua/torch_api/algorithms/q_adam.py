@@ -66,6 +66,11 @@ class QAdamOptimizer(Optimizer):
         super(QAdamOptimizer, self).__setstate__(state)
 
     def step(self, closure=None):
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
         self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
 
@@ -92,6 +97,8 @@ class QAdamOptimizer(Optimizer):
                 step_size = lr / bias_correction1
                 update = state["exp_avg"] / denom
                 param.data.add_(-step_size * update)
+
+        return loss
 
 
 class QAdamAlgorithmImpl(AlgorithmImpl):
