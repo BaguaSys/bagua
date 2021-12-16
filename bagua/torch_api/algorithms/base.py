@@ -17,7 +17,7 @@ class Algorithm:
 
     def reify(self, process_group: BaguaProcessGroup):
         """
-        Create an algorithm implementations instance. See :class:`AlgorithmImpl`.
+        Create an algorithm implementation instance. See :class:`AlgorithmImpl`.
 
         Args:
             process_group: The process group to work on.
@@ -40,7 +40,7 @@ class Algorithm:
 
         Example::
             >>> from bagua.torch_api.algorithms import Algorithm
-            >>> Algorithm.init("gradient_allreduce", hierarchical=True)
+            >>> algorithm = Algorithm.init("gradient_allreduce", hierarchical=True)
 
         .. note::
             Call ``str(bagua.torch_api.algorithms.GlobalAlgorithmRegistry)`` to see all registered Bagua algorithms.
