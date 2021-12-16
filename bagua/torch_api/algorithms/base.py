@@ -1,8 +1,9 @@
+from __future__ import annotations
 from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.communication import BaguaProcessGroup
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 import torch
 
 
@@ -27,7 +28,7 @@ class Algorithm:
         pass
 
     @classmethod
-    def init(cls, name, **kwargs):
+    def init(cls, name, **kwargs) -> Algorithm:
         """Helper class to initialize a registered Bagua algorithm.
 
         Args:
@@ -211,7 +212,7 @@ class _AlgorithmRegistry(dict):
     def register(
         self,
         name: str,
-        algorithm: Algorithm,
+        algorithm: Callable,
         description: Optional[str] = None,
     ):
         """Registers an Bagua Algorithm mapped to a name and with required metadata.
@@ -233,7 +234,7 @@ class _AlgorithmRegistry(dict):
 
         self[name] = data
 
-    def get(self, name: str) -> Algorithm:
+    def get(self, name: str) -> Callable:
         """Calls the registered Bagua algorithm with the name and returns the algorithm class.
 
         Args:
@@ -251,7 +252,7 @@ class _AlgorithmRegistry(dict):
         available_names = ", ".join(sorted(self.keys())) or "none"
         raise KeyError(err_msg.format(name, available_names))
 
-    def available_algorithms(self) -> List:
+    def available_algorithms(self) -> List[str]:
         """Returns a list of registered Bagua algorithms."""
         return list(self.keys())
 
