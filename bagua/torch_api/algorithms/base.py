@@ -6,6 +6,9 @@ from typing import Any, Dict, List, Optional
 import torch
 
 
+__all__ = ["Algorithm", "AlgorithmImpl"]
+
+
 class Algorithm:
     """
     This is the base class that all Bagua algorithms inherit.
@@ -13,24 +16,31 @@ class Algorithm:
 
     def reify(self, process_group: BaguaProcessGroup):
         """
-        Create an algorithm instance.
+        Create an algorithm implementations instance. See :class:`AlgorithmImpl`.
 
         Args:
             process_group: The process group to work on.
+
+        Returns:
+            An instance of Bagua algorithm implementation.
         """
         pass
 
     @classmethod
     def init(cls, name, **kwargs):
-        """Initialize an algorithm.
+        """Helper class to initialize a registered Bagua algorithm.
 
         Args:
-            name: Name of the Bagua algorithm.
-            kwargs: Arguments to initialize the Bagua algorithm.
+            name: Name of the registered Bagua algorithm.
+            kwargs: Arguments to initialize the registered Bagua algorithm.
 
         Returns:
-            Bagua algorithm instnace.
+            An instance of a registered Bagua algorithm.
 
+        Example::
+
+            >>> from bagua.torch_api.algorithms import Algorithm
+            >>> Algorithm.init("gradient_allreduce", hierarchical=True)
         """
         return GlobalAlgorithmRegistry.get(name)(**kwargs)
 
