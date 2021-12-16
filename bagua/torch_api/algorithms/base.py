@@ -2,7 +2,7 @@ from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedData
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.communication import BaguaProcessGroup
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 import torch
 
 
