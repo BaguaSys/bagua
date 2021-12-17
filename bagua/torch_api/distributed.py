@@ -49,6 +49,7 @@ class BaguaModule:
     """
 
     __id_iter = itertools.count()
+    bagua_module_name = None
 
     def with_bagua(  # pytype: disable=module-attr
         self,
@@ -99,16 +100,15 @@ class BaguaModule:
         if process_group is None:
             process_group = _get_default_group()
 
-        bagua_module_name = None
-        if hasattr(self, "bagua_ddp"):
-            bagua_module_name = self.bagua_ddp.bagua_module_name
+        if self.bagua_module_name is None:
+            self.bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
         self.bagua_ddp = BaguaDistributedDataParallel(
             self,
             optimizers=optimizers,
             algorithm=algorithm,
             process_group=process_group,
-            bagua_module_name=bagua_module_name,
+            bagua_module_name=self.bagua_module_name,
             gradient_as_bucket_view=do_flatten,
         )
 
@@ -116,7 +116,11 @@ class BaguaModule:
 
     @property
     def bagua_module_name(self):
-        return self.bagua_ddp.bagua_module_name
+        return self._bagua_module_name if hasattr(self, "_bagua_module_name") else None
+
+    @bagua_module_name.setter
+    def bagua_module_name(self, name: str):
+        self._bagua_module_name = name
 
     @property
     def bagua_algorithm(self):
