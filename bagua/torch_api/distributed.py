@@ -49,7 +49,6 @@ class BaguaModule:
     """
 
     __id_iter = itertools.count()
-    bagua_module_name = None
 
     def with_bagua(  # pytype: disable=module-attr
         self,
@@ -116,6 +115,9 @@ class BaguaModule:
 
     @property
     def bagua_module_name(self):
+        """
+        The module's name. Bagua uses the module name to distinguish different modules.
+        """
         return self._bagua_module_name if hasattr(self, "_bagua_module_name") else None
 
     @bagua_module_name.setter

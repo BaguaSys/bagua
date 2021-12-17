@@ -81,7 +81,7 @@ def to_bagua_process_group(
         return _get_default_group()
     elif type(process_group) in [
         TorchProcessGroup,
-        torch._C._distributed_c10d.ProcessGroupNCCL,
+        torch.distributed.ProcessGroupNCCL,
     ]:
         return process_group.bagua_patch().bagua_pg  # pytype: disable=attribute-error
     elif type(process_group) is BaguaProcessGroup:
@@ -140,6 +140,11 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.broadcast_buffers = broadcast_buffers
         self.find_unused_parameters = find_unused_parameters
 
+        if module.bagua_module_name is None:
+            module.bagua_module_name = "{}_{}".format(
+                self.__class__.__name__, id(module)
+            )
+
         self.inner = BaguaDistributedDataParallel(
             self.module,
             optimizers,
@@ -196,13 +201,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         reified by the algorithm passed in from the constructor.
         """
         return self.inner.bagua_algorithm
-
-    @property
-    def bagua_module_name(self):
-        """
-        The module's name. Bagua uses the module name to distinguish different modules.
-        """
-        return self.inner.bagua_module_name
 
     @property
     def bagua_optimizers(self):
