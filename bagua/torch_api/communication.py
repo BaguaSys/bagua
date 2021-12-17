@@ -615,13 +615,18 @@ def broadcast_coalesced(tensors, src=0, comm: Optional[B.BaguaSingleCommunicator
 
 def broadcast_object(obj: object, src: int = 0, comm: Optional[B.BaguaSingleCommunicatorPy] = None) -> object:
     """Serializes and broadcasts an object from root rank to all other processes.
+    Typical usage is to broadcast the ``optimizer.state_dict()``, for example:
+
+        >>> state_dict = broadcast_object(optimizer.state_dict(), 0)
+        >>> if get_rank() > 0:
+        >>>     optimizer.load_state_dict(state_dict)
+
 
     Args:
         obj: An object capable of being serialized without losing any context.
         src: The rank of the process from which parameters will be broadcasted to all other processes.
         comm: A handle of the Bagua communicator to work on. By default, the global
              communicator of the default process group will be used.
-
     Returns:
         The object that was broadcasted from the :attr:`src`.
     """
