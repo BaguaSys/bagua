@@ -635,7 +635,7 @@ def broadcast_object(obj: object, src: int = 0, comm: Optional[B.BaguaSingleComm
         b = io.BytesIO()
         pickle.dump(obj, b)
         t = torch.cuda.ByteTensor(bytearray(b.getvalue()))
-        #TODO: use IntTensor after int32 communication is supported 
+        # TODO: use IntTensor after int32 communication is supported
         sz = torch.cuda.LongTensor([t.shape[0]])
         broadcast(sz, src, comm)
     else:
