@@ -140,8 +140,8 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.broadcast_buffers = broadcast_buffers
         self.find_unused_parameters = find_unused_parameters
 
-        if module.bagua_module_name is None:
-            module.bagua_module_name = "{}_{}".format(
+        if not hasattr(module, "_bagua_module_name"):
+            module._bagua_module_name = "{}_{}".format(
                 self.__class__.__name__, id(module)
             )
 

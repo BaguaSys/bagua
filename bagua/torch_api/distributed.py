@@ -99,8 +99,8 @@ class BaguaModule:
         if process_group is None:
             process_group = _get_default_group()
 
-        if self.bagua_module_name is None:
-            self.bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
+        if not hasattr(self, "_bagua_module_name"):
+            self._bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
         self.bagua_ddp = BaguaDistributedDataParallel(
             self,
@@ -118,7 +118,7 @@ class BaguaModule:
         """
         The module's name. Bagua uses the module name to distinguish different modules.
         """
-        return self._bagua_module_name if hasattr(self, "_bagua_module_name") else None
+        return self._bagua_module_name
 
     @bagua_module_name.setter
     def bagua_module_name(self, name: str):
