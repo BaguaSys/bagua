@@ -613,6 +613,23 @@ def broadcast_coalesced(tensors, src=0, comm: Optional[B.BaguaSingleCommunicator
     comm.cuda_stream.synchronize()
 
 
+# Copyright 2020 Uber Technologies, Inc. All Rights Reserved.
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+# This function is copied fron Hovorod: https://github.com/horovod/horovod
+# with minor changes.
 def broadcast_object(obj: object, src: int = 0, comm: Optional[B.BaguaSingleCommunicatorPy] = None) -> object:
     """Serializes and broadcasts an object from root rank to all other processes.
     Typical usage is to broadcast the ``optimizer.state_dict()``, for example:
