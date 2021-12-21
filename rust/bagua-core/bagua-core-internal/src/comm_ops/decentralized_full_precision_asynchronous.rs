@@ -1,8 +1,9 @@
 use crate::comm_ops::decentralized_full_precision_synchronous::PeerSelectionMode;
 use crate::comm_ops::CommOpTrait;
 use crate::communicators::BaguaCommunicator;
+use crate::cuda_utils::{cuda_memcpy_device_to_host_sync, cuda_memcpy_host_to_device_sync};
 use crate::datatypes::{
-    BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorRaw, RawBaguaTensor,
+    BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype, BaguaTensorRaw, RawBaguaTensor,
 };
 use crate::events::BaguaEventChannel;
 use crate::resource_pool::{CUDA_DEVICE_MEMORY_POOL, CUDA_EVENT_POOL};
@@ -17,6 +18,8 @@ pub struct DecentralizedFullPrecisionAsynchronous {
     pub peer_selection_mode: PeerSelectionMode,
     pub torch_stream: u64,
     pub weight_mutex: Arc<Mutex<bool>>,
+    pub aborted: Arc<Mutex<u8>>,
+    pub all_aborted: Arc<Mutex<u8>>,
 }
 
 impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
@@ -42,6 +45,8 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
 
         let torch_stream = self.torch_stream;
 
+        let aborted = { *self.aborted.lock() } as u8;
+
         self.communicator.execute_communication(
             &mut communication_tensor,
             false,
@@ -50,6 +55,36 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
             &mut |c, t| {
                 let start_time = std::time::Instant::now();
                 tracing::debug!("#{} async model average start", c.rank);
+
+                let state_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
+                    .try_pull(1)
+                    .expect("cannot allocate cuda memory");
+
+                let mut state_tensor = BaguaTensorRaw {
+                    ptr: state_buf.ptr,
+                    num_elem_allocated: 1,
+                    dtype: BaguaTensorDtype::U8,
+                    num_elem: 1,
+                    device_id: t.raw.device_id(),
+                    pool_allocations: vec![Arc::new(state_buf)],
+                };
+
+                let aborted_ptr: *const u8 = &aborted;
+                unsafe {
+                    cuda_memcpy_host_to_device_sync(state_tensor.data_ptr(), aborted_ptr as u64, 1);
+                }
+
+                c.broadcast(&mut state_tensor, 0);
+
+                unsafe {
+                    cuda_memcpy_device_to_host_sync(aborted_ptr as u64, state_tensor.data_ptr(), 1);
+
+                    if *aborted_ptr > 0 {
+                        tracing::debug!("#{} async model average aborted", c.rank);
+                        *self.all_aborted.lock() = 1;
+                        return;
+                    }
+                }
 
                 let temp_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
                     .try_pull(t.raw.num_elements_allocated() * t.raw.dtype().bytes())
@@ -158,5 +193,17 @@ impl DecentralizedFullPrecisionAsynchronous {
             let raw_mutex = self.weight_mutex.raw();
             raw_mutex.unlock();
         };
+    }
+
+    pub fn abort(&self) {
+        *self.aborted.lock() = 1;
+    }
+
+    pub fn reset(&self) {
+        *self.aborted.lock() = 0;
+    }
+
+    pub fn is_all_aborted(&self) -> bool {
+        *self.all_aborted.lock() > 0
     }
 }

@@ -83,9 +83,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         self, tensors: List[List[BaguaTensor]], do_flatten: bool
     ) -> List[BaguaBucket]:
         # TODO: async algorithm conflict with fused optimizer, can only support flattened inplace bucket.
-        assert (
-            do_flatten
-        ), "Async algorithm supports `do_flatten=True` only"
+        assert do_flatten, "Async algorithm supports `do_flatten=True` only"
         if self.step_id < self.warmup_steps:
             return super().tensors_to_buckets(tensors, do_flatten)
 
@@ -97,7 +95,9 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         return [bagua_bucket]
 
-    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel) -> List[BaguaTensor]:
+    def init_tensors(
+        self, bagua_ddp: BaguaDistributedDataParallel
+    ) -> List[BaguaTensor]:
         parameters = bagua_ddp.bagua_build_params()
         tensors = []
         for name, param in parameters.__reversed__():
@@ -124,9 +124,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 self._lock_model(bagua_ddp)
 
                 if not hasattr(self, "future"):
-                    self.future = self.executor.submit(
-                        self._run_async_loop, bagua_ddp
-                    )
+                    self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
                     self.scheduled = True
                     logging.debug(
                         "Process {} async communication started.".format(get_rank())
@@ -210,11 +208,11 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
     def _run_async_loop(self, bagua_ddp: BaguaDistributedDataParallel):
         comm_step = 0
         while True:
-            state = self._negotiate()
-            if state == _AsyncInternalState.ABORT:
+            start_time = time.time()
+
+            if bagua_ddp.bagua_buckets[0]._async_op.is_all_aborted():
                 break
 
-            start_time = time.time()
             for bucket in bagua_ddp.bagua_buckets:
                 for tensor in bucket.tensors:
                     tensor.bagua_mark_communication_ready_without_synchronization()
@@ -230,7 +228,10 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             comm_step += 1
             time.sleep(self.sync_interval_ms / 1000)
 
-    def abort(self, bagua_ddp: "Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]"):
+    def abort(
+        self,
+        bagua_ddp: "Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]",
+    ):
         """
         Stop background asynchronous communications. Should be called after
         training.
@@ -249,16 +250,24 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
         else:
-            raise Exception("Unexpect input bagua_ddp({}), it should be BaguaDistributedDataParallel or bagua.torch_api.distributed.BaguaModule.".format(type(bagua_ddp)))
+            raise Exception(
+                "Unexpect input bagua_ddp({}), it should be BaguaDistributedDataParallel or bagua.torch_api.distributed.BaguaModule.".format(
+                    type(bagua_ddp)
+                )
+            )
 
         if self.scheduled:
             barrier(comm=self.process_group.get_global_communicator())
-            self.abort_event.set()
+            bagua_ddp.bagua_buckets[0]._async_op.abort()
+            # self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
             self.scheduled = False
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
-    def resume(self, bagua_ddp: "Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]"):
+    def resume(
+        self,
+        bagua_ddp: "Union[BaguaDistributedDataParallel, bagua.torch_api.distributed.BaguaModule]",
+    ):
         """
         Resume aborted background asynchronous communications (see :meth:`abort`). Should be called before training.
 
@@ -276,11 +285,16 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             # Is bagua.torch_api.distributed.BaguaModule
             bagua_ddp = bagua_ddp.bagua_ddp
         else:
-            raise Exception("Unexpect input bagua_ddp({}), it should be BaguaDistributedDataParallel or bagua.torch_api.distributed.BaguaModule.".format(type(bagua_ddp)))
+            raise Exception(
+                "Unexpect input bagua_ddp({}), it should be BaguaDistributedDataParallel or bagua.torch_api.distributed.BaguaModule.".format(
+                    type(bagua_ddp)
+                )
+            )
 
         if not self.scheduled and hasattr(self, "future"):
             barrier(comm=self.process_group.get_global_communicator())
-            self.abort_event.clear()
+            bagua_ddp.bagua_buckets[0]._async_op.reset()
+            # self.abort_event.clear()
             self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
             self.scheduled = True
             logging.debug("Process {} async communication resumed.".format(get_rank()))
