@@ -317,6 +317,16 @@ class AutotuneClient:
         self.session = requests.Session()
         self.proxies = proxies
 
+        import socket
+        from urllib3.connection import HTTPConnection
+
+        HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + [
+            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),  # Enables the feature
+            (socket.SOL_TCP, socket.TCP_KEEPIDLE, 45),  # Overrides the time when the stack willl start sending KeppAlives after no data received on a Persistent Connection
+            (socket.SOL_TCP, socket.TCP_KEEPINTVL, 10),  # Defines how often thoe KA will be sent between them
+            (socket.SOL_TCP, socket.TCP_KEEPCNT, 6),  # How many attemps will your code try if the server goes down before droping the connection.
+        ]
+
     def report_metrics(
         self,
         model_name: str,
