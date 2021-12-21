@@ -25,7 +25,6 @@ from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
 
 class BaguaDistributedDataParallel:
-
     def __init__(
         self,
         module: Module,
@@ -37,12 +36,7 @@ class BaguaDistributedDataParallel:
         find_unused_parameters: bool = False,
     ) -> None:
         self.module = module
-        if bagua_module_name is None:
-            self.bagua_module_name = "{}_{}".format(
-                self.__class__.__name__, id(module)
-            )
-        else:
-            self.bagua_module_name = bagua_module_name
+        self.bagua_module_name = bagua_module_name
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm.reify(process_group)
@@ -75,8 +69,8 @@ class BaguaDistributedDataParallel:
         self._bagua_autotune_completed = False
 
         class BaguaDistributedDataParallelStates:
-            """Empty class whose instances are used for keeping track of BaguaDistributedDataParallel's internal states.
-            """
+            """Empty class whose instances are used for keeping track of BaguaDistributedDataParallel's internal states."""
+
             pass
 
         if hasattr(self.module, "_bagua_states"):
@@ -180,7 +174,10 @@ class BaguaDistributedDataParallel:
         ]
 
         if self.find_unused_parameters and len(self.autograd_graph_params) != 0:
-            modules_and_parameters = filter(lambda it: it[1][0] in self.autograd_graph_params, modules_and_parameters)
+            modules_and_parameters = filter(
+                lambda it: it[1][0] in self.autograd_graph_params,
+                modules_and_parameters,
+            )
 
         # Deduplicate any parameters that might be shared across child modules.
         memo = set()
@@ -425,7 +422,9 @@ class BaguaDistributedDataParallel:
         self._bagua_cleanup_algorithm()
         raw_buckets = self._bagua_autotune_get_buckets()
         self.bagua_buckets.extend(
-            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.gradient_as_bucket_view)
+            self.bagua_algorithm.tensors_to_buckets(
+                raw_buckets, self.gradient_as_bucket_view
+            )
         )
 
         for name, param in self.module.named_parameters():
@@ -448,7 +447,10 @@ class BaguaDistributedDataParallel:
                             )
 
                         if self.find_unused_parameters:
-                            if set(self.autograd_graph_params.keys()) != self.params_in_use:
+                            if (
+                                set(self.autograd_graph_params.keys())
+                                != self.params_in_use
+                            ):
                                 self.rebuild_buckets()
                                 self.delay_allreduce()
 
