@@ -293,6 +293,10 @@ class AutotuneService:
 
             return json.dumps({})
 
+        @app.route("/api/v1/health_check", methods=["GET"])
+        def health_check():
+            return json.dumps({"status": "ok"})
+
         # set secret-key
         app.config.update(SECRET_KEY=os.urandom(24))
 
@@ -383,6 +387,19 @@ class AutotuneClient:
         )
         return rsp
 
+    def health_check(self) -> bool:
+        try:
+            # get response will be ok
+            self.session.get(
+                "http://{}/api/v1/health_check".format(
+                    self.autotune_service_addr
+                ),
+                proxies=self.proxies
+            )
+
+            return True
+        except requests.exceptions.ConnectionError:
+            return False
 
 if __name__ == "__main__":
     import argparse

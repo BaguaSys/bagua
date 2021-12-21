@@ -84,7 +84,7 @@ class BaguaDistributedDataParallel:
 
         self.module._bagua_states = BaguaDistributedDataParallelStates()
         bagua_states = self.module._bagua_states
-        bagua_states._bagua_algorithm_hooks = []
+        bagua_states._bagua_autograd_hooks = []
         bagua_states._bagua_framework_hooks = []
 
         self._bagua_backend = get_backend(self.bagua_module_name)
@@ -393,40 +393,34 @@ class BaguaDistributedDataParallel:
         )
         return list(recommended_buckets)
 
-    def rebuild_buckets(self):
+    def _bagua_init_algorithm(self):
+        self._bagua_broadcast_parameters()
+
         self._bagua_tensors = self.bagua_algorithm.init_tensors(self)
         self._bagua_tensor_map = dict(
             [(tensor.bagua_tensor_name, tensor) for tensor in self._bagua_tensors]
         )
         self._bagua_autotune_register_tensors()
-        self._bagua_reset_algorithm_buckets()
-        self.params_in_use = set([name for name, _ in self.bagua_build_params()])
+        self._reset_buckets()
 
-    def _bagua_init_algorithm(self):
-        self._bagua_cleanup_algorithm()
-        self._bagua_broadcast_parameters()
-        self.rebuild_buckets()
+        self._register_autograd_hooks()
 
-    def _bagua_cleanup_algorithm(self):
-        bagua_states = self.module._bagua_states
-        for hook in bagua_states._bagua_algorithm_hooks:
-            hook.remove()
-        bagua_states._bagua_algorithm_hooks.clear()
-
-        self.bagua_buckets.clear()
-
-    def delay_allreduce(self):
+    def _delay_allreduce(self):
         for param_name, parameter in self.bagua_build_params():
             self.bagua_algorithm.init_backward_hook(self)(param_name, parameter)
             self.bagua_algorithm.init_post_backward_hook(self)()
 
-    def _bagua_reset_algorithm_buckets(self):
+    def _cleanup_autograd_hooks(self):
         bagua_states = self.module._bagua_states
-        self._bagua_cleanup_algorithm()
-        raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(
-            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.gradient_as_bucket_view)
-        )
+        for hook in bagua_states._bagua_autograd_hooks:
+            hook.remove()
+        bagua_states._bagua_autograd_hooks.clear()
+
+        self.bagua_buckets.clear()
+
+    def _register_autograd_hooks(self):
+        bagua_states = self.module._bagua_states
+        self._cleanup_autograd_hooks()
 
         for name, param in self.module.named_parameters():
 
@@ -449,8 +443,8 @@ class BaguaDistributedDataParallel:
 
                         if self.find_unused_parameters:
                             if set(self.autograd_graph_params.keys()) != self.params_in_use:
-                                self.rebuild_buckets()
-                                self.delay_allreduce()
+                                self._reset_buckets()
+                                self._delay_allreduce()
 
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(
@@ -465,8 +459,9 @@ class BaguaDistributedDataParallel:
                 grad_acc = param_tmp.grad_fn.next_functions[0][0]
                 hook = grad_acc.register_hook(real_hook_factory(name, param))
                 hook.grad_acc = grad_acc
-                bagua_states._bagua_algorithm_hooks.append(hook)
+                bagua_states._bagua_autograd_hooks.append(hook)
 
+    def _register_optimizer_hooks(self):
         optimizer_hook = self.bagua_algorithm.init_post_optimizer_step_hook(self)
 
         from types import MethodType
@@ -486,6 +481,11 @@ class BaguaDistributedDataParallel:
 
             optimizer.step = new_step_factory(optimizer)
 
+    def _reset_buckets(self):
+        raw_buckets = self._bagua_autotune_get_buckets()
+        self.bagua_buckets.extend(
+            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.gradient_as_bucket_view)
+        )
         for bucket in self.bagua_buckets:
             self.bagua_algorithm.init_operations(
                 self,
@@ -494,6 +494,7 @@ class BaguaDistributedDataParallel:
         self._bagua_backend.register_ordered_buckets(
             [bucket.backend_bucket for bucket in self.bagua_buckets]
         )
+        self.params_in_use = set([name for name, _ in self.bagua_build_params()])
 
     def _reset_algorithm_state(self):
         bagua_states = self.module._bagua_states
@@ -501,5 +502,5 @@ class BaguaDistributedDataParallel:
             for hook in bagua_states._bagua_framework_hooks:
                 hook.remove()
 
-        if hasattr(bagua_states, "_bagua_algorithm_hooks"):
-            self._bagua_cleanup_algorithm()
+        if hasattr(bagua_states, "_bagua_autograd_hooks"):
+            self._cleanup_autograd_hooks()
