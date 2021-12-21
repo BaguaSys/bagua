@@ -1,4 +1,5 @@
 # pytype: disable=attribute-error
+from operator import not_
 import torch
 import time
 import io
@@ -22,6 +23,8 @@ from bagua.bagua_define import (
     BaguaHyperparameter,
 )
 from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
+
+from bagua.torch_api.algorithms import gradient_allreduce
 
 
 class BaguaDistributedDataParallel:
@@ -92,7 +95,11 @@ class BaguaDistributedDataParallel:
         self._speed_metrics_switch_on = env.get_autotune_level() >= 1
         self._speed_metrics = StatisticalAverage()
         self.require_backward_grad_sync = True
+<<<<<<< HEAD
         self.autograd_graph_params: Dict[str, torch.nn.Parameter] = {}
+=======
+        self.autograd_graph_params: List[Tuple[str, torch.nn.Parameter]] = []
+>>>>>>> master
 
         ddp = self
 
