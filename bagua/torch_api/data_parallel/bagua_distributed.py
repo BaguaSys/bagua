@@ -25,7 +25,6 @@ from bagua.torch_api.utils import to_bagua_datatype, StatisticalAverage
 
 
 class BaguaDistributedDataParallel:
-
     def __init__(
         self,
         module: Module,
@@ -37,12 +36,7 @@ class BaguaDistributedDataParallel:
         find_unused_parameters: bool = False,
     ) -> None:
         self.module = module
-        if bagua_module_name is None:
-            self.bagua_module_name = "{}_{}".format(
-                self.__class__.__name__, id(module)
-            )
-        else:
-            self.bagua_module_name = bagua_module_name
+        self.bagua_module_name = bagua_module_name
 
         self.bagua_optimizers = optimizers
         self.bagua_algorithm = algorithm.reify(process_group)
@@ -75,8 +69,8 @@ class BaguaDistributedDataParallel:
         self._bagua_autotune_completed = False
 
         class BaguaDistributedDataParallelStates:
-            """Empty class whose instances are used for keeping track of BaguaDistributedDataParallel's internal states.
-            """
+            """Empty class whose instances are used for keeping track of BaguaDistributedDataParallel's internal states."""
+
             pass
 
         if hasattr(self.module, "_bagua_states"):
@@ -180,7 +174,10 @@ class BaguaDistributedDataParallel:
         ]
 
         if self.find_unused_parameters and len(self.autograd_graph_params) != 0:
-            modules_and_parameters = filter(lambda it: it[1][0] in self.autograd_graph_params, modules_and_parameters)
+            modules_and_parameters = filter(
+                lambda it: it[1][0] in self.autograd_graph_params,
+                modules_and_parameters,
+            )
 
         # Deduplicate any parameters that might be shared across child modules.
         memo = set()
@@ -445,7 +442,6 @@ class BaguaDistributedDataParallel:
                             if set(self.autograd_graph_params.keys()) != self.params_in_use:
                                 self._reset_buckets()
                                 self._delay_allreduce()
-
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(
                             real_post_backward_hook

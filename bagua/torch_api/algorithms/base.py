@@ -1,9 +1,13 @@
+from __future__ import annotations
 from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedDataParallel
 from bagua.torch_api.bucket import BaguaBucket
 from bagua.torch_api.tensor import BaguaTensor
 from bagua.torch_api.communication import BaguaProcessGroup
-from typing import List
+from typing import Any, Callable, Dict, List, Optional
 import torch
+
+
+__all__ = ["Algorithm", "AlgorithmImpl"]
 
 
 class Algorithm:
@@ -13,12 +17,35 @@ class Algorithm:
 
     def reify(self, process_group: BaguaProcessGroup):
         """
-        Create an algorithm instance.
+        Create an algorithm implementation instance. See :class:`AlgorithmImpl`.
 
         Args:
             process_group: The process group to work on.
+
+        Returns:
+            An instance of Bagua algorithm implementation.
         """
         pass
+
+    @classmethod
+    def init(cls, name, **kwargs) -> Algorithm:
+        """Helper class to initialize a registered Bagua algorithm.
+
+        Args:
+            name: Name of the registered Bagua algorithm.
+            kwargs: Arguments to initialize the registered Bagua algorithm.
+
+        Returns:
+            An instance of a registered Bagua algorithm.
+
+        Example::
+            >>> from bagua.torch_api.algorithms import Algorithm
+            >>> algorithm = Algorithm.init("gradient_allreduce", hierarchical=True)
+
+        .. note::
+            Call ``str(bagua.torch_api.algorithms.GlobalAlgorithmRegistry)`` to see all registered Bagua algorithms.
+        """
+        return GlobalAlgorithmRegistry.get(name)(**kwargs)
 
 
 class AlgorithmImpl:
@@ -43,7 +70,9 @@ class AlgorithmImpl:
         """
         return False
 
-    def init_tensors(self, bagua_ddp: BaguaDistributedDataParallel) -> List[BaguaTensor]:
+    def init_tensors(
+        self, bagua_ddp: BaguaDistributedDataParallel
+    ) -> List[BaguaTensor]:
         """
         Given a :class:`~bagua.torch_api.data_parallel.BaguaDistributedDataParallel`, return Bagua tensors to be used in Bagua for later
         operations.
@@ -177,3 +206,58 @@ class AlgorithmImpl:
             bagua_ddp: :class:`bagua.torch_api.data_parallel.BaguaDistributedDataParallel`.
             bucket: A single bucket to register operations.
         """
+
+
+class _AlgorithmRegistry(dict):
+    def register(
+        self,
+        name: str,
+        algorithm: Callable,
+        description: Optional[str] = None,
+    ):
+        """Registers an Bagua Algorithm mapped to a name and with required metadata.
+
+        Args:
+            name: The name that identifies a Bagua algorithm, e.g. "gradient_allreduce".
+            algorithm: Class of the Bagua algorithm.
+            description: Description of the Bagua algorithm.
+        """
+        if not (name is None or isinstance(name, str)):
+            raise TypeError(f"`name` must be a str, found {name}")
+
+        if name in self:
+            raise ValueError(f"'{name}' is already present in the registry.")
+
+        data: Dict[str, Any] = {}
+        data["algorithm"] = algorithm
+        data["description"] = description if description is not None else ""
+
+        self[name] = data
+
+    def get(self, name: str) -> Callable:
+        """Calls the registered Bagua algorithm with the name and returns the algorithm class.
+
+        Args:
+            name: The name that identifies a Bagua algorithm, e.g. "gradient_allreduce".
+
+        Returns:
+            The class of the Bagua algorithm.
+        """
+
+        if name in self:
+            data = self[name]
+            return data["algorithm"]
+
+        err_msg = "'{}' not found in registry. Available names: {}"
+        available_names = ", ".join(sorted(self.keys())) or "none"
+        raise KeyError(err_msg.format(name, available_names))
+
+    def available_algorithms(self) -> List[str]:
+        """Returns a list of registered Bagua algorithms."""
+        return list(self.keys())
+
+    def __str__(self) -> str:
+        return "Registered Algorithms: {}".format(", ".join(self.keys()))
+
+
+GlobalAlgorithmRegistry = _AlgorithmRegistry()
