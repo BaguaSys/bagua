@@ -1,5 +1,4 @@
 import logging
-import time
 import multiprocessing
 import bagua_core as B
 from bagua.service import AutotuneService
@@ -496,6 +495,10 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     else:
         _default_store = store
 
+    _autotune_service_port = _find_free_bagua_service_port(_default_store)
+    if get_rank() == 0 and _autotune_server is None:
+        start_autotune_server(_autotune_service_port)
+
     # TODO remove the dependency on torch process group
     if not dist.is_initialized():
         torch.distributed.init_process_group(
@@ -506,24 +509,6 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         )  # fmt: off
 
     _default_pg = new_group(stream=torch.cuda.Stream(priority=-1))
-
-    _autotune_service_port = _find_free_bagua_service_port(_default_store)
-    if _autotune_server is None:
-        if get_rank() == 0:
-            start_autotune_server(_autotune_service_port)
-            TIME_OUT = 30
-            start = time.time()
-            client = get_hyperparameters_service_client()
-            service_started = False
-            while service_started is False and time.time() - start < TIME_OUT:
-                service_started = client.health_check()
-
-            if not service_started:
-                raise Exception("Warning! autotune server failed to start in 30s")
-
-            torch.distributed.barrier()
-        else:
-            torch.distributed.barrier()
 
 
 def broadcast_nccl_unique_id(comm_key: str, root):
