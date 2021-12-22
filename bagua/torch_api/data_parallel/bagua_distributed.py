@@ -345,7 +345,7 @@ class BaguaDistributedDataParallel:
             assert rsp.status_code == 200, "Unexpected rsp={}".format(rsp)
 
             # update parameters
-            self._bagua_reset_algorithm_buckets()
+            self._reset_buckets()
             self._bagua_autotune_last_report_time = time.time()
 
         logging.debug("autotune overhead=%s", time.time() - start_time)
@@ -413,8 +413,6 @@ class BaguaDistributedDataParallel:
             hook.remove()
         bagua_states._bagua_autograd_hooks.clear()
 
-        self.bagua_buckets.clear()
-
     def _register_autograd_hooks(self):
         bagua_states = self.module._bagua_states
         self._cleanup_autograd_hooks()
@@ -479,9 +477,7 @@ class BaguaDistributedDataParallel:
 
     def _reset_buckets(self):
         raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets.extend(
-            self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.gradient_as_bucket_view)
-        )
+        self.bagua_buckets = self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.gradient_as_bucket_view)
         for bucket in self.bagua_buckets:
             self.bagua_algorithm.init_operations(
                 self,
