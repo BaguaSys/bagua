@@ -4,7 +4,6 @@ from bagua.torch_api.data_parallel.bagua_distributed import BaguaDistributedData
 from bagua.torch_api.algorithms import Algorithm, AlgorithmImpl
 from bagua.torch_api.communication import (
     new_group,
-    broadcast,
     barrier,
     _pg_group_ranks,
     BaguaProcessGroup,
@@ -25,8 +24,10 @@ __all__ = ["AsyncModelAverageAlgorithm", "AsyncModelAverageAlgorithmImpl"]
 
 
 class _AsyncInternalState(IntEnum):
-    RESUME = 0
-    ABORT = 1
+    NEW = 0
+    SCHEDULED = 1
+    STARTED = 2
+    STOPPED = 3
 
 
 class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
@@ -69,7 +70,8 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         self.cuda_event = torch.cuda.Event()
 
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        self.scheduled = False
+        self.status = _AsyncInternalState.NEW
+        self.cv = threading.Condition()
 
         process_ranks = list(_pg_group_ranks[self.process_group])
         self.thread_group = new_group(
@@ -120,12 +122,10 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             ):
                 self._lock_model(bagua_ddp)
 
-                if not hasattr(self, "future"):
-                    self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
-                    self.scheduled = True
-                    logging.debug(
-                        "Process {} async communication started.".format(get_rank())
-                    )
+                if self.status == _AsyncInternalState.SCHEDULED:
+                    with self.cv:
+                        self.status = _AsyncInternalState.STARTED
+                        self.cv.notify()
 
         return hook
 
@@ -189,6 +189,10 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             bucket._async_op.unlock_weight()
 
     def _run_async_loop(self, bagua_ddp: BaguaDistributedDataParallel):
+        with self.cv:
+            while self.status < _AsyncInternalState.STARTED:
+                self.cv.wait()
+
         comm_step = 0
         while True:
             start_time = time.time()
@@ -239,11 +243,12 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 )
             )
 
-        if self.scheduled:
+        if self.status in [_AsyncInternalState.SCHEDULED, _AsyncInternalState.STARTED]:
             barrier(comm=self.process_group.get_global_communicator())
-            bagua_ddp.bagua_buckets[0]._async_op.abort()
+            if hasattr(bagua_ddp.bagua_buckets[0], "_async_op"):
+                bagua_ddp.bagua_buckets[0]._async_op.abort()
             self.future.result()  # pytype: disable=attribute-error
-            self.scheduled = False
+            self.status = _AsyncInternalState.STOPPED
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
     def resume(
@@ -273,11 +278,12 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 )
             )
 
-        if not self.scheduled and hasattr(self, "future"):
+        if self.status in [_AsyncInternalState.NEW, _AsyncInternalState.STOPPED]:
             barrier(comm=self.process_group.get_global_communicator())
-            bagua_ddp.bagua_buckets[0]._async_op.reset()
+            if hasattr(bagua_ddp.bagua_buckets[0], "_async_op"):
+                bagua_ddp.bagua_buckets[0]._async_op.reset()
             self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
-            self.scheduled = True
+            self.status = _AsyncInternalState.SCHEDULED
             logging.debug("Process {} async communication resumed.".format(get_rank()))
 
 
