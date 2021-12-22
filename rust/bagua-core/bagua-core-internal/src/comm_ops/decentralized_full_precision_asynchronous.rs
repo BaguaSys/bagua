@@ -9,6 +9,7 @@ use crate::events::BaguaEventChannel;
 use crate::resource_pool::{CUDA_DEVICE_MEMORY_POOL, CUDA_EVENT_POOL};
 use crate::{BaguaCommOpChannels, BaguaCoreError};
 use parking_lot::{lock_api::RawMutex as _, Mutex, RawMutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -18,8 +19,8 @@ pub struct DecentralizedFullPrecisionAsynchronous {
     pub peer_selection_mode: PeerSelectionMode,
     pub torch_stream: u64,
     pub weight_mutex: Arc<Mutex<bool>>,
-    pub aborted: Arc<Mutex<u8>>,
-    pub all_aborted: Arc<Mutex<u8>>,
+    pub aborted: Arc<AtomicBool>,
+    pub all_aborted: Arc<AtomicBool>,
 }
 
 impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
@@ -45,8 +46,6 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
 
         let torch_stream = self.torch_stream;
 
-        let aborted = { *self.aborted.lock() } as u8;
-
         self.communicator.execute_communication(
             &mut communication_tensor,
             false,
@@ -69,21 +68,10 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                     pool_allocations: vec![Arc::new(state_buf)],
                 };
 
-                let aborted_ptr: *const u8 = &aborted;
+                let mut aborted = { self.aborted.load(Ordering::Relaxed) } as u8;
+                let aborted_ptr: *mut u8 = &mut aborted;
                 unsafe {
                     cuda_memcpy_host_to_device_sync(state_tensor.data_ptr(), aborted_ptr as u64, 1);
-                }
-
-                c.broadcast(&mut state_tensor, 0);
-
-                unsafe {
-                    cuda_memcpy_device_to_host_sync(aborted_ptr as u64, state_tensor.data_ptr(), 1);
-
-                    if *aborted_ptr > 0 {
-                        tracing::debug!("#{} async model average aborted", c.rank);
-                        *self.all_aborted.lock() = 1;
-                        return;
-                    }
                 }
 
                 let temp_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
@@ -112,10 +100,36 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                     pool_allocations: vec![Arc::new(reduced_buf)],
                 };
 
+                let ready_event = CUDA_EVENT_POOL.take().event;
                 let src_ready_event = CUDA_EVENT_POOL.take().event;
 
                 // use default stream to copy weights
                 temp_tensor.clone_from(&t.raw, torch_stream as u64);
+
+                c.broadcast(&mut state_tensor, 0);
+
+                unsafe {
+                    cpp::cpp!([
+                                            ready_event as "cudaEvent_t",
+                                            comm_stream as "cudaStream_t",
+                                            torch_stream as "cudaStream_t"]
+                                        {
+                                            CUDACHECK(cudaStreamSynchronize(comm_stream));
+                    //                        CUDACHECK(cudaEventRecord(ready_event, comm_stream));
+                    //                        CUDACHECK(cudaStreamWaitEvent(torch_stream, ready_event , 0));
+                                        });
+                }
+
+                unsafe {
+                    cuda_memcpy_device_to_host_sync(aborted_ptr as u64, state_tensor.data_ptr(), 1);
+                }
+
+                if aborted > 0 {
+                    tracing::debug!("#{} async model average aborted", c.rank);
+
+                    self.all_aborted.store(true, Ordering::Relaxed);
+                    return;
+                }
 
                 unsafe {
                     cpp::cpp!([
@@ -141,7 +155,6 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                 };
 
                 {
-                    let ready_event = CUDA_EVENT_POOL.take().event;
                     unsafe {
                         cpp::cpp!([
                             ready_event as "cudaEvent_t",
@@ -157,15 +170,15 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                         &reduced_tensor,
                         &temp_tensor,
                         c.nranks as f32,
-                        comm_stream,
+                        torch_stream,
                     );
 
                     unsafe {
                         cpp::cpp!([
                             ready_event as "cudaEvent_t",
-                            comm_stream as "cudaStream_t"]
+                            torch_stream as "cudaStream_t"]
                         {
-                            CUDACHECK(cudaEventRecord(ready_event, comm_stream));
+                            CUDACHECK(cudaEventRecord(ready_event, torch_stream));
                             CUDACHECK(cudaEventSynchronize(ready_event));
                         });
                     }
@@ -196,14 +209,14 @@ impl DecentralizedFullPrecisionAsynchronous {
     }
 
     pub fn abort(&self) {
-        *self.aborted.lock() = 1;
+        self.aborted.store(true, Ordering::Relaxed);
     }
 
     pub fn reset(&self) {
-        *self.aborted.lock() = 0;
+        self.aborted.store(false, Ordering::Relaxed);
     }
 
     pub fn is_all_aborted(&self) -> bool {
-        *self.all_aborted.lock() > 0
+        self.all_aborted.load(Ordering::Relaxed)
     }
 }
