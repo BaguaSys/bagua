@@ -68,9 +68,6 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
         self.cuda_event = torch.cuda.Event()
 
-        self.abort_event = threading.Event()
-        self.dummy_tensor = torch.Tensor([0]).byte().cuda()
-
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.scheduled = False
 
@@ -191,20 +188,6 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         for bucket in bagua_ddp.bagua_buckets:
             bucket._async_op.unlock_weight()
 
-    def _negotiate(self):
-        if self.abort_event.is_set():
-            self.dummy_tensor[0] = _AsyncInternalState.ABORT
-        else:
-            self.dummy_tensor[0] = _AsyncInternalState.RESUME
-
-        broadcast(
-            self.dummy_tensor,
-            src=0,
-            comm=self.thread_group.get_global_communicator(),
-        )
-
-        return self.dummy_tensor.item()
-
     def _run_async_loop(self, bagua_ddp: BaguaDistributedDataParallel):
         comm_step = 0
         while True:
@@ -259,7 +242,6 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         if self.scheduled:
             barrier(comm=self.process_group.get_global_communicator())
             bagua_ddp.bagua_buckets[0]._async_op.abort()
-            # self.abort_event.set()
             self.future.result()  # pytype: disable=attribute-error
             self.scheduled = False
             logging.debug("Process {} async communication aborted.".format(get_rank()))
@@ -294,7 +276,6 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         if not self.scheduled and hasattr(self, "future"):
             barrier(comm=self.process_group.get_global_communicator())
             bagua_ddp.bagua_buckets[0]._async_op.reset()
-            # self.abort_event.clear()
             self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
             self.scheduled = True
             logging.debug("Process {} async communication resumed.".format(get_rank()))

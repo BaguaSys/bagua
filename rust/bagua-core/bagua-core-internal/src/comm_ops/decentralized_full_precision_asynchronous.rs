@@ -109,15 +109,10 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                 c.broadcast(&mut state_tensor, 0);
 
                 unsafe {
-                    cpp::cpp!([
-                                            ready_event as "cudaEvent_t",
-                                            comm_stream as "cudaStream_t",
-                                            torch_stream as "cudaStream_t"]
-                                        {
-                                            CUDACHECK(cudaStreamSynchronize(comm_stream));
-                    //                        CUDACHECK(cudaEventRecord(ready_event, comm_stream));
-                    //                        CUDACHECK(cudaStreamWaitEvent(torch_stream, ready_event , 0));
-                                        });
+                    cpp::cpp!([comm_stream as "cudaStream_t"]
+                    {
+                        CUDACHECK(cudaStreamSynchronize(comm_stream));
+                    });
                 }
 
                 unsafe {
