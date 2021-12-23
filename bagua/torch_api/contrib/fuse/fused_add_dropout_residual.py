@@ -1,7 +1,4 @@
 import torch
-from bagua_kernels.setup import load_fused_add_dropout_residual_kernel
-
-load_fused_add_dropout_residual_kernel()
 import add_dropout_residual_impl
 
 class FusedAddDropOutResidual(torch.autograd.Function):
