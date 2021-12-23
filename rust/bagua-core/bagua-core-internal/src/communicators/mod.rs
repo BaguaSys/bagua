@@ -537,16 +537,16 @@ impl BaguaCommunicatorInner {
         let reduction_op = if degraded { BaguaReductionOp::SUM } else { op };
 
         unsafe {
-            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", dst as "int", count as "size_t", op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", dst as "int", count as "size_t", reduction_op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
             {
                 if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<const float*>(send_ptr), static_cast<float*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const float*>(send_ptr), static_cast<float*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), dst, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<const __half*>(send_ptr), static_cast<__half*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const __half*>(send_ptr), static_cast<__half*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), dst, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<const unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), dst, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<const long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), dst, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<const long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), dst, *communicator_ptr);
                 } else {
                     fputs("unsupport tensor data type.\n", stderr);
                     abort();
@@ -576,16 +576,16 @@ impl BaguaCommunicatorInner {
         let reduction_op = if degraded { BaguaReductionOp::SUM } else { op };
 
         unsafe {
-            cpp::cpp!([tensor_ptr as "void *", root_rank as "int", total_num_elem as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t", op as "uint8_t"]
+            cpp::cpp!([tensor_ptr as "void *", root_rank as "int", total_num_elem as "size_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t", reduction_op as "uint8_t"]
             {
                 if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(op), root_rank, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(reduction_op), root_rank, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(op), root_rank, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(reduction_op), root_rank, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(op), root_rank, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(reduction_op), root_rank, *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
-                    Al::Reduce<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(op), root_rank, *communicator_ptr);
+                    Al::Reduce<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), total_num_elem, static_cast<Al::ReductionOperator>(reduction_op), root_rank, *communicator_ptr);
                 } else {
                     fputs("unsupport tensor data type.\n", stderr);
                     abort();
@@ -1001,16 +1001,16 @@ impl BaguaCommunicatorInner {
         let reduction_op = if degraded { BaguaReductionOp::SUM } else { op };
 
         unsafe {
-            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", count as "size_t", op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            cpp::cpp!([send_ptr as "void *", recv_ptr as "void *", count as "size_t", reduction_op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
             {
                 if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const float*>(send_ptr), static_cast<float*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const float*>(send_ptr), static_cast<float*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const __half*>(send_ptr), static_cast<__half*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const __half*>(send_ptr), static_cast<__half*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const unsigned char*>(send_ptr), static_cast<unsigned char*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<const long long int*>(send_ptr), static_cast<long long int*>(recv_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else {
                     fputs("unsupport tensor data type.\n", stderr);
                     abort();
@@ -1040,16 +1040,16 @@ impl BaguaCommunicatorInner {
         let reduction_op = if degraded { BaguaReductionOp::SUM } else { op };
 
         unsafe {
-            cpp::cpp!([tensor_ptr as "void *", count as "size_t", op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
+            cpp::cpp!([tensor_ptr as "void *", count as "size_t", reduction_op as "uint8_t", communicator_ptr as "Al::NCCLCommunicator *", nccl_tensor_type as "ncclDataType_t"]
             {
                 if (nccl_tensor_type == ncclDataType_t::ncclFloat32) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<float*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclFloat16) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<__half*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclUint8) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<unsigned char*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else if (nccl_tensor_type == ncclDataType_t::ncclInt64) {
-                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(op), *communicator_ptr);
+                    Al::Reduce_scatter<Al::NCCLBackend>(static_cast<long long int*>(tensor_ptr), count, static_cast<Al::ReductionOperator>(reduction_op), *communicator_ptr);
                 } else {
                     fputs("unsupport tensor data type.\n", stderr);
                     abort();
