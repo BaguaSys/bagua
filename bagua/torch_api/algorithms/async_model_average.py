@@ -122,7 +122,10 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             ):
                 self._lock_model(bagua_ddp)
 
-                if self.status == _AsyncInternalState.SCHEDULED:
+                if self.status == _AsyncInternalState.NEW:
+                    self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
+                    self.status = _AsyncInternalState.SCHEDULED
+                elif self.status == _AsyncInternalState.SCHEDULED:
                     with self.cv:
                         self.status = _AsyncInternalState.STARTED
                         self.cv.notify()
