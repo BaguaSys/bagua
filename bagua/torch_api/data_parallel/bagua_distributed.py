@@ -401,6 +401,7 @@ class BaguaDistributedDataParallel:
         self._reset_buckets()
 
         self._register_autograd_hooks()
+        self._register_optimizer_hooks()
 
     def _delay_allreduce(self):
         for param_name, parameter in self.bagua_build_params():
