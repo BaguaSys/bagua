@@ -128,10 +128,11 @@ def run_barrier(rank, nprocs, results, env):
 def run_avg(rank, nprocs, results, env):
     init_env(rank, env)
 
-    reduce_fn = lambda send_tensor, recv_tensor, op: reduce(
-        send_tensor, recv_tensor, 0, op
-    )
-    reduce_inplace_fn = lambda tensor, op: reduce_inplace(tensor, 0, op)
+    def reduce_fn(send_tensor, recv_tensor, op):
+        reduce(send_tensor, recv_tensor, 0, op)
+
+    def reduce_inplace_fn(tensor, op):
+        reduce_inplace(tensor, 0, op)
 
     fns = [reduce_fn, allreduce]
     inplace_fns = [reduce_inplace_fn, allreduce_inplace]
