@@ -120,8 +120,6 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                 self.step_id > self.warmup_steps
                 and self.sync_interval_ms > 0  # noqa: W503
             ):
-                self._lock_model(bagua_ddp)
-
                 if self.status == _AsyncInternalState.NEW:
                     self.future = self.executor.submit(self._run_async_loop, bagua_ddp)
                     self.status = _AsyncInternalState.SCHEDULED
@@ -129,6 +127,8 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
                     with self.cv:
                         self.status = _AsyncInternalState.STARTED
                         self.cv.notify()
+
+                self._lock_model(bagua_ddp)
 
         return hook
 
@@ -193,6 +193,7 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
 
     def _run_async_loop(self, bagua_ddp: BaguaDistributedDataParallel):
         with self.cv:
+            # exit loop when started or stopped
             while self.status < _AsyncInternalState.STARTED:
                 self.cv.wait()
 
@@ -200,7 +201,10 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         while True:
             start_time = time.time()
 
-            if bagua_ddp.bagua_buckets[0]._async_op.is_all_aborted():
+            if (
+                not hasattr(bagua_ddp.bagua_buckets[0], "_async_op")
+                or bagua_ddp.bagua_buckets[0]._async_op.is_all_aborted()
+            ):
                 break
 
             for bucket in bagua_ddp.bagua_buckets:
@@ -250,8 +254,11 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
             barrier(comm=self.process_group.get_global_communicator())
             if hasattr(bagua_ddp.bagua_buckets[0], "_async_op"):
                 bagua_ddp.bagua_buckets[0]._async_op.abort()
+            with self.cv:
+                self.status = _AsyncInternalState.STOPPED
+                self.cv.notify()
+
             self.future.result()  # pytype: disable=attribute-error
-            self.status = _AsyncInternalState.STOPPED
             logging.debug("Process {} async communication aborted.".format(get_rank()))
 
     def resume(
