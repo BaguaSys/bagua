@@ -646,6 +646,10 @@ def broadcast_object(obj: object, src: int = 0, comm: Optional[B.BaguaSingleComm
              communicator of the default process group will be used.
     Returns:
         The object that was broadcasted from the :attr:`src`.
+
+    .. note::
+        This operation will move data to GPU before communication and back to CPU after communication, and it requires
+        CPU-GPU synchronization.
     """
 
     if get_rank() == src:
