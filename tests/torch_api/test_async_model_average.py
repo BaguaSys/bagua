@@ -69,16 +69,19 @@ def train_epoch(epoch, model, optimizer, loss_fn):
 
 
 def run_epochs(model, optimizer, loss_fn):
-    for epoch in range(5):
+    for epoch in range(100):
         train_epoch(epoch, model, optimizer, loss_fn)
     model.bagua_algorithm.abort(model)
 
 
 def run_multiple_aborts(model, optimizer, loss_fn):
-    for epoch in range(10):
+    for epoch in range(2):
         model.bagua_algorithm.resume(model)
+        model.bagua_algorithm.abort(model)
         model.bagua_algorithm.resume(model)
-        train_epoch(epoch, model, optimizer, loss_fn)
+        for _ in range(100):
+            train_epoch(epoch, model, optimizer, loss_fn)
+
         model.bagua_algorithm.abort(model)
         model.bagua_algorithm.abort(model)
 
