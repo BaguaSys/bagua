@@ -106,7 +106,7 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                 // use default stream to copy weights
                 temp_tensor.clone_from(&t.raw, torch_stream as u64);
 
-                c.broadcast(&mut state_tensor, 0);
+                c.allreduce_inplace(&mut state_tensor, BaguaReductionOp::MAX);
 
                 unsafe {
                     cpp::cpp!([comm_stream as "cudaStream_t"]
