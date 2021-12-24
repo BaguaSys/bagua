@@ -313,10 +313,11 @@ def reset_error_retry(request_func):
             try:
                 result = request_func(*args, **kwargs)
                 return result
-            except ConnectionResetError as e:
+            except (ConnectionResetError, requests.exceptions.ConnectionError) as e:
                 if retry == MAX_RETRIES:
                     raise e
-                time.sleep(0.01)
+                logging.warning("request failed, retry={}, e={}".format(retry, e))
+                time.sleep(1)
 
     return wrap
 
