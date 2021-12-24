@@ -42,6 +42,13 @@ class QAdamOptimizer(Optimizer):
             raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+        if warmup_steps <= 0:
+            raise ValueError(
+                "Invalid warmup_steps parameter, must be larger than 0: {}".format(
+                    warmup_steps
+                )
+            )
+
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         super(QAdamOptimizer, self).__init__(params, defaults)
 
@@ -92,9 +99,6 @@ class QAdamOptimizer(Optimizer):
                     grad = grad.add(param, alpha=weight_decay)
 
                 if step_id <= self.warmup_steps:
-                    print(
-                        f"perform original adam, step={step_id}, warm up={self.warmup_steps}"
-                    )
                     state["exp_avg"].mul_(beta1).add_(grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(
                         grad, grad, value=1 - beta2
