@@ -2,7 +2,7 @@ import unittest
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from bagua.torch_api.algorithms.q_adam import QAdamOptimizer, QAdamAlgorithm
+from bagua.torch_api.algorithms.q_adam import QAdamOptimizer
 
 
 class Net(nn.Module):
