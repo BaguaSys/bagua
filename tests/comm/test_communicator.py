@@ -4,11 +4,17 @@ import os
 from bagua.torch_api.communication import (
     _get_default_group,
     allreduce,
+    allreduce_inplace,
     send,
     recv,
     allgather,
     barrier,
     broadcast_object,
+    reduce,
+    reduce_inplace,
+    reduce_scatter,
+    reduce_scatter_inplace,
+    ReduceOp,
 )
 from tests.internal.common_utils import find_free_port
 import multiprocessing
@@ -57,7 +63,9 @@ def run_abort(rank, nprocs, results, env):
         data = torch.rand(10).cuda()
 
     for _ in range(rank + 1):
-        comm.allreduce_inplace(data.ensure_bagua_tensor().bagua_backend_tensor(), 10)
+        comm.allreduce_inplace(
+            data.ensure_bagua_tensor().bagua_backend_tensor(), ReduceOp.AVG
+        )
 
     comm_stream.synchronize()
 
@@ -139,6 +147,78 @@ def run_bcastobject(rank, nprocs, results, env):
     results[rank].ret[0] = ret
 
 
+def run_avg(rank, nprocs, results, env):
+    init_env(rank, env)
+
+    def reduce_fn(send_tensor, recv_tensor, op):
+        reduce(send_tensor, recv_tensor, 0, op)
+
+    def reduce_inplace_fn(tensor, op):
+        reduce_inplace(tensor, 0, op)
+
+    fns = [reduce_fn, allreduce]
+    inplace_fns = [reduce_inplace_fn, allreduce_inplace]
+
+    succ = True
+    for fn in fns:
+        send_tensor = torch.rand(100).cuda()
+        recv_tensor = torch.zeros_like(send_tensor)
+
+        send_tensor_clone = send_tensor.clone().detach()
+        recv_tensor_clone = recv_tensor.clone().detach()
+
+        fn(send_tensor, recv_tensor, op=ReduceOp.AVG)
+        fn(send_tensor_clone, recv_tensor_clone, op=ReduceOp.SUM)
+
+        recv_tensor_clone /= nprocs
+
+        torch.cuda.synchronize()
+        succ = succ and torch.equal(recv_tensor, recv_tensor_clone)
+
+    for fn in inplace_fns:
+        tensor = torch.rand(100).cuda()
+        tensor_clone = tensor.clone().detach()
+
+        fn(tensor, op=ReduceOp.AVG)
+        fn(tensor_clone, op=ReduceOp.SUM)
+
+        tensor_clone /= nprocs
+
+        torch.cuda.synchronize()
+        succ = succ and torch.equal(tensor, tensor_clone)
+
+    results[rank].ret[0] = succ
+
+
+def run_reduce_scatter(rank, nprocs, results, env):
+    init_env(rank, env)
+
+    send_tensor = torch.rand(100 * nprocs).cuda()
+    recv_tensor = torch.rand(100).cuda()
+
+    send_tensor_clone = send_tensor.clone().detach()
+    recv_tensor_clone = recv_tensor.clone().detach()
+
+    reduce_scatter(send_tensor, recv_tensor, op=ReduceOp.AVG)
+    reduce_scatter(send_tensor_clone, recv_tensor_clone, op=ReduceOp.SUM)
+
+    recv_tensor_clone /= nprocs
+
+    tensor = torch.rand(100 * nprocs).cuda()
+    tensor_clone = tensor.clone().detach()
+
+    reduce_scatter_inplace(tensor, op=ReduceOp.AVG)
+    reduce_scatter_inplace(tensor_clone, op=ReduceOp.AVG)
+
+    tensor_clone /= nprocs
+
+    torch.cuda.synchronize()
+
+    results[rank].ret[0] = torch.equal(recv_tensor, recv_tensor_clone) and torch.equal(
+        tensor, tensor_clone
+    )
+
+
 class TestCommunication(unittest.TestCase):
     def run_test_locally(self, fn):
         nprocs = torch.cuda.device_count()
@@ -199,6 +279,14 @@ class TestCommunication(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_bcastobject(self):
         self.run_test_locally(run_bcastobject)
+
+    @skip_if_cuda_not_available()
+    def test_avg(self):
+        self.run_test_locally(run_avg)
+
+    @skip_if_cuda_not_available()
+    def test_reduce_scatter(self):
+        self.run_test_locally(run_reduce_scatter)
 
 
 if __name__ == "__main__":

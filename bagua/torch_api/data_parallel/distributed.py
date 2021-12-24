@@ -60,7 +60,9 @@ class DistributedDataParallel_V1_9_0_Interface(Module):
         raise NotImplementedError
 
 
-def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessGroup, None] = None):
+def to_bagua_process_group(
+    process_group: Union[TorchProcessGroup, BaguaProcessGroup, None] = None
+):
     """Convert a PyTorch process group to a Bagua process group.
 
     Args:
@@ -77,7 +79,10 @@ def to_bagua_process_group(process_group: Union[TorchProcessGroup, BaguaProcessG
 
     if process_group is None:
         return _get_default_group()
-    elif type(process_group) in [TorchProcessGroup, torch._C._distributed_c10d.ProcessGroupNCCL]:
+    elif type(process_group) in [
+        TorchProcessGroup,
+        torch.distributed.ProcessGroupNCCL,
+    ]:
         return process_group.bagua_patch().bagua_pg  # pytype: disable=attribute-error
     elif type(process_group) is BaguaProcessGroup:
         return process_group
@@ -106,8 +111,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         optimizers: List[torch.optim.Optimizer] = [],
         algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
     ) -> None:
-        """Bagua internal use function. Construction use :class:`DistributedDataParallel`.
-        """
+        """Bagua internal use function. Construction use :class:`DistributedDataParallel`."""
         super(DistributedDataParallel_V1_9_0, self).__init__()
         assert any((p.requires_grad for p in module.parameters())), (
             "DistributedDataParallel is not needed when a module "
@@ -136,11 +140,19 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         self.broadcast_buffers = broadcast_buffers
         self.find_unused_parameters = find_unused_parameters
 
+        if not hasattr(module, "_bagua_module_name"):
+            module._bagua_module_name = "{}_{}".format(
+                self.__class__.__name__, id(module)
+            )
+
         self.inner = BaguaDistributedDataParallel(
-            self.module, optimizers, algorithm,
+            self.module,
+            optimizers,
+            algorithm,
             process_group=to_bagua_process_group(process_group),
             gradient_as_bucket_view=gradient_as_bucket_view,
             find_unused_parameters=find_unused_parameters,
+            bagua_module_name=module.bagua_module_name,
         )
 
     @property
@@ -152,8 +164,7 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
 
     @property
     def parameters_to_ignore(self):
-        """Parameters that will be ignored in DDP.
-        """
+        """Parameters that will be ignored in DDP."""
         return self.inner.parameters_to_ignore
 
     def forward(self, *inputs, **kwargs):
@@ -192,13 +203,6 @@ class DistributedDataParallel_V1_9_0(DistributedDataParallel_V1_9_0_Interface):
         return self.inner.bagua_algorithm
 
     @property
-    def bagua_module_name(self):
-        """
-        The module's name. Bagua uses the module name to distinguish different modules.
-        """
-        return self.inner.bagua_module_name
-
-    @property
     def bagua_optimizers(self):
         """
         Optimizer(s) used by the module. It can contain one or more PyTorch optimizers.
@@ -226,7 +230,7 @@ def DistributedDataParallel(
     gradient_as_bucket_view: bool = True,
     # The followings are parameters for Bagua
     optimizers: List[torch.optim.Optimizer] = [],
-    algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm()
+    algorithm: "bagua.torch_api.algorithms.Algorithm" = GradientAllReduceAlgorithm(),
 ) -> Union[TorchDistributedDataParallel, DistributedDataParallel_V1_9_0]:
     r"""
     This function provides a `PyTorch DDP <https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/parallel/distributed.py#L125>`_ compatible
@@ -326,7 +330,8 @@ def DistributedDataParallel(
             " have not been supported yet. Bagua has automatically "
             "fallback to upstream PyTorch DistributedDataParallel "
             "implementation. If this is unexpected, please submit "
-            "an issue to https://github.com/BaguaSys/bagua. Thanks.")
+            "an issue to https://github.com/BaguaSys/bagua. Thanks."
+        )
         return TorchDistributedDataParallel(
             module=module,
             device_ids=device_ids,
