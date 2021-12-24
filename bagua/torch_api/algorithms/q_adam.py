@@ -97,8 +97,7 @@ class QAdamOptimizer(Optimizer):
                     eps
                 )
                 step_size = lr / bias_correction1
-                update = state["exp_avg"] / denom
-                param.data.add_(-step_size * update)
+                param.addcdiv_(state["exp_avg"], denom, value=-step_size)
 
         return loss
 
