@@ -303,6 +303,24 @@ class AutotuneService:
         return app
 
 
+def reset_error_retry(request_func):
+    '''Retry request when catch ConnectionResetError.'''
+
+    def wrap(*args, **kwargs):
+        MAX_RETRIES = 3
+
+        for retry in range(MAX_RETRIES + 1):
+            try:
+                result = request_func(*args, **kwargs)
+                return result
+            except ConnectionResetError as e:
+                if retry == MAX_RETRIES:
+                    raise e
+                time.sleep(0.01)
+
+    return wrap
+
+
 class AutotuneClient:
     def __init__(
         self,
@@ -327,6 +345,7 @@ class AutotuneClient:
             (socket.SOL_TCP, socket.TCP_KEEPCNT, 6),  # How many attemps will your code try if the server goes down before droping the connection.
         ]
 
+    @reset_error_retry
     def report_metrics(
         self,
         model_name: str,
@@ -348,6 +367,7 @@ class AutotuneClient:
         )
         return rsp
 
+    @reset_error_retry
     def register_tensors(
         self,
         model_name: str,
@@ -365,6 +385,7 @@ class AutotuneClient:
         )
         return rsp
 
+    @reset_error_retry
     def ask_hyperparameters(
         self,
         model_name: str,
@@ -382,6 +403,7 @@ class AutotuneClient:
         )
         return rsp
 
+    @reset_error_retry
     def report_tensor_execution_order(
         self,
         spans: List[BaguaCoreTelemetrySpan],
