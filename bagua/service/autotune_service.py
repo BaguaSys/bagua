@@ -304,7 +304,7 @@ class AutotuneService:
 
 
 def reset_error_retry(request_func):
-    '''Retry request when catch ConnectionResetError.'''
+    """Retry request when catch ConnectionResetError."""
 
     def wrap(*args, **kwargs):
         MAX_RETRIES = 3
