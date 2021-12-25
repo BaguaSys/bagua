@@ -9,6 +9,7 @@ from bagua.torch_api.communication import (
     recv,
     allgather,
     barrier,
+    broadcast_object,
     reduce,
     reduce_inplace,
     reduce_scatter,
@@ -123,6 +124,27 @@ def run_allgather(rank, nprocs, results, env):
 def run_barrier(rank, nprocs, results, env):
     init_env(rank, env)
     barrier()
+
+
+def run_bcastobject(rank, nprocs, results, env):
+    init_env(rank, env)
+
+    if rank == 0:
+        state_dict = {"lr": 0.02, "weight_decay": 1e-4, "momentum": 0.9}
+    else:
+        state_dict = {}
+
+    state_dict = broadcast_object(state_dict, 0)
+
+    ret = True
+    for i in range(nprocs):
+        ret = (
+            state_dict["lr"] == 0.02
+            and state_dict["weight_decay"] == 1e-4
+            and state_dict["momentum"] == 0.9
+        )
+
+    results[rank].ret[0] = ret
 
 
 def run_avg(rank, nprocs, results, env):
@@ -253,6 +275,10 @@ class TestCommunication(unittest.TestCase):
     @skip_if_cuda_not_available()
     def test_barrier(self):
         self.run_test_locally(run_barrier)
+
+    @skip_if_cuda_not_available()
+    def test_bcastobject(self):
+        self.run_test_locally(run_bcastobject)
 
     @skip_if_cuda_not_available()
     def test_avg(self):

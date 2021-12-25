@@ -1,4 +1,6 @@
 import logging
+import io
+import pickle
 import multiprocessing
 import bagua_core as B
 from bagua.service import AutotuneService
@@ -29,11 +31,11 @@ import weakref
 # fmt: off
 __all__ = [
     "ReduceOp", "new_group", "from_torch_group", "init_process_group",
-    "is_initialized", "send", "recv", "broadcast", "reduce", "reduce_inplace",
-    "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
-    "gather", "gather_inplace", "scatter", "scatter_inplace",
-    "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace",
-    "barrier", "BaguaProcessGroup"
+    "is_initialized", "send", "recv", "broadcast", "broadcast_object",
+    "reduce", "reduce_inplace", "allreduce", "allreduce_inplace",
+    "allgather", "allgather_inplace", "gather", "gather_inplace",
+    "scatter", "scatter_inplace", "reduce_scatter", "reduce_scatter_inplace",
+    "alltoall", "alltoall_inplace", "barrier", "BaguaProcessGroup"
 ]
 
 # Process group's global rank to local rank mapping
@@ -609,6 +611,66 @@ def broadcast_coalesced(tensors, src=0, comm: Optional[B.BaguaSingleCommunicator
 
     # TODO: remove
     comm.cuda_stream.synchronize()
+
+
+# Copyright 2020 Uber Technologies, Inc. All Rights Reserved.
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+# This function is copied fron Hovorod: https://github.com/horovod/horovod
+# with minor changes.
+def broadcast_object(obj: object, src: int = 0, comm: Optional[B.BaguaSingleCommunicatorPy] = None) -> object:
+    """Serializes and broadcasts an object from root rank to all other processes.
+    Typical usage is to broadcast the ``optimizer.state_dict()``, for example:
+
+        >>> state_dict = broadcast_object(optimizer.state_dict(), 0)
+        >>> if get_rank() > 0:
+        >>>     optimizer.load_state_dict(state_dict)
+
+
+    Args:
+        obj: An object capable of being serialized without losing any context.
+        src: The rank of the process from which parameters will be broadcasted to all other processes.
+        comm: A handle of the Bagua communicator to work on. By default, the global
+             communicator of the default process group will be used.
+    Returns:
+        The object that was broadcasted from the :attr:`src`.
+
+    .. note::
+        This operation will move data to GPU before communication and back to CPU after communication, and it requires
+        CPU-GPU synchronization.
+    """
+
+    if get_rank() == src:
+        b = io.BytesIO()
+        pickle.dump(obj, b)
+        t = torch.cuda.ByteTensor(bytearray(b.getvalue()))
+        # TODO: use IntTensor after int32 communication is supported
+        sz = torch.cuda.LongTensor([t.shape[0]])
+        broadcast(sz, src, comm)
+    else:
+        sz = torch.cuda.LongTensor([0])
+        broadcast(sz, src, comm)
+        t = torch.cuda.ByteTensor(sz.tolist()[0])
+
+    broadcast(t, src, comm)
+
+    if get_rank() != src:
+        buf = io.BytesIO(t.cpu().numpy().tobytes())
+        obj = pickle.load(buf)
+
+    return obj
 
 
 def broadcast(tensor: torch.Tensor, src: int = 0, comm: Optional[B.BaguaSingleCommunicatorPy] = None):
