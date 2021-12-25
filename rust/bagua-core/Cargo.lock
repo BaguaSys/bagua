@@ -48,9 +48,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.51"
+version = "1.0.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b26702f315f53b6071259e15dd9d64528213b44d61de1ec926eca7715d62203"
+checksum = "84450d0b4a8bd1ba4144ce8ce718fbc5d071358b1e5384bace6536b3d1f2d5b3"
 
 [[package]]
 name = "async-attributes"
@@ -261,7 +261,7 @@ dependencies = [
  "pyo3 0.15.1",
  "shadow-rs",
  "tracing",
- "tracing-subscriber 0.3.3",
+ "tracing-subscriber 0.3.4",
  "which",
 ]
 
@@ -298,7 +298,7 @@ dependencies = [
  "sized-object-pool",
  "thiserror",
  "tracing",
- "tracing-subscriber 0.3.3",
+ "tracing-subscriber 0.3.4",
  "ureq",
  "which",
 ]
@@ -322,7 +322,7 @@ dependencies = [
  "pyo3 0.15.1",
  "shadow-rs",
  "tracing",
- "tracing-subscriber 0.3.3",
+ "tracing-subscriber 0.3.4",
  "which",
 ]
 
@@ -1268,7 +1268,7 @@ dependencies = [
  "generator",
  "scoped-tls",
  "tracing",
- "tracing-subscriber 0.3.3",
+ "tracing-subscriber 0.3.4",
 ]
 
 [[package]]
@@ -2408,9 +2408,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "245da694cc7fc4729f3f418b304cb57789f1bed2a78c575407ab8a23f53cb4d3"
+checksum = "d5e6136799e1079699e0d9784c883e03af55cf6a1bee48fe1d79ca552c1bc36f"
 dependencies = [
  "ansi_term",
  "lazy_static",
