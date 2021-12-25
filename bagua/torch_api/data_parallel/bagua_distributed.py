@@ -103,7 +103,7 @@ class BaguaDistributedDataParallel:
                 ddp.bagua_train_step_counter += 1
 
         def algorithm_reset_hook(self, input):
-            if ddp.bagua_algorithm.need_reset():
+            if ddp.bagua_algorithm.need_reset() and self.training:
                 ddp._bagua_init_algorithm()
 
         def algorithm_forward_pre_hook(self, input):
@@ -438,9 +438,13 @@ class BaguaDistributedDataParallel:
                             )
 
                         if self.find_unused_parameters:
-                            if set(self.autograd_graph_params.keys()) != self.params_in_use:
+                            if (
+                                set(self.autograd_graph_params.keys())
+                                != self.params_in_use
+                            ):
                                 self._reset_buckets()
                                 self._delay_allreduce()
+
                     if not self._is_post_backward_callback_queued:
                         torch.autograd.Variable._execution_engine.queue_callback(
                             real_post_backward_hook
@@ -478,7 +482,9 @@ class BaguaDistributedDataParallel:
 
     def _reset_buckets(self):
         raw_buckets = self._bagua_autotune_get_buckets()
-        self.bagua_buckets = self.bagua_algorithm.tensors_to_buckets(raw_buckets, self.gradient_as_bucket_view)
+        self.bagua_buckets = self.bagua_algorithm.tensors_to_buckets(
+            raw_buckets, self.gradient_as_bucket_view
+        )
         for bucket in self.bagua_buckets:
             self.bagua_algorithm.init_operations(
                 self,
