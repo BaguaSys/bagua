@@ -85,11 +85,13 @@ class DistributedDataParallelTest(test_c10d_common.AbstractDistributedDataParall
         def test_find_unused_parameters(
             find_unused_parameters
         ):
+            from bagua.torch_api.algorithms import gradient_allreduce
             model = DistributedDataParallel(
                 FindUnusedParametersModule().float().to(device_id),
                 device_ids=[device_id],
                 process_group=process_group,
                 find_unused_parameters=find_unused_parameters,
+                algorithm=gradient_allreduce.GradientAllReduceAlgorithm(hierarchical=True),
             )
             nonlocal ddp_model
             ddp_model = model
