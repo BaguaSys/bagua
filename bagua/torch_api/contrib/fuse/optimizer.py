@@ -427,7 +427,7 @@ def do_fuse(optimizer: torch.optim.Optimizer):
                 grouped_state = group_tensors(tensors, indices)
 
                 if fp not in _fused_optimizer.state or not _can_reuse_tensor(
-                    _fused_optimizer.state[fp][name], *grouped_state
+                    _fused_optimizer.state[fp].get(name, None), *grouped_state
                 ):
                     _fused_optimizer.state[fp][name] = _create_tensor(*grouped_state)
 
