@@ -54,21 +54,6 @@ class QAdamOptimizer(Optimizer):
 
         self.warmup_steps = warmup_steps
 
-        # initialize momentum and variance
-        for group_id, group in enumerate(self.param_groups):
-            params_with_grad = []
-            for p in group["params"]:
-                params_with_grad.append(p)
-                state = self.state[p]
-                if len(state) == 0:
-                    state["step"] = 0
-                    state["exp_avg"] = torch.zeros_like(
-                        p, memory_format=torch.preserve_format
-                    )
-                    state["exp_avg_sq"] = torch.zeros_like(
-                        p, memory_format=torch.preserve_format
-                    )
-
     def __setstate__(self, state):
         super(QAdamOptimizer, self).__setstate__(state)
 
@@ -86,7 +71,19 @@ class QAdamOptimizer(Optimizer):
             eps = group["eps"]
 
             for param_id, param in enumerate(group["params"]):
+
                 state = self.state[param]
+
+                # initialize momentum and variance
+                if len(state) == 0:
+                    state["step"] = 0
+                    state["exp_avg"] = torch.zeros_like(
+                        param, memory_format=torch.preserve_format
+                    )
+                    state["exp_avg_sq"] = torch.zeros_like(
+                        param, memory_format=torch.preserve_format
+                    )
+
                 # update the steps for each param group update
                 state["step"] += 1
                 step_id = state["step"]
@@ -138,7 +135,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
     @property
     def optimizer_step_id(self):
         param = self.optimizer.param_groups[0]["params"][0]
-        return self.optimizer.state[param]["step"]
+        return self.optimizer.state[param].get("step", 0)
 
     def need_reset(self):
         if self.optimizer_step_id == self.warmup_steps:

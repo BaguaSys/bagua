@@ -4,6 +4,7 @@ import copy
 import logging
 import itertools
 from bagua.torch_api.utils import check_contiguous, get_flattened_tensor
+from collections import defaultdict
 import gorilla
 
 
@@ -303,11 +304,13 @@ def make_optimizer_instance(optimizer: torch.optim.Optimizer):
             setattr(new_optimizer, attr, getattr(optimizer, attr))
             optimizer._bagua_cloned_attrs[attr] = getattr(optimizer, attr)
 
-    # Note: optimizer and fused optimizer share the same state, but different param groups
+    # Note: fused optimizer has its own copy of param groups and param state
     new_optimizer.param_groups = []
     for group in optimizer.param_groups:
         new_group = {"params": list(group["params"])}
         new_optimizer.add_param_group(new_group)
+
+    new_optimizer.state = defaultdict(dict)
 
     return new_optimizer
 
@@ -351,6 +354,7 @@ def do_fuse(optimizer: torch.optim.Optimizer):
         weights = [p.data for p in params]
         grads = [p.grad for p in params]
 
+        # Find original param state
         state_tensors, state_scalars = get_optimizer_param_states(optimizer, params)
 
         if state_tensors is None:
@@ -418,18 +422,18 @@ def do_fuse(optimizer: torch.optim.Optimizer):
             new_params.append(fp)
             active_param_ids.append(id(fp))
 
-            # sync state tensors
+            # sync state tensors for fused optimizer
             for name, tensors in state_tensors.items():
                 grouped_state = group_tensors(tensors, indices)
 
-                if fp not in optimizer.state or not _can_reuse_tensor(
-                    optimizer.state[fp][name], *grouped_state
+                if fp not in _fused_optimizer.state or not _can_reuse_tensor(
+                    _fused_optimizer.state[fp][name], *grouped_state
                 ):
-                    optimizer.state[fp][name] = _create_tensor(*grouped_state)
+                    _fused_optimizer.state[fp][name] = _create_tensor(*grouped_state)
 
-            # sync state scalars
+            # sync state scalars for fused optimizer
             for name, scalar in state_scalars.items():
-                optimizer.state[fp][name] = scalar
+                _fused_optimizer.state[fp][name] = scalar
 
         # add non-contiguous params
         grouped_indices_flat = list(itertools.chain.from_iterable(grouped_indices))
@@ -438,11 +442,14 @@ def do_fuse(optimizer: torch.optim.Optimizer):
                 new_params.append(param)
                 active_param_ids.append(id(param))
 
+                for name, v in optimizer.state[param].items():
+                    _fused_optimizer.state[param][name] = v
+
         # clear outdated states
         for fp in fused_group["params"]:
-            if id(fp) not in active_param_ids:
-                logging.debug("delete outdated params")
-                del optimizer.state[fp]
+            if id(fp) not in active_param_ids and fp in _fused_optimizer.state:
+                logging.debug(f"delete outdated params")
+                del _fused_optimizer.state[fp]
 
         fused_group["params"] = new_params
 
@@ -469,8 +476,9 @@ def sync_param_group_scalars(src_group, dst_group):
 def sync_optimizer_state(optimizer):
     # write back state for original params
     # Note: we should make sure every module parameter in original params groups has the right state
+    _fused_optimizer = optimizer._bagua_fused_optimizer
     for group, fused_group in zip(
-        optimizer.param_groups, optimizer._bagua_fused_optimizer.param_groups
+        optimizer.param_groups, _fused_optimizer.param_groups
     ):
 
         params = group["params"]
@@ -478,27 +486,28 @@ def sync_optimizer_state(optimizer):
 
         for fp in fused_params:
             if not hasattr(fp, "_bagua_fused_param_ids"):
-                # skip original params
-                continue
+                for name, v in _fused_optimizer.state[fp].items():
+                    optimizer.state[fp][name] = v
 
-            original_params = [params[i] for i in fp._bagua_fused_param_ids]
+            else:
+                original_params = [params[i] for i in fp._bagua_fused_param_ids]
 
-            for name, v in optimizer.state[fp].items():
-                if isinstance(v, torch.Tensor):
-                    state_tensors = infer_state_tensors(
-                        optimizer, fp, original_params, name
-                    )
+                for name, v in _fused_optimizer.state[fp].items():
+                    if isinstance(v, torch.Tensor):
+                        state_tensors = infer_state_tensors(
+                            _fused_optimizer, fp, original_params, name
+                        )
 
-                    if state_tensors is not None:
-                        for p, state in zip(original_params, state_tensors):
-                            optimizer.state[p][name] = state
-                else:
-                    for p in original_params:
-                        optimizer.state[p][name] = v
+                        if state_tensors is not None:
+                            for p, state in zip(original_params, state_tensors):
+                                optimizer.state[p][name] = state
+                    else:
+                        for p in original_params:
+                            optimizer.state[p][name] = v
 
-            for p in original_params:
-                if len(optimizer.state[p]) != len(optimizer.state[fp]):
-                    logging.warning("Something went wrong with optimizer state.")
+                for p in original_params:
+                    if len(optimizer.state[p]) != len(_fused_optimizer.state[fp]):
+                        logging.warning("Something went wrong with optimizer state.")
 
 
 def get_tensor_state(optimizer, param, name):

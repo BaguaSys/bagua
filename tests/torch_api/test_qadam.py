@@ -46,7 +46,7 @@ def run_step(opt_cls, opt_flags, seed):
     return loss
 
 
-class TestDecentralized(unittest.TestCase):
+class TestQAdam(unittest.TestCase):
     def test_qadam_optimizer(self):
         loss1 = run_step(torch.optim.Adam, {"lr": 0.001, "weight_decay": 0.1}, seed=13)
         loss2 = run_step(

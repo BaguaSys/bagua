@@ -239,6 +239,8 @@ class TestFusedOptimizer(unittest.TestCase):
 
         for p1, p2 in zip(res1, res2):
             self.assertTrue(torch.equal(p1, p2))
+
+        print(cnt2)
         self.assertTrue(cnt2 == fused_count)
 
     def run_all_optimizers_once(self, fn1, fn2, device, num_epochs, fused_count):
@@ -304,7 +306,6 @@ class TestFusedOptimizer(unittest.TestCase):
             count += 1
             if count % 5 == 0:
                 logging.info(f"Tests Passed [{count}/{len(optimizer_list)}]")
-            # return
 
     def run_fused_with_bagua_wrapper(self, fn1, fn2, num_epochs, fused_count):
         self.run_all_optimizers_once(fn1, fn2, "cuda:0", num_epochs, fused_count)
