@@ -24,7 +24,7 @@ python -m bagua.distributed.launch \
 
 # 2. benchmark test with all communication algorithms
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
-algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async)
+algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async qadam)
 length=${#algorithms[@]}
 for ((i=0;i<$length;i++))
 do
