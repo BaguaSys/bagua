@@ -24,15 +24,18 @@ from . import test_c10d_common
 
 import bagua.torch_api as bagua
 from tests.internal.common_utils import find_free_port
-from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
+from bagua.torch_api.data_parallel.distributed import (
+    DistributedDataParallel_V1_9_0 as DistributedDataParallel,
+)
 
 
 @unittest.skipIf(
     TEST_WITH_TSAN,
     "TSAN is not fork-safe since we're forking in a multi-threaded environment",
 )
-class DistributedDataParallelTest(test_c10d_common.AbstractDistributedDataParallelTest, MultiProcessTestCase):
-
+class DistributedDataParallelTest(
+    test_c10d_common.AbstractDistributedDataParallelTest, MultiProcessTestCase
+):
     def setUp(self):
         super(DistributedDataParallelTest, self).setUp()
         # NCCL_BLOCKING_WAIT overrides NCCL_ASYNC_ERROR_HANDLING hence tests
@@ -82,16 +85,17 @@ class DistributedDataParallelTest(test_c10d_common.AbstractDistributedDataParall
 
         ddp_model = None
 
-        def test_find_unused_parameters(
-            find_unused_parameters
-        ):
+        def test_find_unused_parameters(find_unused_parameters):
             from bagua.torch_api.algorithms import gradient_allreduce
+
             model = DistributedDataParallel(
                 FindUnusedParametersModule().float().to(device_id),
                 device_ids=[device_id],
                 process_group=process_group,
                 find_unused_parameters=find_unused_parameters,
-                algorithm=gradient_allreduce.GradientAllReduceAlgorithm(hierarchical=True),
+                algorithm=gradient_allreduce.GradientAllReduceAlgorithm(
+                    hierarchical=True
+                ),
             )
             nonlocal ddp_model
             ddp_model = model
@@ -102,16 +106,14 @@ class DistributedDataParallelTest(test_c10d_common.AbstractDistributedDataParall
             loss.backward()
 
         test_find_unused_parameters(find_unused_parameters=True)
-        bagua_build_params = [name for name,
-                              _ in ddp_model.inner.bagua_build_params()]
-        self.assertEqual(set(bagua_build_params),
-                         set(['fc1.weight', 'fc2.weight']))
+        bagua_build_params = [name for name, _ in ddp_model.inner.bagua_build_params()]
+        self.assertEqual(set(bagua_build_params), set(["fc1.weight", "fc2.weight"]))
 
         test_find_unused_parameters(find_unused_parameters=False)
-        bagua_build_params = [name for name,
-                              _ in ddp_model.inner.bagua_build_params()]
-        self.assertEqual(set(bagua_build_params), set(
-            ['fc1.weight', 'fc2.weight', 'fc3.weight']))
+        bagua_build_params = [name for name, _ in ddp_model.inner.bagua_build_params()]
+        self.assertEqual(
+            set(bagua_build_params), set(["fc1.weight", "fc2.weight", "fc3.weight"])
+        )
 
     @skip_if_lt_x_gpu(2)
     def test_find_unused_parameters_kwarg_debug_detail(self):
