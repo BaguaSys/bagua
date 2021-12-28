@@ -448,7 +448,7 @@ def do_fuse(optimizer: torch.optim.Optimizer):
         # clear outdated states
         for fp in fused_group["params"]:
             if id(fp) not in active_param_ids and fp in _fused_optimizer.state:
-                logging.debug(f"delete outdated params")
+                logging.debug("delete outdated params")
                 del _fused_optimizer.state[fp]
 
         fused_group["params"] = new_params
