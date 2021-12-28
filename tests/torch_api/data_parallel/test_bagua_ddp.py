@@ -88,6 +88,7 @@ class DistributedDataParallelTest(
         def test_find_unused_parameters(find_unused_parameters):
             from bagua.torch_api.algorithms import gradient_allreduce
 
+
             model = DistributedDataParallel(
                 FindUnusedParametersModule().float().to(device_id),
                 device_ids=[device_id],
