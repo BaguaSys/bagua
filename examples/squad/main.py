@@ -134,9 +134,6 @@ def train(args, train_dataset, model, tokenizer):
         optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon
     )
 
-    if args.fuse_optimizer:
-        optimizer = bagua.contrib.fuse_optimizer(optimizer)
-
     if args.algorithm == "gradient_allreduce":
         from bagua.torch_api.algorithms import gradient_allreduce
 
@@ -172,6 +169,9 @@ def train(args, train_dataset, model, tokenizer):
         )
     else:
         raise NotImplementedError
+
+    if args.fuse_optimizer:
+        optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
