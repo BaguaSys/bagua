@@ -1,4 +1,5 @@
 import logging
+import time
 import io
 import pickle
 import multiprocessing
@@ -380,6 +381,7 @@ def get_backend(model_name: str):
 
 def run_flask_app(port):
     from flask import Flask
+    from gevent.pywsgi import WSGIServer
     import os
 
     os.environ["WERKZEUG_RUN_MAIN"] = "true"
@@ -395,16 +397,13 @@ def run_flask_app(port):
     )
     app = Flask(__name__)
     app = autotune_service.setup_app(app)
-    log = logging.getLogger("werkzeug")
-    log.setLevel(logging.ERROR)
 
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False,
-        use_debugger=False,
-        use_reloader=False,
+    http_server = WSGIServer(
+        listener=("0.0.0.0", port),
+        application=app,
+        log=None,
     )
+    http_server.serve_forever()
 
 
 _autotune_server = None
@@ -500,6 +499,17 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     _autotune_service_port = _find_free_bagua_service_port(_default_store)
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server(_autotune_service_port)
+
+    AUTOTUNE_SERVER_WAIT_TIME = 30
+    start = time.time()
+    service_ready = False
+    while (time.time() - start) < AUTOTUNE_SERVER_WAIT_TIME:
+        client = get_hyperparameters_service_client()
+        service_ready = client.health_check()
+        if service_ready:
+            break
+    if not service_ready:
+        raise Exception("Warning! autotune service not ready after {} seconds.".format(AUTOTUNE_SERVER_WAIT_TIME))
 
     # TODO remove the dependency on torch process group
     if not dist.is_initialized():
