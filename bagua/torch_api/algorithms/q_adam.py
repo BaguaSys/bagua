@@ -161,21 +161,20 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
                         bagua_ddp.bagua_module_name,
-                        getter_closure=lambda param: param.grad,
-                        setter_closure=lambda param, t: setattr(param, "grad", t),
+                        getter_closure=lambda p: p.grad.data,
+                        setter_closure=lambda p, t: setattr(p.grad, "data", t),
                     )
                 else:
                     # register first momentum
-                    def set_momentum_fn(param, t):
-                        self.optimizer.state[param]["exp_avg"] = t
-
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
                         bagua_ddp.bagua_module_name,
-                        getter_closure=lambda param: self.optimizer.state[param][
+                        getter_closure=lambda p: self.optimizer.state[p][
                             "exp_avg"
-                        ],
-                        setter_closure=set_momentum_fn,
+                        ].data,
+                        setter_closure=lambda p, t: setattr(
+                            self.optimizer.state[p]["exp_avg"], "data", t
+                        ),
                     )
 
                 tensor_groups.append(registered_tensor)

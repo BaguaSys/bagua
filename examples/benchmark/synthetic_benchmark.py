@@ -123,8 +123,6 @@ if args.cuda:
     model.cuda()
 
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
-if args.fuse_optimizer:
-    optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
 if args.algorithm == "gradient_allreduce":
     from bagua.torch_api.algorithms import gradient_allreduce
@@ -146,7 +144,9 @@ elif args.algorithm == "qadam":
     from bagua.torch_api.algorithms import q_adam
 
     optimizer = q_adam.QAdamOptimizer(
-        model.parameters(), lr=0.01 * bagua.get_world_size(), warmup_steps=100
+        model.parameters(),
+        lr=0.01 * bagua.get_world_size(),
+        warmup_steps=100,
     )
     algorithm = q_adam.QAdamAlgorithm(optimizer)
 elif args.algorithm == "async":
@@ -158,6 +158,9 @@ elif args.algorithm == "async":
     )
 else:
     raise NotImplementedError
+
+if args.fuse_optimizer:
+    optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
 model = model.with_bagua([optimizer], algorithm, do_flatten=not args.fuse_optimizer)
 
