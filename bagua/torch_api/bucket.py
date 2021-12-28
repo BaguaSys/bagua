@@ -154,6 +154,9 @@ class BaguaBucket:
 
         def wrapper_function_factory(pyop):
             def wrapped_pyop(name):
+                for tensor in self.tensors:
+                    group.stream.wait_event(tensor._bagua_ready_event)
+
                 with torch.cuda.stream(group.stream):
                     return pyop(name)
 
