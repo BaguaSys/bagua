@@ -113,7 +113,6 @@ class BaguaModule:
 
         return self
 
-    @torch.jit.unused
     @property
     def bagua_module_name(self):
         """
@@ -125,17 +124,14 @@ class BaguaModule:
     def bagua_module_name(self, name: str):
         self._bagua_module_name = name
 
-    @torch.jit.unused
     @property
     def bagua_algorithm(self):
         return self.bagua_ddp.bagua_algorithm
 
-    @torch.jit.unused
     @property
     def bagua_optimizers(self):
         return self.bagua_ddp.bagua_optimizers
 
-    @torch.jit.unused
     @property
     def bagua_buckets(self):
         return self.bagua_ddp.bagua_buckets
