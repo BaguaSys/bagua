@@ -9,7 +9,6 @@ set -euox pipefail
 cp -a /upstream /workdir
 export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
 
-
 # 1. test communication_primitives api
 echo "begin to test [communication_primitives]"
 COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
@@ -21,13 +20,11 @@ python -m bagua.distributed.launch \
     --master_port=1234 \
     ${COMMUNICATION_SCRIPT}
 
-
 # 2. benchmark test with all communication algorithms
 SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async qadam)
 length=${#algorithms[@]}
-for ((i=0;i<$length;i++))
-do
+for ((i = 0; i < $length; i++)); do
     echo "begin to test ["${algorithms[$i]}]
     logfile=$(mktemp /tmp/bagua_benchmark_${algorithms[$i]}.XXXXXX.log)
     GLOO_SOCKET_IFNAME=enp96s0f0 python -m bagua.distributed.launch \
