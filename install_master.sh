@@ -101,6 +101,8 @@ mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://down
     rm -rf /var/tmp/hwloc* && cd -
 
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+export LD_RUN_PATH=/usr/local/lib:$LD_RUN_PATH
+
 # install openmpi 4.1.2
 mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.2.tar.bz2 &&
     tar -x -f /var/tmp/openmpi-4.1.2.tar.bz2 -C /var/tmp -j &&
