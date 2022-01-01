@@ -31,7 +31,7 @@ python -m bagua.distributed.run \
     --autotune_warmup_time 10 \
     --autotune_max_samples 30 \
     python ${SYNTHETIC_SCRIPT} \
-        --num-iters 200 \
-        --model vgg16 \
-        2>&1 | tee ${logfile}
+    --num-iters 200 \
+    --model vgg16 \
+    2>&1 | tee ${logfile}
 check_benchmark_log ${logfile}
