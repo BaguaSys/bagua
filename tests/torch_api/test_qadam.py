@@ -20,28 +20,22 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def set_deterministic(seed):
-    # set deterministic
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
-    torch.manual_seed(seed)
-
-
 def run_step(opt_cls, opt_flags, seed):
-    set_deterministic(seed)
+    torch.manual_seed(seed)
     model = Net().cuda()
     optimizer = opt_cls(model.parameters(), **opt_flags)
 
-    for step in range(1000):
-        data = torch.randn(4, 2).cuda()
-        target = torch.randn(4, 4).cuda()
+    with torch.backends.cudnn.flags(enabled=True, deterministic=True, benchmark=False):
+        for step in range(1000):
+            data = torch.randn(4, 2).cuda()
+            target = torch.randn(4, 4).cuda()
 
-        optimizer.zero_grad()
-        output = model(data)
-        loss = nn.MSELoss()(output, target)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = nn.MSELoss()(output, target)
 
-        loss.backward()
-        optimizer.step()
+            loss.backward()
+            optimizer.step()
 
     return loss
 
