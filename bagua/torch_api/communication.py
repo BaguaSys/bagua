@@ -517,7 +517,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     if not service_ready:
         raise Exception("Warning! autotune service not ready after {} seconds. "
                         "You can adjust this duration through "
-                        "`BAGUA_AUTOTUNE_SERVER_WAIT_TIME` environment variable".format(wait_time))
+                        "`BAGUA_AUTOTUNE_SERVER_WAIT_TIME` environment variable.".format(wait_time))
 
     # TODO remove the dependency on torch process group
     if not dist.is_initialized():
