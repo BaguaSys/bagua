@@ -501,9 +501,9 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server(_autotune_service_port)
 
-    AUTOTUNE_SERVER_WAIT_TIME = 60
+    AUTOTUNE_SERVER_WAIT_TIME = 30
     wait_time = get_autotune_server_wait_time()
-    # at least wait 60 seconds
+    # at least wait 30 seconds
     if wait_time < AUTOTUNE_SERVER_WAIT_TIME:
         wait_time = AUTOTUNE_SERVER_WAIT_TIME
 

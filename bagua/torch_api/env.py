@@ -121,7 +121,7 @@ def get_is_output_autotune_log() -> bool:
 
 
 def get_autotune_server_wait_time() -> int:
-    return int(os.environ.get("BAGUA_AUTOTUNE_SERVER_WAIT_TIME", 60))
+    return int(os.environ.get("BAGUA_AUTOTUNE_SERVER_WAIT_TIME", 300))
 
 
 def find_free_network_port() -> int:
