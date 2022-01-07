@@ -68,7 +68,7 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                     pool_allocations: vec![Arc::new(state_buf)],
                 };
 
-                let mut aborted = { self.aborted.load(Ordering::Relaxed) } as u8;
+                let mut aborted = { self.aborted.load(Ordering::Acquire) } as u8;
                 let aborted_ptr: *mut u8 = &mut aborted;
                 unsafe {
                     cuda_memcpy_host_to_device_sync(state_tensor.data_ptr(), aborted_ptr as u64, 1);
@@ -122,7 +122,7 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                 if aborted > 0 {
                     tracing::debug!("#{} async model average aborted", c.rank);
 
-                    self.all_aborted.store(true, Ordering::Relaxed);
+                    self.all_aborted.store(true, Ordering::Release);
                     return;
                 }
 
@@ -204,15 +204,19 @@ impl DecentralizedFullPrecisionAsynchronous {
     }
 
     pub fn abort(&self) {
-        self.aborted.store(true, Ordering::Relaxed);
+        self.aborted.store(true, Ordering::Release);
     }
 
     pub fn reset(&self) {
-        self.aborted.store(false, Ordering::Relaxed);
-        self.all_aborted.store(false, Ordering::Relaxed);
+        self.aborted.store(false, Ordering::Release);
+        self.all_aborted.store(false, Ordering::Release);
+    }
+
+    pub fn is_aborted(&self) -> bool {
+        self.aborted.load(Ordering::Acquire)
     }
 
     pub fn is_all_aborted(&self) -> bool {
-        self.all_aborted.load(Ordering::Relaxed)
+        self.all_aborted.load(Ordering::Acquire)
     }
 }
