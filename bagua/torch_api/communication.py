@@ -14,6 +14,7 @@ from .env import (
     get_node_rank,
     get_default_bucket_size,
     get_bagua_service_port,
+    get_autotune_server_wait_time,
     find_free_network_port,
 )
 from enum import IntEnum
@@ -500,10 +501,15 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     if get_rank() == 0 and _autotune_server is None:
         start_autotune_server(_autotune_service_port)
 
-    AUTOTUNE_SERVER_WAIT_TIME = 30
+    AUTOTUNE_SERVER_WAIT_TIME = 60
+    wait_time = get_autotune_server_wait_time()
+    # at least wait 60 seconds
+    if wait_time < AUTOTUNE_SERVER_WAIT_TIME:
+        wait_time = AUTOTUNE_SERVER_WAIT_TIME
+
     start = time.time()
     service_ready = False
-    while (time.time() - start) < AUTOTUNE_SERVER_WAIT_TIME:
+    while (time.time() - start) < wait_time:
         client = get_hyperparameters_service_client()
         service_ready = client.health_check()
         if service_ready:

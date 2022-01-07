@@ -120,6 +120,10 @@ def get_is_output_autotune_log() -> bool:
     return bool(os.environ.get("BAGUA_IS_OUTPUT_AUTOTUNE_LOG", 0))
 
 
+def get_autotune_server_wait_time() -> int:
+    return int(os.environ.get("BAGUA_AUTOTUNE_SERVER_WAIT_TIME", 60))
+
+
 def find_free_network_port() -> int:
     """Finds a free port on localhost."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
