@@ -14,6 +14,7 @@ from .env import (
     get_node_rank,
     get_default_bucket_size,
     get_bagua_service_port,
+    get_autotune_server_wait_time,
     find_free_network_port,
 )
 from enum import IntEnum
@@ -501,15 +502,22 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         start_autotune_server(_autotune_service_port)
 
     AUTOTUNE_SERVER_WAIT_TIME = 30
+    wait_time = get_autotune_server_wait_time()
+    # at least wait 30 seconds
+    if wait_time < AUTOTUNE_SERVER_WAIT_TIME:
+        wait_time = AUTOTUNE_SERVER_WAIT_TIME
+
     start = time.time()
     service_ready = False
-    while (time.time() - start) < AUTOTUNE_SERVER_WAIT_TIME:
+    while (time.time() - start) < wait_time:
         client = get_hyperparameters_service_client()
         service_ready = client.health_check()
         if service_ready:
             break
     if not service_ready:
-        raise Exception("Warning! autotune service not ready after {} seconds.".format(AUTOTUNE_SERVER_WAIT_TIME))
+        raise Exception("Warning! autotune service not ready after {} seconds. "
+                        "You can adjust this duration through "
+                        "`BAGUA_AUTOTUNE_SERVER_WAIT_TIME` environment variable.".format(wait_time))
 
     # TODO remove the dependency on torch process group
     if not dist.is_initialized():
