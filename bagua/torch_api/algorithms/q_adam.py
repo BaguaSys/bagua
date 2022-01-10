@@ -84,10 +84,14 @@ class QAdamOptimizer(Optimizer):
                 state["step"] += 1
                 step_id = state["step"]
 
+                grad = param.grad
+                if weight_decay != 0:
+                    grad = grad.add(param, alpha=weight_decay)
+
                 if step_id <= self.warmup_steps:
-                    state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
+                    state["exp_avg"].mul_(beta1).add_(grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(
-                        param.grad, param.grad, value=1 - beta2
+                        grad, grad, value=1 - beta2
                     )
 
                 bias_correction1 = 1 - beta1 ** step_id

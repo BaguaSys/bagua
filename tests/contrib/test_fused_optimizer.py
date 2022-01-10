@@ -128,7 +128,7 @@ def bagua_init(model, optimizer, algorithm, do_flatten):
     elif algorithm == "qadam":
         from bagua.torch_api.algorithms.q_adam import QAdamAlgorithm, QAdamOptimizer
 
-        optimizer = QAdamOptimizer(model.parameters(), warmup_steps=1)
+        optimizer = QAdamOptimizer(optimizer.param_groups, warmup_steps=1)
         bagua_algorithm = QAdamAlgorithm(optimizer, hierarchical=False)
     else:
         raise ValueError("unsupported algorithm")
@@ -304,7 +304,6 @@ class TestFusedOptimizer(unittest.TestCase):
             count += 1
             if count % 5 == 0:
                 logging.info(f"Tests Passed [{count}/{len(optimizer_list)}]")
-            # return
 
     def run_fused_with_bagua_wrapper(self, fn1, fn2, num_epochs, fused_count):
         self.run_all_optimizers_once(fn1, fn2, "cuda:0", num_epochs, fused_count)
@@ -428,7 +427,6 @@ class TestFusedOptimizer(unittest.TestCase):
 
     @skip_if_cuda_not_available()
     def test_qadam(self):
-        return
         setup_bagua_env()
         self.run_qadam(
             device="cuda:0",

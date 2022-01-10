@@ -123,8 +123,6 @@ if args.cuda:
     model.cuda()
 
 optimizer = optim.SGD(model.parameters(), lr=0.01 * bagua.get_world_size())
-if args.fuse_optimizer:
-    optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
 if args.algorithm == "gradient_allreduce":
     from bagua.torch_api.algorithms import gradient_allreduce
@@ -160,6 +158,9 @@ else:
     raise NotImplementedError
 
 model = model.with_bagua([optimizer], algorithm, do_flatten=not args.fuse_optimizer)
+
+if args.fuse_optimizer:
+    optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)
