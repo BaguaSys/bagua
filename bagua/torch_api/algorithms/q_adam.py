@@ -43,24 +43,15 @@ class QAdamOptimizer(Optimizer):
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
-        super(QAdamOptimizer, self).__init__(params, defaults)
-        # TODO: qadam optimizer maintain `step_id` in its state
-        self.step_id = 0
-        self.warmup_steps = warmup_steps
+        if warmup_steps <= 0:
+            raise ValueError(
+                "Invalid warmup_steps parameter, must be larger than 0: {}".format(
+                    warmup_steps
+                )
+            )
 
-        # initialize momentum and variance
-        for group_id, group in enumerate(self.param_groups):
-            params_with_grad = []
-            for p in group["params"]:
-                params_with_grad.append(p)
-                state = self.state[p]
-                if len(state) == 0:
-                    state["exp_avg"] = torch.zeros_like(
-                        p, memory_format=torch.preserve_format
-                    )
-                    state["exp_avg_sq"] = torch.zeros_like(
-                        p, memory_format=torch.preserve_format
-                    )
+        super(QAdamOptimizer, self).__init__(params, defaults)
+        self.warmup_steps = warmup_steps
 
     def __setstate__(self, state):
         super(QAdamOptimizer, self).__setstate__(state)
@@ -71,7 +62,6 @@ class QAdamOptimizer(Optimizer):
             with torch.enable_grad():
                 loss = closure()
 
-        self.step_id += 1
         for group_id, group in enumerate(self.param_groups):
 
             lr = group["lr"]
@@ -82,14 +72,26 @@ class QAdamOptimizer(Optimizer):
             for param_id, param in enumerate(group["params"]):
                 state = self.state[param]
 
-                if self.step_id < self.warmup_steps:
+                if len(state) == 0:
+                    state["step"] = 0
+                    state["exp_avg"] = torch.zeros_like(
+                        param, memory_format=torch.preserve_format
+                    )
+                    state["exp_avg_sq"] = torch.zeros_like(
+                        param, memory_format=torch.preserve_format
+                    )
+
+                state["step"] += 1
+                step_id = state["step"]
+
+                if step_id <= self.warmup_steps:
                     state["exp_avg"].mul_(beta1).add_(param.grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(
                         param.grad, param.grad, value=1 - beta2
                     )
 
-                bias_correction1 = 1 - beta1 ** self.step_id
-                bias_correction2 = 1 - beta2 ** self.step_id
+                bias_correction1 = 1 - beta1 ** step_id
+                bias_correction2 = 1 - beta2 ** step_id
 
                 denom = (state["exp_avg_sq"].sqrt() / math.sqrt(bias_correction2)).add_(
                     eps
@@ -123,10 +125,15 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
         self.optimizer = q_adam_optimizer
         self.warmup_steps = self.optimizer.warmup_steps
 
+    @property
+    def optimizer_step_id(self):
+        param = self.optimizer.param_groups[0]["params"][0]
+        return self.optimizer.state[param].get("step", 0)
+
     def need_reset(self):
-        if self.optimizer.step_id == self.warmup_steps:
+        if self.optimizer_step_id == self.warmup_steps:
             print(
-                "QAdam starts to compress from step {}".format(self.optimizer.step_id)
+                "QAdam starts to compress from step {}".format(self.optimizer_step_id)
             )
             return True
         else:
@@ -142,7 +149,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
         tensor_groups = []
         for group in self.optimizer.param_groups:
             for param in group["params"]:
-                if self.optimizer.step_id < self.warmup_steps:
+                if self.optimizer_step_id < self.warmup_steps:
                     # register grad
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
@@ -188,7 +195,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
         bucket: BaguaBucket,
     ):
         bucket.clear_ops()
-        if self.optimizer.step_id < self.warmup_steps:
+        if self.optimizer_step_id < self.warmup_steps:
             bucket.append_centralized_synchronous_op(
                 hierarchical=False,
                 average=True,
@@ -227,7 +234,7 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
             parameter.bagua_mark_communication_ready()
 
         return (
-            hook_grad if self.optimizer.step_id < self.warmup_steps else hook_momentum
+            hook_grad if self.optimizer_step_id < self.warmup_steps else hook_momentum
         )
 
 
