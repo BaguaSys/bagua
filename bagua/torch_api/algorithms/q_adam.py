@@ -88,7 +88,7 @@ class QAdamOptimizer(Optimizer):
                 if weight_decay != 0:
                     grad = grad.add(param, alpha=weight_decay)
 
-                if step_id <= self.warmup_steps:
+                if step_id < self.warmup_steps:
                     state["exp_avg"].mul_(beta1).add_(grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(
                         grad, grad, value=1 - beta2
