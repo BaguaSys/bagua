@@ -9,7 +9,7 @@ tracing = "0.1"
 async-std = { version = "1.10", features = ["attributes", "tokio1"] }
 async-trait = { version = "0.1" }
 hyper = { version = "0.14", features = ["full"] }
-opentelemetry = { version = "0.15", default-features = false, features = [
+opentelemetry = { version = "0.16", default-features = false, features = [
     "trace",
     "rt-async-std",
 ] }
