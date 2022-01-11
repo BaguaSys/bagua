@@ -3,15 +3,13 @@ use crate::comm_ops::CommOpTrait;
 use crate::communicators::BaguaCommunicator;
 use crate::cuda_utils::{cuda_memcpy_device_to_host_sync, cuda_memcpy_host_to_device_sync};
 use crate::datatypes::{
-    BaguaBucket, BaguaReductionOp, BaguaTensor, BaguaTensorDtype, BaguaTensorRaw, RawBaguaTensor,
+    BaguaBucket, BaguaReductionOp, BaguaTensorDtype, BaguaTensorRaw, RawBaguaTensor,
 };
-use crate::events::BaguaEventChannel;
 use crate::resource_pool::{CUDA_DEVICE_MEMORY_POOL, CUDA_EVENT_POOL};
-use crate::{BaguaCommOpChannels, BaguaCoreError};
+use crate::BaguaCommOpChannels;
 use parking_lot::{lock_api::RawMutex as _, Mutex, RawMutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub struct DecentralizedFullPrecisionAsynchronous {
@@ -20,7 +18,7 @@ pub struct DecentralizedFullPrecisionAsynchronous {
     pub torch_stream: u64,
     pub weight_mutex: Arc<Mutex<bool>>,
     pub aborted: Arc<AtomicBool>,
-    pub all_aborted: Arc<AtomicBool>,
+    pub status: Arc<AtomicBool>,
 }
 
 impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
@@ -68,12 +66,6 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                     pool_allocations: vec![Arc::new(state_buf)],
                 };
 
-                let mut aborted = { self.aborted.load(Ordering::Acquire) } as u8;
-                let aborted_ptr: *mut u8 = &mut aborted;
-                unsafe {
-                    cuda_memcpy_host_to_device_sync(state_tensor.data_ptr(), aborted_ptr as u64, 1);
-                }
-
                 let temp_buf = CUDA_DEVICE_MEMORY_POOL[t.raw.device_id()]
                     .try_pull(t.raw.num_elements_allocated() * t.raw.dtype().bytes())
                     .expect("cannot allocate cuda memory");
@@ -100,11 +92,14 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                     pool_allocations: vec![Arc::new(reduced_buf)],
                 };
 
-                let ready_event = CUDA_EVENT_POOL.take().event;
                 let src_ready_event = CUDA_EVENT_POOL.take().event;
 
-                // use default stream to copy weights
-                temp_tensor.clone_from(&t.raw, torch_stream as u64);
+                // negotiate
+                let mut aborted = { self.aborted.load(Ordering::Acquire) } as u8;
+                let aborted_ptr: *mut u8 = &mut aborted;
+                unsafe {
+                    cuda_memcpy_host_to_device_sync(aborted_ptr as u64, state_tensor.data_ptr(), 1);
+                }
 
                 c.allreduce_inplace(&mut state_tensor, BaguaReductionOp::MIN);
 
@@ -121,11 +116,12 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
 
                 if aborted > 0 {
                     tracing::debug!("#{} async model average aborted", c.rank);
-
-                    self.all_aborted.store(true, Ordering::Release);
+                    self.set_status(false);
                     return;
                 }
 
+                // use default stream to copy weights
+                temp_tensor.clone_from(&t.raw, torch_stream as u64);
                 unsafe {
                     cpp::cpp!([
                         src_ready_event as "cudaEvent_t",
@@ -151,12 +147,9 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
 
                 {
                     unsafe {
-                        cpp::cpp!([
-                            ready_event as "cudaEvent_t",
-                            comm_stream as "cudaStream_t"]
+                        cpp::cpp!([comm_stream as "cudaStream_t"]
                         {
-                            CUDACHECK(cudaEventRecord(ready_event, comm_stream));
-                            CUDACHECK(cudaEventSynchronize(ready_event));
+                            CUDACHECK(cudaStreamSynchronize(comm_stream));
                         });
                     }
 
@@ -169,12 +162,9 @@ impl CommOpTrait for DecentralizedFullPrecisionAsynchronous {
                     );
 
                     unsafe {
-                        cpp::cpp!([
-                            ready_event as "cudaEvent_t",
-                            torch_stream as "cudaStream_t"]
+                        cpp::cpp!([torch_stream as "cudaStream_t"]
                         {
-                            CUDACHECK(cudaEventRecord(ready_event, torch_stream));
-                            CUDACHECK(cudaEventSynchronize(ready_event));
+                            CUDACHECK(cudaStreamSynchronize(torch_stream));
                         });
                     }
                     self.unlock_weight();
@@ -209,14 +199,14 @@ impl DecentralizedFullPrecisionAsynchronous {
 
     pub fn reset(&self) {
         self.aborted.store(false, Ordering::Release);
-        self.all_aborted.store(false, Ordering::Release);
+        self.set_status(true);
     }
 
-    pub fn is_aborted(&self) -> bool {
-        self.aborted.load(Ordering::Acquire)
+    pub fn set_status(&self, status: bool) {
+        self.status.store(status, Ordering::SeqCst);
     }
 
-    pub fn is_all_aborted(&self) -> bool {
-        self.all_aborted.load(Ordering::Acquire)
+    pub fn get_status(&self) -> bool {
+        self.status.load(Ordering::SeqCst)
     }
 }

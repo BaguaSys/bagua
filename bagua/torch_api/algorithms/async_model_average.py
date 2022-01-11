@@ -199,20 +199,20 @@ class AsyncModelAverageAlgorithmImpl(AlgorithmImpl):
         for bucket in bagua_ddp.bagua_buckets:
             bucket._async_op.unlock_weight()
 
+    def _check_op_status(self, bagua_ddp: BaguaDistributedDataParallel):
+        return (
+            hasattr(bagua_ddp.bagua_buckets[0], "_async_op")
+            and bagua_ddp.bagua_buckets[0]._async_op.get_status()
+        )
+
     def _run_async_loop(self, bagua_ddp: BaguaDistributedDataParallel):
         with self.cv:
             while not self.notified:
                 self.cv.wait()
 
         comm_step = 0
-        while True:
+        while self._check_op_status(bagua_ddp):
             start_time = time.time()
-
-            if (
-                not hasattr(bagua_ddp.bagua_buckets[0], "_async_op")
-                or bagua_ddp.bagua_buckets[0]._async_op.is_all_aborted()
-            ):
-                break
 
             for bucket in bagua_ddp.bagua_buckets:
                 for tensor in bucket.tensors:

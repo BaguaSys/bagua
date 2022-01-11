@@ -229,8 +229,8 @@ impl DecentralizedFullPrecisionAsynchronousPy {
         self.inner.reset()
     }
 
-    pub fn is_all_aborted(&self) -> bool {
-        self.inner.is_all_aborted()
+    pub fn get_status(&self) -> bool {
+        self.inner.get_status()
     }
 }
 
