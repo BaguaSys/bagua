@@ -223,9 +223,6 @@ def main():
     model = Net().cuda()
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
-    if args.fuse_optimizer:
-        optimizer = bagua.contrib.fuse_optimizer(optimizer)
-
     if args.algorithm == "gradient_allreduce":
         from bagua.torch_api.algorithms import gradient_allreduce
 
@@ -263,6 +260,9 @@ def main():
         algorithm,
         do_flatten=not args.fuse_optimizer,
     )
+
+    if args.fuse_optimizer:
+        optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):
