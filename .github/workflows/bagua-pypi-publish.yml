@@ -9,7 +9,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    container: baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8
+    container: baguasys/bagua:master-pytorch-1.9.1-cuda11.1-cudnn8
     steps:
       - uses: actions/checkout@v2
         with:
@@ -39,7 +39,7 @@ jobs:
 
   check_source_install:
     runs-on: ubuntu-latest
-    container: baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8
+    container: baguasys/bagua:master-pytorch-1.9.1-cuda11.1-cudnn8
     needs:
       - publish
     steps:
@@ -53,6 +53,7 @@ jobs:
       fail-fast: false
       matrix:
         cuda-version:
+          - "115"
           - "113"
           - "111"
           - "102"
@@ -86,6 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         cuda-version:
+          - "115"
           - "113"
           - "111"
           - "102"
