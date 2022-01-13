@@ -473,7 +473,7 @@ impl BaguaCommunicatorInner {
     pub fn abort(&self) {
         let communicator_ptr = self.comm_ptr;
 
-        self.aborted.store(true, Ordering::Relaxed);
+        self.aborted.store(true, Ordering::Release);
 
         unsafe {
             cpp::cpp!([communicator_ptr as "Al::NCCLCommunicator*"]
@@ -484,7 +484,7 @@ impl BaguaCommunicatorInner {
     }
 
     pub fn check_abort(&self) -> bool {
-        self.aborted.load(Ordering::Relaxed)
+        self.aborted.load(Ordering::Acquire)
     }
 
     pub fn broadcast(&self, tensor: &mut dyn RawBaguaTensor, root_rank: i32) {
