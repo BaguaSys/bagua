@@ -4,7 +4,7 @@ steps:
     command: bash .buildkite/scripts/benchmark_master.sh
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.1-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true
@@ -20,7 +20,7 @@ steps:
     command: bash .buildkite/scripts/benchmark_worker.sh
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.1-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true
@@ -34,7 +34,7 @@ steps:
     command: bash .buildkite/scripts/benchmark.sh
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.1-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true
@@ -48,7 +48,7 @@ steps:
     command: bash .buildkite/scripts/run_pytest.sh
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.1-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true
