@@ -7,7 +7,7 @@ from multiprocessing import Manager
 import time
 import logging
 import bagua.torch_api as bagua
-from playground.baguaddp_deliver.bagua.bagua.torch_api.data_parallel.distributed import DistributedDataParallel
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_not_available
 import torch
