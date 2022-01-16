@@ -49,7 +49,8 @@ class CacheLoader:
             >>>
             >>> loader.get(index, lambda x: items[x])
 
-            To spawn new redis servers for the "redis" backend:
+            To spawn new redis servers on training nodes for the "redis" backend, each node with a maximum memory
+            limit of 100000000 bytes:
 
             >>> loader = CacheLoader(backend="redis", hosts=None, cluster_mode=True, capacity_per_node=100000000)
 

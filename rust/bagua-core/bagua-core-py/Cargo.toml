@@ -14,10 +14,10 @@ path = "src/lib.rs"
 bagua-core-internal = { path = "../bagua-core-internal" }
 ndarray = "0.15.4"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.5", features = ["env-filter"] }
 anyhow = "1.0"
 color-eyre = "0.5"
-numpy = "0.15.0"
+numpy = "0.15.1"
 parking_lot = { version = "0.11", features = ["deadlock_detection"] }
 openssl-sys = { version = "*", features = ["vendored"] }
 num-traits = "0.2"

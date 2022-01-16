@@ -88,6 +88,12 @@ parser.add_argument(
     metavar="N",
     help="how many batches to wait before logging training status",
 )
+parser.add_argument(
+    "--fuse-optimizer",
+    action="store_true",
+    default=False,
+    help="fuse optimizer or not",
+)
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -152,7 +158,10 @@ elif args.algorithm == "async":
 else:
     raise NotImplementedError
 
-model = DistributedDataParallel(model, optimizers=[optimizer], algorithm=algorithm)
+model = DistributedDataParallel(model, optimizers=[optimizer], algorithm=algorithm, gradient_as_bucket_view=not args.fuse_optimizer)
+
+if args.fuse_optimizer:
+    optimizer = bagua.contrib.fuse_optimizer(optimizer)
 
 # Set up fixed fake data
 data = torch.randn(args.batch_size, 3, 224, 224)

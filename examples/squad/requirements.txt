@@ -1,4 +1,4 @@
-bagua>=0.6,<0.7
+bagua>=0.6
 torch
 tqdm
 transformers<=4.11.3

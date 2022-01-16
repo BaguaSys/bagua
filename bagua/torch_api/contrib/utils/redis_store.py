@@ -1,7 +1,13 @@
 import socket
 import subprocess
 import time
-from bagua.torch_api.env import get_rank, get_local_rank, get_world_size, get_local_size
+from bagua.torch_api.env import (
+    get_local_rank,
+    get_world_size,
+    get_node_rank,
+    find_free_network_port,
+)
+from bagua.torch_api.communication import _get_rank_mappings
 
 try:
     from redis import Redis
@@ -106,7 +112,7 @@ def bootstrap_redis_server(capacity_per_node):
         logging.debug("Local redis server has already bootstrapped.")
         return _global_redis_servers
 
-    host, port = get_host_ip(), find_free_port()
+    host, port = get_host_ip(), find_free_network_port()
     hostinfo = {"host": host, "port": port}
     if get_local_rank() == 0:
         start_redis_server_cli(port, capacity_per_node)
@@ -119,9 +125,11 @@ def bootstrap_redis_server(capacity_per_node):
         if get_local_rank() == 0:
             default_store.set(key_pattern.format(get_node_rank()), json.dumps(hostinfo))
 
-        for i in range(get_num_nodes()):
-            ret = json.loads(default_store.get(key_pattern.format(i)))
-            _global_redis_servers.append(ret)
+        rank_mappings = _get_rank_mappings()
+        for k, v in rank_mappings.items():
+            if v[1] == 0:  # local rank is 0
+                ret = json.loads(default_store.get(key_pattern.format(v[0])))
+                _global_redis_servers.append(ret)
     else:
         _global_redis_servers.append(hostinfo)
 
@@ -203,23 +211,6 @@ def start_redis_server_cli(port, capacity, *args):
     cmd.extend(list(args))
     logging.debug(f"Start redis server, command: {cmd}")
     subprocess.run(cmd)
-
-
-def get_node_rank():
-    return get_rank() // get_local_size()
-
-
-def get_num_nodes():
-    return get_world_size() // get_local_size()
-
-
-def find_free_port():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(("localhost", 0))
-    sockname = sock.getsockname()
-    sock.close()
-    return sockname[1]
 
 
 def get_host_ip():

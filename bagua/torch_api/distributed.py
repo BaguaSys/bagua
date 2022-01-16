@@ -106,33 +106,43 @@ class BaguaModule:
         if process_group is None:
             process_group = _get_default_group()
 
-        bagua_module_name = None
-        if hasattr(self, "bagua_ddp"):
-            bagua_module_name = self.bagua_ddp.bagua_module_name
+        if not hasattr(self, "_bagua_module_name"):
+            self._bagua_module_name = "{}_{}".format(self.__class__.__name__, id(self))
 
         self.bagua_ddp = BaguaDistributedDataParallel(
             self,
             optimizers=optimizers,
             algorithm=algorithm,
             process_group=process_group,
-            bagua_module_name=bagua_module_name,
+            bagua_module_name=self.bagua_module_name,
             gradient_as_bucket_view=do_flatten,
         )
 
         return self
 
+    @torch.jit.unused
     @property
     def bagua_module_name(self):
-        return self.bagua_ddp.bagua_module_name
+        """
+        The module's name. Bagua uses the module name to distinguish different modules.
+        """
+        return self._bagua_module_name
 
+    @bagua_module_name.setter
+    def bagua_module_name(self, name: str):
+        self._bagua_module_name = name
+
+    @torch.jit.unused
     @property
     def bagua_algorithm(self):
         return self.bagua_ddp.bagua_algorithm
 
+    @torch.jit.unused
     @property
     def bagua_optimizers(self):
         return self.bagua_ddp.bagua_optimizers
 
+    @torch.jit.unused
     @property
     def bagua_buckets(self):
         return self.bagua_ddp.bagua_buckets

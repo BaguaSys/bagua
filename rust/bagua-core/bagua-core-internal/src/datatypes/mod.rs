@@ -1297,6 +1297,8 @@ impl BaguaBucket {
             },
             torch_stream,
             weight_mutex: Arc::new(Mutex::new(true)),
+            aborted: Arc::new(AtomicBool::new(false)),
+            status: Arc::new(AtomicBool::new(true)),
         });
 
         self.inner

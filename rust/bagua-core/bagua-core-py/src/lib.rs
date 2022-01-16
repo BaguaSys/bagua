@@ -220,6 +220,18 @@ impl DecentralizedFullPrecisionAsynchronousPy {
     pub fn unlock_weight(&self) {
         self.inner.unlock_weight()
     }
+
+    pub fn abort(&self) {
+        self.inner.abort()
+    }
+
+    pub fn reset(&self) {
+        self.inner.reset()
+    }
+
+    pub fn get_status(&self) -> bool {
+        self.inner.get_status()
+    }
 }
 
 #[pyclass(dict)]

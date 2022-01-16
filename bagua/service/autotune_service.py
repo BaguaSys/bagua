@@ -293,10 +293,33 @@ class AutotuneService:
 
             return json.dumps({})
 
+        @app.route("/api/v1/health_check", methods=["GET"])
+        def health_check():
+            return json.dumps({"status": "ok"})
+
         # set secret-key
         app.config.update(SECRET_KEY=os.urandom(24))
 
         return app
+
+
+def reset_error_retry(request_func):
+    """Retry request when catch ConnectionResetError."""
+
+    def wrap(*args, **kwargs):
+        MAX_RETRIES = 3
+
+        for retry in range(MAX_RETRIES + 1):
+            try:
+                result = request_func(*args, **kwargs)
+                return result
+            except (ConnectionResetError, requests.exceptions.ConnectionError) as e:
+                if retry == MAX_RETRIES:
+                    raise e
+                logging.warning("request failed, retry={}, e={}".format(retry, e))
+                time.sleep(1)
+
+    return wrap
 
 
 class AutotuneClient:
@@ -313,6 +336,17 @@ class AutotuneClient:
         self.session = requests.Session()
         self.proxies = proxies
 
+        import socket
+        from urllib3.connection import HTTPConnection
+
+        HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + [
+            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),  # Enables the feature
+            (socket.SOL_TCP, socket.TCP_KEEPIDLE, 45),  # Overrides the time when the stack willl start sending KeppAlives after no data received on a Persistent Connection
+            (socket.SOL_TCP, socket.TCP_KEEPINTVL, 10),  # Defines how often thoe KA will be sent between them
+            (socket.SOL_TCP, socket.TCP_KEEPCNT, 6),  # How many attemps will your code try if the server goes down before droping the connection.
+        ]
+
+    @reset_error_retry
     def report_metrics(
         self,
         model_name: str,
@@ -334,6 +368,7 @@ class AutotuneClient:
         )
         return rsp
 
+    @reset_error_retry
     def register_tensors(
         self,
         model_name: str,
@@ -351,6 +386,7 @@ class AutotuneClient:
         )
         return rsp
 
+    @reset_error_retry
     def ask_hyperparameters(
         self,
         model_name: str,
@@ -368,6 +404,7 @@ class AutotuneClient:
         )
         return rsp
 
+    @reset_error_retry
     def report_tensor_execution_order(
         self,
         spans: List[BaguaCoreTelemetrySpan],
@@ -383,6 +420,19 @@ class AutotuneClient:
         )
         return rsp
 
+    def health_check(self) -> bool:
+        try:
+            # get response will be ok
+            self.session.get(
+                "http://{}/api/v1/health_check".format(
+                    self.autotune_service_addr
+                ),
+                proxies=self.proxies
+            )
+
+            return True
+        except requests.exceptions.ConnectionError:
+            return False
 
 if __name__ == "__main__":
     import argparse

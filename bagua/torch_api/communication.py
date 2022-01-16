@@ -1,4 +1,7 @@
 import logging
+import time
+import io
+import pickle
 import multiprocessing
 import bagua_core as B
 from bagua.service import AutotuneService
@@ -8,9 +11,11 @@ from .env import (
     get_world_size,
     get_rank,
     get_local_rank,
-    get_local_size,
+    get_node_rank,
     get_default_bucket_size,
     get_bagua_service_port,
+    get_autotune_server_wait_time,
+    find_free_network_port,
 )
 from enum import IntEnum
 from .utils import flatten, unflatten
@@ -21,18 +26,18 @@ from functools import lru_cache
 from datetime import timedelta
 from typing import Optional, List
 import torch.distributed.distributed_c10d as c10d
-from torch._C._distributed_c10d import ProcessGroup as TorchProcessGroup
+from torch.distributed import ProcessGroup as TorchProcessGroup
 import gorilla
 import weakref
 
 # fmt: off
 __all__ = [
     "ReduceOp", "new_group", "from_torch_group", "init_process_group",
-    "is_initialized", "send", "recv", "broadcast", "reduce", "reduce_inplace",
-    "allreduce", "allreduce_inplace", "allgather", "allgather_inplace",
-    "gather", "gather_inplace", "scatter", "scatter_inplace",
-    "reduce_scatter", "reduce_scatter_inplace", "alltoall", "alltoall_inplace",
-    "barrier", "BaguaProcessGroup"
+    "is_initialized", "send", "recv", "broadcast", "broadcast_object",
+    "reduce", "reduce_inplace", "allreduce", "allreduce_inplace",
+    "allgather", "allgather_inplace", "gather", "gather_inplace",
+    "scatter", "scatter_inplace", "reduce_scatter", "reduce_scatter_inplace",
+    "alltoall", "alltoall_inplace", "barrier", "BaguaProcessGroup"
 ]
 
 # Process group's global rank to local rank mapping
@@ -105,21 +110,29 @@ class BaguaProcessGroup:
         self.ranks = ranks
         self.stream = stream
         self.group_name = group_name
-
-        self.intra_ranks = list(
-            filter(
-                lambda rank: rank // get_local_size() == get_rank() // get_local_size(),
-                ranks,
-            )
-        )
-        self.inter_ranks = list(
-            filter(
-                lambda rank: rank % get_local_size() == ranks[0] % get_local_size(),
-                ranks,
-            )
-        )
-
         logging.debug(f"Initialize Bagua process group of ranks {self.ranks}")
+
+    def _get_intra_ranks(self):
+        rank_mappings = _get_rank_mappings()
+
+        intra_ranks = list(
+            filter(
+                lambda rank: rank_mappings[rank][0] == get_node_rank(),
+                self.ranks,
+            )
+        )
+        return intra_ranks
+
+    def _get_inter_ranks(self):
+        rank_mappings = _get_rank_mappings()
+
+        inter_ranks = list(
+            filter(
+                lambda rank: rank_mappings[rank][1] == rank_mappings[self.ranks[0]][1],
+                self.ranks,
+            )
+        )
+        return inter_ranks
 
     def get_global_communicator(self) -> B.BaguaSingleCommunicatorPy:
         """Returns the global communicator of current process group."""
@@ -132,6 +145,21 @@ class BaguaProcessGroup:
     def get_intra_node_communicator(self) -> B.BaguaSingleCommunicatorPy:
         """Returns the intra-node communicator of current process group."""
         return get_communicator(self.group_name, "intra")
+
+
+@lru_cache(maxsize=None)
+def _get_rank_mappings():
+    rank_mappings = {}
+
+    rank_tensors = torch.cuda.LongTensor(get_world_size(), 2)
+    rank_tensors[get_rank()][0] = get_node_rank()
+    rank_tensors[get_rank()][1] = get_local_rank()
+    allgather_inplace(rank_tensors)
+
+    for i in range(get_world_size()):
+        rank_mappings[i] = rank_tensors[i][0].item(), rank_tensors[i][1].item()
+
+    return rank_mappings
 
 
 def _check_default_pg():
@@ -288,9 +316,9 @@ def get_communicator(group_name: str, comm_name: str):
     if comm_name == "global":
         ranks = pg.ranks
     elif comm_name == "inter":
-        ranks = pg.inter_ranks
+        ranks = pg._get_inter_ranks()
     elif comm_name == "intra":
-        ranks = pg.intra_ranks
+        ranks = pg._get_intra_ranks()
     else:
         raise ValueError("comm_name should be one of ['global', 'inter', 'intra']")
 
@@ -343,12 +371,6 @@ def _rank_not_in_group(group: Optional[BaguaProcessGroup] = None):
     return _rank_not_in_comm(group.get_global_communicator())
 
 
-@lru_cache(maxsize=None)
-def get_hyperparameters_service_client():
-    hyperparameters_service_client = AutotuneClient(
-        get_master_addr(), get_bagua_service_port()
-    )
-    return hyperparameters_service_client
 
 
 @lru_cache(maxsize=None)
@@ -358,8 +380,9 @@ def get_backend(model_name: str):
     return backend
 
 
-def run_flask_app():
+def run_flask_app(port):
     from flask import Flask
+    from gevent.pywsgi import WSGIServer
     import os
 
     os.environ["WERKZEUG_RUN_MAIN"] = "true"
@@ -375,28 +398,49 @@ def run_flask_app():
     )
     app = Flask(__name__)
     app = autotune_service.setup_app(app)
-    log = logging.getLogger("werkzeug")
-    log.setLevel(logging.ERROR)
 
-    app.run(
-        host="0.0.0.0",
-        port=get_bagua_service_port(),
-        debug=False,
-        use_debugger=False,
-        use_reloader=False,
+    http_server = WSGIServer(
+        listener=("0.0.0.0", port),
+        application=app,
+        log=None,
     )
+    http_server.serve_forever()
 
 
 _autotune_server = None
+_autotune_service_port = None
 
 
-def start_autotune_server():
+def start_autotune_server(service_port: int):
     """Starts autotune server in background."""
     global _autotune_server
 
-    _autotune_server = multiprocessing.Process(target=run_flask_app)
+    _autotune_server = multiprocessing.Process(target=run_flask_app, args=(service_port, ))
     _autotune_server.daemon = True
     _autotune_server.start()
+
+
+@lru_cache(maxsize=None)
+def get_hyperparameters_service_client():
+    global _autotune_service_port
+    hyperparameters_service_client = AutotuneClient(
+        get_master_addr(), _autotune_service_port
+    )
+    return hyperparameters_service_client
+
+
+def _find_free_bagua_service_port(store) -> int:
+    service_port = get_bagua_service_port()
+    if service_port > 0:
+        return service_port
+
+    if get_rank() == 0:
+        service_port = find_free_network_port()
+        store.set("bagua_service_port", str(service_port))
+    else:
+        service_port = int(store.get("bagua_service_port"))
+
+    return service_port
 
 
 def init_process_group(store: Optional[torch.distributed.Store] = None):
@@ -434,11 +478,11 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         before calling :meth:`init_process_group`. Otherwise you may encounter the
         `fatal runtime error: Rust cannot catch foreign exceptions` error.
     """
-    if get_rank() == 0 and _autotune_server is None:
-        start_autotune_server()
+
 
     global _default_pg
     global _default_store
+    global _autotune_service_port
 
     if _default_pg is not None:
         raise RuntimeError("trying to initialize the default process group twice!")
@@ -453,6 +497,28 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         _default_store = store
     else:
         _default_store = store
+
+    _autotune_service_port = _find_free_bagua_service_port(_default_store)
+    if get_rank() == 0 and _autotune_server is None:
+        start_autotune_server(_autotune_service_port)
+
+    AUTOTUNE_SERVER_WAIT_TIME = 30
+    wait_time = get_autotune_server_wait_time()
+    # at least wait 30 seconds
+    if wait_time < AUTOTUNE_SERVER_WAIT_TIME:
+        wait_time = AUTOTUNE_SERVER_WAIT_TIME
+
+    start = time.time()
+    service_ready = False
+    while (time.time() - start) < wait_time:
+        client = get_hyperparameters_service_client()
+        service_ready = client.health_check()
+        if service_ready:
+            break
+    if not service_ready:
+        raise Exception("Warning! autotune service not ready after {} seconds. "
+                        "You can adjust this duration through "
+                        "`BAGUA_AUTOTUNE_SERVER_WAIT_TIME` environment variable.".format(wait_time))
 
     # TODO remove the dependency on torch process group
     if not dist.is_initialized():
@@ -564,6 +630,66 @@ def broadcast_coalesced(tensors, src=0, comm: Optional[B.BaguaSingleCommunicator
 
     # TODO: remove
     comm.cuda_stream.synchronize()
+
+
+# Copyright 2020 Uber Technologies, Inc. All Rights Reserved.
+# Copyright (c) 2021 Kuaishou AI Platform & DS3 Lab.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+# This function is copied fron Hovorod: https://github.com/horovod/horovod
+# with minor changes.
+def broadcast_object(obj: object, src: int = 0, comm: Optional[B.BaguaSingleCommunicatorPy] = None) -> object:
+    """Serializes and broadcasts an object from root rank to all other processes.
+    Typical usage is to broadcast the ``optimizer.state_dict()``, for example:
+
+        >>> state_dict = broadcast_object(optimizer.state_dict(), 0)
+        >>> if get_rank() > 0:
+        >>>     optimizer.load_state_dict(state_dict)
+
+
+    Args:
+        obj: An object capable of being serialized without losing any context.
+        src: The rank of the process from which parameters will be broadcasted to all other processes.
+        comm: A handle of the Bagua communicator to work on. By default, the global
+             communicator of the default process group will be used.
+    Returns:
+        The object that was broadcasted from the :attr:`src`.
+
+    .. note::
+        This operation will move data to GPU before communication and back to CPU after communication, and it requires
+        CPU-GPU synchronization.
+    """
+
+    if get_rank() == src:
+        b = io.BytesIO()
+        pickle.dump(obj, b)
+        t = torch.cuda.ByteTensor(bytearray(b.getvalue()))
+        # TODO: use IntTensor after int32 communication is supported
+        sz = torch.cuda.LongTensor([t.shape[0]])
+        broadcast(sz, src, comm)
+    else:
+        sz = torch.cuda.LongTensor([0])
+        broadcast(sz, src, comm)
+        t = torch.cuda.ByteTensor(sz.tolist()[0])
+
+    broadcast(t, src, comm)
+
+    if get_rank() != src:
+        buf = io.BytesIO(t.cpu().numpy().tobytes())
+        obj = pickle.load(buf)
+
+    return obj
 
 
 def broadcast(tensor: torch.Tensor, src: int = 0, comm: Optional[B.BaguaSingleCommunicatorPy] = None):
@@ -726,27 +852,27 @@ def allreduce(
         >>>
         >>> # All tensors below are of torch.int64 type.
         >>> # We have 2 process groups, 2 ranks.
-        >>> send_tensor = torch.arange(2, dtype=torch.int64) + 1 + 2 * rank
-        >>> recv_tensor = torch.zeros(2, dtype=torch.int64)
+        >>> send_tensor = torch.arange(2, dtype=torch.int64, device=tensor.device) + 1 + 2 * rank
+        >>> recv_tensor = torch.zeros(2, dtype=torch.int64, device=tensor.device)
         >>> send_tensor
-        tensor([1, 2]) # Rank 0
-        tensor([3, 4]) # Rank 1
+        tensor([1, 2], device='cuda:0') # Rank 0
+        tensor([3, 4], device='cuda:1') # Rank 1
         >>> allreduce(send_tensor, recv_tensor)
         >>> recv_tensor
-        tensor([4, 6]) # Rank 0
-        tensor([4, 6]) # Rank 1
+        tensor([4, 6], device='cuda:0') # Rank 0
+        tensor([4, 6], device='cuda:1') # Rank 1
 
         >>> # All tensors below are of torch.cfloat type.
         >>> # We have 2 process groups, 2 ranks.
-        >>> send_tensor = torch.tensor([1+1j, 2+2j], dtype=torch.cfloat) + 2 * rank * (1+1j)
-        >>> recv_tensor = torch.zeros(2, dtype=torch.cfloat)
+        >>> send_tensor = torch.tensor([1+1j, 2+2j], dtype=torch.cfloat, device=tensor.device) + 2 * rank * (1+1j)
+        >>> recv_tensor = torch.zeros(2, dtype=torch.cfloat, device=tensor.device)
         >>> send_tensor
-        tensor([1.+1.j, 2.+2.j]) # Rank 0
-        tensor([3.+3.j, 4.+4.j]) # Rank 1
+        tensor([1.+1.j, 2.+2.j], device='cuda:0') # Rank 0
+        tensor([3.+3.j, 4.+4.j], device='cuda:1') # Rank 1
         >>> allreduce(send_tensor, recv_tensor)
         >>> recv_tensor
-        tensor([4.+4.j, 6.+6.j]) # Rank 0
-        tensor([4.+4.j, 6.+6.j]) # Rank 1
+        tensor([4.+4.j, 6.+6.j], device='cuda:0') # Rank 0
+        tensor([4.+4.j, 6.+6.j], device='cuda:1') # Rank 1
     """
 
     if _rank_not_in_comm(comm):
