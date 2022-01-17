@@ -1,5 +1,51 @@
 # CHANGELOG
 
+## [0.9.0] - 2022-01-13
+
+### Bug Fixes
+
+#### Other
+
+- Reuse fused parameter tensors in fuse_step (#410)
+- Call step closure in qadam optimizer step (#432)
+- Fix need_reset condition (#454)
+- Do negotiation in async native op (#447)
+- Fix find_unused_parameters (#452)
+- Fix qadam non-deterministic (#459)
+- Add `LIBRARY_PATH` env in `install_master.sh` (#465)
+- Fix typo in `install_master.sh` (#471)
+
+#### Python
+
+- CUDA 11.5 can't get nccl package (#415)
+- Fix process group compatibility with torch 1.6.0 (#413)
+- Fix ci random fail (#445)
+- Fix async algorithm (#479)
+
+### Features
+
+#### Core
+
+- Initial support for C interface (#325)
+
+#### Other
+
+- Support NODE_RANK environment variable (#426)
+- Choose bagua service port dynamically (#431)
+- Use bagua_module_name to identify different modules (#438)
+- Add algorithm registry (#433)
+- Add compatibility for NCCL version under 2.10 (#449)
+- Add broadcast object api (#437)
+- Support qadam in fused optimizer (#477)
+
+#### Python
+
+- Support PyTorch DDP compatible distributed training API (#312)
+- Support torch-api-compatiable all_reduce (#377)
+- Associate PyTorch Process Group with Bagua Process Group using cache (#402)
+- Support find_unused_parameters on BaguaDDP (#409)
+- Add `BAGUA_AUTOTUNE_SERVER_WAIT_TIME` env (#474)
+
 ## [0.8.2] - 2021-11-09
 
 ### Bug Fixes
