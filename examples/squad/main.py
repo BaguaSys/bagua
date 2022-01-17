@@ -53,6 +53,7 @@ from transformers.data.processors.squad import (
 )
 from transformers.trainer_utils import is_main_process
 import bagua.torch_api as bagua
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 
 try:
@@ -207,8 +208,11 @@ def train(args, train_dataset, model, tokenizer):
 
     # Distributed training (should be after apex fp16 initialization)
     if args.distributed:
-        model = model.with_bagua(
-            [optimizer], algorithm, do_flatten=not args.fuse_optimizer
+        model = DistributedDataParallel(
+            model,
+            optimizers=[optimizer],
+            algorithm=algorithm,
+            gradient_as_bucket_view=not args.fuse_optimizer,
         )
 
     # Train!

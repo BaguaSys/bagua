@@ -6,6 +6,7 @@ import torch.optim as optim
 import torch.utils.data.distributed
 from torchvision import models
 from bagua.torch_api.algorithms.gradient_allreduce import GradientAllReduceAlgorithm
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 # import horovod.torch as hvd
 import timeit
@@ -89,7 +90,10 @@ if args.cuda:
 optimizer = optim.SGD(model.parameters(), lr=0.01 * lr_scaler)
 
 # 用Bagua模型、优化器覆盖原始模型和优化器
-mode, = model.with_bagua([optimizer], GradientAllReduceAlgorithm())
+model = DistributedDataParallel(
+    model,
+    optimizers=[optimizer],
+)
 
 # # Horovod: (optional) compression algorithm.
 # compression = hvd.Compression.fp16 if args.fp16_allreduce else hvd.Compression.none

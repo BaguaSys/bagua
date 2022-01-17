@@ -8,6 +8,7 @@ import os
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
 import logging
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 
 class Net(nn.Module):
@@ -49,7 +50,11 @@ def run_model_wrapper(rank, env, fn, warmup_steps):
         sync_interval_ms=20,
         warmup_steps=warmup_steps,
     )
-    model = model.with_bagua([optimizer], algorithm)
+    model = DistributedDataParallel(
+        model,
+        optimizers=[optimizer],
+        algorithm=algorithm,
+    )
 
     fn(model, optimizer, loss_fn)
 

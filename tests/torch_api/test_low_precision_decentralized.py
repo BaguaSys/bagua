@@ -10,6 +10,7 @@ from bagua.torch_api.utils import apply_flattened_call, flatten
 from bagua.torch_api.communication import _rank_not_in_group
 import bagua.torch_api as bagua
 from tests import skip_if_cuda_not_available
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 
 class Net(nn.Module):
@@ -76,9 +77,10 @@ def run_model(rank, nprocs, nranks, hierarchical, communication_interval, result
     loss_fn = nn.MSELoss()
 
     # wrap model
-    model = model.with_bagua(
-        [optimizer],
-        bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(
+    model = DistributedDataParallel(
+        model,
+        optimizers=[optimizer],
+        algorithm=bagua.algorithms.decentralized.LowPrecisionDecentralizedAlgorithm(
             hierarchical=hierarchical,
             communication_interval=communication_interval,
         ),

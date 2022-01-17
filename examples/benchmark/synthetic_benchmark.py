@@ -12,6 +12,7 @@ import torch.utils.data.distributed
 from torchvision import models
 import numpy as np
 import bagua.torch_api as bagua
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 import logging
 
 
@@ -157,7 +158,7 @@ elif args.algorithm == "async":
 else:
     raise NotImplementedError
 
-model = model.with_bagua([optimizer], algorithm, do_flatten=not args.fuse_optimizer)
+model = DistributedDataParallel(model, optimizers=[optimizer], algorithm=algorithm, gradient_as_bucket_view=not args.fuse_optimizer)
 
 if args.fuse_optimizer:
     optimizer = bagua.contrib.fuse_optimizer(optimizer)

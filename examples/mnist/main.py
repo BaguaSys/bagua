@@ -10,6 +10,7 @@ from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 import logging
 import bagua.torch_api as bagua
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 
 class Net(nn.Module):
@@ -255,10 +256,11 @@ def main():
     else:
         raise NotImplementedError
 
-    model = model.with_bagua(
-        [optimizer],
-        algorithm,
-        do_flatten=not args.fuse_optimizer,
+    model = DistributedDataParallel(
+        model,
+        optimizers=[optimizer],
+        algorithm=algorithm,
+        gradient_as_bucket_view=not args.fuse_optimizer,
     )
 
     if args.fuse_optimizer:

@@ -456,6 +456,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
     Examples::
         >>> import torch
         >>> import bagua.torch_api as bagua
+        >>> from bagua.torch_api.data_parallel import DistributedDataParallel
         >>>
         >>> torch.cuda.set_device(bagua.get_local_rank()) # THIS LINE IS IMPORTANT. See the notes below.
         >>> bagua.init_process_group()
@@ -470,7 +471,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None):
         ...    lr=0.01,
         ...    momentum=0.9
         ...    )
-        >>> model = model.with_bagua([optimizer], ...)
+        >>> model = DistributedDataParallel(model)
 
     .. note::
         Each process should be associated to a CUDA device using `torch.cuda.set_device()`,

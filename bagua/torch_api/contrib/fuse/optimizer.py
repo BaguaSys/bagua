@@ -243,19 +243,19 @@ def fuse_optimizer(
         >>>
         >>> optimizer.fuse_step()
 
-        When use in conjunction with a :class:`~bagua.torch_api.distributed.BaguaModule`, set :attr:`do_flatten=False`
-        in :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` explicitly:
+        When use in conjunction with a :class:`~bagua.torch_api.data_parallel.DistributedDataParallel`,
+        set :attr:`gradient_as_bucket_view=False` explicitly:
 
         >>> optimizer = bagua.torch_api.contrib.fuse_optimizer(optimizer, do_flatten=True)
-        >>> model = model.with_bagua([optimizer], GradientAllReduceAlgorithm(), do_flatten=False)
+        >>> model = DistributedDataParallel(optimizers=[optimizer], gradient_as_bucket_view=False)
         >>>
         >>> optimizer.fuse_step()
 
     .. note::
-        This function and :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua` method both will reset data
+        This function and :class:`~bagua.torch_api.data_parallel.DistributedDataParallel` wrapper both will reset data
         pointers of module parameters by default. In order to perform a more effective fused parameter update,
-        users need to disable bucket flattening in :meth:`~bagua.torch_api.distributed.BaguaModule.with_bagua`
-        by setting its :attr:`do_flatten` to ``False``.
+        users need to disable bucket flattening in :class:`~bagua.torch_api.data_parallel.DistributedDataParallel`
+        by setting its :attr:`gradient_as_bucket_view` to ``False``.
 
     .. note::
         A fuse optimizer does not change the original behaviors of :attr:`optimizer`, but enabling it to perform a

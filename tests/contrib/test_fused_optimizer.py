@@ -5,6 +5,7 @@ import unittest
 import os
 from tests.internal.common_utils import find_free_port
 from tests import skip_if_cuda_available, skip_if_cuda_not_available
+from bagua.torch_api.data_parallel.distributed import DistributedDataParallel_V1_9_0 as DistributedDataParallel
 
 import logging
 
@@ -133,7 +134,12 @@ def bagua_init(model, optimizer, algorithm, do_flatten):
     else:
         raise ValueError("unsupported algorithm")
 
-    model = model.with_bagua([optimizer], bagua_algorithm, do_flatten=do_flatten)
+    model = DistributedDataParallel(
+        model,
+        optimizers=[optimizer],
+        algorithm=bagua_algorithm,
+        gradient_as_bucket_view=do_flatten,
+    )
 
     return model, optimizer
 
