@@ -32,7 +32,7 @@ class TestModel4QAdam(TestModel):
 
 
 @skip_if_cuda_not_available()
-def test_bagua_default(self):
+def test_bagua_default():
     model = TestModel()
     trainer = Trainer(max_epochs=1, strategy="bagua", gpus=1, deterministic=True)
     trainer.fit(model)
@@ -43,10 +43,10 @@ def test_bagua_default(self):
 @pytest.mark.parametrize(
     ["algorithm", "test_loss"],
     [
-        ("gradient_allreduce", 0.892062783241272),
-        ("bytegrad", 0.8981404304504395),
-        ("decentralized", 0.9518632888793945),
-        ("low_precision_decentralized", 0.9362744092941284),
+        ("gradient_allreduce", 0.9828455448150635),
+        ("bytegrad", 0.9484740495681763),
+        ("decentralized", 0.9747325778007507),
+        ("low_precision_decentralized", 0.864328145980835),
     ],
 )
 @skip_if_cuda_not_available()
@@ -82,4 +82,4 @@ def test_qadam():
     trainer = Trainer(max_epochs=1, strategy=bagua_strategy, gpus=2, deterministic=True)
     trainer.fit(model)
     ret = trainer.test(model)
-    assert ret[0]["mean_y"] == 0.7397112250328064
+    assert ret[0]["mean_y"] == 1.8056042194366455
