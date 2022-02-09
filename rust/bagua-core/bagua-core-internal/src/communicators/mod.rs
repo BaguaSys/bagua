@@ -55,7 +55,7 @@ impl BaguaSingleCommunicator {
             { NCCLCHECK(ncclGetVersion(version_ptr)); });
         }
 
-        tracing::debug!("runtime nccl version: {}", version);
+        tracing::warn!("Bagua is using NCCL (version: {}) under v2.10, for better performance, you may upgrade your system NCCL on your own or run `import bagua_core; bagua_core.install_deps()` or the `bagua_install_deps.py` script to install bundled NCC libraries.", version);
         let degraded = version < 21000;
 
         Self {
