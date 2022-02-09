@@ -54,3 +54,6 @@ RUN mkdir /bagua
 COPY examples/ /bagua/examples
 COPY ./ /var/tmp/bagua
 RUN cd /var/tmp/bagua && python3 -m pip install . && cd - && rm -rf /var/tmp/bagua
+
+# pytorch-lightning
+RUN pip3 install pytorch-lightning --pre
