@@ -113,6 +113,7 @@ __all__ = [
 rand_like = torch.rand_like
 randn_like = torch.randn_like
 
+
 # Helper function that returns True when the dtype is an integral dtype,
 # False otherwise.
 # TODO: implement numpy-like issubdtype
@@ -148,6 +149,7 @@ def _unravel_index(flat_index, shape):
 
 # (bool, msg) tuple, where msg is None if and only if bool is True.
 _compare_return_type = Tuple[bool, Optional[str]]
+
 
 # Compares two tensors with the same size on the same device and with the same
 # dtype for equality.
@@ -446,57 +448,93 @@ _floating_and_complex_types = _floating_types + (torch.cfloat, torch.cdouble)
 def floating_and_complex_types():
     return _floating_and_complex_types
 
+
 def floating_and_complex_types_and(*dtypes):
     return _floating_and_complex_types + _validate_dtypes(*dtypes)
 
-_integral_types = _dispatch_dtypes((torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64))
+
+_integral_types = _dispatch_dtypes(
+    (torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64)
+)
+
+
 def integral_types():
     return _integral_types
+
 
 def integral_types_and(*dtypes):
     return _integral_types + _validate_dtypes(*dtypes)
 
+
 _all_types = _floating_types + _integral_types
+
+
 def all_types():
     return _all_types
+
 
 def all_types_and(*dtypes):
     return _all_types + _validate_dtypes(*dtypes)
 
+
 _complex_types = _dispatch_dtypes((torch.cfloat, torch.cdouble))
+
+
 def complex_types():
     return _complex_types
 
+
 _all_types_and_complex = _all_types + _complex_types
+
+
 def all_types_and_complex():
     return _all_types_and_complex
+
 
 def all_types_and_complex_and(*dtypes):
     return _all_types_and_complex + _validate_dtypes(*dtypes)
 
+
 _all_types_and_half = _all_types + (torch.half,)
+
+
 def all_types_and_half():
     return _all_types_and_half
 
-def get_all_dtypes(include_half=True,
-                   include_bfloat16=True,
-                   include_bool=True,
-                   include_complex=True,
-                   include_complex32=False
-                   ) -> List[torch.dtype]:
-    dtypes = get_all_int_dtypes() + get_all_fp_dtypes(include_half=include_half, include_bfloat16=include_bfloat16)
+
+def get_all_dtypes(
+    include_half=True,
+    include_bfloat16=True,
+    include_bool=True,
+    include_complex=True,
+    include_complex32=False,
+) -> List[torch.dtype]:
+    dtypes = get_all_int_dtypes() + get_all_fp_dtypes(
+        include_half=include_half, include_bfloat16=include_bfloat16
+    )
     if include_bool:
         dtypes.append(torch.bool)
     if include_complex:
         dtypes += get_all_complex_dtypes(include_complex32)
     return dtypes
 
+
 def get_all_math_dtypes(device) -> List[torch.dtype]:
-    return get_all_int_dtypes() + get_all_fp_dtypes(include_half=device.startswith('cuda'),
-                                                    include_bfloat16=False) + get_all_complex_dtypes()
+    return (
+        get_all_int_dtypes()
+        + get_all_fp_dtypes(
+            include_half=device.startswith("cuda"), include_bfloat16=False
+        )
+        + get_all_complex_dtypes()
+    )
+
 
 def get_all_complex_dtypes(include_complex32=False) -> List[torch.dtype]:
-    return [torch.complex32, torch.complex64, torch.complex128] if include_complex32 else [torch.complex64, torch.complex128]
+    return (
+        [torch.complex32, torch.complex64, torch.complex128]
+        if include_complex32
+        else [torch.complex64, torch.complex128]
+    )
 
 
 def get_all_int_dtypes() -> List[torch.dtype]:
@@ -513,19 +551,20 @@ def get_all_fp_dtypes(include_half=True, include_bfloat16=True) -> List[torch.dt
 
 
 def get_all_device_types() -> List[str]:
-    return ['cpu'] if not torch.cuda.is_available() else ['cpu', 'cuda']
+    return ["cpu"] if not torch.cuda.is_available() else ["cpu", "cuda"]
+
 
 # 'dtype': (rtol, atol)
 _default_tolerances = {
-    'float64': (1e-5, 1e-8),  # NumPy default
-    'float32': (1e-4, 1e-5),  # This may need to be changed
-    'float16': (1e-3, 1e-3),  # This may need to be changed
+    "float64": (1e-5, 1e-8),  # NumPy default
+    "float32": (1e-4, 1e-5),  # This may need to be changed
+    "float16": (1e-3, 1e-3),  # This may need to be changed
 }
 
 
 def _get_default_tolerance(a, b=None) -> Tuple[float, float]:
     if b is None:
-        dtype = str(a.dtype).split('.')[-1]  # e.g. "float32"
+        dtype = str(a.dtype).split(".")[-1]  # e.g. "float32"
         return _default_tolerances.get(dtype, (0, 0))
     a_tol = _get_default_tolerance(a)
     b_tol = _get_default_tolerance(b)

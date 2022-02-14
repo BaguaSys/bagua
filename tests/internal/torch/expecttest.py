@@ -123,7 +123,7 @@ from typing import Tuple
 #
 
 
-ACCEPT = os.getenv('EXPECTTEST_ACCEPT')
+ACCEPT = os.getenv("EXPECTTEST_ACCEPT")
 
 
 def nth_line(src, lineno):
@@ -136,7 +136,7 @@ def nth_line(src, lineno):
     assert lineno >= 1
     pos = 0
     for _ in range(lineno - 1):
-        pos = src.find('\n', pos) + 1
+        pos = src.find("\n", pos) + 1
     return pos
 
 
@@ -151,19 +151,19 @@ def nth_eol(src, lineno):
     assert lineno >= 1
     pos = -1
     for _ in range(lineno):
-        pos = src.find('\n', pos + 1)
+        pos = src.find("\n", pos + 1)
         if pos == -1:
             return len(src)
     return pos
 
 
 def normalize_nl(t):
-    return t.replace('\r\n', '\n').replace('\r', '\n')
+    return t.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def escape_trailing_quote(s, quote):
     if s and s[-1] == quote:
-        return s[:-1] + '\\' + quote
+        return s[:-1] + "\\" + quote
     else:
         return s
 
@@ -203,19 +203,22 @@ def ok_for_raw_triple_quoted_string(s, quote):
     >>> ok_for_raw_triple_quoted_string("a ''' b", quote="'")
     False
     """
-    return quote * 3 not in s and (not s or s[-1] not in [quote, '\\'])
+    return quote * 3 not in s and (not s or s[-1] not in [quote, "\\"])
 
 
 # This operates on the REVERSED string (that's why suffix is first)
-RE_EXPECT = re.compile(r"^(?P<suffix>[^\n]*?)"
-                       r"(?P<quote>'''|" r'""")'
-                       r"(?P<body>.*?)"
-                       r"(?P=quote)"
-                       r"(?P<raw>r?)", re.DOTALL)
+RE_EXPECT = re.compile(
+    r"^(?P<suffix>[^\n]*?)"
+    r"(?P<quote>'''|"
+    r'""")'
+    r"(?P<body>.*?)"
+    r"(?P=quote)"
+    r"(?P<raw>r?)",
+    re.DOTALL,
+)
 
 
-def replace_string_literal(src : str, lineno : int,
-                           new_string : str) -> Tuple[str, int]:
+def replace_string_literal(src: str, lineno: int, new_string: str) -> Tuple[str, int]:
     r"""
     Replace a triple quoted string literal with new contents.
     Only handles printable ASCII correctly at the moment.  This
@@ -252,24 +255,27 @@ def replace_string_literal(src : str, lineno : int,
 
     def replace(m):
         s = new_string
-        raw = m.group('raw') == 'r'
-        if not raw or not ok_for_raw_triple_quoted_string(s, quote=m.group('quote')[0]):
+        raw = m.group("raw") == "r"
+        if not raw or not ok_for_raw_triple_quoted_string(s, quote=m.group("quote")[0]):
             raw = False
-            s = s.replace('\\', '\\\\')
-            if m.group('quote') == "'''":
+            s = s.replace("\\", "\\\\")
+            if m.group("quote") == "'''":
                 s = escape_trailing_quote(s, "'").replace("'''", r"\'\'\'")
             else:
-                s = escape_trailing_quote(s, '"').replace('"""', r'\"\"\"')
+                s = escape_trailing_quote(s, '"').replace('"""', r"\"\"\"")
 
         new_body = "\\\n" + s if "\n" in s and not raw else s
-        delta[0] -= m.group('body').count("\n")
+        delta[0] -= m.group("body").count("\n")
 
-        return ''.join([m.group('suffix'),
-                        m.group('quote'),
-                        new_body[::-1],
-                        m.group('quote'),
-                        'r' if raw else '',
-                        ])
+        return "".join(
+            [
+                m.group("suffix"),
+                m.group("quote"),
+                new_body[::-1],
+                m.group("quote"),
+                "r" if raw else "",
+            ]
+        )
 
     # Having to do this in reverse is very irritating, but it's the
     # only way to make the non-greedy matches work correctly.
@@ -296,20 +302,24 @@ class TestCase(unittest.TestCase):
                 # current frame and parent frame, plus any requested skip
                 tb = traceback.extract_stack(limit=2 + skip)
                 fn, lineno, _, _ = tb[0]
-                print("Accepting new output for {} at {}:{}".format(self.id(), fn, lineno))
-                with open(fn, 'r+') as f:
+                print(
+                    "Accepting new output for {} at {}:{}".format(self.id(), fn, lineno)
+                )
+                with open(fn, "r+") as f:
                     old = f.read()
 
                     # compute the change in lineno
                     lineno = EDIT_HISTORY.adjust_lineno(fn, lineno)
                     new, delta = replace_string_literal(old, lineno, actual)
 
-                    assert old != new, f"Failed to substitute string at {fn}:{lineno}; did you use triple quotes?"
+                    assert (
+                        old != new
+                    ), f"Failed to substitute string at {fn}:{lineno}; did you use triple quotes?"
 
                     # Only write the backup file the first time we hit the
                     # file
                     if not EDIT_HISTORY.seen_file(fn):
-                        with open(fn + ".bak", 'w') as f_bak:
+                        with open(fn + ".bak", "w") as f_bak:
                             f_bak.write(old)
                     f.seek(0)
                     f.truncate(0)
@@ -318,9 +328,11 @@ class TestCase(unittest.TestCase):
 
                 EDIT_HISTORY.record_edit(fn, lineno, delta)
         else:
-            help_text = ("To accept the new output, re-run test with "
-                         "envvar EXPECTTEST_ACCEPT=1 (we recommend "
-                         "staging/committing your changes before doing this)")
+            help_text = (
+                "To accept the new output, re-run test with "
+                "envvar EXPECTTEST_ACCEPT=1 (we recommend "
+                "staging/committing your changes before doing this)"
+            )
             self.assertMultiLineEqualMaybeCppStack(expect, actual, msg=help_text)
 
     def assertExpectedRaisesInline(self, exc_type, callable, expect, *args, **kwargs):
@@ -340,15 +352,16 @@ class TestCase(unittest.TestCase):
     def assertMultiLineEqualMaybeCppStack(self, expect, actual, *args, **kwargs):
         self.assertGreaterEqual(len(actual), len(expect), *args, **kwargs)
         if hasattr(self, "assertMultiLineEqual"):
-            self.assertMultiLineEqual(expect, actual[:len(expect)], *args, **kwargs)
+            self.assertMultiLineEqual(expect, actual[: len(expect)], *args, **kwargs)
         else:
-            self.assertEqual(expect, actual[:len(expect)], *args, **kwargs)
+            self.assertEqual(expect, actual[: len(expect)], *args, **kwargs)
         if len(actual) > len(expect):
             cpp_stacktrace_header = "\nException raised from"
             end_header = len(expect) + len(cpp_stacktrace_header)
-            self.assertEqual(actual[len(expect): end_header], cpp_stacktrace_header)
+            self.assertEqual(actual[len(expect) : end_header], cpp_stacktrace_header)
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
