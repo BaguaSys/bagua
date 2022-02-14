@@ -36,9 +36,16 @@ class TestModel4QAdam(TestModel):
 
 
 @skip_if_cuda_not_available()
-def test_bagua_default():
+def test_bagua_default(tmpdir):
     model = TestModel()
-    trainer = Trainer(max_epochs=1, strategy="bagua", gpus=1, deterministic=True)
+    trainer = Trainer(
+        default_root_dir=tmpdir,
+        max_epochs=1,
+        strategy="bagua",
+        accelerator="gpu",
+        devices=1,
+        deterministic=True,
+    )
     trainer.fit(model)
     ret = trainer.test(model)
     assert ret[0]["mean_y"] == 0.6336451768875122
@@ -54,25 +61,34 @@ def test_bagua_default():
     ],
 )
 @skip_if_cuda_not_available()
-def test_bagua_algorithm(algorithm, test_loss):
+def test_bagua_algorithm(tmpdir, algorithm, test_loss):
     model = TestModel()
     bagua_strategy = BaguaStrategy(algorithm=algorithm)
-    trainer = Trainer(max_epochs=1, strategy=bagua_strategy, gpus=2, deterministic=True)
+    trainer = Trainer(
+        default_root_dir=tmpdir,
+        max_epochs=1,
+        strategy=bagua_strategy,
+        accelerator="gpu",
+        devices=2,
+        deterministic=True,
+    )
     trainer.fit(model)
     ret = trainer.test(model)
     assert ret[0]["mean_y"] == test_loss
 
 
 @skip_if_cuda_not_available()
-def test_bagua_async():
+def test_bagua_async(tmpdir):
     model = TestModel()
     bagua_strategy = BaguaStrategy(
         algorithm="async", warmup_steps=10, sync_interval_ms=10
     )
     trainer = Trainer(
+        default_root_dir=tmpdir,
         max_epochs=1,
         strategy=bagua_strategy,
-        gpus=2,
+        accelerator="gpu",
+        devices=2,
     )
     trainer.fit(model)
     ret = trainer.test(model)
@@ -80,10 +96,17 @@ def test_bagua_async():
 
 
 @skip_if_cuda_not_available()
-def test_qadam():
+def test_qadam(tmpdir):
     model = TestModel4QAdam()
     bagua_strategy = BaguaStrategy(algorithm="qadam")
-    trainer = Trainer(max_epochs=1, strategy=bagua_strategy, gpus=2, deterministic=True)
+    trainer = Trainer(
+        default_root_dir=tmpdir,
+        max_epochs=1,
+        strategy=bagua_strategy,
+        accelerator="gpu",
+        devices=2,
+        deterministic=True,
+    )
     trainer.fit(model)
     ret = trainer.test(model)
     assert ret[0]["mean_y"] == 1.8056042194366455
