@@ -107,7 +107,6 @@ if TEST_CUDA:
 if TEST_NUMBA:
     import numba.cuda
 
-
     TEST_NUMBA_CUDA = numba.cuda.is_available()
 else:
     TEST_NUMBA_CUDA = False
@@ -227,7 +226,6 @@ def tf32_on_and_off(tf32_precision=1e-5):
                 f(**kwargs)
 
         return wrapped
-
 
     return wrapper
 
