@@ -1,9 +1,14 @@
 import pytest
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.strategies import BaguaStrategy
 from tests import skip_if_cuda_not_available
 from tests.pytorch_lightning.boring_model import BoringModel
+
+if torch.cuda.is_available():
+    from pytorch_lightning import Trainer
+    from pytorch_lightning.strategies import BaguaStrategy
+else:
+    Trainer = None
+    BaguaStrategy = None
 
 torch.manual_seed(13)
 
