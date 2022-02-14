@@ -449,7 +449,6 @@ def floating_and_complex_types():
     return _floating_and_complex_types
 
 
-
 def floating_and_complex_types_and(*dtypes):
     return _floating_and_complex_types + _validate_dtypes(*dtypes)
 
@@ -463,55 +462,40 @@ def integral_types():
     return _integral_types
 
 
-
 def integral_types_and(*dtypes):
     return _integral_types + _validate_dtypes(*dtypes)
 
 
-
 _all_types = _floating_types + _integral_types
-
-
 
 
 def all_types():
     return _all_types
 
 
-
 def all_types_and(*dtypes):
     return _all_types + _validate_dtypes(*dtypes)
 
 
-
 _complex_types = _dispatch_dtypes((torch.cfloat, torch.cdouble))
-
-
 
 
 def complex_types():
     return _complex_types
 
 
-
 _all_types_and_complex = _all_types + _complex_types
-
-
 
 
 def all_types_and_complex():
     return _all_types_and_complex
 
 
-
 def all_types_and_complex_and(*dtypes):
     return _all_types_and_complex + _validate_dtypes(*dtypes)
 
 
-
 _all_types_and_half = _all_types + (torch.half,)
-
-
 
 
 def all_types_and_half():
@@ -533,7 +517,6 @@ def get_all_dtypes(
     if include_complex:
         dtypes += get_all_complex_dtypes(include_complex32)
     return dtypes
-
 
 
 def get_all_math_dtypes(device) -> List[torch.dtype]:

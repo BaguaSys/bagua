@@ -79,6 +79,7 @@ no CUDA calls shall be made, including torch.cuda.device_count(), etc.
 
 torch.testing._internal.common_cuda.py can freely initialize CUDA context when imported.
 """
+# flake8: noqa
 
 import sys
 import os

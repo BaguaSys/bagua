@@ -72,6 +72,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # This file is copied from https://github.com/pytorch/pytorch/tree/v1.9.0/torch/testing/_internal/common_distributed.py
+# flake8: noqa
+
 from contextlib import contextmanager
 from datetime import timedelta
 from enum import Enum
