@@ -9,7 +9,7 @@ if torch.cuda.is_available():
 else:
     Trainer = None
     BaguaStrategy = None
-    BoringModel = None
+    BoringModel = object
 
 torch.manual_seed(13)
 
@@ -45,7 +45,6 @@ def test_bagua_default(tmpdir):
         strategy="bagua",
         accelerator="gpu",
         devices=1,
-        deterministic=True,
     )
     trainer.fit(model)
     ret = trainer.test(model)
@@ -71,7 +70,6 @@ def test_bagua_algorithm(tmpdir, algorithm, test_loss):
         strategy=bagua_strategy,
         accelerator="gpu",
         devices=2,
-        deterministic=True,
     )
     trainer.fit(model)
     ret = trainer.test(model)
@@ -106,7 +104,6 @@ def test_qadam(tmpdir):
         strategy=bagua_strategy,
         accelerator="gpu",
         devices=2,
-        deterministic=True,
     )
     trainer.fit(model)
     ret = trainer.test(model)
