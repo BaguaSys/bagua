@@ -121,8 +121,10 @@ def is_integral(dtype: torch.dtype) -> bool:
     dtypes = [x for x in get_all_dtypes() if x not in get_all_complex_dtypes()]
     return dtype in dtypes and not dtype.is_floating_point
 
+
 def is_quantized(dtype: torch.dtype) -> bool:
     return dtype in (torch.quint8, torch.qint8, torch.qint32, torch.quint4x2)
+
 
 # Helper function that maps a flattened index back into the given shape
 # TODO: consider adding torch.unravel_index
@@ -142,6 +144,8 @@ def _unravel_index(flat_index, shape):
         return res[0]
 
     return tuple(res[::-1])
+
+
 # (bool, msg) tuple, where msg is None if and only if bool is True.
 _compare_return_type = Tuple[bool, Optional[str]]
 
@@ -173,9 +177,11 @@ _compare_return_type = Tuple[bool, Optional[str]]
 #   the complex will be compared in the relaxed mode:
 #       2 + nan j == 3 + nan j ---> False when equal_nan=True
 #                                   True when equal_nan="relaxed"
-def _compare_tensors_internal(a: torch.Tensor, b: torch.Tensor, *, rtol, atol, equal_nan: Union[str, bool]) -> _compare_return_type:
+def _compare_tensors_internal(
+    a: torch.Tensor, b: torch.Tensor, *, rtol, atol, equal_nan: Union[str, bool]
+) -> _compare_return_type:
     assert equal_nan in {True, False, "relaxed"}
-    debug_msg : Optional[str]
+    debug_msg: Optional[str]
     # Integer (including bool) comparisons are identity comparisons
     # when rtol is zero and atol is less than one
     if (
@@ -195,14 +201,18 @@ def _compare_tensors_internal(a: torch.Tensor, b: torch.Tensor, *, rtol, atol, e
         count_non_identical = torch.sum(identity_mask, dtype=torch.long)
         diff = torch.abs(a_flat - b_flat)
         greatest_diff_index = torch.argmax(diff)
-        debug_msg = ("Found {0} different element(s) (out of {1}), with the greatest "
-                     "difference of {2} ({3} vs. {4}) occuring at index "
-                     "{5}.".format(count_non_identical.item(),
-                                   a.numel(),
-                                   diff[greatest_diff_index],
-                                   a_flat[greatest_diff_index],
-                                   b_flat[greatest_diff_index],
-                                   _unravel_index(greatest_diff_index, a.shape)))
+        debug_msg = (
+            "Found {0} different element(s) (out of {1}), with the greatest "
+            "difference of {2} ({3} vs. {4}) occuring at index "
+            "{5}.".format(
+                count_non_identical.item(),
+                a.numel(),
+                diff[greatest_diff_index],
+                a_flat[greatest_diff_index],
+                b_flat[greatest_diff_index],
+                _unravel_index(greatest_diff_index, a.shape),
+            )
+        )
         return (False, debug_msg)
 
     # Compares complex tensors' real and imaginary parts separately.
@@ -216,26 +226,30 @@ def _compare_tensors_internal(a: torch.Tensor, b: torch.Tensor, *, rtol, atol, e
             b.real[b.imag.isnan()] = math.nan
             b.imag[b.real.isnan()] = math.nan
 
-        real_result, debug_msg = _compare_tensors_internal(a.real, b.real,
-                                                           rtol=rtol, atol=atol,
-                                                           equal_nan=equal_nan)
+        real_result, debug_msg = _compare_tensors_internal(
+            a.real, b.real, rtol=rtol, atol=atol, equal_nan=equal_nan
+        )
 
         if not real_result:
             debug_msg = "Real parts failed to compare as equal! " + cast(str, debug_msg)
             return (real_result, debug_msg)
 
-        imag_result, debug_msg = _compare_tensors_internal(a.imag, b.imag,
-                                                           rtol=rtol, atol=atol,
-                                                           equal_nan=equal_nan)
+        imag_result, debug_msg = _compare_tensors_internal(
+            a.imag, b.imag, rtol=rtol, atol=atol, equal_nan=equal_nan
+        )
 
         if not imag_result:
-            debug_msg = "Imaginary parts failed to compare as equal! " + cast(str, debug_msg)
+            debug_msg = "Imaginary parts failed to compare as equal! " + cast(
+                str, debug_msg
+            )
             return (imag_result, debug_msg)
 
         return (True, None)
 
     # All other comparisons use torch.allclose directly
-    if torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=(equal_nan in {"relaxed", True})):
+    if torch.allclose(
+        a, b, rtol=rtol, atol=atol, equal_nan=(equal_nan in {"relaxed", True})
+    ):
         return (True, None)
 
     # Gathers debug info for failed float tensor comparison
@@ -254,22 +268,30 @@ def _compare_tensors_internal(a: torch.Tensor, b: torch.Tensor, *, rtol, atol, e
     outside_range = (diff > (atol + rtol * torch.abs(b_flat))) | (diff == math.inf)
     count_outside_range = torch.sum(outside_range, dtype=torch.long)
     greatest_diff_index = torch.argmax(diff)
-    debug_msg = ("With rtol={0} and atol={1}, found {2} element(s) (out of {3}) whose "
-                 "difference(s) exceeded the margin of error (including {4} nan comparisons). "
-                 "The greatest difference was {5} ({6} vs. {7}), which "
-                 "occurred at index {8}.".format(rtol, atol,
-                                                 count_outside_range + num_nans,
-                                                 a.numel(),
-                                                 num_nans,
-                                                 diff[greatest_diff_index],
-                                                 a_flat[greatest_diff_index],
-                                                 b_flat[greatest_diff_index],
-                                                 _unravel_index(greatest_diff_index, a.shape)))
+    debug_msg = (
+        "With rtol={0} and atol={1}, found {2} element(s) (out of {3}) whose "
+        "difference(s) exceeded the margin of error (including {4} nan comparisons). "
+        "The greatest difference was {5} ({6} vs. {7}), which "
+        "occurred at index {8}.".format(
+            rtol,
+            atol,
+            count_outside_range + num_nans,
+            a.numel(),
+            num_nans,
+            diff[greatest_diff_index],
+            a_flat[greatest_diff_index],
+            b_flat[greatest_diff_index],
+            _unravel_index(greatest_diff_index, a.shape),
+        )
+    )
     return (False, debug_msg)
+
 
 # Checks if two scalars are equal(-ish), returning (True, None)
 # when they are and (False, debug_msg) when they are not.
-def _compare_scalars_internal(a, b, *, rtol: float, atol: float, equal_nan: Union[str, bool]) -> _compare_return_type:
+def _compare_scalars_internal(
+    a, b, *, rtol: float, atol: float, equal_nan: Union[str, bool]
+) -> _compare_return_type:
     def _helper(a, b, s) -> _compare_return_type:
         # Short-circuits on identity
         if a == b or ((equal_nan in {"relaxed", True}) and a != a and b != b):
@@ -277,9 +299,11 @@ def _compare_scalars_internal(a, b, *, rtol: float, atol: float, equal_nan: Unio
 
         # Special-case for NaN comparisions when equal_nan=False
         if not (equal_nan in {"relaxed", True}) and (a != a or b != b):
-            msg = ("Found {0} and {1} while comparing" + s + "and either one "
-                   "is nan and the other isn't, or both are nan and "
-                   "equal_nan is False").format(a, b)
+            msg = (
+                "Found {0} and {1} while comparing" + s + "and either one "
+                "is nan and the other isn't, or both are nan and "
+                "equal_nan is False"
+            ).format(a, b)
             return (False, msg)
 
         diff = abs(a - b)
@@ -288,16 +312,17 @@ def _compare_scalars_internal(a, b, *, rtol: float, atol: float, equal_nan: Unio
 
         # Special-case for infinity comparisons
         # NOTE: if b is inf then allowed_diff will be inf when rtol is not 0
-        if ((math.isinf(a) or math.isinf(b)) and a != b):
+        if (math.isinf(a) or math.isinf(b)) and a != b:
             result = False
 
         msg = None
         if not result:
-            msg = ("Comparing" + s + "{0} and {1} gives a "
-                   "difference of {2}, but the allowed difference "
-                   "with rtol={3} and atol={4} is "
-                   "only {5}!").format(a, b, diff,
-                                       rtol, atol, allowed_diff)
+            msg = (
+                "Comparing" + s + "{0} and {1} gives a "
+                "difference of {2}, but the allowed difference "
+                "with rtol={3} and atol={4} is "
+                "only {5}!"
+            ).format(a, b, diff, rtol, atol, allowed_diff)
 
         return result, msg
 
@@ -318,30 +343,38 @@ def _compare_scalars_internal(a, b, *, rtol: float, atol: float, equal_nan: Unio
 
     return _helper(a, b, " ")
 
-def assert_allclose(actual, expected, rtol=None, atol=None, equal_nan=True, msg='') -> None:
+
+def assert_allclose(
+    actual, expected, rtol=None, atol=None, equal_nan=True, msg=""
+) -> None:
     if not isinstance(actual, torch.Tensor):
         actual = torch.tensor(actual)
     if not isinstance(expected, torch.Tensor):
         expected = torch.tensor(expected, dtype=actual.dtype)
     if expected.shape != actual.shape:
-        raise AssertionError("expected tensor shape {0} doesn't match with actual tensor "
-                             "shape {1}!".format(expected.shape, actual.shape))
+        raise AssertionError(
+            "expected tensor shape {0} doesn't match with actual tensor "
+            "shape {1}!".format(expected.shape, actual.shape)
+        )
     if rtol is None or atol is None:
         if rtol is not None or atol is not None:
-            raise ValueError("rtol and atol must both be specified or both be unspecified")
+            raise ValueError(
+                "rtol and atol must both be specified or both be unspecified"
+            )
         rtol, atol = _get_default_tolerance(actual, expected)
 
-    result, debug_msg = _compare_tensors_internal(actual, expected,
-                                                  rtol=rtol, atol=atol,
-                                                  equal_nan=equal_nan)
+    result, debug_msg = _compare_tensors_internal(
+        actual, expected, rtol=rtol, atol=atol, equal_nan=equal_nan
+    )
 
     if result:
         return
 
-    if msg is None or msg == '':
+    if msg is None or msg == "":
         msg = debug_msg
 
     raise AssertionError(msg)
+
 
 def make_non_contiguous(tensor: torch.Tensor) -> torch.Tensor:
     if tensor.numel() <= 1:  # can't make non-contiguous
@@ -381,24 +414,35 @@ def _validate_dtypes(*dtypes):
         assert isinstance(dtype, torch.dtype)
     return dtypes
 
+
 # class for tuples corresponding to a PyTorch dispatch macro
 class _dispatch_dtypes(tuple):
     def __add__(self, other):
         assert isinstance(other, tuple)
         return _dispatch_dtypes(tuple.__add__(self, other))
 
+
 _floating_types = _dispatch_dtypes((torch.float32, torch.float64))
+
+
 def floating_types():
     return _floating_types
 
+
 _floating_types_and_half = _floating_types + (torch.half,)
+
+
 def floating_types_and_half():
     return _floating_types_and_half
+
 
 def floating_types_and(*dtypes):
     return _floating_types + _validate_dtypes(*dtypes)
 
+
 _floating_and_complex_types = _floating_types + (torch.cfloat, torch.cdouble)
+
+
 def floating_and_complex_types():
     return _floating_and_complex_types
 
