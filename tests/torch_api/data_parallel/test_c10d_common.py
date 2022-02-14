@@ -23,16 +23,15 @@ import torch.distributed as dist
 import torch.distributed.algorithms.ddp_comm_hooks.powerSGD_hook as powerSGD
 import torch.multiprocessing as mp
 import torch.nn.functional as F
-import torch.testing._internal.common_utils as common
 from torch import nn
 from torch._six import string_classes
 from bagua.torch_api.data_parallel import DistributedDataParallel
-from torch.testing._internal.common_distributed import (
+from tests.internal.torch.common_distributed import (
     MultiProcessTestCase,
     skip_if_win32,
     create_tcp_store
 )
-from torch.testing._internal.common_utils import (
+from tests.internal.torch.common_utils import (
     TestCase,
     load_tests,
     run_tests,
@@ -41,6 +40,7 @@ from torch.testing._internal.common_utils import (
     CONNECT_TIMEOUT,
     TEST_WITH_TSAN,
     IS_WINDOWS,
+    find_free_port,
 )
 
 import bagua.torch_api.data_parallel.functional as bagua_dist
@@ -175,7 +175,7 @@ class TCPStoreTest(TestCase, StoreTestBase):
             err_msg_reg = "^Address already in use$"
         with self.assertRaisesRegex(RuntimeError, err_msg_reg):
             addr = DEFAULT_HOSTNAME
-            port = common.find_free_port()
+            port = find_free_port()
 
             # Use noqa to silence flake8.
             # Need to store in an unused variable here to ensure the first
@@ -328,7 +328,7 @@ class RendezvousEnvTest(TestCase):
     def test_nominal(self):
         os.environ["WORLD_SIZE"] = "1"
         os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = str(common.find_free_port())
+        os.environ["MASTER_PORT"] = str(find_free_port())
 
         # Single rank
         os.environ["RANK"] = "0"
@@ -380,7 +380,7 @@ class RendezvousFileTest(TestCase):
 class RendezvousTCPTest(TestCase):
     def create_tcp_url(self):
         addr = DEFAULT_HOSTNAME
-        port = common.find_free_port()
+        port = find_free_port()
         url = "tcp://%s:%d?world_size=%d" % (addr, port, 1)
         return url
 
@@ -456,7 +456,7 @@ class AbstractTimeoutTest(object):
         else:
             yield "file://%s" % f.name
             f.close()
-            yield "tcp://127.0.0.1:%d" % common.find_free_port()
+            yield "tcp://127.0.0.1:%d" % find_free_port()
 
     def _test_default_store_timeout(self, backend):
         for init_method in self._init_methods():
