@@ -11,8 +11,6 @@ else:
     BaguaStrategy = None
     BoringModel = object
 
-torch.manual_seed(13)
-
 
 class TestModel(BoringModel):
     def __init__(self):
@@ -38,6 +36,7 @@ class TestModel4QAdam(TestModel):
 
 @skip_if_cuda_not_available()
 def test_bagua_default(tmpdir):
+    torch.manual_seed(13)
     model = TestModel()
     trainer = Trainer(
         default_root_dir=tmpdir,
