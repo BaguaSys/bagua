@@ -126,7 +126,7 @@ TEST_SKIPS = {
 
 
 def skip_if_no_gpu(func):
-    """ Nccl multigpu tests require at least 2 GPUS. Skip if this is not met"""
+    """Nccl multigpu tests require at least 2 GPUS. Skip if this is not met"""
 
     @wraps(func)
     def wrapper(*args, **kwargs):

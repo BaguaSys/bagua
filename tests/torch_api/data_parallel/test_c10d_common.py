@@ -29,7 +29,7 @@ from bagua.torch_api.data_parallel import DistributedDataParallel
 from tests.internal.torch.common_distributed import (
     MultiProcessTestCase,
     skip_if_win32,
-    create_tcp_store
+    create_tcp_store,
 )
 from tests.internal.torch.common_utils import (
     TestCase,
