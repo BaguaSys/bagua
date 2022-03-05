@@ -17,15 +17,8 @@ class TestModel(BoringModel):
         super().__init__()
         self.layer = torch.nn.Linear(32, 32)
 
-    def test_epoch_end(self, outputs) -> None:
-        mean_y = torch.stack([x["y"] for x in outputs]).mean()
-        self.log("mean_y", mean_y)
-
 
 class TestModel4QAdam(TestModel):
-    def __init__(self):
-        super().__init__()
-
     def configure_optimizers(self):
         from bagua.torch_api.algorithms.q_adam import QAdamOptimizer
 
@@ -38,6 +31,7 @@ class TestModel4QAdam(TestModel):
 def test_bagua_default(tmpdir):
     torch.manual_seed(13)
     model = TestModel()
+    assert torch.norm(model.layer.weight) == 3.1995556354522705
     trainer = Trainer(
         default_root_dir=tmpdir,
         max_epochs=1,
@@ -46,22 +40,24 @@ def test_bagua_default(tmpdir):
         devices=1,
     )
     trainer.fit(model)
-    ret = trainer.test(model)
-    assert ret[0]["mean_y"] == 0.6336451768875122
+    trainer.test(model)
+    assert torch.norm(model.layer.weight) == 2.4819390773773193
 
 
 @pytest.mark.parametrize(
-    ["algorithm", "test_loss"],
+    ["algorithm", "criterion"],
     [
-        ("gradient_allreduce", 0.9828455448150635),
-        ("bytegrad", 0.9484740495681763),
-        ("decentralized", 0.9747325778007507),
-        ("low_precision_decentralized", 0.864328145980835),
+        ("gradient_allreduce", 2.835376262664795),
+        ("bytegrad", 2.835047960281372),
+        ("decentralized", 2.835376262664795),
+        ("low_precision_decentralized", 2.8350701332092285),
     ],
 )
 @skip_if_cuda_not_available()
-def test_bagua_algorithm(tmpdir, algorithm, test_loss):
+def test_bagua_algorithm(tmpdir, algorithm, criterion):
+    torch.manual_seed(13)
     model = TestModel()
+    assert torch.norm(model.layer.weight) == 3.1995556354522705
     bagua_strategy = BaguaStrategy(algorithm=algorithm)
     trainer = Trainer(
         default_root_dir=tmpdir,
@@ -71,8 +67,8 @@ def test_bagua_algorithm(tmpdir, algorithm, test_loss):
         devices=2,
     )
     trainer.fit(model)
-    ret = trainer.test(model)
-    assert ret[0]["mean_y"] == test_loss
+    trainer.test(model)
+    assert torch.norm(model.layer.weight) == criterion
 
 
 @skip_if_cuda_not_available()
@@ -89,13 +85,15 @@ def test_bagua_async(tmpdir):
         devices=2,
     )
     trainer.fit(model)
-    ret = trainer.test(model)
-    assert ret[0]["mean_y"] < 2
+    trainer.test(model)
+    assert torch.norm(model.layer.weight) < 5
 
 
 @skip_if_cuda_not_available()
 def test_qadam(tmpdir):
+    torch.manual_seed(13)
     model = TestModel4QAdam()
+    assert torch.norm(model.layer.weight) == 3.1995556354522705
     bagua_strategy = BaguaStrategy(algorithm="qadam")
     trainer = Trainer(
         default_root_dir=tmpdir,
@@ -105,5 +103,5 @@ def test_qadam(tmpdir):
         devices=2,
     )
     trainer.fit(model)
-    ret = trainer.test(model)
-    assert ret[0]["mean_y"] == 1.8056042194366455
+    trainer.test(model)
+    assert torch.norm(model.layer.weight) == 6.891299724578857
