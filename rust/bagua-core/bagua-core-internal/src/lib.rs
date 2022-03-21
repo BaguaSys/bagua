@@ -104,7 +104,7 @@ pub fn show_version() {
     shadow!(build);
     eprintln!("project_name: {}", build::PROJECT_NAME);
     eprintln!("is_debug: {}", shadow_rs::is_debug());
-    eprintln!("version: {}", build::version());
+    eprintln!("version: {}", build::VERSION);
     eprintln!("tag: {}", build::TAG);
     eprintln!("commit_hash: {}", build::COMMIT_HASH);
     eprintln!("commit_date: {}", build::COMMIT_DATE);
