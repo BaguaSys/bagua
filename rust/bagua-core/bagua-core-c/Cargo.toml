@@ -18,7 +18,7 @@ color-eyre = "0.6"
 numpy = "0.15"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 openssl-sys = { version = "*", features = ["vendored"] }
-log = { version = "0.4.8", features = ["std"] }
+log = { version = "0.4.16", features = ["std"] }
 env_logger = "*"
 
 [dependencies.pyo3]
