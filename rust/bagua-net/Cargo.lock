@@ -184,7 +184,7 @@ dependencies = [
  "libc",
  "nix",
  "openssl",
- "opentelemetry",
+ "opentelemetry 0.17.0",
  "opentelemetry-jaeger",
  "opentelemetry-prometheus",
  "prometheus",
@@ -998,6 +998,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "opentelemetry"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6105e89802af13fdf48c49d7646d3b533a70e536d818aae7e78ba0433d01acb8"
+dependencies = [
+ "async-std",
+ "async-trait",
+ "crossbeam-channel",
+ "dashmap",
+ "fnv",
+ "futures-channel",
+ "futures-executor",
+ "futures-util",
+ "js-sys",
+ "lazy_static",
+ "percent-encoding",
+ "pin-project",
+ "rand",
+ "thiserror",
+]
+
+[[package]]
 name = "opentelemetry-http"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1008,7 +1030,7 @@ dependencies = [
  "futures-util",
  "http",
  "isahc",
- "opentelemetry",
+ "opentelemetry 0.16.0",
 ]
 
 [[package]]
@@ -1022,7 +1044,7 @@ dependencies = [
  "http",
  "isahc",
  "lazy_static",
- "opentelemetry",
+ "opentelemetry 0.16.0",
  "opentelemetry-http",
  "opentelemetry-semantic-conventions",
  "thiserror",
@@ -1035,7 +1057,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ee9c06c1366665e7d4dba6540a42ea48900a9c92dc5b963f3ae05fbba76dc63"
 dependencies = [
- "opentelemetry",
+ "opentelemetry 0.16.0",
  "prometheus",
  "protobuf",
 ]
@@ -1046,7 +1068,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffeac823339e8b0f27b961f4385057bf9f97f2863bc745bd015fd6091f2270e9"
 dependencies = [
- "opentelemetry",
+ "opentelemetry 0.16.0",
 ]
 
 [[package]]
