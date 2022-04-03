@@ -5,9 +5,6 @@ from typing import Optional, Callable
 import torch
 import bagua_core as B
 import gorilla
-from setuptools import distutils
-
-LooseVersion = distutils.version.LooseVersion
 
 
 @gorilla.patches(torch.Tensor, filter=lambda name, obj: "bagua" in name)
@@ -167,10 +164,7 @@ class BaguaTensor:
         Returns:
             The new Bagua tensor sharing the same storage with the original tensor.
         """
-        if LooseVersion(torch.__version__) >= LooseVersion("1.10"):
-            new_tensor = self.view(self.dtype)
-        else:
-            new_tensor = torch.Tensor(cdata=self._cdata)
+        new_tensor = self.view(self.dtype)
         return new_tensor.ensure_bagua_tensor(
             name, module_name, getter_closure, setter_closure
         )
