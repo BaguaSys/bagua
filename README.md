@@ -26,7 +26,7 @@ Bagua is a deep learning training acceleration framework for PyTorch developed b
 - [**Performance Autotuning**](https://tutorials.baguasys.com/performance-autotuning/): Bagua can automatically tune system parameters to achieve the highest throughput.
 - [**Generic Fused Optimizer**](https://tutorials.baguasys.com/more-optimizations/generic-fused-optimizer): Bagua provides generic fused optimizer which improve the performance of optimizers by fusing the optimizer `.step()` operation on multiple layers. It can be applied to arbitrary PyTorch optimizer, in contrast to [NVIDIA Apex](https://nvidia.github.io/apex/optimizers.html)'s approach, where only some specific optimizers are implemented.
 - [**Load Balanced Data Loader**](https://bagua.readthedocs.io/en/latest/autoapi/bagua/torch_api/contrib/load_balancing_data_loader/index.html): When the computation complexity of samples in training data are different, for example in NLP and speech tasks, where each sample have different lengths, distributed training throughput can be greatly improved by using Bagua's load balanced data loader, which distributes samples in a way that each worker's workload are similar.
-- [**Integration with PyTorch Lightning**](https://pytorch-lightning.readthedocs.io/en/latest/accelerators/gpu.html#bagua): Are you using [PyTorch Lightning](https://www.pytorchlightning.ai/) for your distributed training job? Now you can use Bagua in PyTorch Lightning by simply set `𝚜𝚝𝚛𝚊𝚝𝚎𝚐𝚢=𝙱𝚊𝚐𝚞𝚊𝚂𝚝𝚛𝚊𝚝𝚎𝚐𝚢` in your Trainer. This enables you to take advantage of a range of advanced training algorithms, including decentralized methods, asynchronous methods, communication compression, and their combinations!
+- [**Integration with PyTorch Lightning**](https://pytorch-lightning.readthedocs.io/en/latest/accelerators/gpu.html#bagua): Are you using [PyTorch Lightning](https://www.pytorchlightning.ai/) for your distributed training job? Now you can use Bagua in PyTorch Lightning by simply set `strategy=BaguaStrategy` in your Trainer. This enables you to take advantage of a range of advanced training algorithms, including decentralized methods, asynchronous methods, communication compression, and their combinations!
   
 Its effectiveness has been evaluated in various scenarios, including VGG and ResNet on ImageNet, BERT Large and many industrial applications at Kuaishou.
 
@@ -67,6 +67,7 @@ Wheels (precompiled binary packages) are available for Linux (x86_64). Package n
 | >= v10.2             | `pip install bagua-cuda102` |
 | >= v11.1             | `pip install bagua-cuda111` |
 | >= v11.3             | `pip install bagua-cuda113` |
+| >= v11.5	           | `pip install bagua-cuda115` |
 
 Add `--pre` to `pip install` commands to install pre-release (development) versions. See [Bagua tutorials](https://tutorials.baguasys.com/getting-started/) for quick start guide and more installation options.
   
