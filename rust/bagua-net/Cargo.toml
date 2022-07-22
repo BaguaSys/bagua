@@ -18,7 +18,7 @@ libc = "0.2"
 ffi-convert = "0.5"
 flume = "0.10"
 socket2 = "0.4"
-opentelemetry = { version = "0.16", features = [
+opentelemetry = { version = "0.17", features = [
     "trace",
     "metrics",
     "rt-async-std",
