@@ -6,9 +6,6 @@
 <div align="center">
 <a href="https://tutorials.baguasys.com/"><img src="https://img.shields.io/badge/tutorials-passing-green" alt="tutorials"></a> <a href="http://bagua.readthedocs.io/?badge=latest"><img src="https://readthedocs.org/projects/bagua/badge/?version=latest" alt="Documentation Status"></a> <a href="https://pypi.org/project/bagua/"><img src="https://pepy.tech/badge/bagua/month" alt="Downloads"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/pulls/baguasys/bagua" alt="Docker Pulls"></a> <a href="https://hub.docker.com/r/baguasys/bagua"><img src="https://img.shields.io/docker/cloud/build/baguasys/bagua" alt="Docker Cloud Build Status"></a> <a href="https://github.com/BaguaSys/bagua/blob/master/LICENSE"><img src="https://img.shields.io/github/license/BaguaSys/bagua" alt="GitHub license"></a>
 </div>
-<div align="center">
-<a href="https://github.com/BaguaSys/bagua/stargazers"><img src="https://reporoster.com/stars/BaguaSys/bagua" /><a/>
-</div>
 
 <br/>
 
