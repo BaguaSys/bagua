@@ -115,7 +115,7 @@ if __name__ == "__main__":
             "numpy",
             "flask>=2.0",
             "prometheus_client>=0.11",
-            "parallel-ssh==2.9.1",
+            "parallel-ssh==2.12.0",
             "pydantic>=1.8",
             "requests>=2.25",
             "gorilla==0.4.0",
