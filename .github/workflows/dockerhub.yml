@@ -48,6 +48,7 @@ jobs:
           - "111"
           - "113"
           - "115"
+          - "116"
     name: 'Build'
     runs-on: ubuntu-latest
     steps:
