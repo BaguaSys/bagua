@@ -81,8 +81,7 @@ if __name__ == "__main__":
 
     setup(
         name="bagua" + name_suffix,
-        use_scm_version={"local_scheme": "no-local-version"},
-        setup_requires=["setuptools_scm"],
+        version="0.9.1",
         url="https://github.com/BaguaSys/bagua",
         python_requires=">=3.7",
         description="Bagua is a deep learning training acceleration framework for PyTorch. It provides a one-stop training acceleration solution, including faster distributed training compared to PyTorch DDP, faster dataloader, kernel fusion, and more.",
