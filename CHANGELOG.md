@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [0.9.1] - 2022-09-11
+
+### Bug Fixes
+
+#### Python
+
+- Revert "fix: to_bagua_tensor compatibility with torch 1.6.0 (#355)"
+
+### Features
+
+#### Python, core
+
+- improve NCCL lib version check (#525)
+
 ## [0.9.0] - 2022-01-13
 
 ### Bug Fixes
