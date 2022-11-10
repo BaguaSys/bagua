@@ -11,8 +11,8 @@ RUN cargo install mdbook mdbook-linkcheck mdbook-katex mdbook-open-on-gh
 
 RUN yes | python3 -m pip install -U setuptools wheel build pip
 
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:/usr/local/cuda/lib64:/usr/local/lib64:/usr/local/lib"
-ENV LIBRARY_PATH="/usr/local/cuda/lib64/stubs/:/usr/local/cuda/lib64:/usr/local/lib64:/usr/local/lib"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/lib64:/usr/local/lib:$LD_LIBRARY_PATH"
+ENV LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/lib64:/usr/local/lib:$LIBRARY_PATH"
 ENV PKG_CONFIG_PATH="/usr/local/cuda/pkgconfig/"
 ENV CUDA_LIBRARY_PATH="/usr/local/cuda/lib64/"
 
