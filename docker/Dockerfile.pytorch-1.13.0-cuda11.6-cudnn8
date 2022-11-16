@@ -1,7 +1,6 @@
-FROM pytorch/pytorch:1.10.0-cuda11.3-cudnn8-devel
+FROM pytorch/pytorch:1.13.0-cuda11.6-cudnn8-devel
 
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub && \
-    apt-get update && apt-get install -y curl software-properties-common wget sudo
+RUN apt-get update && apt-get install -y curl software-properties-common wget sudo
 RUN add-apt-repository ppa:git-core/ppa -y
 RUN sed -i 's/mozilla\/DST_Root_CA_X3.crt/!mozilla\/DST_Root_CA_X3.crt/g' /etc/ca-certificates.conf && update-ca-certificates
 RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
@@ -17,8 +16,9 @@ ENV LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/lib64:/usr/local/lib:$LIBRARY
 ENV PKG_CONFIG_PATH="/usr/local/cuda/pkgconfig/"
 ENV CUDA_LIBRARY_PATH="/usr/local/cuda/lib64/"
 
+ARG OPENMPI_VERSION_INSTALL=4.1.4
+ARG HWLOC_VERSION_INSTALL=2.8.0
 
-# OpenMPI version 4.0.3
 RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         bzip2 \
@@ -31,17 +31,17 @@ RUN apt-get update -y && \
         tar \
         wget && \
     rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://www.open-mpi.org/software/ompi/v4.0/downloads/openmpi-4.0.3.tar.bz2 && \
-    mkdir -p /var/tmp && tar -x -f /var/tmp/openmpi-4.0.3.tar.bz2 -C /var/tmp -j && \
-    cd /var/tmp/openmpi-4.0.3 &&   ./configure --disable-getpwuid --disable-oshmem --enable-fortran --enable-mca-no-build=btl-uct --enable-orterun-prefix-by-default --with-cuda --without-verbs && \
+RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://www.open-mpi.org/software/ompi/v${OPENMPI_VERSION_INSTALL%.*}/downloads/openmpi-${OPENMPI_VERSION_INSTALL}.tar.bz2 && \
+    mkdir -p /var/tmp && tar -x -f /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL}.tar.bz2 -C /var/tmp -j && \
+    cd /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL} &&   ./configure --disable-getpwuid --disable-oshmem --enable-fortran --enable-mca-no-build=btl-uct --enable-orterun-prefix-by-default --with-cuda --without-verbs && \
     make -j$(nproc) && \
     make -j$(nproc) install && \
-    rm -rf /var/tmp/openmpi-4.0.3 /var/tmp/openmpi-4.0.3.tar.bz2 && cd -
+    rm -rf /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL} /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL}.tar.bz2 && cd -
 
 # hwloc
-RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/hwloc/v2.5/hwloc-2.5.0.tar.bz2 && \
-    mkdir -p /var/tmp && tar -x -f /var/tmp/hwloc-2.5.0.tar.bz2 -C /var/tmp -j && \
-    cd /var/tmp/hwloc-2.5.0 &&   ./configure && \
+RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/hwloc/v${HWLOC_VERSION_INSTALL%.*}/hwloc-${HWLOC_VERSION_INSTALL}.tar.bz2 && \
+    mkdir -p /var/tmp && tar -x -f /var/tmp/hwloc-${HWLOC_VERSION_INSTALL}.tar.bz2 -C /var/tmp -j && \
+    cd /var/tmp/hwloc-${HWLOC_VERSION_INSTALL} &&   ./configure && \
     make -j$(nproc) && \
     make -j$(nproc) install && \
     rm -rf /var/tmp/hwloc* && cd -
