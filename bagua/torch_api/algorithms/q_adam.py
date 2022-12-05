@@ -222,8 +222,8 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                 parameter.bagua_backend_tensor().data_ptr()
                 == self.optimizer.state[parameter]["exp_avg"].data_ptr()
             ), (
-                "bagua backend tensor data_ptr should match QAdam momentum "
-                "data_ptr in compression stage"
+                "bagua backend tensor data_ptr should match momentum data_ptr "
+                "in QAdam compression stage"
             )
             parameter.bagua_mark_communication_ready()
 
@@ -231,8 +231,8 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
             assert (
                 parameter.bagua_backend_tensor().data_ptr() == parameter.grad.data_ptr()
             ), (
-                "bagua backend tensor data_ptr should match QAdam grad "
-                "data_ptr in warm-up stage"
+                "bagua backend tensor data_ptr should match grad data_ptr "
+                "in QAdam warm-up stage"
             )
             parameter.bagua_mark_communication_ready()
 
