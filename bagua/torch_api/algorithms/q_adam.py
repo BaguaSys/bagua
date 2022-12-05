@@ -65,7 +65,6 @@ class QAdamOptimizer(Optimizer):
         for group_id, group in enumerate(self.param_groups):
 
             lr = group["lr"]
-            weight_decay = group["weight_decay"]
             beta1, beta2 = group["betas"]
             eps = group["eps"]
 
@@ -85,9 +84,6 @@ class QAdamOptimizer(Optimizer):
                 step_id = state["step"]
 
                 grad = param.grad
-                if weight_decay != 0:
-                    grad = grad.add(param, alpha=weight_decay)
-
                 if step_id < self.warmup_steps:
                     state["exp_avg"].mul_(beta1).add_(grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(
@@ -101,8 +97,7 @@ class QAdamOptimizer(Optimizer):
                     eps
                 )
                 step_size = lr / bias_correction1
-                update = state["exp_avg"] / denom
-                param.data.add_(-step_size * update)
+                param.data.addcdiv_(state["exp_avg"], denom, value=-step_size)
 
         return loss
 
@@ -158,25 +153,23 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
                         bagua_ddp.bagua_module_name,
-                        getter_closure=lambda param: param.grad,
-                        setter_closure=lambda param, t: setattr(param, "grad", t),
+                        getter_closure=lambda p: p.grad,
+                        setter_closure=lambda p, t: setattr(p, "grad", t),
                     )
                 else:
                     # register first momentum
-                    def set_momentum_fn(param, t):
-                        self.optimizer.state[param]["exp_avg"] = t
+                    def set_momentum_fn(p, t):
+                        self.optimizer.state[p]["exp_avg"] = t
 
                     registered_tensor = param.bagua_ensure_grad().ensure_bagua_tensor(
                         param._q_adam_name,
                         bagua_ddp.bagua_module_name,
-                        getter_closure=lambda param: self.optimizer.state[param][
-                            "exp_avg"
-                        ],
+                        getter_closure=lambda p: self.optimizer.state[p]["exp_avg"],
                         setter_closure=set_momentum_fn,
                     )
 
                 tensor_groups.append(registered_tensor)
-        tensor_groups.sort(key=lambda x: x._q_adam_idx)
+        tensor_groups.sort(key=lambda p: p._q_adam_idx)
         return tensor_groups
 
     def tensors_to_buckets(
@@ -228,13 +221,19 @@ class QAdamAlgorithmImpl(AlgorithmImpl):
             assert (
                 parameter.bagua_backend_tensor().data_ptr()
                 == self.optimizer.state[parameter]["exp_avg"].data_ptr()
-            ), "bagua backend tensor data_ptr should match _q_adam_momentum data_ptr"
+            ), (
+                "bagua backend tensor data_ptr should match QAdam momentum "
+                "data_ptr in compression stage"
+            )
             parameter.bagua_mark_communication_ready()
 
         def hook_grad(parameter_name, parameter):
             assert (
                 parameter.bagua_backend_tensor().data_ptr() == parameter.grad.data_ptr()
-            ), "bagua backend tensor data_ptr should match _q_adam_grad data_ptr"
+            ), (
+                "bagua backend tensor data_ptr should match QAdam grad "
+                "data_ptr in warm-up stage"
+            )
             parameter.bagua_mark_communication_ready()
 
         return (
