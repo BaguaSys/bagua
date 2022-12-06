@@ -2,9 +2,12 @@ steps:
   - label: "benchmark_master"
     parallelism: 1
     command: bash .buildkite/scripts/benchmark_master.sh
+    env:
+      MASTER_ADDR: "10.158.66.134"
+      MASTER_PORT: "1234"
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.13.0-cuda11.6-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true
@@ -18,9 +21,12 @@ steps:
   - label: "benchmark_worker"
     parallelism: 1
     command: bash .buildkite/scripts/benchmark_worker.sh
+    env:
+      MASTER_ADDR: "10.158.66.134"
+      MASTER_PORT: "1234"
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.13.0-cuda11.6-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true
@@ -34,7 +40,7 @@ steps:
     command: bash .buildkite/scripts/benchmark.sh
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.13.0-cuda11.6-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true
@@ -48,7 +54,7 @@ steps:
     command: bash .buildkite/scripts/run_pytest.sh
     plugins:
       - docker#v3.8.0:
-          image: "baguasys/bagua:master-pytorch-1.9.0-cuda11.1-cudnn8"
+          image: "baguasys/bagua:master-pytorch-1.13.0-cuda11.6-cudnn8"
           workdir: /upstream
           user: root
           propagate-environment: true

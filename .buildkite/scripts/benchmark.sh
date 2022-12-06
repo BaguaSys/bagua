@@ -6,10 +6,9 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 set -euox pipefail
 
 cp -a /upstream /workdir
+export WORKDIR=/workdir && cd $WORKDIR && bash .buildkite/scripts/install_bagua.sh || exit 1
 
-export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
-
-SYNTHETIC_SCRIPT="examples/benchmark/synthetic_benchmark.py"
+SYNTHETIC_SCRIPT="$WORKDIR/examples/benchmark/synthetic_benchmark.py"
 
 function check_benchmark_log {
     logfile=$1
@@ -21,7 +20,7 @@ function check_benchmark_log {
 }
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
-python -m bagua.distributed.run \
+torchrun \
     --standalone \
     --nnodes=1 \
     --nproc_per_node 4 \
