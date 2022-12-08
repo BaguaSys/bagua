@@ -20,7 +20,7 @@ function check_benchmark_log {
 }
 
 logfile=$(mktemp /tmp/bagua_benchmark.XXXXXX.log)
-torchrun \
+python -m bagua.distributed.run \
     --standalone \
     --nnodes=1 \
     --nproc_per_node 4 \
