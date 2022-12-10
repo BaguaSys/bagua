@@ -14,7 +14,7 @@ export WORKDIR=/workdir && cd $WORKDIR && bash .buildkite/scripts/install_bagua.
 # 1. test communication_primitives api
 echo "begin to test [communication_primitives]"
 COMMUNICATION_SCRIPT="${WORKDIR}/examples/communication_primitives/main.py"
-NCCL_SOCKET_IFNAME=^docker,lo,veth torchrun \
+NCCL_SOCKET_IFNAME=^docker,lo,veth python -m bagua.distributed.run \
     --nnodes=2 \
     --nproc_per_node 4 \
     --rdzv_id=${BUILDKITE_BUILD_ID} \
