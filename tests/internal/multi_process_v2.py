@@ -1,5 +1,5 @@
 # This file is modified on https://github.com/pytorch/pytorch/blob/v1.13.0/torch/testing/_internal/common_distributed.py
-
+import faulthandler
 import logging
 import multiprocessing
 import os
@@ -108,9 +108,9 @@ class MultiProcessTestCase(unittest.TestCase):
         @wraps(fn)
         def wrapper(self):
             if self.rank == self.MAIN_PROCESS_RANK:
-                self._join_processes(fn)
+                return self._join_processes(fn)
             else:
-                fn()
+                return fn()
 
         return types.MethodType(wrapper, self)
 
@@ -141,6 +141,9 @@ class MultiProcessTestCase(unittest.TestCase):
         # it alive until the end of the entire suite. We must thus reset the
         # processes to prevent an effective file descriptor leak.
         self.processes = []
+
+    def _check_result(self):
+        pass
 
     def _current_test_name(self) -> str:
         # self.id() == e.g. '__main__.TestDistributed.TestAdditive.test_get_rank'
@@ -200,9 +203,6 @@ class MultiProcessTestCase(unittest.TestCase):
 
     @classmethod
     def _run(cls, rank: int, test_name: str, file_name: str, parent_pipe) -> None:
-        #        if rank == 0:
-        #            from remote_pdb import RemotePdb
-        #            RemotePdb('127.0.0.1', 4444).set_trace()
         # Enable DDP + ReplicatedTensor
         from torch.nn.parallel._replicated_tensor_ddp_utils import (
             _set_ddp_with_replicated_tensor,
@@ -234,9 +234,9 @@ class MultiProcessTestCase(unittest.TestCase):
 
         # self.id() == e.g. '__main__.TestDistributed.test_get_rank'
         # We're retrieving a corresponding test and executing it.
+        ret = None
         try:
             ret = getattr(self, test_name)()
-            #parent_pipe.send(make_success_result(pickle.dumps(ret)))
         except unittest.SkipTest as se:
             logger.info(
                 f"Process {self.rank} skipping test {test_name} for following reason: {str(se)}"
@@ -251,6 +251,9 @@ class MultiProcessTestCase(unittest.TestCase):
             parent_pipe.send(make_error_result(traceback.format_exc()))
             sys.exit(MultiProcessTestCase.TEST_ERROR_EXIT_CODE)
         finally:
+            if ret is not None:
+                parent_pipe.send(make_success_result(pickle.dumps(ret)))
+
             if signal_send_pipe is not None:
                 signal_send_pipe.send(None)
 
@@ -317,9 +320,11 @@ class MultiProcessTestCase(unittest.TestCase):
                         break
                 if subprocess_error:
                     break
+
                 # All processes have joined cleanly if they all a valid exitcode
                 if all([p.exitcode is not None for p in self.processes]):
                     break
+
                 # Check if we should time out the test. If so, we terminate each process.
                 elapsed = time.time() - start_time
                 if elapsed > timeout:
@@ -402,17 +407,8 @@ class MultiProcessTestCase(unittest.TestCase):
             )
         for skip in TEST_SKIPS.values():
             if first_process.exitcode == skip.exit_code:
-                if IS_SANDCASTLE:
-                    # Don't use unittest.skip to skip the test on sandcastle
-                    # since it creates tasks for skipped tests assuming there
-                    # is some follow-up needed. Instead just "pass" the test
-                    # with an appropriate message.
-                    logger.info(
-                        f"Skipping {self.id()} on sandcastle for the following reason: {skip.message}"
-                    )
-                    return
-                else:
-                    raise unittest.SkipTest(skip.message)
+                raise unittest.SkipTest(skip.message)
+
         self.assertEqual(
             first_process.exitcode,
             0,
@@ -420,6 +416,7 @@ class MultiProcessTestCase(unittest.TestCase):
                 first_process.exitcode, first_process.pid
             ),
         )
+        self._check_result()
 
     @property
     def is_master(self) -> bool:

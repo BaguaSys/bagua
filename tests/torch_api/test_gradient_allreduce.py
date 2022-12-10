@@ -1,4 +1,6 @@
+import logging
 import os
+import pickle
 import unittest
 
 import torch
@@ -6,10 +8,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import bagua.torch_api as bagua
 
-from tests.internal.multi_process_v2 import MultiProcessTestCase
+from tests.internal.multi_process_v2 import MultiProcessTestCase, skip_if_lt_x_gpu
 
-# import logging
-# logging.getLogger().setLevel(logging.DEBUG)
+
+logging.getLogger().setLevel(logging.INFO)
 
 
 class Net(nn.Module):
@@ -81,20 +83,23 @@ class TestGradientAllReduce(MultiProcessTestCase):
         except OSError:
             pass
 
-    def check_result(self):
-        norm = None
+    def _check_result(self):
+        result = None
         for i, process in enumerate(self.processes):
-            msg = self.pid_to_pipe[process.pid].recv()
-            print("recv msg: ", msg)
-            if norm is None:
-                norm = float(msg)
+            _, msg = self.pid_to_pipe[process.pid].recv()
+            weight_norm = pickle.loads(msg)
+
+            logging.info("process {} result: {}".format(i, weight_norm))
+            if result is None:
+                result = weight_norm
             else:
-                assert norm == float(msg)
+                assert result == weight_norm
 
     @property
     def world_size(self) -> int:
         return torch.cuda.device_count()
 
+    @skip_if_lt_x_gpu(4)
     def test_algorithm(self):
         # set deterministic
         torch.backends.cudnn.benchmark = False
