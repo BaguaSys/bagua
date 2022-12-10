@@ -1,13 +1,15 @@
+import os
+import unittest
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from tests.internal.common_utils import find_free_port
-from tests.internal.multi_process import setup_bagua_env
-import unittest
-import multiprocessing
-from bagua.torch_api.utils import flatten
 import bagua.torch_api as bagua
-from tests import skip_if_cuda_not_available
+
+from tests.internal.multi_process_v2 import MultiProcessTestCase
+
+# import logging
+# logging.getLogger().setLevel(logging.DEBUG)
 
 
 class Net(nn.Module):
@@ -25,31 +27,14 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def _init_bagua_env(rank, env):
-    # set deterministic
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
-    torch.manual_seed(rank)
-    # initialize subprocess env
-    setup_bagua_env(rank, env)
-
-
-def run_model(
-    rank,
-    nprocs,
-    hierarchical,
-    results,
-    env,
-):
-    _init_bagua_env(rank, env)
-
+def run_model(hierarchical):
     # construct model and optimizer, etc.
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     loss_fn = nn.MSELoss()
 
     def run_epochs(num_epochs):
-        for epoch in range(num_epochs):
+        for _ in range(num_epochs):
             data = torch.randn(4, 2).cuda()
             target = torch.randn(4, 4).cuda()
 
@@ -72,9 +57,8 @@ def run_model(
 
     run_epochs(10)
 
-    ret = results[rank]
-
-    ret._weight.copy_(flatten([param.data for param in model.parameters()]))
+    flattened_weight = bagua.utils.flatten([param.data for param in model.parameters()])
+    return flattened_weight.norm().item()
 
 
 class Result(object):
@@ -85,58 +69,40 @@ class Result(object):
         )
 
 
-class TestGradientAllReduce(unittest.TestCase):
-    def run_test_locally(
-        self,
-        nprocs,
-        hierarchical,
-    ):
-        env = {
-            "WORLD_SIZE": str(nprocs),
-            "LOCAL_WORLD_SIZE": str(nprocs),
-            "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port(8000, 8100)),
-            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
-        }
+class TestGradientAllReduce(MultiProcessTestCase):
+    def setUp(self):
+        super(TestGradientAllReduce, self).setUp()
+        self._spawn_processes()
 
-        mp = multiprocessing.get_context("spawn")
-        results = [Result() for _ in range(nprocs)]
-        processes = []
-        for i in range(nprocs):
-            p = mp.Process(
-                target=run_model,
-                args=(
-                    i,
-                    nprocs,
-                    hierarchical,
-                    results,
-                    env,
-                ),
-            )
-            p.start()
-            processes.append(p)
+    def tearDown(self):
+        super(TestGradientAllReduce, self).tearDown()
+        try:
+            os.remove(self.file_name)
+        except OSError:
+            pass
 
-        for p in processes:
-            p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
+    def check_result(self):
+        norm = None
+        for i, process in enumerate(self.processes):
+            msg = self.pid_to_pipe[process.pid].recv()
+            print("recv msg: ", msg)
+            if norm is None:
+                norm = float(msg)
+            else:
+                assert norm == float(msg)
 
-        for rank in range(nprocs):
-            peer_rank = (rank + 1) % nprocs
-            # all workers have equal weights
-            self.assertTrue(
-                torch.equal(
-                    results[rank]._weight,
-                    results[peer_rank]._weight,
-                )
-            )
+    @property
+    def world_size(self) -> int:
+        return torch.cuda.device_count()
 
-    @skip_if_cuda_not_available()
     def test_algorithm(self):
-        nprocs = torch.cuda.device_count()
-        self.run_test_locally(
-            nprocs=nprocs,
-            hierarchical=False,
-        )
+        # set deterministic
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.manual_seed(self.rank)
+
+        self._init_bagua_distributed()
+        return run_model(hierarchical=False)
 
 
 if __name__ == "__main__":

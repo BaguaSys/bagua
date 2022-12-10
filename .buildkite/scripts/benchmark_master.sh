@@ -87,7 +87,7 @@ length=${#algorithms[@]}
 for ((i = 0; i < $length; i++)); do
     echo "begin to test ["${algorithms[$i]}]
     logfile=$(mktemp /tmp/bagua_benchmark_${algorithms[$i]}.XXXXXX.log)
-    NCCL_SOCKET_IFNAME=^docker,lo,veth GLOO_SOCKET_IFNAME=enp96s0f0 torchrun \
+    NCCL_SOCKET_IFNAME=^docker,lo,veth GLOO_SOCKET_IFNAME=enp96s0f0 python -m bagua.distributed.run \
         --nnodes=2 \
         --nproc_per_node 4 \
         --rdzv_id=${BUILDKITE_BUILD_ID} \
@@ -130,7 +130,7 @@ function check_moe_log {
 
 MOE_SCRIPT="${WORKDIR}/examples/moe/mnist_main.py"
 logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
-NCCL_SOCKET_IFNAME=^docker,lo,veth CUDA_VISIBLE_DEVICES=0,1 torchrun \
+NCCL_SOCKET_IFNAME=^docker,lo,veth CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.run \
     --nnodes=2 \
     --nproc_per_node 2 \
     --rdzv_id=${BUILDKITE_BUILD_ID} \
@@ -146,7 +146,7 @@ check_moe_log ${logfile} 0.000071
 
 # 4. test moe checkpoint
 logfile=$(mktemp /tmp/bagua_moe_checkpoint.XXXXXX.log)
-CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m bagua.distributed.run \
     --standalone \
     --nnodes=1 \
     --nproc_per_node 4 \
