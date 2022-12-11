@@ -10,6 +10,10 @@ set -euox pipefail
 # 0. install bagua
 cp -a /upstream /workdir
 export WORKDIR=/workdir && cd $WORKDIR && bash .buildkite/scripts/install_bagua.sh || exit 1
+apt-get update && apt-get install -y iputils-ping
+ping ${MASTER_ADDR} -c 10
+
+nvidia-smi
 
 # 1. test communication_primitives api
 echo "begin to test [communication_primitives]"

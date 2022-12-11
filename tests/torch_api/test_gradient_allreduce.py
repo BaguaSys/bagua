@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import bagua.torch_api as bagua
 
-from tests.internal.multi_process_v2 import MultiProcessTestCase, skip_if_lt_x_gpu
+from tests.internal.multi_process_v2 import MultiProcessTestCase, skip_if_no_gpu
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -60,7 +60,8 @@ def run_model(hierarchical):
     run_epochs(10)
 
     flattened_weight = bagua.utils.flatten([param.data for param in model.parameters()])
-    return flattened_weight.norm().item()
+    weight_norm = flattened_weight.norm().item()
+    return weight_norm
 
 
 class Result(object):
@@ -99,7 +100,7 @@ class TestGradientAllReduce(MultiProcessTestCase):
     def world_size(self) -> int:
         return torch.cuda.device_count()
 
-    @skip_if_lt_x_gpu(4)
+    @skip_if_no_gpu
     def test_algorithm(self):
         # set deterministic
         torch.backends.cudnn.benchmark = False
