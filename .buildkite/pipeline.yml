@@ -4,7 +4,7 @@ steps:
     command: bash .buildkite/scripts/benchmark_master.sh
     env:
       MASTER_ADDR: "10.158.66.134"
-      MASTER_PORT: "1234"
+      MASTER_PORT: "29500"
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:master-pytorch-1.13.0-cuda11.6-cudnn8"
@@ -23,7 +23,7 @@ steps:
     command: bash .buildkite/scripts/benchmark_worker.sh
     env:
       MASTER_ADDR: "10.158.66.134"
-      MASTER_PORT: "1234"
+      MASTER_PORT: "29500"
     plugins:
       - docker#v3.8.0:
           image: "baguasys/bagua:master-pytorch-1.13.0-cuda11.6-cudnn8"
