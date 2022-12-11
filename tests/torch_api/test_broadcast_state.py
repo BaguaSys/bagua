@@ -2,17 +2,16 @@ import inspect
 import itertools
 import logging
 import os
-import pickle
 import unittest
 
-import bagua.torch_api as bagua
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import bagua.torch_api as bagua
 
 from tests.internal.multi_process_v2 import MultiProcessTestCase, skip_if_lt_x_gpu
 
-logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class Net(nn.Module):
@@ -58,13 +57,14 @@ def get_optimizer_param_values(optimizer):
 
 def run_bagua_broadcast(opt_class, opt_hyper_param):
 
+    logger.debug("Testing for {}, {}".format(opt_class, opt_hyper_param))
+
     bagua_model, bagua_optimizer = create_model_and_optimizer(
         opt_class, opt_hyper_param
     )
 
-    print(torch.cuda.current_device())
     for epoch in range(5):
-        logging.debug("Training epoch {}".format(epoch))
+        logger.debug("Training epoch {}".format(epoch))
         for _ in range(10):
             data = torch.randn(4, 2).cuda()
             target = torch.randn(4, 4).cuda()
@@ -102,7 +102,7 @@ class TestBroadcastModule(MultiProcessTestCase):
         except OSError:
             pass
 
-    def _check_result(self):
+    def _check_result(self, test_id=None):
         msg_rank0 = None
         for i, process in enumerate(self.processes):
             _, msg = self.pid_to_pipe[process.pid].recv()
@@ -116,7 +116,7 @@ class TestBroadcastModule(MultiProcessTestCase):
     def world_size(self) -> int:
         return torch.cuda.device_count()
 
-    @skip_if_no_gpu
+    @skip_if_lt_x_gpu(2)
     def test_broadcast_module(self):
         # Set deterministic
         torch.backends.cudnn.benchmark = False
@@ -129,14 +129,15 @@ class TestBroadcastModule(MultiProcessTestCase):
             (optim_class.__name__, optim_class)
             for optim_class in [
                 torch.optim.SGD,
+                # TODO: fix broadcast state for adam
                 # torch.optim.Adam,
-                # torch.optim.Rprop
+                torch.optim.Rprop,
             ]
         ]
 
         optimizer_hyper_param = [
             dict(lr=0.2, momentum=0.9, weight_decay=0.1, centered=True),
-            # dict(lr=0.2),
+            dict(lr=0.2),
         ]
 
         bcast_params_list = []
@@ -150,6 +151,7 @@ class TestBroadcastModule(MultiProcessTestCase):
                 {"model": model_params, "optimizer": optimizer_params}
             )
 
+        bagua.barrier()
         return bcast_params_list
 
 

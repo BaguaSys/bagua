@@ -160,7 +160,7 @@ class MultiProcessTestCase(unittest.TestCase):
         # processes to prevent an effective file descriptor leak.
         self.processes = []
 
-    def _check_result(self):
+    def _check_result(self, test_id=None):
         pass
 
     def _current_test_name(self) -> str:
@@ -434,7 +434,7 @@ class MultiProcessTestCase(unittest.TestCase):
                 first_process.exitcode, first_process.pid
             ),
         )
-        self._check_result()
+        self._check_result(self._current_test_name())
 
     @property
     def is_master(self) -> bool:
