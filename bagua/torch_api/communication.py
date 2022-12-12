@@ -501,8 +501,8 @@ def init_process_group(store: Optional[torch.distributed.Store] = None, rank: in
         _default_store = store
     else:
         assert rank >= 0
-        assert world_size >= 0
-        assert local_world_size >= 0
+        assert world_size > 0
+        assert local_world_size > 0
 
         os.environ["RANK"] = str(rank)
         os.environ["WORLD_SIZE"] = str(world_size)

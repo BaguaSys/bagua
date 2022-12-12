@@ -28,7 +28,7 @@ class Net(nn.Module):
 
 
 def create_model_and_optimizer(warmup_steps):
-    # construct model and optimizer.
+    # construct model and optimizer
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 

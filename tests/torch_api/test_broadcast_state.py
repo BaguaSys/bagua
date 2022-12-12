@@ -151,6 +151,7 @@ class TestBroadcastModule(MultiProcessTestCase):
                 {"model": model_params, "optimizer": optimizer_params}
             )
 
+        # TODO: autotune server exit gracefully
         bagua.barrier()
         return bcast_params_list
 

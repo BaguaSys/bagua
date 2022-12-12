@@ -63,14 +63,6 @@ def run_model(hierarchical):
     return weight_norm
 
 
-class Result(object):
-    def __init__(self):
-        model = Net()
-        self._weight = flatten(
-            [torch.zeros_like(param.data) for param in model.parameters()]
-        )
-
-
 class TestGradientAllReduce(MultiProcessTestCase):
     def setUp(self):
         super(TestGradientAllReduce, self).setUp()
@@ -108,6 +100,16 @@ class TestGradientAllReduce(MultiProcessTestCase):
 
         self._init_bagua_distributed()
         return run_model(hierarchical=False)
+
+    @skip_if_lt_x_gpu(2)
+    def test_algorithm_hierarchical(self):
+        # set deterministic
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.manual_seed(self.rank)
+
+        self._init_bagua_distributed()
+        return run_model(hierarchical=true)
 
 
 if __name__ == "__main__":

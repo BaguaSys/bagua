@@ -1,19 +1,12 @@
 #!/usr/bin/env bash
 
-echo "$BUILDKITE_PARALLEL_JOB"
-echo "$BUILDKITE_PARALLEL_JOB_COUNT"
-echo "$BUILDKITE_BUILD_ID"
-echo "${MASTER_ADDR}:${MASTER_PORT}"
+printenv
 
 set -euox pipefail
 
 # 0. install bagua
 cp -a /upstream /workdir
 export WORKDIR=/workdir && cd $WORKDIR && bash .buildkite/scripts/install_bagua.sh || exit 1
-apt-get update && apt-get install -y iputils-ping
-ping ${MASTER_ADDR} -c 10
-
-nvidia-smi
 
 # 1. test communication_primitives api
 echo "begin to test [communication_primitives]"
@@ -24,6 +17,7 @@ NCCL_SOCKET_IFNAME=^docker,lo,veth python -m bagua.distributed.run \
     --rdzv_id=${BUILDKITE_BUILD_ID} \
     --rdzv_backend=c10d \
     --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+    --rdzv_conf read_timeout=300 \
     ${COMMUNICATION_SCRIPT}
 
 # 2. benchmark test with all communication algorithms
@@ -97,6 +91,7 @@ for ((i = 0; i < $length; i++)); do
         --rdzv_id=${BUILDKITE_BUILD_ID} \
         --rdzv_backend=c10d \
         --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+        --rdzv_conf read_timeout=300 \
         ${SYNTHETIC_SCRIPT} \
         --num-iters 100 \
         --algorithm ${algorithms[$i]} \
@@ -140,6 +135,7 @@ NCCL_SOCKET_IFNAME=^docker,lo,veth CUDA_VISIBLE_DEVICES=0,1 python -m bagua.dist
     --rdzv_id=${BUILDKITE_BUILD_ID} \
     --rdzv_backend=c10d \
     --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+    --rdzv_conf read_timeout=300 \
     ${MOE_SCRIPT} \
     --algorithm gradient_allreduce \
     --epochs 5 \

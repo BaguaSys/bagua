@@ -43,16 +43,16 @@ def test_bagua_default(tmpdir):
     )
     trainer.fit(model)
     trainer.test(model)
-    assert torch.norm(model.layer.weight) == 2.4819390773
+    assert torch.norm(model.layer.weight) == 2.4819386005
 
 
 @pytest.mark.parametrize(
     ["algorithm", "criterion"],
     [
-        ("gradient_allreduce", 2.8353762626),
+        ("gradient_allreduce", 2.8353767395),
         ("bytegrad", 2.8350479602),
-        ("decentralized", 2.8353762626),
-        ("low_precision_decentralized", 2.8350701332),
+        ("decentralized", 2.8353767395),
+        ("low_precision_decentralized", 2.8350696564),
     ],
 )
 @skip_if_cuda_not_available()
@@ -106,4 +106,4 @@ def test_qadam(tmpdir):
     )
     trainer.fit(model)
     trainer.test(model)
-    assert torch.norm(model.layer.weight) == 6.8912997245
+    assert torch.norm(model.layer.weight) == 6.8912987709

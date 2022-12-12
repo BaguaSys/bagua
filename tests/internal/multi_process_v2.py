@@ -106,8 +106,7 @@ class MultiProcessTestCase(unittest.TestCase):
         return 300
 
     def _init_bagua_distributed(self):
-        print("rank:", self.rank)
-        print("world_size: ", self.world_size)
+        logger.info("rank: {}, world_size: {}".format(self.rank, self.world_size()))
 
         torch.cuda.set_device(self.rank)
         store = torch.distributed.FileStore(self.file_name, self.world_size)
