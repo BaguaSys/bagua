@@ -4,7 +4,7 @@ printenv
 
 set -euox pipefail
 
-apt-get update && apt-get install -y iputils-ping
+apt-get update && apt-get install -y iputils-ping netcat
 ping ${MASTER_ADDR} -c 10
 nc -zv $MASTER_ADDR 8000-9000
 
