@@ -8,6 +8,7 @@ python -m http.server 8001 &>/dev/null &
 apt-get update && apt-get install -y iputils-ping netcat
 ping ${MASTER_ADDR} -c 10
 nc -zv $MASTER_ADDR 8000-9000
+nc -zv 127.0.0.1 8000-9000
 
 # 0. install bagua
 cp -a /upstream /workdir
