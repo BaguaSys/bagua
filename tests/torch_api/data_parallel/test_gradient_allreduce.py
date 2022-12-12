@@ -111,7 +111,7 @@ class TestGradientAllReduce(MultiProcessTestCase):
         torch.manual_seed(self.rank)
 
         self._init_bagua_distributed()
-        return run_model(hierarchical=true)
+        return run_model(hierarchical=True)
 
 
 if __name__ == "__main__":
