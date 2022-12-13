@@ -89,9 +89,9 @@ class TestGradientAllReduce(MultiProcessTestCase):
 
     @property
     def world_size(self) -> int:
-        return torch.cuda.device_count()
+        return 4
 
-    @skip_if_lt_x_gpu(2)
+    @skip_if_lt_x_gpu(4)
     def test_algorithm(self):
         # set deterministic
         torch.backends.cudnn.benchmark = False
@@ -101,7 +101,7 @@ class TestGradientAllReduce(MultiProcessTestCase):
         self._init_bagua_distributed()
         return run_model(hierarchical=False)
 
-    @skip_if_lt_x_gpu(2)
+    @skip_if_lt_x_gpu(4)
     def test_algorithm_hierarchical(self):
         # set deterministic
         torch.backends.cudnn.benchmark = False

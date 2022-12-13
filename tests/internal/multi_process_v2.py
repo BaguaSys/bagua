@@ -29,7 +29,6 @@ class TestResult(NamedTuple):
 
 
 TEST_SKIPS = {
-    "no_cuda": TestResult(74, "CUDA is not available."),
     "multi-gpu-1": TestResult(75, "Need at least 1 CUDA device"),
     "multi-gpu-2": TestResult(77, "Need at least 2 CUDA devices"),
     "multi-gpu-3": TestResult(80, "Need at least 3 CUDA devices"),
@@ -50,23 +49,6 @@ def make_success_result(msg: str):
 
 def make_error_result(msg: str):
     return TestResult(255, msg)
-
-
-def skip_if_no_gpu(func):
-    """Skips if the world size exceeds the number of GPUs, ensuring that if the
-    test is run, each rank has its own GPU via ``torch.cuda.device(rank)``."""
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if not torch.cuda.is_available():
-            sys.exit(TEST_SKIPS["no_cuda"].exit_code)
-        world_size = int(os.environ["WORLD_SIZE"])
-        if torch.cuda.device_count() < world_size:
-            sys.exit(TEST_SKIPS[f"multi-gpu-{world_size}"].exit_code)
-
-        return func(*args, **kwargs)
-
-    return wrapper
 
 
 def skip_if_lt_x_gpu(x):
@@ -106,7 +88,7 @@ class MultiProcessTestCase(unittest.TestCase):
         return 300
 
     def _init_bagua_distributed(self):
-        logger.info("rank: {}, world_size: {}".format(self.rank, self.world_size()))
+        logger.info("rank: {}, world_size: {}".format(self.rank, self.world_size))
 
         torch.cuda.set_device(self.rank)
         store = torch.distributed.FileStore(self.file_name, self.world_size)

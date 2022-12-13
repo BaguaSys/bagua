@@ -483,7 +483,6 @@ def init_process_group(store: Optional[torch.distributed.Store] = None, rank: in
         `fatal runtime error: Rust cannot catch foreign exceptions` error.
     """
 
-
     global _default_pg
     global _default_store
     global _autotune_service_port
@@ -510,7 +509,7 @@ def init_process_group(store: Optional[torch.distributed.Store] = None, rank: in
         os.environ["LOCAL_WORLD_SIZE"] = str(local_world_size)
 
         _default_store = store
-        
+
     if _autotune_service_port is None:
         if get_rank() == 0:
             _autotune_service_port = _find_free_bagua_service_port(_default_store)

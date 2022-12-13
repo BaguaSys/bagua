@@ -72,9 +72,9 @@ class TestAsyncModelAverage(MultiProcessTestCase):
 
     @property
     def world_size(self) -> int:
-        return torch.cuda.device_count()
+        return 4
 
-    @skip_if_lt_x_gpu(2)
+    @skip_if_lt_x_gpu(4)
     def test_algorithm(self):
         self._init_bagua_distributed()
         model, optimizer = create_model_and_optimizer(warmup_steps=0)
