@@ -241,7 +241,7 @@ class MultiProcessTestCase(unittest.TestCase):
                 f"Process {self.rank} skipping test {test_name} for following reason: {str(se)}"
             )
             sys.exit(TEST_SKIPS["generic"].exit_code)
-        except Exception as e:
+        except Exception:
             logger.error(
                 f"Caught exception: \n{traceback.format_exc()} exiting "
                 f"process {self.rank} with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}"
