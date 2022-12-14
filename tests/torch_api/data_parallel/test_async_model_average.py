@@ -32,7 +32,6 @@ def create_model_and_optimizer(warmup_steps):
     # construct model and optimizer
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-    loss_fn = nn.MSELoss()
 
     # wrap model
     algorithm = bagua.algorithms.async_model_average.AsyncModelAverageAlgorithm(
@@ -41,7 +40,7 @@ def create_model_and_optimizer(warmup_steps):
     )
     ddp_model = DDP(model, optimizers=[optimizer], algorithm=algorithm)
 
-    return model, optimizer
+    return ddp_model, optimizer
 
 
 def train_epoch(epoch, model, optimizer):

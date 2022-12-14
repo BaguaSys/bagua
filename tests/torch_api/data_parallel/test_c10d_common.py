@@ -846,6 +846,7 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([50], dtype=torch.float),
         ]
         result = dist._compute_bucket_assignment_by_size(tensors, [400])
+        print("test_single_limit_single_dtype: ", result)
         self.assertEqual([[0], [1], [2], [3]], result)
 
     def test_single_limit_multi_dtype(self):
@@ -858,6 +859,7 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([25], dtype=torch.double),
         ]
         result = dist._compute_bucket_assignment_by_size(tensors, [400])
+        print("test_single_limit_multi_dtype: ", result)
         self.assertEqual([[0, 2], [1, 3], [4], [5]], result)
 
     def test_multi_limit_single_dtype(self):
@@ -868,6 +870,7 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([10], dtype=torch.float),
         ]
         result = dist._compute_bucket_assignment_by_size(tensors, [40, 80])
+        print("test_multi_limit_single_dtype: ", result)
         self.assertEqual([[0], [1, 2], [3]], result)
 
     def test_multi_limit_multi_dtype(self):
@@ -880,6 +883,7 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([25], dtype=torch.double),
         ]
         result = dist._compute_bucket_assignment_by_size(tensors, [200, 400])
+        print("test_multi_limit_multi_dtype: ", result)
         self.assertEqual([[0], [1], [2, 4], [3, 5]], result)
 
 
