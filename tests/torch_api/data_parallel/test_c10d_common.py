@@ -258,11 +258,17 @@ class TCPStoreTest(TestCase, StoreTestBase):
         self._test_numkeys_delkeys(self._create_store())
 
     def _create_client(self, index, addr, port, world_size):
-        client_store = dist.TCPStore(addr, port, world_size=world_size, timeout=timedelta(seconds=10))
+        client_store = dist.TCPStore(
+            addr, port, world_size=world_size, timeout=timedelta(seconds=10)
+        )
         self.assertEqual("value".encode(), client_store.get("key"))
         client_store.set(f"new_key{index}", f"new_value{index}")
-        self.assertEqual(f"next_value{index}".encode(),
-                         client_store.compare_set(f"new_key{index}", f"new_value{index}", f"next_value{index}"))
+        self.assertEqual(
+            f"next_value{index}".encode(),
+            client_store.compare_set(
+                f"new_key{index}", f"new_value{index}", f"next_value{index}"
+            ),
+        )
 
     def _multi_worker_helper(self, world_size):
         addr = DEFAULT_HOSTNAME
@@ -1100,7 +1106,9 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
 
         for mode in invalid_debug_modes:
             os.environ["TORCH_DISTRIBUTED_DEBUG"] = str(mode)
-            with self.assertRaisesRegex(RuntimeError, "The value of TORCH_DISTRIBUTED_DEBUG must"):
+            with self.assertRaisesRegex(
+                RuntimeError, "The value of TORCH_DISTRIBUTED_DEBUG must"
+            ):
                 dist.set_debug_level_from_env()
 
 
