@@ -27,14 +27,6 @@ def check_torch_version():
     return version
 
 
-def install_baguanet(destination):
-    os.makedirs(destination, exist_ok=True)
-    os.system("cd rust/bagua-net/cc && make")
-    shutil.move(
-        "rust/bagua-net/cc/libnccl-net.so", os.path.join(destination, "libnccl-net.so")
-    )
-
-
 def install_dependency_library():
     nvcc_version = (
         os.popen(
@@ -44,7 +36,6 @@ def install_dependency_library():
         .strip()
     )
     print("nvcc_version: ", nvcc_version)
-    install_baguanet(os.path.join(cwd, "bagua_core", ".data", "bagua-net"))
 
 
 if __name__ == "__main__":
