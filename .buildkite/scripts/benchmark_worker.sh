@@ -6,7 +6,7 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 set -euox pipefail
 
 # 0. install bagua
-bash .buildkite/scripts/install_bagua.sh /upstream /workdir || exit 1
+bash install_bagua.sh /upstream /workdir || exit 1
 
 # 1. test communication_primitives api
 echo "begin to test [communication_primitives]"
