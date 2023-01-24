@@ -111,7 +111,7 @@ if __name__ == "__main__":
             "deprecation>=2.1",
             "pytest-benchmark>=3.4",
             "scikit-optimize>=0.8.1",
-            "scikit-learn>=0.24,<=1.0.1,!=1.0",
+            "scikit-learn>=0.24,!=1.0,<1.2.2",
             "numpy",
             "flask>=2.0",
             "prometheus_client>=0.11",
