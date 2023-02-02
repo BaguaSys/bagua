@@ -65,6 +65,7 @@ class QAdamOptimizer(Optimizer):
         for group_id, group in enumerate(self.param_groups):
 
             lr = group["lr"]
+            weight_decay = group["weight_decay"]
             beta1, beta2 = group["betas"]
             eps = group["eps"]
 
@@ -84,6 +85,9 @@ class QAdamOptimizer(Optimizer):
                 step_id = state["step"]
 
                 grad = param.grad
+                if weight_decay != 0:
+                    grad = grad.add(param, alpha=weight_decay)
+
                 if step_id < self.warmup_steps:
                     state["exp_avg"].mul_(beta1).add_(grad, alpha=1 - beta1)
                     state["exp_avg_sq"].mul_(beta2).addcmul_(

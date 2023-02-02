@@ -43,10 +43,10 @@ def run_step(opt_cls, opt_flags, seed):
 class TestQAdam(unittest.TestCase):
     @skip_if_cuda_available()
     def test_qadam_optimizer(self):
-        loss1 = run_step(torch.optim.Adam, {"lr": 0.001}, seed=13)
+        loss1 = run_step(torch.optim.Adam, {"lr": 0.001, "weight_decay": 0.1}, seed=13)
         loss2 = run_step(
             QAdamOptimizer,
-            {"lr": 0.001, "warmup_steps": 2000},
+            {"lr": 0.001, "weight_decay": 0.1, "warmup_steps": 2000},
             seed=13,
         )
         self.assertEqual(loss1.item(), loss2.item())
