@@ -60,17 +60,19 @@ if __name__ == "__main__":
         return False
 
     if (
-        int(os.getenv("BAGUA_NO_INSTALL_DEPS", 0)) == 0
-        and len(sys.argv) > 1
+        len(sys.argv) > 1
         and check_args(sys.argv)  # noqa: W503
     ):
-        print(
-            colorama.Fore.BLACK
-            + colorama.Back.CYAN
-            + "Bagua is automatically installing some system dependencies like bagua-net, to disable set env variable BAGUA_NO_INSTALL_DEPS=1",
-        )
-        os.system("python3 bagua_core/bagua_install_deps.py")
-        install_dependency_library()
+        if int(os.getenv("BAGUA_NO_INSTALL_DEPS", 0)) == 0:
+            print(
+                colorama.Fore.BLACK
+                + colorama.Back.CYAN
+                + "Bagua is automatically installing some system dependencies like bagua-net, to disable set env variable BAGUA_NO_INSTALL_DEPS=1",
+            )
+            os.system("python3 bagua_core/bagua_install_deps.py")
+            install_dependency_library()
+        else:
+            os.makedirs(os.path.join(cwd, "bagua_core", ".data"), exist_ok=True)
 
     name_suffix = os.getenv("BAGUA_CUDA_VERSION", "")
     if name_suffix != "":
