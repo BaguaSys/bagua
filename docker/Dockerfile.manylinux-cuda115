@@ -1,5 +1,9 @@
 FROM pytorch/manylinux-cuda115
 
+
+RUN rm -rf /usr/local/cuda
+RUN ln -s /usr/local/cuda-11.5 /usr/local/cuda
+
 RUN yum install centos-release-scl-rh -y && yum install devtoolset-8-toolchain -y
 RUN yum remove okay-release -y && yum install http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-1.noarch.rpm -y
 RUN yum remove cmake3 -y && yum install cmake3 -y
