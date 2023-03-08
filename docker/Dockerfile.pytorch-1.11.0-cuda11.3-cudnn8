@@ -5,7 +5,7 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/
 RUN add-apt-repository ppa:git-core/ppa -y
 RUN sed -i 's/mozilla\/DST_Root_CA_X3.crt/!mozilla\/DST_Root_CA_X3.crt/g' /etc/ca-certificates.conf && update-ca-certificates
 RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
-RUN apt-get update && apt-get install -y git cmake
+RUN apt-get update && apt-get install -y git cmake pkg-config libssl-dev
 RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
 ENV PATH=/root/.cargo/bin:${PATH}
 RUN cargo install mdbook mdbook-linkcheck mdbook-katex mdbook-open-on-gh
