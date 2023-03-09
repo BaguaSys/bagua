@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [0.9.2] - 2023-03-09
+
+### Bug Fixes
+
+#### Python
+
+- fix qadam NAN problem (#654)
+- fix: fail to compile Aluminum
+
 ## [0.9.1] - 2022-09-11
 
 ### Bug Fixes
