@@ -52,7 +52,7 @@ RUN apt-get update && apt-get install -y redis
 RUN yes | python3 -m pip install -U redis
 
 # pytorch-lightning
-RUN pip3 install pytorch-lightning
+RUN pip3 install "pytorch-lightning<1.9.0"
 
 RUN mkdir /bagua 
 COPY examples/ /bagua/examples
