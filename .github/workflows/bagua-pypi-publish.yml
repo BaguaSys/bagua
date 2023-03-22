@@ -65,7 +65,7 @@ jobs:
           - "7"
           - "8"
           - "9"
-          # - "10"
+          - "10"
     env:
       BAGUA_CUDA_VERSION: "${{ matrix.cuda-version }}"
 
@@ -102,7 +102,7 @@ jobs:
           - "7"
           - "8"
           - "9"
-          # - "10"
+          - "10"
 
     runs-on: ${{ matrix.os }}
 
