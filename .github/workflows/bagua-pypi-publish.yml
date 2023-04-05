@@ -52,6 +52,7 @@ jobs:
       fail-fast: false
       matrix:
         cuda-version:
+          - "117"
           - "116"
           - "115"
           - "113"
@@ -87,6 +88,7 @@ jobs:
       fail-fast: false
       matrix:
         cuda-version:
+          - "117"
           - "116"
           - "115"
           - "113"

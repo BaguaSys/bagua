@@ -1,0 +1,60 @@
+FROM pytorch/pytorch:2.0.0-cuda11.7-cudnn8-devel
+
+RUN apt-get update && apt-get install -y curl software-properties-common wget sudo
+RUN add-apt-repository ppa:git-core/ppa -y
+RUN sed -i 's/mozilla\/DST_Root_CA_X3.crt/!mozilla\/DST_Root_CA_X3.crt/g' /etc/ca-certificates.conf && update-ca-certificates
+RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
+RUN apt-get update && apt-get install -y git cmake pkg-config libssl-dev
+RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+ENV PATH=/root/.cargo/bin:${PATH}
+RUN cargo install mdbook mdbook-linkcheck mdbook-katex mdbook-open-on-gh
+
+RUN yes | python3 -m pip install -U setuptools wheel build pip
+
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/lib64:/usr/local/lib:$LD_LIBRARY_PATH"
+ENV LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/lib64:/usr/local/lib:$LIBRARY_PATH"
+ENV PKG_CONFIG_PATH="/usr/local/cuda/pkgconfig/"
+ENV CUDA_LIBRARY_PATH="/usr/local/cuda/lib64/"
+
+ARG OPENMPI_VERSION_INSTALL=4.1.4
+ARG HWLOC_VERSION_INSTALL=2.8.0
+
+RUN apt-get update -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        bzip2 \
+        file \
+        hwloc \
+        libnuma-dev \
+        make \
+        openssh-client \
+        perl \
+        tar \
+        wget && \
+    rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://www.open-mpi.org/software/ompi/v${OPENMPI_VERSION_INSTALL%.*}/downloads/openmpi-${OPENMPI_VERSION_INSTALL}.tar.bz2 && \
+    mkdir -p /var/tmp && tar -x -f /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL}.tar.bz2 -C /var/tmp -j && \
+    cd /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL} &&   ./configure --disable-getpwuid --disable-oshmem --enable-fortran --enable-mca-no-build=btl-uct --enable-orterun-prefix-by-default --with-cuda --without-verbs && \
+    make -j$(nproc) && \
+    make -j$(nproc) install && \
+    rm -rf /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL} /var/tmp/openmpi-${OPENMPI_VERSION_INSTALL}.tar.bz2 && cd -
+
+# hwloc
+RUN mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/hwloc/v${HWLOC_VERSION_INSTALL%.*}/hwloc-${HWLOC_VERSION_INSTALL}.tar.bz2 && \
+    mkdir -p /var/tmp && tar -x -f /var/tmp/hwloc-${HWLOC_VERSION_INSTALL}.tar.bz2 -C /var/tmp -j && \
+    cd /var/tmp/hwloc-${HWLOC_VERSION_INSTALL} &&   ./configure && \
+    make -j$(nproc) && \
+    make -j$(nproc) install && \
+    rm -rf /var/tmp/hwloc* && cd -
+
+# Redis
+RUN add-apt-repository ppa:redislabs/redis
+RUN apt-get update && apt-get install -y redis
+RUN yes | python3 -m pip install -U redis
+
+# pytorch-lightning
+RUN pip3 install pytorch-lightning
+
+RUN mkdir /bagua 
+COPY examples/ /bagua/examples
+COPY ./ /var/tmp/bagua
+RUN cd /var/tmp/bagua && python3 -m pip install . && cd - && rm -rf /var/tmp/bagua
