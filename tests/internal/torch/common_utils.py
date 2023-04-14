@@ -132,6 +132,7 @@ from tests.internal.torch import expecttest
 
 import torch
 import torch.cuda
+
 if hasattr(torch, "_six"):
     from torch._six import string_classes
 else:
@@ -1380,7 +1381,7 @@ class TestCase(expecttest.TestCase):
         torch.complex64: (1.3e-6, 1e-5),
         torch.complex128: (1e-7, 1e-7),
     }
-    if hasattr(torch, "complex32"): # torch.complex32 has been removed from 1.11.0
+    if hasattr(torch, "complex32"):  # torch.complex32 has been removed from 1.11.0
         dtype_precisions[torch.complex32] = (0.001, 1e-5)
 
     # Returns the "default" rtol and atol for comparing scalars or
@@ -2142,7 +2143,7 @@ class TestCase(expecttest.TestCase):
 def find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('localhost', 0))
+        sock.bind(("localhost", 0))
         _, port = sock.getsockname()
         return port
 

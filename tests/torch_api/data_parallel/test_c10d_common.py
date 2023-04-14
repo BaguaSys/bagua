@@ -24,6 +24,7 @@ import torch.distributed.algorithms.ddp_comm_hooks.powerSGD_hook as powerSGD
 import torch.multiprocessing as mp
 import torch.nn.functional as F
 from torch import nn
+
 if hasattr(torch, "_six"):
     from torch._six import string_classes
 else:
@@ -132,9 +133,7 @@ class StoreTestBase(object):
         return 5
 
 
-@unittest.skipIf(
-    _SYNC_BN_V7, "Skip FileStoreTest for torch >= 2.0.0"
-)
+@unittest.skipIf(_SYNC_BN_V7, "Skip FileStoreTest for torch >= 2.0.0")
 class FileStoreTest(TestCase, StoreTestBase):
     def setUp(self):
         super(FileStoreTest, self).setUp()
@@ -157,9 +156,7 @@ class HashStoreTest(TestCase, StoreTestBase):
         return store
 
 
-@unittest.skipIf(
-    _SYNC_BN_V7, "Skip PrefixFileStoreTest for torch >= 2.0.0"
-)
+@unittest.skipIf(_SYNC_BN_V7, "Skip PrefixFileStoreTest for torch >= 2.0.0")
 class PrefixFileStoreTest(TestCase, StoreTestBase):
     def setUp(self):
         super(PrefixFileStoreTest, self).setUp()
@@ -857,8 +854,8 @@ class ComputeBucketAssignmentTest(TestCase):
         ]
         if _SYNC_BN_V5:
             result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
-            tensors, [400]
-        )
+                tensors, [400]
+            )
             self.assertTrue(all(size_lim == 400 for size_lim in per_bucket_size_limits))
             self.assertEqual([[0], [1], [2], [3]], result)
         else:
@@ -1070,9 +1067,7 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
         except OSError:
             pass
 
-    @unittest.skipIf(
-        _SYNC_BN_V6, "Skip test for torch >= 1.11.0"
-    )
+    @unittest.skipIf(_SYNC_BN_V6, "Skip test for torch >= 1.11.0")
     def test_distributed_debug_mode(self):
         # Default should be off
         default_debug_mode = dist._get_debug_mode()
@@ -1098,9 +1093,7 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
             with self.assertRaisesRegex(RuntimeError, "to be one of"):
                 dist._get_debug_mode()
 
-    @unittest.skipIf(
-        not _SYNC_BN_V6, "Skip test for torch < 1.11.0"
-    )
+    @unittest.skipIf(not _SYNC_BN_V6, "Skip test for torch < 1.11.0")
     def test_debug_level(self):
         try:
             del os.environ["TORCH_DISTRIBUTED_DEBUG"]
@@ -1138,6 +1131,7 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
             os.environ["TORCH_DISTRIBUTED_DEBUG"] = str(mode)
             with self.assertRaisesRegex(RuntimeError, "The value of TORCH_DISTRIBUTED_DEBUG must"):
                 dist.set_debug_level_from_env()
+
 
 if __name__ == "__main__":
     assert (
