@@ -132,7 +132,10 @@ from tests.internal.torch import expecttest
 
 import torch
 import torch.cuda
-from torch._six import string_classes
+if hasattr(torch, "_six"):
+    from torch._six import string_classes
+else:
+    string_classes = str
 import torch.backends.cudnn
 import torch.backends.mkl
 from enum import Enum
@@ -318,7 +321,7 @@ def shell(command, cwd=None, env=None):
     #
     # https://github.com/python/cpython/blob/71b6c1af727fbe13525fb734568057d78cea33f3/Lib/subprocess.py#L309-L323
     assert not isinstance(
-        command, torch._six.string_classes
+        command, string_classes
     ), "Command to shell should be a list or tuple of tokens"
     p = subprocess.Popen(command, universal_newlines=True, cwd=cwd, env=env)
     return wait_for_process(p)
@@ -1040,7 +1043,7 @@ def check_slow_test_from_stats(test):
     global slow_tests_dict
     if slow_tests_dict is None:
         if not IS_SANDCASTLE and os.getenv("PYTORCH_RUN_DISABLED_TESTS", "0") != "1":
-            url = "https://raw.githubusercontent.com/pytorch/test-infra/master/stats/slow-tests.json"
+            url = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/slow-tests.json"
             slow_tests_dict = fetch_and_cache(".pytorch-slow-tests", url)
         else:
             slow_tests_dict = {}
@@ -1374,10 +1377,11 @@ class TestCase(expecttest.TestCase):
         torch.bfloat16: (0.016, 1e-5),
         torch.float32: (1.3e-6, 1e-5),
         torch.float64: (1e-7, 1e-7),
-        torch.complex32: (0.001, 1e-5),
         torch.complex64: (1.3e-6, 1e-5),
         torch.complex128: (1e-7, 1e-7),
     }
+    if hasattr(torch, "complex32"): # torch.complex32 has been removed from 1.11.0
+        dtype_precisions[torch.complex32] = (0.001, 1e-5)
 
     # Returns the "default" rtol and atol for comparing scalars or
     # tensors of the given dtypes.
@@ -2138,7 +2142,7 @@ class TestCase(expecttest.TestCase):
 def find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(("localhost", 0))
+        sock.bind(('localhost', 0))
         _, port = sock.getsockname()
         return port
 
