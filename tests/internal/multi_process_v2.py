@@ -305,7 +305,7 @@ class MultiProcessTestCase(unittest.TestCase):
         try:
             while True:
                 # check to see if any subprocess exited with an error early.
-                for (i, p) in enumerate(self.processes):
+                for i, p in enumerate(self.processes):
                     # This is the exit code processes exit with if they
                     # encountered an exception.
                     if p.exitcode == MultiProcessTestCase.TEST_ERROR_EXIT_CODE:
