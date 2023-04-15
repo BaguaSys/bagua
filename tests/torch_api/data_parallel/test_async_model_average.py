@@ -35,7 +35,8 @@ def create_model_and_optimizer(warmup_steps):
 
     # wrap model
     algorithm = bagua.algorithms.async_model_average.AsyncModelAverageAlgorithm(
-        sync_interval_ms=20, warmup_steps=warmup_steps,
+        sync_interval_ms=20,
+        warmup_steps=warmup_steps,
     )
     ddp_model = DDP(model, optimizers=[optimizer], algorithm=algorithm)
 
