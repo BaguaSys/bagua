@@ -176,7 +176,6 @@ class MultiProcessTestCase(unittest.TestCase):
             ready_pipes = multiprocessing.connection.wait([parent_pipe, signal_pipe])
 
             if parent_pipe in ready_pipes:
-
                 if parent_pipe.closed:
                     logger.info(
                         f"Pipe closed for process {rank}, stopping event listener thread"
