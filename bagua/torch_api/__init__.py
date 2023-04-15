@@ -2,9 +2,7 @@
 """
 The Bagua communication library PyTorch interface.
 """
-from distutils.errors import (
-    DistutilsPlatformError,
-)
+from distutils.errors import DistutilsPlatformError
 
 try:
     import torch
