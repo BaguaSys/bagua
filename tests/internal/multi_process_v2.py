@@ -380,10 +380,8 @@ class MultiProcessTestCase(unittest.TestCase):
             for i, process in errored_processes:
                 # Get error from pipe.
                 error_message = self.pid_to_pipe[process.pid].recv()
-                error += (
-                    "Process {} exited with error code {} and exception:\n{}\n".format(
-                        i, MultiProcessTestCase.TEST_ERROR_EXIT_CODE, error_message
-                    )
+                error += "Process {} exited with error code {} and exception:\n{}\n".format(
+                    i, MultiProcessTestCase.TEST_ERROR_EXIT_CODE, error_message
                 )
 
             raise RuntimeError(error)
