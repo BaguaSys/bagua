@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eux
 
+CMAKE_VERSION=3.26.3
+HWLOC_VERSION=2.8.0
+OPENMPI_VERSION=4.1.5
+
 exit_and_error() {
     echo "Auto installation is supported only on Ubuntu(18.04) or CentOs(7,8), abort."
     exit
@@ -86,16 +90,16 @@ check_python_version
 python3 -m pip install --upgrade pip -i https://pypi.org/simple
 python3 -m pip install setuptools-rust colorama tqdm wheel -i https://pypi.org/simple
 
-# install cmake 3.22.1
-mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://github.com/Kitware/CMake/releases/download/v3.22.1/cmake-3.22.1-linux-x86_64.sh &&
-    cd /var/tmp && chmod +x cmake-3.22.1-linux-x86_64.sh &&
-    sh cmake-3.22.1-linux-x86_64.sh --prefix=/usr --skip-license &&
-    rm -rf /var/tmp/cmake-3.22.1-linux-x86_64.sh && cd -
+# install cmake
+mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh &&
+    cd /var/tmp && chmod +x cmake-${CMAKE_VERSION}-linux-x86_64.sh &&
+    sh cmake-${CMAKE_VERSION}-linux-x86_64.sh --prefix=/usr --skip-license &&
+    rm -rf /var/tmp/cmake-${CMAKE_VERSION}-linux-x86_64.sh && cd -
 
-# install hwloc 2.7.0
-mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/hwloc/v2.7/hwloc-2.7.0.tar.bz2 &&
-    tar -x -f /var/tmp/hwloc-2.7.0.tar.bz2 -C /var/tmp -j &&
-    cd /var/tmp/hwloc-2.7.0 && ./configure &&
+# install hwloc
+mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/hwloc/v${HWLOC_VERSION%.*}/hwloc-${HWLOC_VERSION}.tar.bz2 &&
+    tar -x -f /var/tmp/hwloc-${HWLOC_VERSION}.tar.bz2 -C /var/tmp -j &&
+    cd /var/tmp/hwloc-${HWLOC_VERSION} && ./configure &&
     make -j$(nproc) &&
     make -j$(nproc) install &&
     rm -rf /var/tmp/hwloc* && cd -
@@ -103,13 +107,13 @@ mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://down
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 export LIBRARY_PATH=/usr/local/lib:$LIBRARY_PATH
 
-# install openmpi 4.1.2
-mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.2.tar.bz2 &&
-    tar -x -f /var/tmp/openmpi-4.1.2.tar.bz2 -C /var/tmp -j &&
-    cd /var/tmp/openmpi-4.1.2 && ./configure --disable-getpwuid --disable-oshmem --enable-fortran --enable-mca-no-build=btl-uct --enable-orterun-prefix-by-default --with-cuda --without-verbs &&
+# install openmpi
+mkdir -p /var/tmp && wget -q -nc --no-check-certificate -P /var/tmp https://download.open-mpi.org/release/open-mpi/v${OPENMPI_VERSION%.*}/openmpi-${OPENMPI_VERSION}.tar.bz2 &&
+    tar -x -f /var/tmp/openmpi-${OPENMPI_VERSION}.tar.bz2 -C /var/tmp -j &&
+    cd /var/tmp/openmpi-${OPENMPI_VERSION} && ./configure --disable-getpwuid --disable-oshmem --enable-fortran --enable-mca-no-build=btl-uct --enable-orterun-prefix-by-default --with-cuda --without-verbs &&
     make -j$(nproc) &&
     make -j$(nproc) install &&
-    rm -rf /var/tmp/openmpi-4.1.2 /var/tmp/openmpi-4.1.2.tar.bz2 && cd -
+    rm -rf /var/tmp/openmpi-${OPENMPI_VERSION} /var/tmp/openmpi-${OPENMPI_VERSION}.tar.bz2 && cd -
 
 # install rust
 if ! command -v cargo &>/dev/null; then
