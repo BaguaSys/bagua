@@ -2,7 +2,8 @@ import enum
 from typing import List
 import sys
 
-if sys.version_info >= (3, 9):
+# Use `typing_extensions.TypedDict` instead of `typing.TypedDict` on Python < 3.11.
+if sys.version_info >= (3, 11):
     from typing import TypedDict  # pytype: disable=not-supported-yet
 else:
     from typing_extensions import TypedDict  # pytype: disable=not-supported-yet
