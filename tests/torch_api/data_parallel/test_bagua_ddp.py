@@ -12,7 +12,7 @@ if not c10d.is_available():
 
 import torch.nn.functional as F
 from torch import nn
-from tests.internal.torch.common_distributed import (
+from tests.internal.multi_process_v2 import (
     MultiProcessTestCase,
     skip_if_lt_x_gpu,
 )

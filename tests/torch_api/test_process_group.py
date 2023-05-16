@@ -78,7 +78,7 @@ class TestProcessGroup(MultiProcessTestCase):
         self.run_test_locally(run_from_torch_group, nprocs, args={}, results=None)
 
 
-from tests.internal.torch.common_distributed import (  # noqa: E402
+from tests.internal.multi_process_v2 import (  # noqa: E402
     MultiProcessTestCase,
     skip_if_lt_x_gpu,
 )

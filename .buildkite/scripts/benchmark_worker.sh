@@ -1,38 +1,45 @@
 #!/usr/bin/env bash
 
-echo "$BUILDKITE_PARALLEL_JOB"
-echo "$BUILDKITE_PARALLEL_JOB_COUNT"
+printenv
 
 set -euox pipefail
 
+python -m http.server 8001 &>/dev/null &
+apt-get update && apt-get install -y iputils-ping netcat
+ping ${MASTER_ADDR} -c 10
+nc -zv $MASTER_ADDR 8001
+nc -zv 127.0.0.1 8001
+
 # 0. install bagua
 cp -a /upstream /workdir
-export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
+export WORKDIR=/workdir && cd $WORKDIR && bash .buildkite/scripts/install_bagua.sh || exit 1
 
 # 1. test communication_primitives api
 echo "begin to test [communication_primitives]"
-COMMUNICATION_SCRIPT="/workdir/examples/communication_primitives/main.py"
-NCCL_SOCKET_IFNAME=^docker,lo,veth python -m bagua.distributed.launch \
+COMMUNICATION_SCRIPT="${WORKDIR}/examples/communication_primitives/main.py"
+NCCL_SOCKET_IFNAME=^docker,lo,veth python -m bagua.distributed.run \
     --nnodes=2 \
     --nproc_per_node 4 \
-    --node_rank=1 \
-    --master_addr="10.158.66.134" \
-    --master_port=1234 \
+    --rdzv_id=${BUILDKITE_BUILD_ID} \
+    --rdzv_backend=c10d \
+    --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+    --rdzv_conf read_timeout=300 \
     ${COMMUNICATION_SCRIPT}
 
 # 2. benchmark test with all communication algorithms
-SYNTHETIC_SCRIPT="/workdir/examples/benchmark/synthetic_benchmark.py"
+SYNTHETIC_SCRIPT="${WORKDIR}/examples/benchmark/synthetic_benchmark.py"
 algorithms=(gradient_allreduce bytegrad decentralized low_precision_decentralized async qadam)
 length=${#algorithms[@]}
 for ((i = 0; i < $length; i++)); do
     echo "begin to test ["${algorithms[$i]}]
     logfile=$(mktemp /tmp/bagua_benchmark_${algorithms[$i]}.XXXXXX.log)
-    NCCL_SOCKET_IFNAME=^docker,lo,veth GLOO_SOCKET_IFNAME=enp96s0f0 python -m bagua.distributed.launch \
+    NCCL_SOCKET_IFNAME=^docker,lo,veth GLOO_SOCKET_IFNAME=enp96s0f0 python -m bagua.distributed.run \
         --nnodes=2 \
         --nproc_per_node 4 \
-        --node_rank=1 \
-        --master_addr="10.158.66.134" \
-        --master_port=1234 \
+        --rdzv_id=${BUILDKITE_BUILD_ID} \
+        --rdzv_backend=c10d \
+        --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+        --rdzv_conf read_timeout=300 \
         ${SYNTHETIC_SCRIPT} \
         --num-iters 100 \
         --algorithm ${algorithms[$i]} \
@@ -43,14 +50,15 @@ for ((i = 0; i < $length; i++)); do
 done
 
 # 3. test moe
-MOE_SCRIPT="/workdir/examples/moe/mnist_main.py"
+MOE_SCRIPT="${WORKDIR}/examples/moe/mnist_main.py"
 logfile=$(mktemp /tmp/bagua_moe_gradient_allreduce.XXXXXX.log)
-NCCL_SOCKET_IFNAME=^docker,lo,veth CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.launch \
+NCCL_SOCKET_IFNAME=^docker,lo,veth CUDA_VISIBLE_DEVICES=0,1 python -m bagua.distributed.run \
     --nnodes=2 \
     --nproc_per_node 2 \
-    --node_rank=1 \
-    --master_addr="10.158.66.134" \
-    --master_port=1234 \
+    --rdzv_id=${BUILDKITE_BUILD_ID} \
+    --rdzv_backend=c10d \
+    --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} \
+    --rdzv_conf read_timeout=300 \
     ${MOE_SCRIPT} \
     --algorithm gradient_allreduce \
     --epochs 5 \

@@ -21,10 +21,14 @@ if not c10d.is_available():
 
 import torch.distributed as dist
 import torch.distributed.algorithms.ddp_comm_hooks.powerSGD_hook as powerSGD
+import torch.distributed.rpc as rpc
 import torch.multiprocessing as mp
 import torch.nn.functional as F
+import torch.testing._internal.common_utils as common
 from torch import nn
 from torch._six import string_classes
+
+import bagua.torch_api.data_parallel.functional as bagua_dist
 from bagua.torch_api.data_parallel import DistributedDataParallel
 from tests.internal.torch.common_distributed import (
     MultiProcessTestCase,
@@ -43,7 +47,6 @@ from tests.internal.torch.common_utils import (
     find_free_port,
 )
 
-import bagua.torch_api.data_parallel.functional as bagua_dist
 
 # load_tests from common_utils is used to automatically filter tests for
 # sharding on sandcastle. This line silences flake warnings
@@ -169,19 +172,58 @@ class TCPStoreTest(TestCase, StoreTestBase):
         return store
 
     def test_address_already_in_use(self):
-        if sys.platform == "win32":
-            err_msg_reg = "Only one usage of each socket address*"
-        else:
-            err_msg_reg = "^Address already in use$"
+        err_msg_reg = "^The server socket has failed to listen on any local "
         with self.assertRaisesRegex(RuntimeError, err_msg_reg):
             addr = DEFAULT_HOSTNAME
-            port = find_free_port()
+            port = common.find_free_port()
 
             # Use noqa to silence flake8.
             # Need to store in an unused variable here to ensure the first
             # object is not destroyed before the second object is created.
-            store1 = c10d.TCPStore(addr, port, 1, True)  # noqa: F841
-            store2 = c10d.TCPStore(addr, port, 1, True)  # noqa: F841
+            store1 = dist.TCPStore(addr, port, 1, True)  # noqa: F841
+            store2 = dist.TCPStore(addr, port, 1, True)  # noqa: F841
+
+    @retry_on_connect_failures
+    def test_multitenancy(self):
+        addr = DEFAULT_HOSTNAME
+        port = common.find_free_port()
+
+        # Use noqa to silence flake8.
+        # Need to store in an unused variable here to ensure the first
+        # object is not destroyed before the second object is created.
+        store1 = dist.TCPStore(addr, port, 1, True, multi_tenant=True)  # type: ignore[call-arg] # noqa: F841
+        store2 = dist.TCPStore(addr, port, 1, True, multi_tenant=True)  # type: ignore[call-arg] # noqa: F841
+
+    @skip_if_win32()
+    @retry_on_connect_failures
+    def test_init_pg_and_rpc_with_same_socket(self):
+        addr = DEFAULT_HOSTNAME
+        port = common.find_free_port()
+
+        os.environ["MASTER_ADDR"] = addr
+        os.environ["MASTER_PORT"] = str(port)
+
+        # We internally use a multi-tenant TCP store. Both PG and RPC should successfully
+        # initialize even when using the same socket address.
+
+        dist.init_process_group(
+            backend="gloo",
+            init_method="env://",
+            rank=0,
+            world_size=1,
+        )
+
+        backend_opts = rpc.TensorPipeRpcBackendOptions(
+            init_method=f"tcp://{addr}:{port}"
+        )
+        rpc.init_rpc(
+            name="worker0",
+            rank=0,
+            world_size=1,
+            rpc_backend_options=backend_opts,
+        )
+
+        rpc.shutdown()
 
     # The TCPStore has 6 keys in test_set_get. It contains the 5 keys added by
     # the user and one additional key used for coordinate all the workers.
@@ -215,49 +257,34 @@ class TCPStoreTest(TestCase, StoreTestBase):
     def test_numkeys_delkeys(self):
         self._test_numkeys_delkeys(self._create_store())
 
-    def _create_client(self, index, addr, port, world_size, messages):
-        try:
-            client_store = dist.TCPStore(addr, port, world_size, timeout=timedelta(seconds=10))
-            self.assertEqual("value".encode(), client_store.get("key"))
-            client_store.set(f"new_key{index}", f"new_value{index}")
-            self.assertEqual(f"next_value{index}".encode(),
-                             client_store.compare_set(f"new_key{index}", f"new_value{index}", f"next_value{index}"))
-        except Exception:
-            messages.put('Caught exception: \n{}exiting process with exit code: {}'
-                         .format(traceback.format_exc(), MultiProcessTestCase.TEST_ERROR_EXIT_CODE))
-            sys.exit(MultiProcessTestCase.TEST_ERROR_EXIT_CODE)
+    def _create_client(self, index, addr, port, world_size):
+        client_store = dist.TCPStore(
+            addr, port, world_size=world_size, timeout=timedelta(seconds=10)
+        )
+        self.assertEqual("value".encode(), client_store.get("key"))
+        client_store.set(f"new_key{index}", f"new_value{index}")
+        self.assertEqual(
+            f"next_value{index}".encode(),
+            client_store.compare_set(
+                f"new_key{index}", f"new_value{index}", f"next_value{index}"
+            ),
+        )
 
     def _multi_worker_helper(self, world_size):
         addr = DEFAULT_HOSTNAME
         server_store = create_tcp_store(addr, world_size, wait_for_workers=False)
         server_store.set("key", "value")
         port = server_store.port
-        messages = mp.Queue()
-        processes = []
-        num_proccesses = random.randint(3, 5) if world_size == -1 else world_size
-        for i in range(num_proccesses):
-            p = mp.Process(target=self._create_client, args=(i, addr, port, world_size, messages))
-            processes.append(p)
-            p.start()
-        for p in processes:
-            p.join()
-        error_message = ""
-        while not messages.empty():
-            error_message += messages.get() + "\n"
-        if any([p.exitcode != 0 for p in processes]):
-            raise RuntimeError(error_message)
 
-    @unittest.skipIf(
-        IS_WINDOWS, "Skip test for windows due to multiprocessing library error when using windows spawn"
-    )
+        num_indices = world_size if world_size else 1
+        for i in range(num_indices):
+            self._create_client(i, addr, port, world_size)
+
     def test_multi_worker_with_fixed_world_size(self):
         self._multi_worker_helper(5)
 
-    @unittest.skipIf(
-        IS_WINDOWS, "Skip test for windows due to multiprocessing library error when using windows spawn"
-    )
     def test_multi_worker_with_nonfixed_world_size(self):
-        self._multi_worker_helper(-1)
+        self._multi_worker_helper(None)
 
 
 class PrefixTCPStoreTest(TestCase, StoreTestBase):
@@ -845,7 +872,10 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([100], dtype=torch.float),
             torch.empty([50], dtype=torch.float),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [400])
+        result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+            tensors, [400]
+        )
+        self.assertTrue(all(size_lim == 400 for size_lim in per_bucket_size_limits))
         self.assertEqual([[0], [1], [2], [3]], result)
 
     def test_single_limit_multi_dtype(self):
@@ -857,7 +887,10 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([50], dtype=torch.float),
             torch.empty([25], dtype=torch.double),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [400])
+        result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+            tensors, [400]
+        )
+        self.assertTrue(all(size_lim == 400 for size_lim in per_bucket_size_limits))
         self.assertEqual([[0, 2], [1, 3], [4], [5]], result)
 
     def test_multi_limit_single_dtype(self):
@@ -867,7 +900,10 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([10], dtype=torch.float),
             torch.empty([10], dtype=torch.float),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [40, 80])
+        result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+            tensors, [40, 80]
+        )
+        self.assertEqual(per_bucket_size_limits, [40, 80, 80])
         self.assertEqual([[0], [1, 2], [3]], result)
 
     def test_multi_limit_multi_dtype(self):
@@ -879,8 +915,11 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([50], dtype=torch.float),
             torch.empty([25], dtype=torch.double),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [200, 400])
+        result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+            tensors, [200, 400]
+        )
         self.assertEqual([[0], [1], [2, 4], [3, 5]], result)
+        self.assertEqual(per_bucket_size_limits, [200, 200, 400, 400])
 
 
 class AbstractCommTest(object):
@@ -1032,20 +1071,33 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
         except OSError:
             pass
 
-    def test_distributed_debug_mode(self):
+    def test_debug_level(self):
+        try:
+            del os.environ["TORCH_DISTRIBUTED_DEBUG"]
+        except KeyError:
+            pass
+
+        dist.set_debug_level_from_env()
         # Default should be off
-        default_debug_mode = dist._get_debug_mode()
-        self.assertEqual(default_debug_mode, dist._DistributedDebugLevel.OFF)
+        default_debug_mode = dist.get_debug_level()
+        self.assertEqual(default_debug_mode, dist.DebugLevel.OFF)
         mapping = {
-            "OFF": dist._DistributedDebugLevel.OFF,
-            "INFO": dist._DistributedDebugLevel.INFO,
-            "DETAIL": dist._DistributedDebugLevel.DETAIL,
+            "OFF": dist.DebugLevel.OFF,
+            "off": dist.DebugLevel.OFF,
+            "oFf": dist.DebugLevel.OFF,
+            "INFO": dist.DebugLevel.INFO,
+            "info": dist.DebugLevel.INFO,
+            "INfO": dist.DebugLevel.INFO,
+            "DETAIL": dist.DebugLevel.DETAIL,
+            "detail": dist.DebugLevel.DETAIL,
+            "DeTaIl": dist.DebugLevel.DETAIL,
         }
         invalid_debug_modes = ["foo", 0, 1, -1]
 
         for mode in mapping.keys():
             os.environ["TORCH_DISTRIBUTED_DEBUG"] = str(mode)
-            set_debug_mode = dist._get_debug_mode()
+            dist.set_debug_level_from_env()
+            set_debug_mode = dist.get_debug_level()
             self.assertEqual(
                 set_debug_mode,
                 mapping[mode],
@@ -1054,8 +1106,10 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
 
         for mode in invalid_debug_modes:
             os.environ["TORCH_DISTRIBUTED_DEBUG"] = str(mode)
-            with self.assertRaisesRegex(RuntimeError, "to be one of"):
-                dist._get_debug_mode()
+            with self.assertRaisesRegex(
+                RuntimeError, "The value of TORCH_DISTRIBUTED_DEBUG must"
+            ):
+                dist.set_debug_level_from_env()
 
 
 if __name__ == "__main__":

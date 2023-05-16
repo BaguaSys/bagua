@@ -6,6 +6,9 @@ import logging
 import bagua.torch_api as bagua
 
 
+logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
+
+
 def main():
     torch.set_printoptions(precision=20)
     parser = argparse.ArgumentParser(description="Communication Primitives Example")
@@ -15,11 +18,6 @@ def main():
 
     torch.cuda.set_device(bagua.get_local_rank())
     bagua.init_process_group()
-
-    logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.ERROR)
-    if bagua.get_rank() == 0:
-        logging.getLogger().setLevel(logging.INFO)
-
     comm = bagua.communication._get_default_group().get_global_communicator()
 
     # send, recv
