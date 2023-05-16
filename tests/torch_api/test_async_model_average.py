@@ -1,13 +1,15 @@
+import logging
+import os
+import unittest
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from tests.internal.common_utils import find_free_port
-import unittest
-import multiprocessing
-import os
 import bagua.torch_api as bagua
-from tests import skip_if_cuda_not_available
-import logging
+
+from tests.internal.multi_process_v2 import MultiProcessTestCase, skip_if_lt_x_gpu
+
+logger = logging.getLogger(__name__)
 
 
 class Net(nn.Module):
@@ -25,24 +27,10 @@ class Net(nn.Module):
         return F.softmax(x, dim=1)
 
 
-def run_model_wrapper(rank, env, fn, warmup_steps):
-    # initialize subprocess env
-    os.environ["WORLD_SIZE"] = env["WORLD_SIZE"]
-    os.environ["LOCAL_WORLD_SIZE"] = env["LOCAL_WORLD_SIZE"]
-    os.environ["MASTER_ADDR"] = env["MASTER_ADDR"]
-    os.environ["MASTER_PORT"] = env["MASTER_PORT"]
-    os.environ["BAGUA_SERVICE_PORT"] = env["BAGUA_SERVICE_PORT"]
-    os.environ["RANK"] = str(rank)
-    os.environ["LOCAL_RANK"] = str(rank)
-
-    # init bagua distributed process group
-    torch.cuda.set_device(rank)
-    bagua.init_process_group()
-
-    # construct model and optimizer, etc.
+def create_model_and_optimizer(warmup_steps):
+    # construct model and optimizer
     model = Net().cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-    loss_fn = nn.MSELoss()
 
     # wrap model
     algorithm = bagua.algorithms.async_model_average.AsyncModelAverageAlgorithm(
@@ -51,87 +39,62 @@ def run_model_wrapper(rank, env, fn, warmup_steps):
     )
     model = model.with_bagua([optimizer], algorithm)
 
-    fn(model, optimizer, loss_fn)
+    return model, optimizer
 
 
-def train_epoch(epoch, model, optimizer, loss_fn):
-    logging.debug("Training epoch {}".format(epoch))
+def train_epoch(epoch, model, optimizer):
+    logger.debug("Training epoch {}".format(epoch))
     for _ in range(10):
         data = torch.randn(4, 2).cuda()
         target = torch.randn(4, 4).cuda()
 
         optimizer.zero_grad()
         output = model(data)
-        loss = loss_fn(output, target)
+        loss = nn.MSELoss()(output, target)
 
         loss.backward()
         optimizer.step()
 
 
-def run_epochs(model, optimizer, loss_fn):
-    for epoch in range(100):
-        train_epoch(epoch, model, optimizer, loss_fn)
-    model.bagua_algorithm.abort(model)
+class TestAsyncModelAverage(MultiProcessTestCase):
+    def setUp(self):
+        super(TestAsyncModelAverage, self).setUp()
+        self._spawn_processes()
 
+    def tearDown(self):
+        super(TestAsyncModelAverage, self).tearDown()
+        try:
+            os.remove(self.file_name)
+        except OSError:
+            pass
 
-def run_multiple_aborts(model, optimizer, loss_fn):
-    for epoch in range(2):
-        model.bagua_algorithm.resume(model)
-        model.bagua_algorithm.abort(model)
-        model.bagua_algorithm.resume(model)
-        for _ in range(100):
-            train_epoch(epoch, model, optimizer, loss_fn)
+    @property
+    def world_size(self) -> int:
+        return 4
 
-        model.bagua_algorithm.abort(model)
-        model.bagua_algorithm.abort(model)
-
-
-class TestAsyncModelAverage(unittest.TestCase):
-    @skip_if_cuda_not_available()
+    @skip_if_lt_x_gpu(4)
     def test_algorithm(self):
-        nprocs = torch.cuda.device_count()
-        env = {
-            "WORLD_SIZE": str(nprocs),
-            "LOCAL_WORLD_SIZE": str(nprocs),
-            "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port(8000, 8100)),
-            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
-        }
+        self._init_bagua_distributed()
+        model, optimizer = create_model_and_optimizer(warmup_steps=0)
 
-        mp = multiprocessing.get_context("spawn")
-        processes = []
-        for i in range(nprocs):
-            p = mp.Process(target=run_model_wrapper, args=(i, env, run_epochs, 0))
-            p.start()
-            processes.append(p)
+        for epoch in range(100):
+            train_epoch(epoch, model, optimizer)
+        model.bagua_algorithm.abort(model)
 
-        for p in processes:
-            p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
-
-    @skip_if_cuda_not_available()
+    @skip_if_lt_x_gpu(4)
     def test_multiple_aborts(self):
-        nprocs = torch.cuda.device_count()
-        env = {
-            "WORLD_SIZE": str(nprocs),
-            "LOCAL_WORLD_SIZE": str(nprocs),
-            "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(find_free_port(8000, 8100)),
-            "BAGUA_SERVICE_PORT": str(find_free_port(9000, 9100)),
-        }
+        self._init_bagua_distributed()
+        model, optimizer = create_model_and_optimizer(warmup_steps=10)
 
-        mp = multiprocessing.get_context("spawn")
-        processes = []
-        for i in range(nprocs):
-            p = mp.Process(
-                target=run_model_wrapper, args=(i, env, run_multiple_aborts, 10)
-            )
-            p.start()
-            processes.append(p)
+        for i in range(2):
+            model.bagua_algorithm.resume(model)
+            model.bagua_algorithm.abort(model)
+            model.bagua_algorithm.resume(model)
+            for epoch in range(100):
+                train_epoch(i * 100 + epoch, model, optimizer)
 
-        for p in processes:
-            p.join(timeout=60)
-            self.assertTrue(p.exitcode == 0)
+            model.bagua_algorithm.abort(model)
+            model.bagua_algorithm.abort(model)
 
 
 if __name__ == "__main__":
