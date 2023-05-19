@@ -26,6 +26,9 @@ _SYNC_BN_V2 = LooseVersion(torch.__version__) >= LooseVersion("1.5.0") and Loose
 ) <= LooseVersion("1.6.0")
 _SYNC_BN_V3 = LooseVersion(torch.__version__) >= LooseVersion("1.6.0")
 _SYNC_BN_V4 = LooseVersion(torch.__version__) >= LooseVersion("1.9.0")
+_SYNC_BN_V5 = LooseVersion(torch.__version__) >= LooseVersion("1.10.0")
+_SYNC_BN_V6 = LooseVersion(torch.__version__) >= LooseVersion("1.11.0")
+_SYNC_BN_V7 = LooseVersion(torch.__version__) >= LooseVersion("2.0.0")
 
 
 class SyncBatchNorm(_BatchNorm):

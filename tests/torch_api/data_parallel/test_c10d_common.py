@@ -24,7 +24,11 @@ import torch.distributed.algorithms.ddp_comm_hooks.powerSGD_hook as powerSGD
 import torch.multiprocessing as mp
 import torch.nn.functional as F
 from torch import nn
-from torch._six import string_classes
+
+if hasattr(torch, "_six"):
+    from torch._six import string_classes
+else:
+    string_classes = str
 from bagua.torch_api.data_parallel import DistributedDataParallel
 from tests.internal.torch.common_distributed import (
     MultiProcessTestCase,
@@ -44,6 +48,7 @@ from tests.internal.torch.common_utils import (
 )
 
 import bagua.torch_api.data_parallel.functional as bagua_dist
+from bagua.torch_api.contrib.sync_batchnorm import _SYNC_BN_V5, _SYNC_BN_V6, _SYNC_BN_V7
 
 # load_tests from common_utils is used to automatically filter tests for
 # sharding on sandcastle. This line silences flake warnings
@@ -128,6 +133,7 @@ class StoreTestBase(object):
         return 5
 
 
+@unittest.skipIf(_SYNC_BN_V7, "Skip FileStoreTest for torch >= 2.0.0")
 class FileStoreTest(TestCase, StoreTestBase):
     def setUp(self):
         super(FileStoreTest, self).setUp()
@@ -150,6 +156,7 @@ class HashStoreTest(TestCase, StoreTestBase):
         return store
 
 
+@unittest.skipIf(_SYNC_BN_V7, "Skip PrefixFileStoreTest for torch >= 2.0.0")
 class PrefixFileStoreTest(TestCase, StoreTestBase):
     def setUp(self):
         super(PrefixFileStoreTest, self).setUp()
@@ -172,7 +179,7 @@ class TCPStoreTest(TestCase, StoreTestBase):
         if sys.platform == "win32":
             err_msg_reg = "Only one usage of each socket address*"
         else:
-            err_msg_reg = "^Address already in use$"
+            err_msg_reg = "Address already in use"
         with self.assertRaisesRegex(RuntimeError, err_msg_reg):
             addr = DEFAULT_HOSTNAME
             port = find_free_port()
@@ -180,8 +187,8 @@ class TCPStoreTest(TestCase, StoreTestBase):
             # Use noqa to silence flake8.
             # Need to store in an unused variable here to ensure the first
             # object is not destroyed before the second object is created.
-            store1 = c10d.TCPStore(addr, port, 1, True)  # noqa: F841
-            store2 = c10d.TCPStore(addr, port, 1, True)  # noqa: F841
+            store1 = dist.TCPStore(addr, port, 1, True)  # noqa: F841
+            store2 = dist.TCPStore(addr, port, 1, True)  # noqa: F841
 
     # The TCPStore has 6 keys in test_set_get. It contains the 5 keys added by
     # the user and one additional key used for coordinate all the workers.
@@ -845,8 +852,15 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([100], dtype=torch.float),
             torch.empty([50], dtype=torch.float),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [400])
-        self.assertEqual([[0], [1], [2], [3]], result)
+        if _SYNC_BN_V5:
+            result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+                tensors, [400]
+            )
+            self.assertTrue(all(size_lim == 400 for size_lim in per_bucket_size_limits))
+            self.assertEqual([[0], [1], [2], [3]], result)
+        else:
+            result = dist._compute_bucket_assignment_by_size(tensors, [400])
+            self.assertEqual([[0], [1], [2], [3]], result)
 
     def test_single_limit_multi_dtype(self):
         tensors = [
@@ -857,8 +871,15 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([50], dtype=torch.float),
             torch.empty([25], dtype=torch.double),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [400])
-        self.assertEqual([[0, 2], [1, 3], [4], [5]], result)
+        if _SYNC_BN_V5:
+            result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+                tensors, [400]
+            )
+            self.assertTrue(all(size_lim == 400 for size_lim in per_bucket_size_limits))
+            self.assertEqual([[0, 2], [1, 3], [4], [5]], result)
+        else:
+            result = dist._compute_bucket_assignment_by_size(tensors, [400])
+            self.assertEqual([[0, 2], [1, 3], [4], [5]], result)
 
     def test_multi_limit_single_dtype(self):
         tensors = [
@@ -867,8 +888,15 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([10], dtype=torch.float),
             torch.empty([10], dtype=torch.float),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [40, 80])
-        self.assertEqual([[0], [1, 2], [3]], result)
+        if _SYNC_BN_V5:
+            result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+                tensors, [40, 80]
+            )
+            self.assertEqual(per_bucket_size_limits, [40, 80, 80])
+            self.assertEqual([[0], [1, 2], [3]], result)
+        else:
+            result = dist._compute_bucket_assignment_by_size(tensors, [40, 80])
+            self.assertEqual([[0], [1, 2], [3]], result)
 
     def test_multi_limit_multi_dtype(self):
         tensors = [
@@ -879,8 +907,15 @@ class ComputeBucketAssignmentTest(TestCase):
             torch.empty([50], dtype=torch.float),
             torch.empty([25], dtype=torch.double),
         ]
-        result = dist._compute_bucket_assignment_by_size(tensors, [200, 400])
-        self.assertEqual([[0], [1], [2, 4], [3, 5]], result)
+        if _SYNC_BN_V5:
+            result, per_bucket_size_limits = dist._compute_bucket_assignment_by_size(
+                tensors, [200, 400]
+            )
+            self.assertEqual([[0], [1], [2, 4], [3, 5]], result)
+            self.assertEqual(per_bucket_size_limits, [200, 200, 400, 400])
+        else:
+            result = dist._compute_bucket_assignment_by_size(tensors, [200, 400])
+            self.assertEqual([[0], [1], [2, 4], [3, 5]], result)
 
 
 class AbstractCommTest(object):
@@ -1032,6 +1067,7 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
         except OSError:
             pass
 
+    @unittest.skipIf(_SYNC_BN_V6, "Skip test for torch >= 1.11.0")
     def test_distributed_debug_mode(self):
         # Default should be off
         default_debug_mode = dist._get_debug_mode()
@@ -1056,6 +1092,45 @@ class CommTest(AbstractCommTest, MultiProcessTestCase):
             os.environ["TORCH_DISTRIBUTED_DEBUG"] = str(mode)
             with self.assertRaisesRegex(RuntimeError, "to be one of"):
                 dist._get_debug_mode()
+
+    @unittest.skipIf(not _SYNC_BN_V6, "Skip test for torch < 1.11.0")
+    def test_debug_level(self):
+        try:
+            del os.environ["TORCH_DISTRIBUTED_DEBUG"]
+        except KeyError:
+            pass
+
+        dist.set_debug_level_from_env()
+        # Default should be off
+        default_debug_mode = dist.get_debug_level()
+        self.assertEqual(default_debug_mode, dist.DebugLevel.OFF)
+        mapping = {
+            "OFF": dist.DebugLevel.OFF,
+            "off": dist.DebugLevel.OFF,
+            "oFf": dist.DebugLevel.OFF,
+            "INFO": dist.DebugLevel.INFO,
+            "info": dist.DebugLevel.INFO,
+            "INfO": dist.DebugLevel.INFO,
+            "DETAIL": dist.DebugLevel.DETAIL,
+            "detail": dist.DebugLevel.DETAIL,
+            "DeTaIl": dist.DebugLevel.DETAIL,
+        }
+        invalid_debug_modes = ["foo", 0, 1, -1]
+
+        for mode in mapping.keys():
+            os.environ["TORCH_DISTRIBUTED_DEBUG"] = str(mode)
+            dist.set_debug_level_from_env()
+            set_debug_mode = dist.get_debug_level()
+            self.assertEqual(
+                set_debug_mode,
+                mapping[mode],
+                f"Expected {mode} to map to {mapping[mode]} but got {set_debug_mode}",
+            )
+
+        for mode in invalid_debug_modes:
+            os.environ["TORCH_DISTRIBUTED_DEBUG"] = str(mode)
+            with self.assertRaisesRegex(RuntimeError, "The value of TORCH_DISTRIBUTED_DEBUG must"):
+                dist.set_debug_level_from_env()
 
 
 if __name__ == "__main__":
