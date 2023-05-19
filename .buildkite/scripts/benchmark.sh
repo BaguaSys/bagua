@@ -5,9 +5,7 @@ echo "$BUILDKITE_PARALLEL_JOB_COUNT"
 
 set -euox pipefail
 
-cp -a /upstream /workdir
-
-export HOME=/workdir && cd $HOME && bash .buildkite/scripts/install_bagua.sh || exit 1
+bash install_bagua.sh /upstream /workdir || exit 1
 
 SYNTHETIC_SCRIPT="examples/benchmark/synthetic_benchmark.py"
 

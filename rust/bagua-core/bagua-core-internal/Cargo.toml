@@ -39,7 +39,7 @@ features = ["auto-initialize"]
 
 [build-dependencies]
 shadow-rs = "0.11"
-cmake = "0.1"
+cmake = "0.1.49"
 cpp_build = "0.5"
 cc = "1.0"
 cmd_lib = "1.3"
