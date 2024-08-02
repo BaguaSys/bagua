@@ -197,7 +197,7 @@ def get_args_parser() -> ArgumentParser:
         "--nproc_per_node",
         action=env,
         type=str,
-        default="auto",
+        default="1",
         help="Number of workers per node; supported values: [auto, cpu, gpu, int].",
     )
 
@@ -250,7 +250,7 @@ def get_args_parser() -> ArgumentParser:
         "--max_restarts",
         action=env,
         type=int,
-        default=3,
+        default=0,
         help="Maximum number of worker group restarts before failing.",
     )
     parser.add_argument(
@@ -492,8 +492,8 @@ def config_from_args(args) -> Tuple[LaunchConfig, Union[Callable, str], List[str
     nproc_per_node = determine_local_world_size(args.nproc_per_node)
     if "OMP_NUM_THREADS" not in os.environ and nproc_per_node > 1:
         omp_num_threads = 1
-        print(
-            f"*****************************************\n"
+        log.warning(
+            f"\n*****************************************\n"
             f"Setting OMP_NUM_THREADS environment variable for each process to be "
             f"{omp_num_threads} in default, to avoid your system being overloaded, "
             f"please further tune the variable for optimal performance in "
